@@ -1,0 +1,1 @@
+const API_BASE = "https://ecommerce-backend-8ykq.onrender.com";
