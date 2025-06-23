@@ -11,11 +11,10 @@ async function loadProducts() {
     data.forEach(product => {
       const div = document.createElement('div');
       div.innerHTML = `
-        <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-          <h3>${product.name}</h3>
-          <p>${product.description}</p>
-          <strong>Price: ₹${product.price}</strong>
-        </div>
+        <img src="${product.image}" alt="${product.name}" />
+        <h3>${product.name}</h3>
+        <p>${product.description}</p>
+        <strong>₹${product.price}</strong>
       `;
       productList.appendChild(div);
     });
