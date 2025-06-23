@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Cart</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .cart-item {
+      background-color: white;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .checkout-btn {
+      background-color: green;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <h2 class="section-title">Your Shopping Cart</h2>
+    <div id="cart-items"></div>
+    <h3 id="total"></h3>
+    <button class="checkout-btn" onclick="goToCheckout()">Proceed to Checkout</button>
+  </main>
+
+  <script>
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    const container = document.getElementById("cart-items");
+    let total = 0;
+
+    cart.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "cart-item";
+      div.innerHTML = `
+        <h3>${item.name}</h3>
+        <p>${item.description}</p>
+        <strong>Price: ₹${item.price}</strong>
+      `;
+      container.appendChild(div);
+      total += item.price;
+    });
+
+    document.getElementById("total").textContent = `Total: ₹${total}`;
+
+    function goToCheckout() {
+      window.location.href = "checkout.html";
+    }
+  </script>
+
+</body>
+</html>
