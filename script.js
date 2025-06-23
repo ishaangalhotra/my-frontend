@@ -15,12 +15,21 @@ async function loadProducts() {
         <h3>${product.name}</h3>
         <p>${product.description}</p>
         <strong>₹${product.price}</strong>
+        <br>
+        <button onclick='addToCart(${JSON.stringify(product)})'>Add to Cart</button>
       `;
       productList.appendChild(div);
     });
   } catch (err) {
     console.error("Failed to load products:", err);
   }
+}
+
+function addToCart(product) {
+  let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  cart.push(product);
+  localStorage.setItem("cart", JSON.stringify(cart));
+  alert(`${product.name} added to cart!`);
 }
 
 window.onload = loadProducts;
