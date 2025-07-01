@@ -1,4 +1,4 @@
-const API_BASE = "https://ecommerce-backend-8ykq.onrender.com";
+const API_BASE = "https://ecommerce-backend-8ykq.onrender.com"; // Your Render backend URL
 
 async function loadProducts() {
   try {
@@ -10,9 +10,9 @@ async function loadProducts() {
 
     data.forEach(product => {
       const div = document.createElement('div');
+      div.className = "product-card"; // Added class for styling if needed
       div.innerHTML = `
-        <img src="${product.image}" alt="${product.name}" />
-        <h3>${product.name}</h3>
+        <img src="${product.imageUrl}" alt="${product.name}" /> <h3>${product.name}</h3>
         <p>${product.description}</p>
         <strong>₹${product.price}</strong>
         <br>
@@ -27,6 +27,7 @@ async function loadProducts() {
 
 function addToCart(product) {
   let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  // You might want to check if the product is already in the cart and just update quantity
   cart.push(product);
   localStorage.setItem("cart", JSON.stringify(cart));
   alert(`${product.name} added to cart!`);

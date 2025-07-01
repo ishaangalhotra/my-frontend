@@ -48,20 +48,25 @@
     </div>
   </header>
 
+  <!-- Register Form -->
   <div class="register-box">
     <h2>Create an Account</h2>
     <div class="message" id="message"></div>
 
-    <input type="text" id="name" placeholder="Full Name" required />
+    <input type="text" id="username" placeholder="Full Name" required />
     <input type="email" id="email" placeholder="Email" required />
     <input type="password" id="password" placeholder="Password" required />
 
     <button onclick="register()">Register</button>
   </div>
 
+  <!-- ✅ Load backend URL config -->
+  <script src="config.js"></script>
+
+  <!-- Register script -->
   <script>
     async function register() {
-      const name = document.getElementById('name').value.trim();
+      const name = document.getElementById('username').value.trim();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value.trim();
 
@@ -71,7 +76,7 @@
       }
 
       try {
-        const res = await fetch('https://ecommerce-backend-8ykq.onrender.com/api/users/register', {
+        const res = await fetch(`${BACKEND_URL}/api/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password })
@@ -87,7 +92,8 @@
         }
 
       } catch (err) {
-        document.getElementById("message").textContent = "Error registering.";
+        console.error("Error:", err);
+        document.getElementById("message").textContent = "Server error or connection failed.";
       }
     }
   </script>

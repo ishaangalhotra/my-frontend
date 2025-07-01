@@ -1,85 +1,93 @@
-!DOCTYPE html
-html lang=en
-head
-  meta charset=UTF-8
-  titleLogintitle
-  link rel=stylesheet href=styles.css
-  style
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Add specific styles for login.html here if needed, or define in styles.css */
     .login-box {
-      background white;
-      max-width 400px;
-      margin 60px auto;
-      padding 30px;
-      box-shadow 0 0 10px rgba(0,0,0,0.1);
+      background: white;
+      max-width: 400px;
+      margin: 60px auto;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
 
     input {
-      width 100%;
-      margin-bottom 15px;
-      padding 10px;
-      font-size 16px;
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 16px;
     }
 
     button {
-      padding 10px;
-      width 100%;
-      background #2874f0;
-      color white;
-      border none;
-      font-size 16px;
-      cursor pointer;
+      padding: 10px;
+      width: 100%;
+      background: #2874f0;
+      color: white;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
     }
 
     .message {
-      color red;
-      text-align center;
-      margin-bottom 10px;
+      color: red;
+      text-align: center;
+      margin-bottom: 10px;
     }
-  style
-head
-body
+  </style>
+</head>
+<body>
 
-  header class=header
-    div class=logoa href=index.html style=colorwhite; text-decorationnone;Flipkartadiv
-    div class=nav-links
-      a href=index.htmlHomea
-    div
-  header
+  <header class="header">
+    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+    </div>
+  </header>
 
-  div class=login-box
-    h2Loginh2
-    div class=message id=messagediv
-    input type=email id=email placeholder=Email required 
-    input type=password id=password placeholder=Password required 
-    button onclick=login()Loginbutton
-  div
+  <div class="login-box">
+    <h2>Login</h2>
+    <div class="message" id="message"></div>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button onclick="login()">Login</button>
+  </div>
 
-  script
+  <script>
     async function login() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!email || !password) {
+        document.getElementById("message").textContent = "Please enter all fields";
+        return;
+      }
 
       try {
-        const res = await fetch('httpsecommerce-backend-8ykq.onrender.comapiuserslogin', {
-          method 'POST',
-          headers { 'Content-Type' 'applicationjson' },
-          body JSON.stringify({ email, password })
+        const res = await fetch('https://ecommerce-backend-8ykq.onrender.com/api/users/login', { // Corrected URL
+          method: 'POST', // Corrected syntax
+          headers: { 'Content-Type': 'application/json' }, // Corrected syntax
+          body: JSON.stringify({ email, password })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          localStorage.setItem(user, JSON.stringify(data));
-          window.location.href = index.html;
+          localStorage.setItem("user", JSON.stringify(data.user)); // Corrected key, only store user data
+          localStorage.setItem("token", data.token); // Store token separately
+          window.location.href = "index.html"; // Redirect to home on success
         } else {
-          document.getElementById(message).textContent = data.message  Login failed.;
+          document.getElementById("message").textContent = data.message || "Login failed.";
         }
 
       } catch (err) {
-        document.getElementById(message).textContent = Error logging in.;
+        console.error("Error during login:", err);
+        document.getElementById("message").textContent = "Network error or server unavailable.";
       }
     }
-  script
+  </script>
 
-body
-html
+</body>
+</html>
