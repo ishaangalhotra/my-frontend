@@ -1,66 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Register</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Add specific styles for register.html here if needed, or define in styles.css */
+    .register-box {
+      background: white;
+      max-width: 400px;
+      margin: 60px auto;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    input {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px;
+      width: 100%;
+      background: #2874f0;
+      color: white;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .message {
+      color: red;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Header -->
   <header class="header">
-    <div class="logo"><a href="index.html" style="color:white;">Flipkart</a></div>
+    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
     <div class="nav-links">
-      <a href="login.html">Login</a>
       <a href="index.html">Home</a>
     </div>
   </header>
 
-  <!-- Register Form -->
   <div class="register-box">
     <h2>Create an Account</h2>
     <div class="message" id="message"></div>
 
-    <input type="text" id="username" placeholder="Full Name" />
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
+    <input type="text" id="username" placeholder="Full Name" required /> <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+
     <button onclick="register()">Register</button>
   </div>
 
-  <!-- Load backend base URL -->
-  <script src="config.js"></script>
-
-  <!-- Register Logic -->
   <script>
     async function register() {
-      const name = document.getElementById('username').value.trim();
+      // Changed 'name' to 'username' here to match backend
+      const username = document.getElementById('username').value.trim();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value.trim();
 
-      if (!name || !email || !password) {
+      if (!username || !email || !password) {
         document.getElementById("message").textContent = "Please enter all fields";
         return;
       }
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/users/register`, {
+        const res = await fetch('https://ecommerce-backend-8ykq.onrender.com/api/users/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
+          body: JSON.stringify({ username, email, password }) // Changed 'name' to 'username' here
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          alert("✅ Registered successfully! Please log in.");
+          alert("âœ… Registered successfully! Please log in.");
           window.location.href = "login.html";
         } else {
           document.getElementById("message").textContent = data.message || "Registration failed.";
         }
 
       } catch (err) {
-        console.error("Error:", err);
-        document.getElementById("message").textContent = "Server error or connection failed.";
+        console.error("Error during registration:", err);
+        document.getElementById("message").textContent = "Network error or server unavailable.";
       }
     }
   </script>
