@@ -1,36 +1,45 @@
-const API_BASE = "https://ecommerce-backend-8ykq.onrender.com"; // Your Render backend URL
+// Add product upload for sellers
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("uploadForm");
+  if (form) {
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const name = document.getElementById("name").value;
+      const description = document.getElementById("description").value;
+      const price = document.getElementById("price").value;
+      const image = document.getElementById("image").value;
+      const token = localStorage.getItem("token");
 
-async function loadProducts() {
-  try {
-    const res = await fetch(`${API_BASE}/api/products`);
-    const data = await res.json();
+      if (!token) {
+        alert("Login required");
+        window.location.href = "login.html";
+        return;
+      }
 
-    const productList = document.getElementById('product-list');
-    productList.innerHTML = "";
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/products`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name, description, price, image }),
+        });
 
-    data.forEach(product => {
-      const div = document.createElement('div');
-      div.className = "product-card"; // Added class for styling if needed
-      div.innerHTML = `
-        <img src="${product.imageUrl}" alt="${product.name}" /> <h3>${product.name}</h3>
-        <p>${product.description}</p>
-        <strong>₹${product.price}</strong>
-        <br>
-        <button onclick='addToCart(${JSON.stringify(product)})'>Add to Cart</button>
-      `;
-      productList.appendChild(div);
+        const data = await response.json();
+        if (response.ok) {
+          document.getElementById("uploadStatus").innerText = "✅ Product uploaded!";
+        } else {
+          document.getElementById("uploadStatus").innerText = "❌ Error: " + data.message;
+        }
+      } catch (err) {
+        document.getElementById("uploadStatus").innerText = "❌ Server error.";
+      }
     });
-  } catch (err) {
-    console.error("Failed to load products:", err);
   }
-}
+});
 
-function addToCart(product) {
-  let cart = JSON.parse(localStorage.getItem("cart")) || [];
-  // You might want to check if the product is already in the cart and just update quantity
-  cart.push(product);
-  localStorage.setItem("cart", JSON.stringify(cart));
-  alert(`${product.name} added to cart!`);
+function logout() {
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
 }
-
-window.onload = loadProducts;
