@@ -1,356 +1,413 @@
 // config.js should be loaded before this script to define BACKEND_URL
 // const BACKEND_URL = "https://ecommerce-backend-8ykq.onrender.com"; // This comes from config.js
 
-// Function to load and display products on the main page
-async function loadProducts() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/products`);
-    const data = await res.json();
+// DOM Elements
+const elements = {
+  productList: document.getElementById('product-list'),
+  cartItems: document.getElementById('cart-items'),
+  totalElement: document.getElementById('total'),
+  messageElement: document.getElementById('message'),
+  uploadStatusElement: document.getElementById('uploadStatus'),
+  uploadForm: document.getElementById('uploadForm')
+};
 
-    const productList = document.getElementById('product-list');
-    if (productList) { // Only try to render if product-list element exists
-        productList.innerHTML = ""; // Clear existing products
-        if (data.length === 0) {
-            productList.innerHTML = "<p style='text-align: center; color: #555;'>No products available yet.</p>";
-            return;
-        }
-        data.forEach(product => {
-            const div = document.createElement('div');
-            div.className = "product-card";
-            div.innerHTML = `
-                <img src="${product.imageUrl || 'https://placehold.co/180x180/cccccc/333333?text=No+Image'}" alt="${product.name}" />
-                <h3>${product.name}</h3>
-                <p>${product.description}</p>
-                <strong>₹${product.price.toFixed(2)}</strong>
-                <br>
-                <button onclick='addToCart(${JSON.stringify(product)})'>Add to Cart</button>
-            `;
-            productList.appendChild(div);
-        });
+// Utility Functions
+const utils = {
+  showToast: (message, type = 'success') => {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => document.body.removeChild(toast), 300);
+      }, 3000);
+    }, 100);
+  },
+
+  formatPrice: (price) => `₹${parseFloat(price).toFixed(2)}`,
+
+  validateEmail: (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  },
+
+  validatePassword: (password) => password.length >= 6
+};
+
+// Product Functions
+const productFunctions = {
+  loadProducts: async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/products`);
+      if (!res.ok) throw new Error('Failed to fetch products');
+      
+      const data = await res.json();
+      if (!elements.productList) return;
+
+      elements.productList.innerHTML = data.length === 0 
+        ? "<p class='no-products'>No products available yet.</p>"
+        : data.map(product => `
+            <div class="product-card">
+              <img src="${product.imageUrl || 'https://placehold.co/180x180/cccccc/333333?text=No+Image'}" 
+                   alt="${product.name}" 
+                   loading="lazy" />
+              <h3>${product.name}</h3>
+              <p>${product.description.substring(0, 100)}${product.description.length > 100 ? '...' : ''}</p>
+              <div class="price-container">
+                ${product.originalPrice ? `<span class="original-price">${utils.formatPrice(product.originalPrice)}</span>` : ''}
+                <strong>${utils.formatPrice(product.price)}</strong>
+              </div>
+              <button onclick='cartFunctions.addToCart(${JSON.stringify(product)})'>
+                Add to Cart
+              </button>
+            </div>
+          `).join('');
+    } catch (err) {
+      console.error("Failed to load products:", err);
+      if (elements.productList) {
+        elements.productList.innerHTML = "<p class='error-message'>Failed to load products. Please try again later.</p>";
+      }
     }
-  } catch (err) {
-    console.error("Failed to load products:", err);
-    // Display a user-friendly message if products fail to load
-    const productList = document.getElementById('product-list');
-    if (productList) {
-        productList.innerHTML = "<p style='text-align: center; color: red;'>Failed to load products. Please try again later.</p>";
+  },
+
+  uploadProduct: async (formData) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      utils.showToast('Please login to upload products', 'error');
+      window.location.href = 'login.html';
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/products`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Upload failed');
+
+      utils.showToast('Product uploaded successfully!', 'success');
+      return true;
+    } catch (err) {
+      console.error("Error during product upload:", err);
+      utils.showToast(err.message || 'Failed to upload product', 'error');
+      return false;
     }
   }
-}
+};
 
-// Function to add a product to the cart (in localStorage)
-function addToCart(product) {
-  let cart = JSON.parse(localStorage.getItem("cart")) || [];
-  // Check if the product is already in the cart and update quantity
-  const existingItemIndex = cart.findIndex(item => item._id === product._id);
+// Cart Functions
+const cartFunctions = {
+  getCart: () => JSON.parse(localStorage.getItem('cart')) || [],
 
-  if (existingItemIndex > -1) {
-    cart[existingItemIndex].qty = (cart[existingItemIndex].qty || 1) + 1;
-  } else {
-    cart.push({ ...product, qty: 1 }); // Add new product with quantity 1
-  }
+  saveCart: (cart) => localStorage.setItem('cart', JSON.stringify(cart)),
 
-  localStorage.setItem("cart", JSON.stringify(cart));
-  // Use a more subtle notification instead of alert
-  // alert(`${product.name} added to cart! Quantity: ${cart[existingItemIndex] ? cart[existingItemIndex].qty : 1}`);
-  console.log(`${product.name} added to cart! Quantity: ${cart[existingItemIndex] ? cart[existingItemIndex].qty : 1}`);
+  addToCart: (product) => {
+    const cart = cartFunctions.getCart();
+    const existingItem = cart.find(item => item._id === product._id);
 
-  // If on cart page, re-render cart
-  if (document.getElementById("cart-items")) {
-      renderCart();
-  }
-}
-
-// Function to render the cart items on cart.html
-function renderCart() {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const container = document.getElementById("cart-items");
-    const totalElement = document.getElementById("total");
-    let total = 0;
-
-    if (!container || !totalElement) return; // Exit if elements not found (e.g., not on cart page)
-
-    container.innerHTML = ""; // Clear existing items
-
-    if (cart.length === 0) {
-        container.innerHTML = "<p style='text-align: center; color: #555;'>Your cart is empty.</p>";
-        totalElement.textContent = "Total: ₹0.00";
-        return;
+    if (existingItem) {
+      existingItem.qty = (existingItem.qty || 1) + 1;
+    } else {
+      cart.push({ ...product, qty: 1 });
     }
 
-    cart.forEach((item, index) => {
-        const div = document.createElement("div");
-        div.className = "cart-item";
-        div.innerHTML = `
-            <img src="${item.imageUrl || 'https://placehold.co/80x80/cccccc/333333?text=No+Image'}" alt="${item.name}" />
+    cartFunctions.saveCart(cart);
+    utils.showToast(`${product.name} added to cart!`, 'success');
+    
+    if (elements.cartItems) {
+      cartFunctions.renderCart();
+    }
+  },
+
+  renderCart: () => {
+    const cart = cartFunctions.getCart();
+    if (!elements.cartItems || !elements.totalElement) return;
+
+    elements.cartItems.innerHTML = cart.length === 0
+      ? "<p class='empty-cart'>Your cart is empty.</p>"
+      : cart.map((item, index) => `
+          <div class="cart-item">
+            <img src="${item.imageUrl || 'https://placehold.co/80x80/cccccc/333333?text=No+Image'}" 
+                 alt="${item.name}" 
+                 loading="lazy" />
             <div class="cart-item-details">
-                <h3>${item.name}</h3>
-                <p>Price: ₹${item.price.toFixed(2)}</p>
+              <h3>${item.name}</h3>
+              <p>${utils.formatPrice(item.price)} each</p>
+              <p>Subtotal: ${utils.formatPrice(item.price * item.qty)}</p>
             </div>
             <div class="cart-item-actions">
-                <button onclick="updateQuantity(${index}, -1)">-</button>
-                <span>${item.qty}</span>
-                <button onclick="updateQuantity(${index}, 1)">+</button>
-                <button class="remove-btn" onclick="removeFromCart(${index})">Remove</button>
+              <button onclick="cartFunctions.updateQuantity(${index}, -1)">−</button>
+              <span>${item.qty}</span>
+              <button onclick="cartFunctions.updateQuantity(${index}, 1)">+</button>
+              <button class="remove-btn" onclick="cartFunctions.removeFromCart(${index})">
+                Remove
+              </button>
             </div>
-        `;
-        container.appendChild(div);
-        total += item.price * item.qty;
-    });
+          </div>
+        `).join('');
 
-    totalElement.textContent = `Total: ₹${total.toFixed(2)}`;
-}
+    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    elements.totalElement.textContent = `Total: ${utils.formatPrice(total)}`;
+  },
 
-// Function to update item quantity in cart
-function updateQuantity(index, change) {
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
-    if (cart[index]) {
-        cart[index].qty += change;
-        if (cart[index].qty <= 0) {
-            cart.splice(index, 1); // Remove if quantity becomes 0 or less
-        }
-        localStorage.setItem("cart", JSON.stringify(cart));
-        renderCart(); // Re-render the cart
+  updateQuantity: (index, change) => {
+    const cart = cartFunctions.getCart();
+    if (!cart[index]) return;
+
+    cart[index].qty += change;
+    if (cart[index].qty <= 0) {
+      cart.splice(index, 1);
     }
-}
 
-// Function to remove item from cart
-function removeFromCart(index) {
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
-    if (cart[index]) {
-        cart.splice(index, 1); // Remove the item
-        localStorage.setItem("cart", JSON.stringify(cart));
-        renderCart(); // Re-render the cart
+    cartFunctions.saveCart(cart);
+    cartFunctions.renderCart();
+  },
+
+  removeFromCart: (index) => {
+    const cart = cartFunctions.getCart();
+    if (!cart[index]) return;
+
+    const removedItem = cart.splice(index, 1)[0];
+    cartFunctions.saveCart(cart);
+    utils.showToast(`${removedItem.name} removed from cart`, 'info');
+    cartFunctions.renderCart();
+  },
+
+  clearCart: () => {
+    localStorage.removeItem('cart');
+    if (elements.cartItems) elements.cartItems.innerHTML = "<p class='empty-cart'>Your cart is empty.</p>";
+    if (elements.totalElement) elements.totalElement.textContent = 'Total: ₹0.00';
+  }
+};
+
+// Order Functions
+const orderFunctions = {
+  createOrder: async (orderData) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      utils.showToast('Please login to place order', 'error');
+      window.location.href = 'login.html';
+      return null;
     }
-}
 
-// Function to handle proceeding to checkout (sending order to backend)
-async function goToCheckout() {
-  const cart = JSON.parse(localStorage.getItem("cart")) || [];
-  const user = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(orderData)
+      });
 
-  if (cart.length === 0) {
-    alert("Your cart is empty!"); // Using alert for critical user feedback
-    return;
-  }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Order failed');
 
-  if (!user || !token) {
-    alert("Please log in to proceed to checkout.");
-    window.location.href = "login.html";
-    return;
-  }
+      return data;
+    } catch (err) {
+      console.error("Error placing order:", err);
+      utils.showToast(err.message || 'Failed to place order', 'error');
+      return null;
+    }
+  },
 
-  // Prepare order data
-  const orderItems = cart.map(item => ({
-    product: item._id, // Assuming product._id is available from backend
-    name: item.name,
-    qty: item.qty,
-    imageUrl: item.imageUrl,
-    price: item.price
-  }));
+  goToCheckout: async () => {
+    const cart = cartFunctions.getCart();
+    if (cart.length === 0) {
+      utils.showToast('Your cart is empty!', 'error');
+      return;
+    }
 
-  const totalItemsPrice = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('token');
+    if (!user || !token) {
+      utils.showToast('Please login to proceed to checkout', 'error');
+      window.location.href = 'login.html';
+      return;
+    }
 
-  // Example calculations for tax and shipping (re-calculate on backend for production)
-  const taxRate = 0.05; // 5% tax
-  const shippingThreshold = 1000; // Free shipping over 1000
-  const baseShippingCost = 50;
+    // Calculate order totals
+    const itemsPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const taxPrice = itemsPrice * 0.05; // 5% tax
+    const shippingPrice = itemsPrice > 1000 ? 0 : 50;
+    const totalPrice = itemsPrice + taxPrice + shippingPrice;
 
-  const calculatedTaxPrice = (totalItemsPrice * taxRate);
-  const calculatedShippingPrice = (totalItemsPrice > shippingThreshold ? 0 : baseShippingCost);
-  const calculatedTotalPrice = totalItemsPrice + calculatedTaxPrice + calculatedShippingPrice;
-
-
-  const orderData = {
-    orderItems: orderItems,
-    shippingAddress: { // Placeholder for now, you'd add a form for this
-      address: "123 Main St",
-      city: "Anytown",
-      postalCode: "12345",
-      country: "USA"
-    },
-    paymentMethod: "Cash On Delivery", // Placeholder
-    itemsPrice: calculatedItemsPrice.toFixed(2),
-    taxPrice: calculatedTaxPrice.toFixed(2),
-    shippingPrice: calculatedShippingPrice.toFixed(2),
-    totalPrice: calculatedTotalPrice.toFixed(2)
-  };
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // Send token for authentication
+    const orderData = {
+      orderItems: cart.map(item => ({
+        product: item._id,
+        name: item.name,
+        qty: item.qty,
+        imageUrl: item.imageUrl,
+        price: item.price
+      })),
+      shippingAddress: user.shippingAddress || {
+        address: '',
+        city: '',
+        postalCode: '',
+        country: ''
       },
-      body: JSON.stringify(orderData)
-    });
+      paymentMethod: 'Cash On Delivery',
+      itemsPrice: itemsPrice.toFixed(2),
+      taxPrice: taxPrice.toFixed(2),
+      shippingPrice: shippingPrice.toFixed(2),
+      totalPrice: totalPrice.toFixed(2)
+    };
 
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("Order placed successfully!"); // Using alert for critical user feedback
-      localStorage.removeItem("cart"); // Clear cart after successful order
-      window.location.href = "checkout.html"; // Redirect to a confirmation page
-    } else {
-      alert(`Order failed: ${data.message || 'Something went wrong.'}`);
+    const order = await orderFunctions.createOrder(orderData);
+    if (order) {
+      cartFunctions.clearCart();
+      window.location.href = 'order-success.html?id=' + order._id;
     }
-  } catch (err) {
-    console.error("Error placing order:", err);
-    alert("Network error or server unavailable during order placement.");
   }
-}
+};
 
+// Auth Functions
+const authFunctions = {
+  login: async (email, password) => {
+    if (!email || !password) {
+      utils.showToast('Please enter all fields', 'error');
+      return false;
+    }
 
-// Function to handle user login
-async function login() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const messageElement = document.getElementById("message"); // Assuming a message div exists
+    if (!utils.validateEmail(email)) {
+      utils.showToast('Please enter a valid email', 'error');
+      return false;
+    }
 
-  if (!email || !password) {
-    if (messageElement) messageElement.textContent = "Please enter all fields";
-    return;
-  }
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
 
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/users/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Login failed');
 
-    const data = await res.json();
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      
+      utils.showToast('Login successful!', 'success');
+      window.location.href = data.user.role === 'seller' ? 'seller.html' : 'index.html';
+      return true;
+    } catch (err) {
+      console.error("Error during login:", err);
+      utils.showToast(err.message || 'Login failed', 'error');
+      return false;
+    }
+  },
 
-    if (res.ok) {
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
-      if (messageElement) messageElement.textContent = ""; // Clear any previous error messages
-      // Redirect based on role
-      if (data.user.role === 'seller' || data.user.role === 'admin') {
-        window.location.href = "seller.html"; // Redirect sellers/admins to seller portal
-      } else {
-        window.location.href = "index.html"; // Redirect regular users to home
+  register: async (username, email, password) => {
+    if (!username || !email || !password) {
+      utils.showToast('Please enter all fields', 'error');
+      return false;
+    }
+
+    if (!utils.validateEmail(email)) {
+      utils.showToast('Please enter a valid email', 'error');
+      return false;
+    }
+
+    if (!utils.validatePassword(password)) {
+      utils.showToast('Password must be at least 6 characters', 'error');
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/users/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Registration failed');
+
+      utils.showToast('Registration successful! Please login.', 'success');
+      window.location.href = 'login.html';
+      return true;
+    } catch (err) {
+      console.error("Error during registration:", err);
+      utils.showToast(err.message || 'Registration failed', 'error');
+      return false;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    utils.showToast('Logged out successfully', 'info');
+    window.location.href = 'login.html';
+  },
+
+  checkAuth: (requiredRole = 'user') => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!token || !user) {
+      if (window.location.pathname !== '/login.html') {
+        window.location.href = 'login.html';
       }
-    } else {
-      if (messageElement) messageElement.textContent = data.message || "Login failed.";
+      return false;
     }
 
-  } catch (err) {
-    console.error("Error during login:", err);
-    if (messageElement) messageElement.textContent = "Network error or server unavailable.";
-  }
-}
-
-// Function to handle user registration
-async function register() {
-  const username = document.getElementById('username').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const messageElement = document.getElementById("message"); // Assuming a message div exists
-
-  if (!username || !email || !password) {
-    if (messageElement) messageElement.textContent = "Please enter all fields";
-    return;
-  }
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/users/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("✅ Registered successfully! Please log in."); // Using alert for critical user feedback
-      window.location.href = "login.html";
-    } else {
-      if (messageElement) messageElement.textContent = data.message || "Registration failed.";
+    if (requiredRole === 'seller' && user.role !== 'seller' && user.role !== 'admin') {
+      window.location.href = 'index.html';
+      return false;
     }
 
-  } catch (err) {
-    console.error("Error during registration:", err);
-    if (messageElement) messageElement.textContent = "Network error or server unavailable.";
+    return true;
   }
-}
+};
 
-// Function to handle user logout
-function logout() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  window.location.href = "login.html"; // Redirect to login after logout
-}
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+  // Load products if on the main page
+  if (elements.productList) {
+    productFunctions.loadProducts();
+  }
 
-// Seller Portal: Handle product upload form submission
-document.addEventListener("DOMContentLoaded", function () {
-  const uploadForm = document.getElementById("uploadForm");
-  if (uploadForm) {
-    uploadForm.addEventListener("submit", async function (e) {
+  // Render cart if on the cart page
+  if (elements.cartItems) {
+    cartFunctions.renderCart();
+  }
+
+  // Check authentication for protected pages
+  if (window.location.pathname.includes('seller.html')) {
+    authFunctions.checkAuth('seller');
+  }
+
+  // Handle product upload form
+  if (elements.uploadForm) {
+    elements.uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById("name").value.trim();
-      const description = document.getElementById("description").value.trim();
-      const price = document.getElementById("price").value;
-      const imageUrl = document.getElementById("imageUrl").value.trim(); // Corrected ID
-      const countInStock = document.getElementById("countInStock").value; // New field
+      
+      const formData = new FormData();
+      formData.append('name', document.getElementById('name').value.trim());
+      formData.append('description', document.getElementById('description').value.trim());
+      formData.append('price', document.getElementById('price').value);
+      formData.append('image', document.getElementById('imageFile').files[0]);
+      formData.append('countInStock', document.getElementById('quantity').value);
 
-      const uploadStatusElement = document.getElementById("uploadStatus");
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        if (uploadStatusElement) {
-            uploadStatusElement.innerText = "Login required to upload products.";
-            uploadStatusElement.style.color = "red";
-        }
-        window.location.href = "login.html";
-        return;
-      }
-
-      if (!name || !description || !price || !imageUrl || countInStock === "") {
-        if (uploadStatusElement) {
-            uploadStatusElement.innerText = "Please fill all fields.";
-            uploadStatusElement.style.color = "red";
-        }
-        return;
-      }
-
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/products`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`, // Send token for authentication
-          },
-          body: JSON.stringify({ name, description, price: Number(price), imageUrl, countInStock: Number(countInStock) }),
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          if (uploadStatusElement) {
-              uploadStatusElement.innerText = "✅ Product uploaded!";
-              uploadStatusElement.style.color = "green";
-          }
-          uploadForm.reset(); // Clear form after successful upload
-        } else {
-          if (uploadStatusElement) {
-              uploadStatusElement.innerText = "❌ Error: " + (data.message || "Product upload failed.");
-              uploadStatusElement.style.color = "red";
-          }
-        }
-      } catch (err) {
-        console.error("Error during product upload:", err);
-        if (uploadStatusElement) {
-            uploadStatusElement.innerText = "❌ Server error or network issue.";
-            uploadStatusElement.style.color = "red";
-        }
+      const success = await productFunctions.uploadProduct(formData);
+      if (success) {
+        elements.uploadForm.reset();
+        document.getElementById('imagePreview').style.display = 'none';
       }
     });
-  }
-
-  // Initial load for products on index.html (if product-list exists)
-  if (document.getElementById("product-list")) {
-    loadProducts();
   }
 });
+
+// Make functions available globally for HTML onclick attributes
+window.cartFunctions = cartFunctions;
+window.orderFunctions = orderFunctions;
+window.authFunctions = authFunctions;

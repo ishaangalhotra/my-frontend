@@ -6,21 +6,45 @@
   font-family: 'Segoe UI', sans-serif;
 }
 
+:root {
+  --primary: #2874f0;
+  --primary-dark: #1a5bb0;
+  --secondary: #fb641b;
+  --secondary-dark: #e05200;
+  --text: #333;
+  --text-light: #666;
+  --bg: #f1f3f6;
+  --card-bg: #fff;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
 body {
-  background: #f1f3f6;
+  background: var(--bg);
   line-height: 1.6;
-  color: #333;
+  color: var(--text);
 }
 
 /* Header */
 .header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: #2874f0; /* Flipkart blue */
+  flex-direction: column;
+  align-items: stretch;
+  background-color: var(--primary);
   color: white;
-  padding: 15px 30px;
+  padding: 15px 20px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    padding: 15px 30px;
+  }
 }
 
 .logo {
@@ -33,9 +57,26 @@ body {
   text-decoration: none;
 }
 
+.nav-links {
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .nav-links {
+    margin-top: 0;
+    gap: 0;
+  }
+  
+  .nav-links a {
+    margin-left: 20px;
+  }
+}
+
 .nav-links a {
   color: white;
-  margin-left: 20px;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.3s ease;
@@ -61,7 +102,7 @@ body {
 .section-title {
   font-size: 28px;
   margin-bottom: 25px;
-  color: #333;
+  color: var(--text);
   text-align: center;
 }
 
@@ -73,12 +114,28 @@ body {
 }
 
 .product-card {
-  background-color: white;
+  background-color: var(--card-bg);
   padding: 15px;
   text-align: center;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   border-radius: 8px;
   transition: transform 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  will-change: transform;
+}
+
+.product-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0) 60%, rgba(0,0,0,0.05));
+  z-index: 1;
+  pointer-events: none;
 }
 
 .product-card:hover {
@@ -87,39 +144,47 @@ body {
 
 .product-card img {
   max-width: 100%;
-  height: 180px; /* Fixed height for images */
-  object-fit: contain; /* Ensures entire image is visible */
+  height: 180px;
+  object-fit: contain;
   margin-bottom: 10px;
   border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .product-card h3 {
   font-size: 18px;
   margin-bottom: 8px;
-  color: #333;
+  color: var(--text);
 }
 
 .product-card p {
   font-size: 14px;
-  color: #666;
+  color: var(--text-light);
   margin-bottom: 10px;
-  height: 40px; /* Fixed height for description to prevent layout shifts */
+  height: 40px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2; /* Limit to 2 lines */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
 .product-card strong {
   font-size: 20px;
-  color: #212121;
+  color: var(--text);
   display: block;
   margin-bottom: 15px;
 }
 
 .product-card button {
-  background-color: #fb641b; /* Flipkart orange */
+  background-color: var(--secondary);
   color: white;
   padding: 10px 20px;
   border: none;
@@ -128,10 +193,43 @@ body {
   font-size: 15px;
   font-weight: bold;
   transition: background-color 0.3s ease;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 10px rgba(251, 100, 27, 0.3);
 }
 
 .product-card button:hover {
-  background-color: #e05200;
+  background-color: var(--secondary-dark);
+}
+
+/* Loading states */
+.product-card.loading h3,
+.product-card.loading p,
+.product-card.loading strong,
+.product-card.loading button {
+  color: transparent;
+  background: #eee;
+  border-radius: 4px;
+}
+
+.product-card.loading h3 {
+  width: 80%;
+  height: 20px;
+  margin: 0 auto 8px;
+}
+
+.product-card.loading p {
+  height: 40px;
+}
+
+.product-card.loading strong {
+  width: 40%;
+  height: 24px;
+  margin: 0 auto 15px;
+}
+
+.product-card.loading button {
+  background: #eee;
 }
 
 /* Footer */
@@ -141,13 +239,13 @@ footer {
   margin-top: 40px;
   color: #777;
   font-size: 14px;
-  background-color: #fff;
+  background-color: var(--card-bg);
   box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
 }
 
-/* General box styles for login/register/seller */
+/* Form boxes */
 .login-box, .register-box, .seller-box {
-  background: white;
+  background: var(--card-bg);
   max-width: 400px;
   margin: 60px auto;
   padding: 30px;
@@ -158,12 +256,12 @@ footer {
 .login-box h2, .register-box h2, .seller-box h2 {
   text-align: center;
   margin-bottom: 25px;
-  color: #333;
+  color: var(--text);
 }
 
 .login-box input, .register-box input, .seller-box input,
 .seller-box textarea {
-  width: calc(100% - 20px); /* Account for padding */
+  width: calc(100% - 20px);
   padding: 12px;
   margin-bottom: 15px;
   border: 1px solid #ddd;
@@ -179,7 +277,7 @@ footer {
 .login-box button, .register-box button, .seller-box button {
   padding: 12px 20px;
   width: 100%;
-  background: #2874f0;
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -189,9 +287,10 @@ footer {
 }
 
 .login-box button:hover, .register-box button:hover, .seller-box button:hover {
-  background-color: #1a5bb0;
+  background-color: var(--primary-dark);
 }
 
+/* Messages and status */
 .message {
   color: red;
   text-align: center;
@@ -200,5 +299,95 @@ footer {
 }
 
 #uploadStatus {
-  color: green; /* Default success color for upload status */
+  color: green;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #333;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Form validation */
+input:invalid, textarea:invalid {
+  border-color: #ff4444;
+}
+
+input:valid, textarea:valid {
+  border-color: #00c851;
+}
+
+.error-message {
+  color: #ff4444;
+  font-size: 14px;
+  margin-top: -10px;
+  margin-bottom: 15px;
+  display: none;
+}
+
+input:invalid + .error-message,
+textarea:invalid + .error-message {
+  display: block;
+}
+
+/* Accessibility */
+a:focus, button:focus, input:focus, textarea:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+    color: #f0f0f0;
+  }
+  
+  .product-card, .login-box, .register-box, .seller-box, footer {
+    background: #1e1e1e;
+    color: #f0f0f0;
+    border-color: #333;
+  }
+  
+  .product-card h3, .product-card strong {
+    color: #f0f0f0;
+  }
+  
+  .product-card p {
+    color: #aaa;
+  }
+  
+  input, textarea {
+    background: #2d2d2d;
+    color: #f0f0f0;
+    border-color: #444;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .product-card:hover {
+    transform: none;
+  }
 }

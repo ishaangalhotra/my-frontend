@@ -3,63 +3,290 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checkout</title>
+  <title>Order Confirmation - MyStore</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
-    .checkout-box {
-      background-color: white;
-      padding: 30px;
-      max-width: 500px;
-      margin: 40px auto;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-radius: 8px; /* Added for consistency */
-      text-align: center; /* Center content */
+    /* Enhanced checkout confirmation styles */
+    body {
+      background-color: #f5f7fa;
+      color: #2c3e50;
     }
 
-    .checkout-box h2 {
-      margin-bottom: 20px;
-      color: #333;
+    .confirmation-container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
     }
 
-    .checkout-box p {
-      margin-bottom: 15px;
-      font-size: 1.1em;
-      color: #555;
+    .confirmation-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+      margin-bottom: 2rem;
     }
 
-    .checkout-box button {
-      background-color: green;
+    .confirmation-header {
+      background-color: #2874f0;
       color: white;
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-      transition: background-color 0.3s ease;
+      padding: 1.5rem;
+      text-align: center;
     }
-    .checkout-box button:hover {
-      background-color: #009900;
+
+    .confirmation-header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+    }
+
+    .confirmation-body {
+      padding: 2rem;
+    }
+
+    .confirmation-message {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .confirmation-message p {
+      font-size: 1.1rem;
+      color: #34495e;
+      margin-bottom: 0.5rem;
+    }
+
+    .order-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .order-section {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .order-section h3 {
+      border-bottom: 2px solid #2874f0;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      color: #2874f0;
+    }
+
+    .order-summary {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.8rem;
+    }
+
+    .summary-total {
+      font-weight: bold;
+      font-size: 1.1rem;
+      border-top: 1px solid #ddd;
+      padding-top: 0.8rem;
+      margin-top: 0.8rem;
+    }
+
+    .btn-continue {
+      display: inline-block;
+      background-color: #2874f0;
+      color: white;
+      padding: 0.8rem 1.8rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+    }
+
+    .btn-continue:hover {
+      background-color: #1a5bb0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .confirmation-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .order-details {
+        flex-direction: column;
+        gap: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
 
   <header class="header">
-    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
+    <div class="logo">
+      <a href="index.html">MyStore</a>
+    </div>
     <div class="nav-links">
       <a href="index.html">Home</a>
       <a href="cart.html">Cart</a>
+      <a href="myorders.html">My Orders</a>
     </div>
   </header>
 
-  <main>
-    <div class="checkout-box">
-      <h2>Order Placed Successfully!</h2>
-      <p>Your order has been confirmed and will be delivered within 3–5 business days.</p>
-      <p>Thank you for your purchase!</p>
-      <button onclick="window.location.href='index.html'">Continue Shopping</button>
+  <main class="confirmation-container">
+    <div class="confirmation-card">
+      <div class="confirmation-header">
+        <h1>
+          <i class="bi bi-check-circle-fill"></i>
+          Order Confirmed!
+        </h1>
+      </div>
+      
+      <div class="confirmation-body">
+        <div class="confirmation-message">
+          <p>Thank you for your purchase!</p>
+          <p>Your order has been confirmed and will be delivered within 3–5 business days.</p>
+          <p>A confirmation email has been sent to your registered email address.</p>
+        </div>
+
+        <div class="order-details">
+          <div class="order-section">
+            <h3>Order Information</h3>
+            <p><strong>Order Number:</strong> <span id="order-id">Loading...</span></p>
+            <p><strong>Order Date:</strong> <span id="order-date">Loading...</span></p>
+            <p><strong>Payment Method:</strong> <span id="payment-method">Loading...</span></p>
+            <p><strong>Status:</strong> <span id="order-status" class="status-pending">Processing</span></p>
+          </div>
+
+          <div class="order-section">
+            <h3>Delivery Address</h3>
+            <p id="delivery-address">Loading...</p>
+            <p id="delivery-city">Loading...</p>
+            <p id="delivery-contact">Loading...</p>
+          </div>
+        </div>
+
+        <div class="order-summary">
+          <h3>Order Summary</h3>
+          <div class="summary-row">
+            <span>Items:</span>
+            <span id="items-total">Loading...</span>
+          </div>
+          <div class="summary-row">
+            <span>Delivery:</span>
+            <span id="delivery-fee">Loading...</span>
+          </div>
+          <div class="summary-row">
+            <span>Tax:</span>
+            <span id="tax-amount">Loading...</span>
+          </div>
+          <div class="summary-row summary-total">
+            <span>Total:</span>
+            <span id="order-total">Loading...</span>
+          </div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="index.html" class="btn-continue">
+            <i class="bi bi-arrow-left"></i> Continue Shopping
+          </a>
+        </div>
+      </div>
     </div>
   </main>
 
+  <footer>
+    <p>&copy; 2023 MyStore. All rights reserved.</p>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Get order ID from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get('id');
+      
+      if (orderId) {
+        fetchOrderDetails(orderId);
+      } else {
+        // Handle case where no order ID is present
+        document.getElementById('order-id').textContent = 'Not available';
+      }
+    });
+
+    async function fetchOrderDetails(orderId) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const order = await response.json();
+          displayOrderDetails(order);
+        } else {
+          throw new Error('Failed to fetch order details');
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        // Display error message to user
+        document.getElementById('order-id').textContent = 'Error loading order';
+      }
+    }
+
+    function displayOrderDetails(order) {
+      // Order Information
+      document.getElementById('order-id').textContent = order._id.substring(0, 8).toUpperCase();
+      
+      const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      document.getElementById('order-date').textContent = orderDate;
+      
+      document.getElementById('payment-method').textContent = order.paymentMethod;
+      
+      const statusElement = document.getElementById('order-status');
+      statusElement.textContent = order.isDelivered ? 'Delivered' : 'Processing';
+      statusElement.className = order.isDelivered ? 'status-delivered' : 'status-pending';
+
+      // Delivery Address
+      if (order.shippingAddress) {
+        document.getElementById('delivery-address').textContent = order.shippingAddress.address;
+        document.getElementById('delivery-city').textContent = `${order.shippingAddress.city}, ${order.shippingAddress.postalCode}`;
+        document.getElementById('delivery-contact').textContent = `Contact: ${order.shippingAddress.phone || 'Not provided'}`;
+      }
+
+      // Order Summary
+      document.getElementById('items-total').textContent = `₹${order.itemsPrice.toFixed(2)}`;
+      document.getElementById('delivery-fee').textContent = `₹${order.shippingPrice.toFixed(2)}`;
+      document.getElementById('tax-amount').textContent = `₹${order.taxPrice.toFixed(2)}`;
+      document.getElementById('order-total').textContent = `₹${order.totalPrice.toFixed(2)}`;
+    }
+  </script>
 </body>
 </html>

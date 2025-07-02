@@ -3,81 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register</title>
+  <title>Register - MyStore</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
-    /* Specific styles for register.html, integrated for clarity */
+    /* Enhanced register page styles */
+    .register-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    .register-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background-color: #f5f7fa;
+    }
+    
     .register-box {
       background: white;
-      max-width: 400px;
-      margin: 60px auto;
-      padding: 30px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
+      width: 100%;
+      max-width: 450px;
+      padding: 2.5rem;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      animation: fadeIn 0.5s ease;
     }
-
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
     .register-box h2 {
       text-align: center;
-      margin-bottom: 25px;
-      color: #333;
+      margin-bottom: 1.5rem;
+      color: #2c3e50;
+      font-size: 1.8rem;
     }
-
-    input {
-      width: calc(100% - 20px); /* Adjust for padding */
-      margin-bottom: 15px;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+      position: relative;
     }
-
-    button {
-      padding: 12px 20px;
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #34495e;
+    }
+    
+    .form-control {
       width: 100%;
-      background: #2874f0;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+      border-color: #2874f0;
+      box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.2);
+      outline: none;
+    }
+    
+    .password-container {
+      position: relative;
+    }
+    
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #7f8c8d;
+    }
+    
+    .btn-register {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #2874f0;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 18px;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: all 0.3s ease;
+      margin-top: 0.5rem;
     }
-
-    button:hover {
+    
+    .btn-register:hover {
       background-color: #1a5bb0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-
-    .message {
-      color: red;
+    
+    .btn-register:active {
+      transform: translateY(0);
+    }
+    
+    .login-link {
       text-align: center;
-      margin-bottom: 10px;
-      font-weight: bold;
+      margin-top: 1.5rem;
+      color: #7f8c8d;
+    }
+    
+    .login-link a {
+      color: #2874f0;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+    
+    .input-icon {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #7f8c8d;
+    }
+    
+    .input-with-icon {
+      padding-left: 40px !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+      .register-box {
+        padding: 1.5rem;
+      }
+      
+      .register-box h2 {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="register-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <a href="index.html">MyStore</a>
+      </div>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="login.html">Login</a>
+      </div>
+    </header>
 
-  <!-- Header -->
-  <header class="header">
-    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-    </div>
-  </header>
+    <!-- Main Content -->
+    <main class="register-main">
+      <div class="register-box">
+        <h2>Create Your Account</h2>
+        
+        <!-- Message container for errors/success -->
+        <div id="message" class="message"></div>
+        
+        <!-- Registration Form -->
+        <div class="form-group">
+          <label for="username">Full Name</label>
+          <div style="position: relative;">
+            <i class="bi bi-person input-icon"></i>
+            <input type="text" id="username" class="form-control input-with-icon" placeholder="Enter your full name" required />
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div style="position: relative;">
+            <i class="bi bi-envelope input-icon"></i>
+            <input type="email" id="email" class="form-control input-with-icon" placeholder="Enter your email" required />
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-container" style="position: relative;">
+            <i class="bi bi-lock input-icon"></i>
+            <input type="password" id="password" class="form-control input-with-icon" placeholder="Create a password" required />
+            <i class="bi bi-eye toggle-password" id="togglePassword"></i>
+          </div>
+          <small style="color: #7f8c8d; display: block; margin-top: 0.25rem;">
+            Password must be at least 6 characters
+          </small>
+        </div>
+        
+        <button class="btn-register" onclick="authFunctions.register(
+          document.getElementById('username').value.trim(),
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value.trim()
+        )">
+          Create Account
+        </button>
+        
+        <div class="login-link">
+          Already have an account? <a href="login.html">Sign in</a>
+        </div>
+      </div>
+    </main>
 
-  <div class="register-box">
-    <h2>Create an Account</h2>
-    <div class="message" id="message"></div>
-
-    <input type="text" id="username" placeholder="Full Name" required />
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-
-    <button onclick="register()">Register</button>
+    <!-- Footer -->
+    <footer>
+      <p>&copy; 2023 MyStore. All rights reserved.</p>
+    </footer>
   </div>
 
   <script src="config.js"></script>
-  <script src="script.js"></script> <!-- Ensure script.js is loaded -->
+  <script src="script.js"></script>
+  
+  <script>
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('bi-eye');
+      this.classList.toggle('bi-eye-slash');
+    });
 
+    // Handle Enter key press
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        authFunctions.register(
+          document.getElementById('username').value.trim(),
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value.trim()
+        );
+      }
+    });
+  </script>
 </body>
 </html>

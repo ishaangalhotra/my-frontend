@@ -3,77 +3,286 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login</title>
+  <title>Login - MyStore</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
-    /* Specific styles for login.html, integrated for clarity */
+    /* Enhanced login page styles */
+    .login-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: #f5f7fa;
+    }
+    
+    .login-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
     .login-box {
       background: white;
-      max-width: 400px;
-      margin: 60px auto;
-      padding: 30px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
+      width: 100%;
+      max-width: 450px;
+      padding: 2.5rem;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      animation: fadeIn 0.5s ease;
     }
-
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
     .login-box h2 {
       text-align: center;
-      margin-bottom: 25px;
-      color: #333;
+      margin-bottom: 1.5rem;
+      color: #2c3e50;
+      font-size: 1.8rem;
     }
-
-    input {
-      width: calc(100% - 20px); /* Adjust for padding */
-      margin-bottom: 15px;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+      position: relative;
     }
-
-    button {
-      padding: 12px 20px;
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #34495e;
+    }
+    
+    .form-control {
       width: 100%;
-      background: #2874f0;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+      border-color: #2874f0;
+      box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.2);
+      outline: none;
+    }
+    
+    .password-container {
+      position: relative;
+    }
+    
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #7f8c8d;
+    }
+    
+    .btn-login {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #2874f0;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 18px;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: all 0.3s ease;
+      margin-top: 0.5rem;
     }
-
-    button:hover {
+    
+    .btn-login:hover {
       background-color: #1a5bb0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-
-    .message {
-      color: red;
+    
+    .btn-login:active {
+      transform: translateY(0);
+    }
+    
+    .register-link {
       text-align: center;
-      margin-bottom: 10px;
-      font-weight: bold;
+      margin-top: 1.5rem;
+      color: #7f8c8d;
+    }
+    
+    .register-link a {
+      color: #2874f0;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .register-link a:hover {
+      text-decoration: underline;
+    }
+    
+    .input-icon {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #7f8c8d;
+    }
+    
+    .input-with-icon {
+      padding-left: 40px !important;
+    }
+    
+    #message {
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-weight: 500;
+      display: none;
+    }
+    
+    .error-message {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 576px) {
+      .login-box {
+        padding: 1.5rem;
+      }
+      
+      .login-box h2 {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="login-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <a href="index.html">MyStore</a>
+      </div>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="register.html">Register</a>
+      </div>
+    </header>
 
-  <header class="header">
-    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-    </div>
-  </header>
+    <!-- Main Content -->
+    <main class="login-main">
+      <div class="login-box">
+        <h2>Welcome Back</h2>
+        
+        <!-- Message container for errors/success -->
+        <div id="message" class="message"></div>
+        
+        <!-- Login Form -->
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div style="position: relative;">
+            <i class="bi bi-envelope input-icon"></i>
+            <input type="email" id="email" class="form-control input-with-icon" 
+                   placeholder="Enter your email" required />
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-container" style="position: relative;">
+            <i class="bi bi-lock input-icon"></i>
+            <input type="password" id="password" class="form-control input-with-icon" 
+                   placeholder="Enter your password" required />
+            <i class="bi bi-eye toggle-password" id="togglePassword"></i>
+          </div>
+        </div>
+        
+        <button class="btn-login" id="loginBtn" onclick="authFunctions.login(
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value.trim()
+        )">
+          Login
+        </button>
+        
+        <div class="register-link">
+          Don't have an account? <a href="register.html">Sign up</a>
+        </div>
+      </div>
+    </main>
 
-  <div class="login-box">
-    <h2>Login</h2>
-    <div class="message" id="message"></div>
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-    <button onclick="login()">Login</button>
+    <!-- Footer -->
+    <footer>
+      <p>&copy; 2023 MyStore. All rights reserved.</p>
+    </footer>
   </div>
 
   <script src="config.js"></script>
-  <script src="script.js"></script> <!-- Ensure script.js is loaded -->
+  <script src="script.js"></script>
+  
+  <script>
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('bi-eye');
+      this.classList.toggle('bi-eye-slash');
+    });
 
+    // Handle Enter key press
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        authFunctions.login(
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value.trim()
+        );
+      }
+    });
+
+    // Show loading state during login
+    window.showLoginLoading = function(show) {
+      const btn = document.getElementById('loginBtn');
+      if (show) {
+        btn.innerHTML = '<span class="loading-spinner"></span> Logging in...';
+        btn.disabled = true;
+      } else {
+        btn.innerHTML = 'Login';
+        btn.disabled = false;
+      }
+    };
+  </script>
 </body>
 </html>

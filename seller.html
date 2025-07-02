@@ -1,89 +1,346 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
   <title>Seller Dashboard - Upload Product</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.ckeditor.com/ckeditor5/41.3.1/classic/ckeditor.js"></script>
   <style>
-    /* Specific styles for seller.html (can also be in styles.css) */
-    .seller-box {
-      background: white;
-      max-width: 500px;
-      margin: 60px auto;
-      padding: 30px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
+    .preview-image {
+      max-height: 150px;
+      max-width: 100%;
+      display: none;
+      margin-top: 10px;
+      border-radius: 4px;
+      object-fit: contain;
     }
-
-    .seller-box h2 {
-      text-align: center;
-      margin-bottom: 25px;
+    .ck-editor__editable {
+      min-height: 200px;
       color: #333;
     }
-
-    .seller-box input[type="text"],
-    .seller-box input[type="number"],
-    .seller-box textarea {
-      width: calc(100% - 20px);
-      padding: 12px;
-      margin-bottom: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 16px;
+    .card-header {
+      padding: 1rem 1.5rem;
     }
-
-    .seller-box textarea {
-      resize: vertical;
-      min-height: 80px;
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
     }
-
-    .seller-box button {
-      padding: 12px 20px;
-      width: 100%;
-      background: #2874f0;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 18px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
+    .required-field::after {
+      content: " *";
+      color: #dc3545;
     }
-
-    .seller-box button:hover {
-      background-color: #1a5bb0;
+    #submitBtn {
+      transition: all 0.3s ease;
     }
-
-    #uploadStatus {
+    #submitBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .spinner-border {
+      vertical-align: text-top;
+    }
+    .image-upload-container {
+      border: 2px dashed #ddd;
+      border-radius: 8px;
+      padding: 1.5rem;
       text-align: center;
-      margin-top: 15px;
-      font-weight: bold;
-      color: green; /* Default success color */
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .image-upload-container:hover {
+      border-color: #2874f0;
+      background: rgba(40, 116, 240, 0.05);
+    }
+    .image-upload-container.dragover {
+      border-color: #2874f0;
+      background: rgba(40, 116, 240, 0.1);
+    }
+    .image-upload-icon {
+      font-size: 2.5rem;
+      color: #2874f0;
+      margin-bottom: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .card-body {
+        padding: 1.25rem;
+      }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
-    <h1>Seller Dashboard</h1>
-    <button onclick="logout()">Logout</button>
-  </header>
-
-  <main class="main">
-    <div class="seller-box">
-      <h2>Upload New Product</h2>
-      <form id="uploadForm">
-        <input type="text" id="name" placeholder="Product Name" required><br>
-        <textarea id="description" placeholder="Description" required></textarea><br>
-        <input type="number" id="price" placeholder="Price" required><br>
-        <input type="text" id="imageUrl" placeholder="Image URL" required><br>
-        <input type="number" id="countInStock" placeholder="Count In Stock" required><br>
-        <button type="submit">Upload Product</button>
-      </form>
-      <p id="uploadStatus"></p>
+  <div class="header">
+    <div class="logo">
+      <a href="index.html">MyStore</a>
     </div>
-  </main>
+    <div class="nav-links">
+      <a href="seller-dashboard.html">Dashboard</a>
+      <a href="seller-products.html">My Products</a>
+      <a href="seller.html" class="active">Add Product</a>
+      <a href="logout.html">Logout</a>
+    </div>
+  </div>
 
+  <div class="main">
+    <h1 class="section-title">Upload New Product</h1>
+    
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h3 class="mb-0">Product Details</h3>
+      </div>
+      <div class="card-body">
+        <div id="messageBox"></div>
+
+        <form id="productForm">
+          <div class="mb-4">
+            <label for="name" class="form-label required-field">Product Name</label>
+            <input type="text" class="form-control form-control-lg" id="name" placeholder="Enter product name" required />
+          </div>
+
+          <div class="mb-4">
+            <label for="descriptionEditor" class="form-label required-field">Product Description</label>
+            <div id="descriptionEditor" class="form-control p-0"></div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="price" class="form-label required-field">Price (₹)</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" class="form-control" id="price" placeholder="0.00" min="0" step="0.01" required />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="originalPrice" class="form-label">Original Price (₹)</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" class="form-control" id="originalPrice" placeholder="0.00" min="0" step="0.01" />
+              </div>
+              <small class="text-muted">Leave blank if no discount</small>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="category" class="form-label required-field">Category</label>
+              <select class="form-select" id="category" required>
+                <option value="">Select category</option>
+                <option value="electronics">Electronics</option>
+                <option value="clothing">Clothing & Fashion</option>
+                <option value="books">Books & Stationery</option>
+                <option value="home">Home & Kitchen</option>
+                <option value="beauty">Beauty & Personal Care</option>
+                <option value="sports">Sports & Fitness</option>
+                <option value="toys">Toys & Games</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="quantity" class="form-label required-field">Stock Quantity</label>
+              <input type="number" class="form-control" id="quantity" min="1" value="1" required />
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label required-field">Product Image</label>
+            <div class="image-upload-container" id="dropZone">
+              <div class="image-upload-icon">
+                <i class="bi bi-cloud-arrow-up"></i>
+              </div>
+              <p class="mb-2">Drag & drop your image here or click to browse</p>
+              <small class="text-muted d-block">Supports JPG, PNG (Max 5MB)</small>
+              <input type="file" class="d-none" id="imageFile" accept="image/*" required />
+              <button type="button" class="btn btn-outline-primary mt-2" onclick="document.getElementById('imageFile').click()">
+                Select Image
+              </button>
+            </div>
+            <div class="text-center mt-3">
+              <img id="imagePreview" class="preview-image" alt="Product preview"/>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+              Upload Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2023 MyStore. All rights reserved.</p>
+  </footer>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
   <script src="config.js"></script>
-  <script src="script.js"></script>
+  <script>
+    // Initialize CKEditor
+    let editor;
+    ClassicEditor.create(document.querySelector('#descriptionEditor'), {
+      toolbar: {
+        items: [
+          'heading', '|',
+          'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|',
+          'blockQuote', 'insertTable', 'undo', 'redo'
+        ]
+      }
+    })
+    .then(newEditor => {
+      editor = newEditor;
+    })
+    .catch(error => {
+      console.error(error);
+    });
+
+    // Drag and drop image handling
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('imageFile');
+    
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleImagePreview(fileInput.files[0]);
+      }
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleImagePreview(e.target.files[0]);
+      }
+    });
+    
+    function handleImagePreview(file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showError('Image size should be less than 5MB');
+        return;
+      }
+      
+      if (!file.type.match('image.*')) {
+        showError('Please select an image file');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const preview = document.getElementById('imagePreview');
+        preview.src = event.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Form submission
+    document.getElementById('productForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      const messageBox = document.getElementById('messageBox');
+      messageBox.innerHTML = '';
+
+      // Show loading state
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Uploading...';
+      submitBtn.disabled = true;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showError('You must be logged in as a seller to upload products');
+        resetSubmitButton();
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        // Validate form
+        if (!document.getElementById('imageFile').files[0]) {
+          throw new Error('Please select a product image');
+        }
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('name', document.getElementById('name').value.trim());
+        formData.append('description', editor.getData());
+        formData.append('price', parseFloat(document.getElementById('price').value).toFixed(2));
+        formData.append('originalPrice', document.getElementById('originalPrice').value 
+          ? parseFloat(document.getElementById('originalPrice').value).toFixed(2)
+          : null);
+        formData.append('category', document.getElementById('category').value);
+        formData.append('quantity', document.getElementById('quantity').value);
+        formData.append('image', document.getElementById('imageFile').files[0]);
+
+        const response = await fetch(`${BACKEND_URL}/api/products`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to upload product');
+        }
+
+        showSuccess('Product uploaded successfully! Redirecting...');
+        document.getElementById('productForm').reset();
+        document.getElementById('imagePreview').style.display = 'none';
+        
+        // Redirect after 1.5 seconds
+        setTimeout(() => {
+          window.location.href = 'seller-products.html';
+        }, 1500);
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        resetSubmitButton();
+      }
+    });
+
+    function showError(message) {
+      const messageBox = document.getElementById('messageBox');
+      messageBox.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      `;
+    }
+
+    function showSuccess(message) {
+      const messageBox = document.getElementById('messageBox');
+      messageBox.innerHTML = `
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      `;
+    }
+
+    function resetSubmitButton() {
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.innerHTML = 'Upload Product';
+      submitBtn.disabled = false;
+    }
+  </script>
+  
+  <!-- Bootstrap JS Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

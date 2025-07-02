@@ -3,105 +3,357 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Cart</title>
+  <title>Your Cart - MyStore</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
   <style>
+    /* Enhanced cart page styles */
+    :root {
+      --primary: #2874f0;
+      --primary-dark: #1a5bb0;
+      --secondary: #fb641b;
+      --secondary-dark: #e05200;
+      --text: #212121;
+      --text-light: #757575;
+      --bg: #f1f3f6;
+      --card-bg: #fff;
+    }
+
+    body {
+      background-color: var(--bg);
+    }
+
+    /* Header enhancements */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Main content */
+    .main {
+      padding: 2rem 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      margin-bottom: 1.5rem;
+      color: var(--text);
+      font-size: 1.8rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .section-title::after {
+      content: "";
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 3px;
+    }
+
+    /* Cart items */
+    #cart-items {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .empty-cart {
+      text-align: center;
+      padding: 3rem;
+      background: var(--card-bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .empty-cart i {
+      font-size: 3rem;
+      color: var(--text-light);
+      margin-bottom: 1rem;
+    }
+
+    .empty-cart h3 {
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-cart p {
+      color: var(--text-light);
+      margin-bottom: 1.5rem;
+    }
+
     .cart-item {
-      background-color: white;
-      padding: 15px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      border-radius: 5px;
+      background-color: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 1.5rem;
+      transition: all 0.3s ease;
     }
+
+    .cart-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+    }
+
     .cart-item img {
-      width: 80px;
-      height: 80px;
+      width: 100px;
+      height: 100px;
       object-fit: contain;
-      border-radius: 4px;
+      border-radius: 6px;
+      border: 1px solid #eee;
     }
+
     .cart-item-details {
-      flex-grow: 1;
+      flex: 1;
     }
+
     .cart-item-details h3 {
-      margin-bottom: 5px;
-      font-size: 1.1em;
+      margin: 0 0 0.5rem 0;
+      color: var(--text);
+      font-size: 1.1rem;
     }
+
     .cart-item-details p {
-      font-size: 0.9em;
-      color: #555;
+      margin: 0;
+      color: var(--text-light);
+      font-size: 0.95rem;
     }
+
     .cart-item-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 0.8rem;
     }
-    .cart-item-actions button {
-      background-color: #f0f0f0;
-      border: 1px solid #ccc;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: #f8f9fa;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
     }
-    .cart-item-actions button:hover {
-      background-color: #e0e0e0;
-    }
-    .cart-item-actions .remove-btn {
-      background-color: #ff4d4d;
-      color: white;
+
+    .quantity-control button {
+      background: none;
       border: none;
-    }
-    .cart-item-actions .remove-btn:hover {
-      background-color: #cc0000;
-    }
-    .checkout-btn {
-      background-color: green;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      font-size: 16px;
+      font-size: 1.2rem;
       cursor: pointer;
-      border-radius: 5px;
-      margin-top: 20px;
+      color: var(--text-light);
+      padding: 0 0.3rem;
+      transition: all 0.2s ease;
     }
-    .total-section {
-      text-align: right;
-      margin-top: 20px;
-      font-size: 1.2em;
+
+    .quantity-control button:hover {
+      color: var(--primary);
+      transform: scale(1.2);
+    }
+
+    .quantity-display {
+      min-width: 20px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.2s ease;
+      padding: 0.5rem;
+    }
+
+    .remove-btn:hover {
+      color: #b02a37;
+      transform: scale(1.1);
+    }
+
+    /* Summary section */
+    .summary-section {
+      background-color: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-top: 2rem;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+
+    .summary-total {
       font-weight: bold;
+      font-size: 1.2rem;
+      border-top: 1px solid #eee;
+      padding-top: 0.8rem;
+      margin-top: 0.8rem;
+    }
+
+    .checkout-btn {
+      width: 100%;
+      background-color: var(--secondary);
+      color: white;
+      border: none;
+      padding: 1rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .checkout-btn:hover {
+      background-color: var(--secondary-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .checkout-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
+      .cart-item img {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+      }
+
+      .cart-item-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .section-title {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
 
   <header class="header">
-    <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
-    <div class="nav-links">
-      <a href="index.html">Home</a>
+    <div class="logo">
+      <a href="index.html">MyStore</a>
+    </div>
+    <div class="nav-links" id="nav-links">
+      <!-- Dynamic navigation links will be inserted here via JS -->
     </div>
   </header>
 
   <main class="main">
-    <h2 class="section-title">Your Shopping Cart</h2>
-    <div id="cart-items"></div>
-    <div class="total-section" id="total"></div>
-    <button class="checkout-btn" onclick="goToCheckout()">Proceed to Checkout</button>
+    <h1 class="section-title">Your Shopping Cart</h1>
+    <div id="cart-items">
+      <!-- Cart items will be loaded here -->
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <div class="summary-section">
+      <div class="summary-row">
+        <span>Subtotal:</span>
+        <span id="subtotal">₹0.00</span>
+      </div>
+      <div class="summary-row">
+        <span>Shipping:</span>
+        <span id="shipping">₹0.00</span>
+      </div>
+      <div class="summary-row">
+        <span>Tax:</span>
+        <span id="tax">₹0.00</span>
+      </div>
+      <div class="summary-row summary-total">
+        <span>Total:</span>
+        <span id="total">₹0.00</span>
+      </div>
+      <button class="checkout-btn" id="checkoutBtn" onclick="orderFunctions.goToCheckout()" disabled>
+        <i class="bi bi-lock-fill"></i> Proceed to Checkout
+      </button>
+    </div>
   </main>
 
+  <footer>
+    <p>&copy; 2023 MyStore. All rights reserved.</p>
+  </footer>
+
   <script src="config.js"></script>
-  <script src="script.js"></script> <!-- Ensure script.js is loaded -->
-
+  <script src="script.js"></script>
+  
   <script>
-    // This script now handles cart display and updates
-    document.addEventListener("DOMContentLoaded", () => {
-        renderCart(); // Call renderCart on page load
+    // Initialize cart display
+    document.addEventListener("DOMContentLoaded", function() {
+      // Check authentication and render cart
+      if (authFunctions.checkAuth()) {
+        cartFunctions.renderCart();
+      } else {
+        const cartItems = document.getElementById('cart-items');
+        cartItems.innerHTML = `
+          <div class="empty-cart">
+            <i class="bi bi-cart-x"></i>
+            <h3>Your cart is empty</h3>
+            <p>Please log in to view your cart items</p>
+            <a href="login.html" class="btn-shop">Login Now</a>
+          </div>
+        `;
+        document.getElementById('checkoutBtn').style.display = 'none';
+      }
+
+      // Update navigation links
+      const user = JSON.parse(localStorage.getItem("user"));
+      const nav = document.getElementById("nav-links");
+
+      if (nav) {
+        if (user) {
+          nav.innerHTML = `
+            <a href="index.html"><i class="bi bi-house"></i> <span>Home</span></a>
+            <a href="cart.html" class="active"><i class="bi bi-cart3"></i> <span>Cart</span></a>
+            <a href="myorders.html"><i class="bi bi-bag-check"></i> <span>Orders</span></a>
+            <a href="#" onclick="authFunctions.logout()"><i class="bi bi-box-arrow-right"></i> <span>Logout</span></a>
+          `;
+        } else {
+          nav.innerHTML = `
+            <a href="index.html"><i class="bi bi-house"></i> <span>Home</span></a>
+            <a href="cart.html" class="active"><i class="bi bi-cart3"></i> <span>Cart</span></a>
+            <a href="login.html"><i class="bi bi-box-arrow-in-right"></i> <span>Login</span></a>
+          `;
+        }
+      }
     });
-
-    // renderCart, updateQuantity, removeFromCart, goToCheckout functions are now in script.js
-    // but the calls are here for clarity.
   </script>
-
 </body>
 </html>
