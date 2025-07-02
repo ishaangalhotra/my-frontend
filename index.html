@@ -34,6 +34,7 @@
 
   <script>
     // This inline script handles the dynamic navigation links based on user login/role
+    // It runs after DOMContentLoaded, which is also handled by script.js
     document.addEventListener("DOMContentLoaded", () => {
         const user = JSON.parse(localStorage.getItem("user"));
         const nav = document.getElementById("nav-links");
@@ -41,12 +42,13 @@
         if (nav) { // Ensure nav element exists
             if (user) {
                 let userLinks = `<span style="color:white; margin-right:10px;">Hello, ${user.username}</span>
-                                 <a href="cart.html">Cart</a>`;
+                                 <a href="cart.html">Cart</a>
+                                 <a href="myorders.html">My Orders</a>`; // Added My Orders link
                 // Show Seller Portal link only if user is a seller or admin
                 if (user.role === 'seller' || user.role === 'admin') {
                     userLinks += `<a href="seller.html">Seller Portal</a>`;
                 }
-                userLinks += `<a href="#" onclick="logout()">Logout</a>`;
+                userLinks += `<a href="#" onclick="logout()">Logout</a>`; // logout() is in script.js
                 nav.innerHTML = userLinks;
             } else {
                 nav.innerHTML = `
@@ -57,13 +59,6 @@
             }
         }
     });
-
-    // logout function is now in script.js, but kept here for clarity if you prefer it inline
-    function logout() {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "login.html"; // Redirect to login after logout
-    }
   </script>
 
 </body>

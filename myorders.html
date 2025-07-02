@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .orders-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .order-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .order-header h3 {
+            font-size: 1.2em;
+            color: #2874f0;
+        }
+        .order-header span {
+            font-size: 0.9em;
+            color: #777;
+        }
+        .order-items {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .order-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 15px;
+        }
+        .order-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        .order-item-details {
+            flex-grow: 1;
+        }
+        .order-item-details p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #444;
+        }
+        .order-total {
+            text-align: right;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
+        #orders-list p {
+            text-align: center;
+            color: #555;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo"><a href="index.html" style="color:white; text-decoration:none;">Flipkart</a></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="cart.html">Cart</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </header>
+
+    <main class="main">
+        <h2 class="section-title">My Orders</h2>
+        <div class="orders-container">
+            <div id="orders-list">
+                <p>Loading orders...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", fetchMyOrders);
+
+        async function fetchMyOrders() {
+            const user = JSON.parse(localStorage.getItem("user"));
+            const token = localStorage.getItem("token");
+            const ordersListDiv = document.getElementById("orders-list");
+
+            if (!user || !token) {
+                ordersListDiv.innerHTML = "<p>Please log in to view your orders.</p>";
+                return;
+            }
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/orders/myorders`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.length === 0) {
+                        ordersListDiv.innerHTML = "<p>You have no past orders.</p>";
+                    } else {
+                        ordersListDiv.innerHTML = ""; // Clear loading message
+
+                        data.forEach(order => {
+                            const orderCard = document.createElement("div");
+                            orderCard.className = "order-card";
+                            
+                            const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+                            let itemsHtml = order.orderItems.map(item => `
+                                <li class="order-item">
+                                    <img src="${item.imageUrl || 'https://placehold.co/60x60/cccccc/333333?text=No+Image'}" alt="${item.name}" />
+                                    <div class="order-item-details">
+                                        <p><strong>${item.name}</strong></p>
+                                        <p>Qty: ${item.qty} | Price: ₹${item.price.toFixed(2)}</p>
+                                    </div>
+                                </li>
+                            `).join('');
+
+                            orderCard.innerHTML = `
+                                <div class="order-header">
+                                    <h3>Order ID: ${order._id.substring(0, 8)}...</h3>
+                                    <span>Placed on: ${orderDate}</span>
+                                </div>
+                                <ul class="order-items">
+                                    ${itemsHtml}
+                                </ul>
+                                <div class="order-total">
+                                    Total: ₹${order.totalPrice.toFixed(2)}
+                                </div>
+                                <p style="text-align: right; font-size: 0.9em; color: ${order.isDelivered ? 'green' : '#fb641b'};">
+                                    Status: ${order.isDelivered ? 'Delivered' : 'Pending Delivery'}
+                                </p>
+                            `;
+                            ordersListDiv.appendChild(orderCard);
+                        });
+                    }
+                } else {
+                    ordersListDiv.innerHTML = `<p style="color: red;">Error loading orders: ${data.message || 'Server error.'}</p>`;
+                }
+            } catch (err) {
+                console.error("Error fetching orders:", err);
+                ordersListDiv.innerHTML = "<p style='color: red;'>Network error or server unavailable.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
