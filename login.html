@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
   <link rel="stylesheet" href="styles.css">
   <style>
@@ -12,29 +13,45 @@
       margin: 60px auto;
       padding: 30px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px; /* Added for consistency */
+    }
+
+    .login-box h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #333;
     }
 
     input {
-      width: 100%;
+      width: calc(100% - 20px); /* Adjust for padding */
       margin-bottom: 15px;
       padding: 10px;
       font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
 
     button {
-      padding: 10px;
+      padding: 12px 20px;
       width: 100%;
       background: #2874f0;
       color: white;
       border: none;
-      font-size: 16px;
+      border-radius: 4px;
+      font-size: 18px;
       cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #1a5bb0;
     }
 
     .message {
       color: red;
       text-align: center;
       margin-bottom: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -55,38 +72,13 @@
     <button onclick="login()">Login</button>
   </div>
 
+  <script src="config.js"></script>
+  <script src="script.js"></script> <!-- Ensure script.js is loaded -->
+
   <script>
-    async function login() {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      if (!email || !password) {
-        document.getElementById("message").textContent = "Please enter all fields";
-        return;
-      }
-
-      try {
-        const res = await fetch('https://ecommerce-backend-8ykq.onrender.com/api/users/login', { // Corrected URL
-          method: 'POST', // Corrected syntax
-          headers: { 'Content-Type': 'application/json' }, // Corrected syntax
-          body: JSON.stringify({ email, password })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          localStorage.setItem("user", JSON.stringify(data.user)); // Corrected key, only store user data
-          localStorage.setItem("token", data.token); // Store token separately
-          window.location.href = "index.html"; // Redirect to home on success
-        } else {
-          document.getElementById("message").textContent = data.message || "Login failed.";
-        }
-
-      } catch (err) {
-        console.error("Error during login:", err);
-        document.getElementById("message").textContent = "Network error or server unavailable.";
-      }
-    }
+    // The login function is now defined in script.js.
+    // This inline script is just to call it from the button.
+    // Make sure script.js is loaded AFTER config.js and before this call.
   </script>
 
 </body>
