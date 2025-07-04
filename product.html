@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .product-detail-container {
+            display: flex;
+            gap: 2rem;
+            background: #fff;
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+        .product-image { flex: 1; text-align: center; }
+        .product-image img { max-width: 100%; height: auto; max-height: 400px; object-fit: contain; }
+        .product-info { flex: 1; }
+        .product-info h1 { font-size: 2rem; margin-bottom: 1rem; }
+        .product-info .price { font-size: 1.8rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; }
+        .product-info p { margin-bottom: 1rem; }
+        .product-info .add-to-cart-btn {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background-color: var(--secondary);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: var(--border-radius);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo"><a href="index.html">MyStore</a></div>
+        <nav class="nav-links" id="nav-links"></nav>
+    </header>
+
+    <main class="main">
+        <div id="product-detail">
+             <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+    </main>
+    
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderNavLinks();
+            const productDetail = document.getElementById('product-detail');
+            const productId = new URLSearchParams(window.location.search).get('id');
+
+            if(!productId) {
+                productDetail.innerHTML = '<p>Product not found.</p>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/v1/products/${productId}`);
+                const product = await res.json();
+                
+                productDetail.innerHTML = `
+                    <div class="product-detail-container">
+                        <div class="product-image">
+                            <img src="${product.image}" alt="${product.name}">
+                        </div>
+                        <div class="product-info">
+                            <h1>${product.name}</h1>
+                            <div class="rating">${product.rating} ★ (${product.numReviews} reviews)</div>
+                            <hr style="margin: 1rem 0;">
+                            <div class="price">₹${product.price}</div>
+                            <p><strong>Description:</strong> ${product.description}</p>
+                            <p><strong>Status:</strong> ${product.countInStock > 0 ? 'In Stock' : 'Out of Stock'}</p>
+                            <button class="add-to-cart-btn" data-id="${product._id}">Add to Cart</button>
+                        </div>
+                    </div>
+                `;
+
+            } catch(error) {
+                productDetail.innerHTML = '<p>Error loading product details.</p>';
+            }
+        });
+    </script>
+</body>
+</html>
