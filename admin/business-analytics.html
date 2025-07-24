@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickLocal Admin Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- QuickLocal API -->
+    <script defer src="../simple-api.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #fff !important;
+        }
+        .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #fff !important;
+            transform: translateY(-2px);
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            min-height: calc(100vh - 76px);
+            padding: 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: #fff !important;
+            border-left: 4px solid #3498db;
+        }
+        .main-content {
+            padding: 30px;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+            padding: 20px;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .stats-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        .revenue-card {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .orders-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .customers-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .products-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table thead th {
+            background-color: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            color: #495057;
+        }
+        .badge {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        .seller-card {
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+        .seller-card:hover {
+            border-left-color: #e74c3c;
+        }
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .activity-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+        .activity-item:hover {
+            background-color: #f8f9fa;
+        }
+        .activity-time {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .status-active {
+            color: #28a745;
+        }
+        .status-inactive {
+            color: #dc3545;
+        }
+        .status-pending {
+            color: #ffc107;
+        }
+        .quick-action-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .performance-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .indicator-excellent {
+            background-color: #28a745;
+        }
+        .indicator-good {
+            background-color: #17a2b8;
+        }
+        .indicator-average {
+            background-color: #ffc107;
+        }
+        .indicator-poor {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up"></i> QuickLocal Admin
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="marketplace.html"><i class="bi bi-shop"></i> View Marketplace</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 p-0">
+                <nav class="sidebar">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showSection('overview', this)">
+                                <i class="bi bi-speedometer2"></i> Overview
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('sellers', this)">
+                                <i class="bi bi-people"></i> Sellers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('analytics', this)">
+                                <i class="bi bi-graph-up"></i> Analytics
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('orders', this)">
+                                <i class="bi bi-box"></i> Orders
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('products', this)">
+                                <i class="bi bi-bag"></i> Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('customers', this)">
+                                <i class="bi bi-person-check"></i> Customers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('reports', this)">
+                                <i class="bi bi-file-earmark-text"></i> Reports
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10">
+                <div class="main-content">
+                    <!-- Overview Section -->
+                    <div id="overview-section" class="content-section">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="bi bi-speedometer2"></i> Dashboard Overview</h2>
+                            <div>
+                                <button class="btn btn-primary quick-action-btn" onclick="refreshData()">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                                <button class="btn btn-success quick-action-btn" onclick="exportReport()">
+                                    <i class="bi bi-download"></i> Export
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Key Statistics -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card stats-card revenue-card">
+                                    <div class="stats-number" id="totalRevenue">₹0</div>
+                                    <div class="stats-label">Total Revenue</div>
+                                    <small class="text-light">+12% from last month</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card orders-card">
+                                    <div class="stats-number" id="totalOrders">0</div>
+                                    <div class="stats-label">Total Orders</div>
+                                    <small class="text-light">+8% from last month</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card customers-card">
+                                    <div class="stats-number" id="totalCustomers">0</div>
+                                    <div class="stats-label">Active Customers</div>
+                                    <small class="text-light">+15% from last month</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card products-card">
+                                    <div class="stats-number" id="totalProducts">0</div>
+                                    <div class="stats-label">Total Products</div>
+                                    <small class="text-light">+5% from last month</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="bi bi-graph-up"></i> Sales Trends</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="salesChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="bi bi-pie-chart"></i> Revenue by Category</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="categoryChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="bi bi-clock-history"></i> Recent Activity</h5>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="activity-feed" id="activityFeed">
+                                            <!-- Activity items will be populated here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="bi bi-star"></i> Top Performing Sellers</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="topSellers">
+                                            <!-- Top sellers will be populated here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sellers Section -->
+                    <div id="sellers-section" class="content-section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2><i class="bi bi-people"></i> Seller Management</h2>
+                            <div>
+                                <button class="btn btn-success quick-action-btn" onclick="addNewSeller()">
+                                    <i class="bi bi-plus-circle"></i> Add Seller
+                                </button>
+                                <button class="btn btn-info quick-action-btn" onclick="exportSellers()">
+                                    <i class="bi bi-download"></i> Export List
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Seller Filters -->
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="sellerStatusFilter" onchange="filterSellers()">
+                                            <option value="">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                            <option value="pending">Pending</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="sellerPerformanceFilter" onchange="filterSellers()">
+                                            <option value="">All Performance</option>
+                                            <option value="excellent">Excellent</option>
+                                            <option value="good">Good</option>
+                                            <option value="average">Average</option>
+                                            <option value="poor">Poor</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="sellerSearchInput" placeholder="Search sellers..." onkeyup="searchSellers()">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-outline-secondary w-100" onclick="resetSellerFilters()">
+                                            <i class="bi bi-arrow-clockwise"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sellers Table -->
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Seller</th>
+                                                <th>Performance</th>
+                                                <th>Products</th>
+                                                <th>Revenue</th>
+                                                <th>Orders</th>
+                                                <th>Rating</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sellersTableBody">
+                                            <!-- Seller rows will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other sections would go here -->
+                    <div id="analytics-section" class="content-section" style="display: none;">
+                        <h2>Analytics Section</h2>
+                        <p>Analytics content would be displayed here...</p>
+                    </div>
+
+                    <div id="orders-section" class="content-section" style="display: none;">
+                        <h2>Orders Section</h2>
+                        <p>Orders content would be displayed here...</p>
+                    </div>
+
+                    <div id="products-section" class="content-section" style="display: none;">
+                        <h2>Products Section</h2>
+                        <p>Products content would be displayed here...</p>
+                    </div>
+
+                    <div id="customers-section" class="content-section" style="display: none;">
+                        <h2>Customers Section</h2>
+                        <p>Customers content would be displayed here...</p>
+                    </div>
+
+                    <div id="reports-section" class="content-section" style="display: none;">
+                        <h2>Reports Section</h2>
+                        <p>Reports content would be displayed here...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script>
+        // Global variables
+        let allSellers = [];
+        let allOrders = [];
+        let allProducts = [];
+        let allCustomers = [];
+        let charts = {};
+        let currentSection = 'overview';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 QuickLocal Admin Dashboard loaded');
+            
+            try {
+                // Wait for API
+                await waitForAPI();
+                
+                // Load all data
+                await loadDashboardData();
+                
+                // Initialize charts
+                initializeCharts();
+                
+                console.log('✅ Dashboard initialization complete');
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+                // Still show the dashboard with mock data
+                generateMockData();
+                updateDashboardStats();
+                initializeCharts();
+            }
+        });
+
+        // Wait for API to load
+        async function waitForAPI() {
+            let attempts = 0;
+            while (typeof window.QuickLocalAPI === 'undefined' && attempts < 30) {
+                console.log(`⏳ Waiting for API... (${attempts + 1}/30)`);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                attempts++;
+            }
+            
+            if (typeof window.QuickLocalAPI === 'undefined') {
+                console.log('⚠️ QuickLocal API not found - using mock data');
+                return false;
+            }
+            
+            console.log('✅ QuickLocal API ready');
+            return true;
+        }
+
+        // Load all dashboard data
+        async function loadDashboardData() {
+            try {
+                // If API is available, use it
+                if (window.QuickLocalAPI) {
+                    const result = await window.QuickLocalAPI.getProducts();
+                    if (result.success) {
+                        allProducts = result.data || [];
+                        console.log(`📦 Loaded ${allProducts.length} products from API`);
+                    }
+                }
+                
+                // Generate additional mock data
+                generateMockData();
+                updateDashboardStats();
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                generateMockData();
+                updateDashboardStats();
+            }
+        }
+
+        // Generate mock data for demonstration
+        function generateMockData() {
+            // Generate mock sellers
+            const sellerNames = ['Fresh Foods Co.', 'Tech Gadgets Store', 'Fashion Hub', 'Home & Garden', 'Sports Zone', 'Book Corner'];
+            allSellers = sellerNames.map((name, index) => ({
+                id: `seller_${index + 1}`,
+                name: name,
+                email: `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`,
+                phone: `+91 ${9000000000 + index}`,
+                status: ['active', 'active', 'inactive', 'active', 'pending', 'active'][index],
+                performance: ['excellent', 'good', 'average', 'excellent', 'poor', 'good'][index],
+                products: Math.floor(Math.random() * 20) + 5,
+                revenue: Math.floor(Math.random() * 100000) + 10000,
+                orders: Math.floor(Math.random() * 500) + 50,
+                rating: (Math.random() * 2 + 3).toFixed(1),
+                joinDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            }));
+
+            // Generate mock orders
+            allOrders = [];
+            for (let i = 0; i < 50; i++) {
+                const seller = allSellers[Math.floor(Math.random() * allSellers.length)];
+                allOrders.push({
+                    id: `QL${Date.now().toString().substr(-8)}${i}`,
+                    customer: `Customer ${i + 1}`,
+                    customerEmail: `customer${i + 1}@example.com`,
+                    seller: seller.name,
+                    items: Math.floor(Math.random() * 5) + 1,
+                    total: Math.floor(Math.random() * 5000) + 500,
+                    status: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'][Math.floor(Math.random() * 5)],
+                    date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    paymentMethod: ['cod', 'upi', 'card', 'netbanking'][Math.floor(Math.random() * 4)]
+                });
+            }
+
+            // Generate mock customers
+            allCustomers = [];
+            for (let i = 0; i < 100; i++) {
+                allCustomers.push({
+                    id: `customer_${i + 1}`,
+                    name: `Customer ${i + 1}`,
+                    email: `customer${i + 1}@example.com`,
+                    phone: `+91 ${9000000000 + i}`,
+                    orders: Math.floor(Math.random() * 10) + 1,
+                    totalSpent: Math.floor(Math.random() * 20000) + 1000,
+                    lastOrder: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    status: Math.random() > 0.3 ? 'active' : 'inactive'
+                });
+            }
+
+            // Ensure products have proper structure
+            if (allProducts.length === 0) {
+                for (let i = 0; i < 30; i++) {
+                    allProducts.push({
+                        id: `product_${i + 1}`,
+                        name: `Product ${i + 1}`,
+                        category: ['Electronics', 'Fashion', 'Home', 'Books', 'Sports'][Math.floor(Math.random() * 5)],
+                        price: Math.floor(Math.random() * 2000) + 100,
+                        stock: Math.floor(Math.random() * 50),
+                        sellerName: allSellers[Math.floor(Math.random() * allSellers.length)].name,
+                        image: `https://picsum.photos/200/200?random=${i}`,
+                        description: `High quality product ${i + 1}`
+                    });
+                }
+            }
+
+            console.log('📊 Generated mock data for dashboard');
+        }
+
+        // Update dashboard statistics
+        function updateDashboardStats() {
+            try {
+                // Calculate totals
+                const totalRevenue = allOrders.filter(o => o.status === 'delivered').reduce((sum, order) => sum + order.total, 0);
+                const totalOrders = allOrders.length;
+                const totalCustomers = allCustomers.filter(c => c.status === 'active').length;
+                const totalProducts = allProducts.length;
+
+                // Update display
+                const revenueEl = document.getElementById('totalRevenue');
+                const ordersEl = document.getElementById('totalOrders');
+                const customersEl = document.getElementById('totalCustomers');
+                const productsEl = document.getElementById('totalProducts');
+
+                if (revenueEl) revenueEl.textContent = `₹${totalRevenue.toLocaleString()}`;
+                if (ordersEl) ordersEl.textContent = totalOrders;
+                if (customersEl) customersEl.textContent = totalCustomers;
+                if (productsEl) productsEl.textContent = totalProducts;
+
+                // Update activity feed and top sellers
+                updateActivityFeed();
+                updateTopSellers();
+
+                console.log('📈 Dashboard stats updated');
+            } catch (error) {
+                console.error('Error updating dashboard stats:', error);
+            }
+        }
+
+        // Update activity feed
+        function updateActivityFeed() {
+            const activities = [
+                { icon: 'bi-bag-check', text: 'New order #QL12345 placed', time: '2 minutes ago', type: 'success' },
+                { icon: 'bi-person-plus', text: 'New seller "Fresh Mart" registered', time: '15 minutes ago', type: 'info' },
+                { icon: 'bi-exclamation-triangle', text: 'Low stock alert for "Organic Apples"', time: '1 hour ago', type: 'warning' },
+                { icon: 'bi-star', text: 'Product "Bluetooth Speaker" got 5-star review', time: '2 hours ago', type: 'success' },
+                { icon: 'bi-truck', text: 'Order #QL12340 shipped to customer', time: '3 hours ago', type: 'info' },
+                { icon: 'bi-x-circle', text: 'Order #QL12338 cancelled by customer', time: '4 hours ago', type: 'danger' }
+            ];
+
+            const activityHtml = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${activity.icon} text-${activity.type} me-3"></i>
+                        <div class="flex-grow-1">
+                            <div>${activity.text}</div>
+                            <div class="activity-time">${activity.time}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const feedEl = document.getElementById('activityFeed');
+            if (feedEl) feedEl.innerHTML = activityHtml;
+        }
+
+        // Update top sellers
+        function updateTopSellers() {
+            const topSellers = allSellers
+                .sort((a, b) => b.revenue - a.revenue)
+                .slice(0, 5);
+
+            const sellersHtml = topSellers.map((seller, index) => `
+                <div class="d-flex align-items-center mb-3">
+                    <div class="badge bg-primary rounded-pill me-3">${index + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${seller.name}</div>
+                        <div class="text-muted small">₹${seller.revenue.toLocaleString()} revenue</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="performance-indicator indicator-${seller.performance}"></span>
+                        ${seller.performance}
+                    </div>
+                </div>
+            `).join('');
+
+            const sellersEl = document.getElementById('topSellers');
+            if (sellersEl) sellersEl.innerHTML = sellersHtml;
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            try {
+                // Sales Chart
+                const salesCtx = document.getElementById('salesChart');
+                if (salesCtx) {
+                    charts.salesChart = new Chart(salesCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                            datasets: [{
+                                label: 'Sales',
+                                data: [12000, 19000, 15000, 25000, 22000, 30000, 28000],
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Category Chart
+                const categoryCtx = document.getElementById('categoryChart');
+                if (categoryCtx) {
+                    charts.categoryChart = new Chart(categoryCtx.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Electronics', 'Fashion', 'Home', 'Books', 'Sports'],
+                            datasets: [{
+                                data: [30, 25, 20, 15, 10],
+                                backgroundColor: ['#667eea', '#764ba2', '#11998e', '#38ef7d', '#f093fb']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                }
+
+                console.log('📊 Charts initialized successfully');
+            } catch (error) {
+                console.error('Error initializing charts:', error);
+            }
+        }
+
+        // Section navigation - FIXED
+        function showSection(sectionName, linkElement) {
+            try {
+                // Hide all sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+
+                // Remove active class from all nav links
+                document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+
+                // Show selected section
+                const targetSection = document.getElementById(`${sectionName}-section`);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+
+                // Add active class to current nav link
+                if (linkElement) {
+                    linkElement.classList.add('active');
+                }
+
+                currentSection = sectionName;
+
+                // Load section-specific data
+                switch (sectionName) {
+                    case 'sellers':
+                        populateSellersTable();
+                        break;
+                    case 'orders':
+                        // populateOrdersTable();
+                        break;
+                    case 'products':
+                        // populateProductsTable();
+                        break;
+                    case 'analytics':
+                        // updateAnalytics();
+                        break;
+                }
+
+                console.log(`📂 Switched to ${sectionName} section`);
+            } catch (error) {
+                console.error('Error switching sections:', error);
+            }
+        }
+
+        // Populate sellers table
+        function populateSellersTable() {
+            try {
+                const tbody = document.getElementById('sellersTableBody');
+                if (!tbody) return;
+
+                const sellersHtml = allSellers.map(seller => `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    ${seller.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <div class="fw-bold">${seller.name}</div>
+                                    <div class="text-muted small">${seller.email}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="performance-indicator indicator-${seller.performance}"></span>
+                            <span class="text-capitalize">${seller.performance}</span>
+                        </td>
+                        <td>${seller.products}</td>
+                        <td>₹${seller.revenue.toLocaleString()}</td>
+                        <td>${seller.orders}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">${seller.rating}</span>
+                                <div class="text-warning">
+                                    ${'★'.repeat(Math.floor(seller.rating))}${'☆'.repeat(5 - Math.floor(seller.rating))}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-${seller.status === 'active' ? 'success' : seller.status === 'pending' ? 'warning' : 'danger'}">
+                                ${seller.status}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="viewSeller('${seller.id}')" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-success" onclick="editSeller('${seller.id}')" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="suspendSeller('${seller.id}')" title="Suspend">
+                                    <i class="bi bi-ban"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                tbody.innerHTML = sellersHtml;
+                console.log('👥 Sellers table populated');
+            } catch (error) {
+                console.error('Error populating sellers table:', error);
+            }
+        }
+
+        // Action functions - FIXED with proper error handling
+        function refreshData() {
+            try {
+                loadDashboardData();
+                showNotification('Data refreshed successfully!', 'success');
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showNotification('Failed to refresh data', 'error');
+            }
+        }
+
+        async function exportReport() {
+            try {
+                showNotification('Generating comprehensive report...', 'info');
+                
+                // If API is available, try to get real data
+                if (window.QuickLocalAPI) {
+                    const reportData = {
+                        sellers: allSellers,
+                        orders: allOrders,
+                        products: allProducts,
+                        customers: allCustomers,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Create downloadable JSON file
+                    const dataStr = JSON.stringify(reportData, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `quicklocal-report-${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                    
+                    URL.revokeObjectURL(url);
+                    showNotification('Report exported successfully!', 'success');
+                } else {
+                    showNotification('Export feature requires API connection', 'warning');
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                showNotification('Failed to export report', 'error');
+            }
+        }
+
+        function addNewSeller() {
+            showNotification('Add New Seller form would open here', 'info');
+        }
+
+        function exportSellers() {
+            try {
+                const csvContent = "data:text/csv;charset=utf-8," + 
+                    "Name,Email,Status,Performance,Products,Revenue,Orders,Rating\n" +
+                    allSellers.map(seller => 
+                        `"${seller.name}","${seller.email}","${seller.status}","${seller.performance}",${seller.products},${seller.revenue},${seller.orders},${seller.rating}`
+                    ).join("\n");
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `sellers-${new Date().toISOString().split('T')[0]}.csv`);
+                link.click();
+                
+                showNotification('Seller list exported successfully!', 'success');
+            } catch (error) {
+                console.error('Error exporting sellers:', error);
+                showNotification('Failed to export seller list', 'error');
+            }
+        }
+
+        function viewSeller(sellerId) {
+            try {
+                const seller = allSellers.find(s => s.id === sellerId);
+                if (seller) {
+                    const details = `Seller: ${seller.name}\nRevenue: ₹${seller.revenue.toLocaleString()}\nStatus: ${seller.status}\nProducts: ${seller.products}\nRating: ${seller.rating}\nJoin Date: ${seller.joinDate}`;
+                    alert(details);
+                } else {
+                    showNotification('Seller not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error viewing seller:', error);
+                showNotification('Error loading seller details', 'error');
+            }
+        }
+
+        function editSeller(sellerId) {
+            showNotification(`Edit seller form would open for seller ID: ${sellerId}`, 'info');
+        }
+
+        function suspendSeller(sellerId) {
+            if (confirm('Are you sure you want to suspend this seller?')) {
+                try {
+                    const seller = allSellers.find(s => s.id === sellerId);
+                    if (seller) {
+                        seller.status = 'inactive';
+                        populateSellersTable();
+                        showNotification(`Seller ${seller.name} has been suspended`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Error suspending seller:', error);
+                    showNotification('Failed to suspend seller', 'error');
+                }
+            }
+        }
+
+        function filterSellers() {
+            try {
+                const statusFilter = document.getElementById('sellerStatusFilter')?.value || '';
+                const performanceFilter = document.getElementById('sellerPerformanceFilter')?.value || '';
+                const searchQuery = document.getElementById('sellerSearchInput')?.value.toLowerCase() || '';
+
+                // Apply filters (simplified for demo)
+                populateSellersTable();
+                showNotification('Filters applied', 'info');
+            } catch (error) {
+                console.error('Error filtering sellers:', error);
+            }
+        }
+
+        function searchSellers() {
+            filterSellers();
+        }
+
+        function resetSellerFilters() {
+            try {
+                const statusFilter = document.getElementById('sellerStatusFilter');
+                const performanceFilter = document.getElementById('sellerPerformanceFilter');
+                const searchInput = document.getElementById('sellerSearchInput');
+
+                if (statusFilter) statusFilter.value = '';
+                if (performanceFilter) performanceFilter.value = '';
+                if (searchInput) searchInput.value = '';
+
+                populateSellersTable();
+                showNotification('Filters reset', 'info');
+            } catch (error) {
+                console.error('Error resetting filters:', error);
+            }
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            };
+
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert ${alertClass[type]} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            document.body.appendChild(notification);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // API Integration Functions
+        async function syncWithAPI() {
+            if (!window.QuickLocalAPI) {
+                showNotification('API not available for sync', 'warning');
+                return;
+            }
+
+            try {
+                showNotification('Syncing with API...', 'info');
+                
+                // Get fresh data from API
+                const productsResult = await window.QuickLocalAPI.getProducts();
+                if (productsResult.success) {
+                    allProducts = productsResult.data || [];
+                    console.log(`🔄 Synced ${allProducts.length} products from API`);
+                }
+
+                // Update dashboard with fresh data
+                updateDashboardStats();
+                showNotification('Data synchronized successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error syncing with API:', error);
+                showNotification('Failed to sync with API', 'error');
+            }
+        }
+
+        // Add API sync button functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add sync button to refresh functionality
+            const originalRefreshData = window.refreshData;
+            window.refreshData = async function() {
+                await syncWithAPI();
+                originalRefreshData();
+            };
+        });
+
+        // Error boundary for uncaught errors
+        window.addEventListener('error', function(event) {
+            console.error('Global error caught:', event.error);
+            showNotification('An unexpected error occurred. Please refresh the page.', 'error');
+        });
+
+        // Make functions globally available
+        window.showSection = showSection;
+        window.refreshData = refreshData;
+        window.exportReport = exportReport;
+        window.addNewSeller = addNewSeller;
+        window.exportSellers = exportSellers;
+        window.viewSeller = viewSeller;
+        window.editSeller = editSeller;
+        window.suspendSeller = suspendSeller;
+        window.filterSellers = filterSellers;
+        window.searchSellers = searchSellers;
+        window.resetSellerFilters = resetSellerFilters;
+        window.syncWithAPI = syncWithAPI;
+
+        console.log('🎯 All functions registered globally');
+    </script>
+</body>
+</html>

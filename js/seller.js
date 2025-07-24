@@ -998,4 +998,3 @@
     width: 100%;
   }
 }
-<link rel="stylesheet" href="path/to/seller-dashboard.css">

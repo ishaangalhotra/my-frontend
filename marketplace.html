@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickLocal - Local Marketplace</title>
+    <script defer src="simple-api.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background-color: #1a1a1a;
+            padding: 15px 0;
+        }
+        .navbar-brand, .nav-link {
+            color: #ffffff !important;
+            font-weight: 500;
+        }
+        .nav-link:hover {
+            color: #cccccc !important;
+        }
+        .cart-icon {
+            position: relative;
+        }
+        .cart-count {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #ff4d4d;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+        }
+        .product-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .product-img {
+            height: 200px;
+            object-fit: cover;
+        }
+        .debug-console {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 120px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status-message {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        .error-message { color: #dc3545; }
+        .success-message { color: #198754; }
+        .checkout-steps {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 20px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            min-width: 120px;
+            position: relative;
+        }
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+        .payment-methods .form-check {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .payment-methods .form-check:hover {
+            border-color: #007bff;
+            background-color: #f8f9ff;
+        }
+        .payment-methods .form-check-input:checked ~ .form-check-label {
+            color: #007bff;
+        }
+        .payment-details {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="marketplace.html">🛒 QuickLocal</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showAllCategories()">Categories</a>
+                    </li>
+                    
+                    <!-- Dynamic Auth Section -->
+                    <li class="nav-item" id="authSection">
+                        <!-- Content will be populated by JavaScript -->
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link cart-icon" href="#" data-bs-toggle="modal" data-bs-target="#cartModal">
+                            🛒 Cart <span class="cart-count" id="cartCount">0</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container text-center">
+            <h1 class="display-4 fw-bold mb-3">Local Marketplace</h1>
+            <p class="lead mb-4">Fresh products from local sellers in your community</p>
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="Search products...">
+                        <button class="btn btn-warning btn-lg" onclick="searchProducts()">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Debug Console -->
+    <div class="container my-4">
+        <div class="debug-console" id="debugConsole">Debug console loading...</div>
+    </div>
+
+    <!-- Filters and Controls -->
+    <section class="container my-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <select id="categoryFilter" class="form-select" onchange="filterProducts()">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="sortFilter" class="form-select" onchange="sortProducts()">
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="name-asc">Name: A-Z</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-outline-primary me-2" onclick="refreshProducts()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="testCart()">
+                            <i class="bi bi-cart-plus"></i> Test Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Status Message -->
+    <div class="container">
+        <div class="status-message text-center" id="statusMessage">Status: Loading...</div>
+    </div>
+
+    <!-- Products Section -->
+    <section class="container my-4">
+        <div class="row" id="productsContainer">
+            <!-- Products will be populated here -->
+        </div>
+    </section>
+
+    <!-- No Products Section -->
+    <div class="container my-4 text-center" style="display: none;" id="noProductsSection">
+        <div class="card">
+            <div class="card-body">
+                <h5>No Products Found</h5>
+                <p class="text-muted">Start selling your products or check back later!</p>
+                <a href="seller.html" class="btn btn-primary">
+                    <i class="bi bi-shop"></i> Go to Seller Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cartModalLabel">
+                        <i class="bi bi-cart3"></i> Shopping Cart
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cartItems">
+                        <!-- Cart items will be populated here -->
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Total:</h5>
+                        <h5 class="mb-0 text-success">₹<span id="cartTotal">0.00</span></h5>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Continue Shopping</button>
+                    <button type="button" class="btn btn-primary" onclick="showCheckout()">
+                        <i class="bi bi-credit-card"></i> Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkoutModalLabel">
+                        <i class="bi bi-credit-card"></i> Checkout
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Checkout Steps -->
+                    <div class="checkout-steps">
+                        <div class="step active" id="step1">
+                            <div class="fw-bold">1</div>
+                            <div>Order Summary</div>
+                        </div>
+                        <div class="step" id="step2">
+                            <div class="fw-bold">2</div>
+                            <div>Delivery Details</div>
+                        </div>
+                        <div class="step" id="step3">
+                            <div class="fw-bold">3</div>
+                            <div>Payment Method</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Order Summary -->
+                    <div class="checkout-step-content" id="orderSummaryStep">
+                        <h5><i class="bi bi-list-check"></i> Order Summary</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="checkoutCartItems">
+                                    <!-- Checkout items will be populated here -->
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Total:</h5>
+                                    <h5 class="mb-0 text-success">₹<span id="checkoutTotal">0.00</span></h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button class="btn btn-primary btn-lg" onclick="goToDeliveryDetails()">
+                                Continue to Delivery Details <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Delivery Details -->
+                    <div class="checkout-step-content d-none" id="deliveryDetailsStep">
+                        <h5><i class="bi bi-truck"></i> Delivery Information</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <form id="deliveryForm">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="fullName" class="form-label">Full Name *</label>
+                                            <input type="text" class="form-control" id="fullName" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="phoneNumber" class="form-label">Phone Number *</label>
+                                            <input type="tel" class="form-control" id="phoneNumber" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email Address</label>
+                                        <input type="email" class="form-control" id="email">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="address" class="form-label">Delivery Address *</label>
+                                        <textarea class="form-control" id="address" rows="3" required placeholder="Enter complete address with landmark"></textarea>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="pincode" class="form-label">PIN Code *</label>
+                                            <input type="text" class="form-control" id="pincode" required pattern="[0-9]{6}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="city" class="form-label">City *</label>
+                                            <input type="text" class="form-control" id="city" required>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-secondary" onclick="goBackToOrderSummary()">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary btn-lg" onclick="goToPayment()">
+                                Continue to Payment <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Payment Method -->
+                    <div class="checkout-step-content d-none" id="paymentStep">
+                        <h5><i class="bi bi-credit-card"></i> Select Payment Method</h5>
+                        <div class="payment-methods">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="cod" value="cod" checked onchange="showPaymentDetails('cod')">
+                                <label class="form-check-label" for="cod">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">💰</div>
+                                        <div>
+                                            <strong>Cash on Delivery</strong>
+                                            <p class="text-muted small mb-0">Pay when your order arrives</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="upi" value="upi" onchange="showPaymentDetails('upi')">
+                                <label class="form-check-label" for="upi">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">📱</div>
+                                        <div>
+                                            <strong>UPI Payment</strong>
+                                            <p class="text-muted small mb-0">Pay instantly via UPI apps</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="card" value="card" onchange="showPaymentDetails('card')">
+                                <label class="form-check-label" for="card">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">💳</div>
+                                        <div>
+                                            <strong>Credit/Debit Card</strong>
+                                            <p class="text-muted small mb-0">Pay securely with your card</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="netbanking" value="netbanking" onchange="showPaymentDetails('netbanking')">
+                                <label class="form-check-label" for="netbanking">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">🏦</div>
+                                        <div>
+                                            <strong>Net Banking</strong>
+                                            <p class="text-muted small mb-0">Pay through your bank account</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Payment Details Sections -->
+                            <div class="payment-details" id="codDetails">
+                                <div class="alert alert-warning">
+                                    <strong><i class="bi bi-info-circle"></i> Cash on Delivery</strong><br>
+                                    Please keep exact change ready. Our delivery partner will collect ₹<span id="codAmount">0</span> at the time of delivery.
+                                </div>
+                            </div>
+
+                            <div class="payment-details d-none" id="upiDetails">
+                                <h6>UPI Payment Details</h6>
+                                <div class="mb-3">
+                                    <label for="upiId" class="form-label">UPI ID</label>
+                                    <input type="text" class="form-control" id="upiId" placeholder="yourname@paytm">
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> You will be redirected to your UPI app to complete the payment
+                                </div>
+                            </div>
+
+                            <div class="payment-details d-none" id="cardDetails">
+                                <h6>Card Payment Details</h6>
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label for="cardNumber" class="form-label">Card Number</label>
+                                        <input type="text" class="form-control" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="expiryDate" class="form-label">Expiry Date</label>
+                                        <input type="text" class="form-control" id="expiryDate" placeholder="MM/YY" maxlength="5">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="cvv" class="form-label">CVV</label>
+                                        <input type="text" class="form-control" id="cvv" placeholder="123" maxlength="4">
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label for="cardName" class="form-label">Name on Card</label>
+                                        <input type="text" class="form-control" id="cardName" placeholder="JOHN DOE">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="payment-details d-none" id="netbankingDetails">
+                                <h6>Net Banking Details</h6>
+                                <div class="mb-3">
+                                    <label for="bankSelect" class="form-label">Select Your Bank</label>
+                                    <select class="form-select" id="bankSelect">
+                                        <option value="">Choose your bank</option>
+                                        <option value="sbi">State Bank of India</option>
+                                        <option value="hdfc">HDFC Bank</option>
+                                        <option value="icici">ICICI Bank</option>
+                                        <option value="axis">Axis Bank</option>
+                                        <option value="pnb">Punjab National Bank</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i> You will be redirected to your bank's website to complete the payment
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-secondary" onclick="goBackToDeliveryDetails()">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg" onclick="processPayment()">
+                                <i class="bi bi-check-circle"></i> Place Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Processing Modal -->
+    <div class="modal fade" id="paymentProcessingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <h5>Processing Payment...</h5>
+                    <p class="text-muted">Please wait while we process your payment securely</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Success Modal -->
+    <div class="modal fade" id="paymentSuccessModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-5">
+                    <div class="text-success mb-3" style="font-size: 4rem;">✅</div>
+                    <h4 class="text-success">Payment Successful!</h4>
+                    <p class="lead">Your order has been placed successfully</p>
+                    <div class="alert alert-success">
+                        <strong>Order ID:</strong> <span id="orderId" class="fw-bold"></span>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-lg" onclick="continueShopping()">
+                        <i class="bi bi-bag-check"></i> Continue Shopping
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Failed Modal -->
+    <div class="modal fade" id="paymentFailedModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-5">
+                    <div class="text-danger mb-3" style="font-size: 4rem;">❌</div>
+                    <h4 class="text-danger">Payment Failed</h4>
+                    <p class="lead">There was an error processing your payment</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" onclick="tryAgain()">
+                            <i class="bi bi-arrow-clockwise"></i> Try Again
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global state
+        let allProducts = [];
+        let cart = JSON.parse(localStorage.getItem('ql_cart')) || [];
+        let logs = [];
+        let currentStep = 1;
+        let selectedPaymentMethod = 'cod';
+
+        // Authentication Management
+        class AuthManager {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                this.updateAuthUI();
+                this.setupAuthEventListeners();
+            }
+            
+            isLoggedIn() {
+                return localStorage.getItem('authToken') !== null;
+            }
+            
+            getCurrentUser() {
+                if (!this.isLoggedIn()) return null;
+                
+                return {
+                    id: localStorage.getItem('userId'),
+                    role: localStorage.getItem('userRole'),
+                    email: localStorage.getItem('userEmail'),
+                    name: localStorage.getItem('userName')
+                };
+            }
+            
+            getUserRole() {
+                return localStorage.getItem('userRole') || 'customer';
+            }
+            
+            updateAuthUI() {
+                const authSection = document.getElementById('authSection');
+                const user = this.getCurrentUser();
+                
+                if (this.isLoggedIn() && user) {
+                    authSection.innerHTML = `
+                        <div class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="bg-primary rounded-circle d-flex align-items-center justify-center me-2" style="width: 30px; height: 30px;">
+                                    <i class="bi bi-person text-white"></i>
+                                </div>
+                                <span class="d-none d-md-inline">${user.name || user.email || 'User'}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <h6 class="dropdown-header">
+                                        <i class="bi bi-person-circle me-2"></i>
+                                        ${user.email}
+                                    </h6>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                ${this.getRoleSpecificMenuItems(user.role)}
+                                <li><a class="dropdown-item" href="#" onclick="authManager.viewProfile()">
+                                    <i class="bi bi-person me-2"></i>My Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="authManager.viewOrders()">
+                                    <i class="bi bi-box me-2"></i>My Orders
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="authManager.logout()">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                </a></li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    authSection.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <a class="nav-link me-2" href="login.html">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Login
+                            </a>
+                            <a class="btn btn-outline-light btn-sm" href="register.html">
+                                <i class="bi bi-person-plus me-1"></i>Register
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+            
+            getRoleSpecificMenuItems(role) {
+                switch (role) {
+                    case 'seller':
+                        return `
+                            <li><a class="dropdown-item" href="seller.html">
+                                <i class="bi bi-shop me-2"></i>Seller Dashboard
+                            </a></li>
+                        `;
+                    case 'admin':
+                        return `
+                            <li><a class="dropdown-item" href="admin/dashboard.html">
+                                <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
+                            </a></li>
+                        `;
+                    default:
+                        return `
+                            <li><a class="dropdown-item" href="#" onclick="authManager.viewWishlist()">
+                                <i class="bi bi-heart me-2"></i>My Wishlist
+                            </a></li>
+                        `;
+                }
+            }
+            
+            setupAuthEventListeners() {
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'authToken') {
+                        this.updateAuthUI();
+                    }
+                });
+            }
+            
+            requireAuth() {
+                if (!this.isLoggedIn()) {
+                    localStorage.setItem('redirectAfterLogin', window.location.href);
+                    window.location.href = 'login.html';
+                    return false;
+                }
+                return true;
+            }
+            
+            viewProfile() {
+                alert('Profile page coming soon!');
+            }
+            
+            viewOrders() {
+                if (!this.requireAuth()) return;
+                alert('Orders page coming soon!');
+            }
+            
+            viewWishlist() {
+                if (!this.requireAuth()) return;
+                alert('Wishlist feature coming soon!');
+            }
+            
+            logout() {
+                if (confirm('Are you sure you want to logout?')) {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('userRole');
+                    localStorage.removeItem('userEmail');
+                    localStorage.removeItem('userName');
+                    
+                    this.showNotification('Logged out successfully!', 'info');
+                    this.updateAuthUI();
+                    
+                    setTimeout(() => {
+                        window.location.href = 'marketplace.html';
+                    }, 1500);
+                }
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `position-fixed top-0 end-0 p-3`;
+                notification.style.zIndex = '9999';
+                
+                notification.innerHTML = `
+                    <div class="toast show" role="alert">
+                        <div class="toast-header">
+                            <i class="bi bi-${type === 'success' ? 'check-circle' : 'info-circle'} me-2 text-${type === 'success' ? 'success' : 'primary'}"></i>
+                            <strong class="me-auto">QuickLocal</strong>
+                            <button type="button" class="btn-close" onclick="this.closest('.position-fixed').remove()"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        notification.remove();
+                    }
+                }, 3000);
+            }
+        }
+
+        // Initialize Auth Manager
+        const authManager = new AuthManager();
+
+        // Debug logging
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${message}`);
+            console.log(`[${timestamp}] ${message}`);
+            const consoleEl = document.getElementById('debugConsole');
+            if (consoleEl) {
+                consoleEl.textContent = logs.slice(-6).join('\n');
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+            }
+        }
+
+        // Update status message
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            if (statusEl) {
+                statusEl.textContent = `Status: ${message}`;
+                statusEl.className = `status-message text-center ${type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : ''}`;
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('🚀 QuickLocal Marketplace loaded');
+            updateStatus('Initializing...');
+            
+            // Load cached products
+            const cachedProducts = JSON.parse(localStorage.getItem('ql_products')) || [];
+            if (cachedProducts.length > 0) {
+                allProducts = cachedProducts;
+                renderProducts(allProducts);
+                populateCategoryFilter();
+                updateStatus(`Loaded ${allProducts.length} products from cache`, 'success');
+            }
+
+            // Wait for API
+            await waitForAPI();
+            await fetchProducts();
+            updateCart();
+            
+            // Check for pending checkout
+            if (localStorage.getItem('pendingCheckout') === 'true' && authManager.isLoggedIn()) {
+                localStorage.removeItem('pendingCheckout');
+                authManager.showNotification('Welcome back! You can now proceed with checkout.', 'success');
+                setTimeout(() => {
+                    if (cart.length > 0) {
+                        showCheckout();
+                    }
+                }, 1000);
+            }
+            
+            setTimeout(() => {
+                authManager.updateAuthUI();
+            }, 100);
+        });
+
+        // Wait for API
+        async function waitForAPI() {
+            let attempts = 0;
+            while (typeof window.QuickLocalAPI === 'undefined' && attempts < 30) {
+                log(`⏳ Waiting for API... (${attempts + 1}/30)`);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (typeof window.QuickLocalAPI === 'undefined') {
+                log('❌ QuickLocal API not available - using demo data');
+                generateDemoProducts();
+                return false;
+            }
+            
+            log('✅ QuickLocal API ready');
+            return true;
+        }
+
+        // Generate demo products if API not available
+        function generateDemoProducts() {
+            allProducts = [
+                {
+                    id: 'demo1',
+                    name: 'Fresh Organic Apples',
+                    category: 'Fruits',
+                    price: 120,
+                    stock: 50,
+                    sellerName: 'Fresh Farms',
+                    description: 'Crisp and sweet organic apples',
+                    image: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=300'
+                },
+                {
+                    id: 'demo2',
+                    name: 'Premium Basmati Rice',
+                    category: 'Grains',
+                    price: 180,
+                    stock: 25,
+                    sellerName: 'Rice Palace',
+                    description: 'Long grain basmati rice - 1kg pack',
+                    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300'
+                },
+                {
+                    id: 'demo3',
+                    name: 'Handmade Pottery Vase',
+                    category: 'Home Decor',
+                    price: 850,
+                    stock: 8,
+                    sellerName: 'Artisan Crafts',
+                    description: 'Beautiful handcrafted ceramic vase',
+                    image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=300'
+                },
+                {
+                    id: 'demo4',
+                    name: 'Local Honey',
+                    category: 'Food',
+                    price: 350,
+                    stock: 15,
+                    sellerName: 'Bee Happy',
+                    description: 'Pure local honey - 500g jar',
+                    image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=300'
+                }
+            ];
+            
+            localStorage.setItem('ql_products', JSON.stringify(allProducts));
+            renderProducts(allProducts);
+            populateCategoryFilter();
+            updateStatus(`Loaded ${allProducts.length} demo products`, 'success');
+        }
+
+        // Fetch products
+        async function fetchProducts() {
+            try {
+                if (typeof window.QuickLocalAPI === 'undefined') {
+                    return;
+                }
+                
+                const result = await window.QuickLocalAPI.getProducts();
+                if (result.success && result.data) {
+                    allProducts = result.data;
+                    localStorage.setItem('ql_products', JSON.stringify(allProducts));
+                    renderProducts(allProducts);
+                    populateCategoryFilter();
+                    updateStatus(`Loaded ${allProducts.length} products`, 'success');
+                }
+            } catch (error) {
+                log(`❌ Error loading products: ${error.message}`);
+                updateStatus('Using cached/demo data', 'error');
+            }
+        }
+
+        // Render products
+        function renderProducts(productList) {
+            const container = document.getElementById('productsContainer');
+            const noProductsSection = document.getElementById('noProductsSection');
+            
+            if (productList.length === 0) {
+                container.innerHTML = '';
+                noProductsSection.style.display = 'block';
+                return;
+            }
+            
+            noProductsSection.style.display = 'none';
+            container.innerHTML = productList.map(product => `
+                <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
+                    <div class="card product-card h-100">
+                        <img src="${product.image || 'https://via.placeholder.com/300x200'}" 
+                             class="card-img-top product-img" 
+                             alt="${product.name}"
+                             onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                        <div class="card-body d-flex flex-column">
+                            <div class="mb-2">
+                                <span class="badge bg-secondary">${product.category}</span>
+                            </div>
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="card-text text-muted small flex-grow-1">${product.description || 'No description available'}</p>
+                            <div class="mb-2">
+                                <div class="fw-bold text-success fs-5">₹${parseFloat(product.price).toFixed(2)}</div>
+                                <small class="text-muted">by ${product.sellerName}</small>
+                            </div>
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="bi bi-box"></i> Stock: ${product.stock}
+                                </small>
+                            </div>
+                            <button class="btn btn-primary w-100 mt-auto" 
+                                    onclick="addToCart('${product.id}')"
+                                    ${product.stock <= 0 ? 'disabled' : ''}>
+                                <i class="bi bi-cart-plus"></i> 
+                                ${product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            log(`🎨 Rendered ${productList.length} products`);
+        }
+
+        // Populate category filter
+        function populateCategoryFilter() {
+            const categories = [...new Set(allProducts.map(p => p.category).filter(Boolean))];
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+                categories.map(category => `<option value="${category}">${category}</option>`).join('');
+        }
+
+        // Add to cart
+        function addToCart(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) {
+                updateStatus('Product not found', 'error');
+                return;
+            }
+            
+            if (product.stock <= 0) {
+                updateStatus(`${product.name} is out of stock!`, 'error');
+                return;
+            }
+            
+            const existingItem = cart.find(item => item.id === productId);
+            if (existingItem) {
+                if (existingItem.quantity >= product.stock) {
+                    updateStatus(`Cannot add more - stock limit reached`, 'error');
+                    return;
+                }
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    id: productId,
+                    name: product.name,
+                    price: parseFloat(product.price),
+                    image: product.image,
+                    seller: product.sellerName,
+                    quantity: 1
+                });
+            }
+            
+            localStorage.setItem('ql_cart', JSON.stringify(cart));
+            updateCart();
+            updateStatus(`Added ${product.name} to cart`, 'success');
+            log(`🛒 Added ${product.name} to cart`);
+        }
+
+        // Update cart display
+        function updateCart() {
+            const cartItems = document.getElementById('cartItems');
+            const cartCount = document.getElementById('cartCount');
+            const cartTotal = document.getElementById('cartTotal');
+            
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartCount.textContent = totalItems;
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<p class="text-muted text-center">Your cart is empty</p>';
+                cartTotal.textContent = '0.00';
+            } else {
+                cartItems.innerHTML = cart.map((item, index) => `
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
+                        <div class="d-flex align-items-center">
+                            <img src="${item.image || 'https://via.placeholder.com/50'}" 
+                                 alt="${item.name}" 
+                                 class="me-3 rounded" 
+                                 style="width: 50px; height: 50px; object-fit: cover;">
+                            <div>
+                                <div class="fw-bold">${item.name}</div>
+                                <small class="text-muted">by ${item.seller}</small><br>
+                                <span class="text-success">₹${item.price.toFixed(2)} x ${item.quantity}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-sm btn-outline-secondary me-1" onclick="updateQuantity(${index}, ${item.quantity - 1})">-</button>
+                            <span class="mx-2 fw-bold">${item.quantity}</span>
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="updateQuantity(${index}, ${item.quantity + 1})">+</button>
+                            <button class="btn btn-danger btn-sm" onclick="removeFromCart(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                cartTotal.textContent = total.toFixed(2);
+                
+                // Update checkout total
+                const checkoutTotal = document.getElementById('checkoutTotal');
+                if (checkoutTotal) {
+                    checkoutTotal.textContent = total.toFixed(2);
+                }
+                
+                // Update COD amount
+                const codAmount = document.getElementById('codAmount');
+                if (codAmount) {
+                    codAmount.textContent = total.toFixed(2);
+                }
+            }
+        }
+
+        // Update quantity
+        function updateQuantity(cartIndex, newQuantity) {
+            if (newQuantity <= 0) {
+                removeFromCart(cartIndex);
+                return;
+            }
+            
+            const cartItem = cart[cartIndex];
+            const product = allProducts.find(p => p.id === cartItem.id);
+            
+            if (product && newQuantity > product.stock) {
+                updateStatus(`Cannot add more - only ${product.stock} in stock`, 'error');
+                return;
+            }
+            
+            cart[cartIndex].quantity = newQuantity;
+            localStorage.setItem('ql_cart', JSON.stringify(cart));
+            updateCart();
+        }
+
+        // Remove from cart
+        function removeFromCart(index) {
+            const removedItem = cart[index];
+            cart.splice(index, 1);
+            localStorage.setItem('ql_cart', JSON.stringify(cart));
+            updateCart();
+            updateStatus(`Removed ${removedItem.name} from cart`, 'success');
+        }
+
+        // Search products
+        function searchProducts() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderProducts(allProducts);
+                return;
+            }
+            
+            const filtered = allProducts.filter(p => 
+                (p.name || '').toLowerCase().includes(query) ||
+                (p.description || '').toLowerCase().includes(query) ||
+                (p.category || '').toLowerCase().includes(query)
+            );
+            
+            renderProducts(filtered);
+            updateStatus(`Found ${filtered.length} products matching "${query}"`, 'success');
+        }
+
+        // Filter products
+        function filterProducts() {
+            const category = document.getElementById('categoryFilter').value;
+            const filtered = category ? allProducts.filter(p => p.category === category) : allProducts;
+            renderProducts(filtered);
+            updateStatus(`Showing ${filtered.length} products`, 'success');
+        }
+
+        // Sort products
+        function sortProducts() {
+            const sortValue = document.getElementById('sortFilter').value;
+            let sorted = [...allProducts];
+            
+            if (sortValue === 'price-asc') {
+                sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
+            } else if (sortValue === 'price-desc') {
+                sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
+            } else if (sortValue === 'name-asc') {
+                sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            }
+            
+            renderProducts(sorted);
+        }
+
+        // Refresh products
+        async function refreshProducts() {
+            updateStatus('Refreshing...', 'info');
+            await fetchProducts();
+            populateCategoryFilter();
+        }
+
+        // Test cart
+        function testCart() {
+            if (allProducts.length === 0) {
+                updateStatus('No products available', 'error');
+                return;
+            }
+            
+            if (cart.length === 0) {
+                addToCart(allProducts[0].id);
+            } else {
+                updateStatus('Cart already has items', 'info');
+            }
+        }
+
+        // Show all categories
+        function showAllCategories() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.focus();
+            authManager.showNotification('Select from category dropdown', 'info');
+        }
+
+        // Enhanced checkout with authentication
+        function showCheckout() {
+            if (cart.length === 0) {
+                alert('Cart is empty!');
+                return;
+            }
+            
+            // Check authentication
+            if (!authManager.isLoggedIn()) {
+                if (confirm('You need to login to proceed with checkout. Would you like to login now?')) {
+                    localStorage.setItem('pendingCheckout', 'true');
+                    localStorage.setItem('redirectAfterLogin', window.location.href);
+                    window.location.href = 'login.html';
+                }
+                return;
+            }
+            
+            // Continue with checkout
+            currentStep = 1;
+            updateCheckoutSteps();
+            populateCheckoutItems();
+            
+            const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));
+            if (cartModal) cartModal.hide();
+            
+            const checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+            checkoutModal.show();
+        }
+
+        // Populate checkout items
+        function populateCheckoutItems() {
+            const checkoutItems = document.getElementById('checkoutCartItems');
+            if (!checkoutItems) return;
+            
+            checkoutItems.innerHTML = cart.map(item => `
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <img src="${item.image || 'https://via.placeholder.com/40'}" 
+                             alt="${item.name}" 
+                             class="me-2 rounded" 
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div>
+                            <div class="fw-bold">${item.name}</div>
+                            <small class="text-muted">₹${item.price.toFixed(2)} x ${item.quantity}</small>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold">₹${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update checkout steps
+        function updateCheckoutSteps() {
+            for (let i = 1; i <= 3; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('active', 'completed');
+                
+                if (i < currentStep) {
+                    step.classList.add('completed');
+                } else if (i === currentStep) {
+                    step.classList.add('active');
+                }
+            }
+        }
+
+        // Checkout navigation
+        function goToDeliveryDetails() {
+            currentStep = 2;
+            updateCheckoutSteps();
+            document.getElementById('orderSummaryStep').classList.add('d-none');
+            document.getElementById('deliveryDetailsStep').classList.remove('d-none');
+        }
+
+        function goBackToOrderSummary() {
+            currentStep = 1;
+            updateCheckoutSteps();
+            document.getElementById('deliveryDetailsStep').classList.add('d-none');
+            document.getElementById('orderSummaryStep').classList.remove('d-none');
+        }
+
+        function goToPayment() {
+            const form = document.getElementById('deliveryForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            currentStep = 3;
+            updateCheckoutSteps();
+            document.getElementById('deliveryDetailsStep').classList.add('d-none');
+            document.getElementById('paymentStep').classList.remove('d-none');
+        }
+
+        function goBackToDeliveryDetails() {
+            currentStep = 2;
+            updateCheckoutSteps();
+            document.getElementById('paymentStep').classList.add('d-none');
+            document.getElementById('deliveryDetailsStep').classList.remove('d-none');
+        }
+
+        // Show payment details
+        function showPaymentDetails(method) {
+            selectedPaymentMethod = method;
+            
+            // Hide all payment details
+            document.querySelectorAll('.payment-details').forEach(detail => {
+                detail.classList.add('d-none');
+            });
+            
+            // Show selected payment details
+            document.getElementById(`${method}Details`).classList.remove('d-none');
+        }
+
+        // Process payment
+        async function processPayment() {
+            const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
+            checkoutModal.hide();
+            
+            const processingModal = new bootstrap.Modal(document.getElementById('paymentProcessingModal'));
+            processingModal.show();
+            
+            try {
+                // Simulate payment processing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const orderId = 'QL' + Date.now().toString().substr(-8);
+                
+                processingModal.hide();
+                
+                setTimeout(() => {
+                    document.getElementById('orderId').textContent = orderId;
+                    const successModal = new bootstrap.Modal(document.getElementById('paymentSuccessModal'));
+                    successModal.show();
+                    
+                    // Clear cart
+                    cart = [];
+                    localStorage.setItem('ql_cart', JSON.stringify(cart));
+                    updateCart();
+                }, 500);
+                
+            } catch (error) {
+                processingModal.hide();
+                
+                setTimeout(() => {
+                    const failedModal = new bootstrap.Modal(document.getElementById('paymentFailedModal'));
+                    failedModal.show();
+                }, 500);
+            }
+        }
+
+        // Continue shopping
+        function continueShopping() {
+            const successModal = bootstrap.Modal.getInstance(document.getElementById('paymentSuccessModal'));
+            successModal.hide();
+            
+            // Reset checkout steps
+            currentStep = 1;
+            document.getElementById('deliveryDetailsStep').classList.add('d-none');
+            document.getElementById('paymentStep').classList.add('d-none');
+            document.getElementById('orderSummaryStep').classList.remove('d-none');
+            
+            authManager.showNotification('Thank you for your order!', 'success');
+        }
+
+        // Try again
+        function tryAgain() {
+            const failedModal = bootstrap.Modal.getInstance(document.getElementById('paymentFailedModal'));
+            failedModal.hide();
+            
+            setTimeout(() => {
+                const checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+                checkoutModal.show();
+            }, 500);
+        }
+    </script>
+</body>
+</html>

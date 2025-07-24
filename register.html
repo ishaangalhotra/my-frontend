@@ -2,43 +2,797 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Register</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join QuickLocal - Register</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --primary-dark: #4338ca;
+      --secondary: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --dark: #1f2937;
+      --light: #f9fafb;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+    }
+    
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .glass-effect {
+      backdrop-filter: blur(16px);
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    }
+    
+    .password-strength {
+      height: 6px;
+      transition: all 0.3s ease;
+      border-radius: 3px;
+    }
+    
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    
+    .slide-in {
+      animation: slideIn 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+    }
+    
+    .floating {
+      animation: floating 6s ease-in-out infinite;
+    }
+    
+    @keyframes floating {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-15px); }
+      100% { transform: translateY(0px); }
+    }
+    
+    .input-focus-effect:focus {
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+    
+    .checkbox:checked {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .checkbox:checked::after {
+      content: '';
+      display: block;
+      position: absolute;
+      top: 2px;
+      left: 6px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    
+    .tooltip {
+      position: relative;
+    }
+    
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .tooltip-text {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      z-index: 10;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background-color: var(--dark);
+      color: white;
+      text-align: center;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      width: max-content;
+      max-width: 200px;
+      transition: all 0.3s ease;
+    }
+    
+    .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: var(--dark) transparent transparent transparent;
+    }
+  </style>
 </head>
-<body>
-  <header class="header">
-    <div class="logo"><a href="index.html">MyStore</a></div>
-    <nav class="nav-links" id="nav-links"></nav>
-  </header>
-  <div class="form-container">
-    <h1>Register</h1>
-    <form id="registerForm">
-      <div class="form-group">
-        <label for="name">Name</label>
-        <input type="text" id="name" required />
-      </div>
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" required />
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" required />
-      </div>
-      <button type="submit" class="btn-primary">Register</button>
-      <p class="form-text">Already have an account? <a href="login.html">Login</a></p>
-    </form>
+<body class="min-h-screen flex items-center justify-center py-12 px-4">
+  <!-- Animated Background Elements -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute top-10 left-10 w-16 h-16 rounded-full bg-white opacity-10 floating" style="animation-delay: 0s;"></div>
+    <div class="absolute top-1/4 right-20 w-24 h-24 rounded-full bg-white opacity-10 floating" style="animation-delay: 1s;"></div>
+    <div class="absolute bottom-20 left-1/3 w-20 h-20 rounded-full bg-white opacity-10 floating" style="animation-delay: 2s;"></div>
+    <div class="absolute bottom-1/3 right-10 w-12 h-12 rounded-full bg-white opacity-10 floating" style="animation-delay: 3s;"></div>
   </div>
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+
+  <!-- Main Container -->
+  <div class="relative w-full max-w-lg mx-4">
+    <!-- Logo Section -->
+    <div class="text-center mb-8 slide-in">
+      <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-4 pulse">
+        <i class="fas fa-bolt text-3xl text-indigo-600"></i>
+      </div>
+      <h1 class="text-4xl font-bold text-white mb-2">Join QuickLocal</h1>
+      <p class="text-indigo-100 text-lg">Start selling or shopping locally in minutes</p>
+    </div>
+
+    <!-- Registration Form -->
+    <div class="glass-effect rounded-2xl shadow-2xl p-8 slide-in">
+      <form id="registerForm" novalidate>
+        <!-- Full Name -->
+        <div class="mb-6">
+          <label for="fullName" class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <i class="fas fa-user mr-2 text-indigo-600"></i>Full Name
+          </label>
+          <div class="relative">
+            <input 
+              type="text" 
+              id="fullName" 
+              name="fullName"
+              class="w-full px-4 py-3 pl-11 border border-gray-300 rounded-lg input-focus-effect transition-all placeholder-gray-400"
+              placeholder="John Doe"
+              required
+            >
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i class="fas fa-user text-gray-400"></i>
+            </div>
+          </div>
+          <div class="error-message hidden mt-2 text-sm text-red-600 flex items-start">
+            <i class="fas fa-exclamation-circle mr-1 mt-0.5"></i>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="mb-6">
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <i class="fas fa-envelope mr-2 text-indigo-600"></i>Email Address
+          </label>
+          <div class="relative">
+            <input 
+              type="email" 
+              id="email" 
+              name="email"
+              class="w-full px-4 py-3 pl-11 border border-gray-300 rounded-lg input-focus-effect transition-all placeholder-gray-400"
+              placeholder="your@email.com"
+              required
+            >
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i class="fas fa-envelope text-gray-400"></i>
+            </div>
+          </div>
+          <div class="error-message hidden mt-2 text-sm text-red-600 flex items-start">
+            <i class="fas fa-exclamation-circle mr-1 mt-0.5"></i>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Phone Number -->
+        <div class="mb-6">
+          <label for="phone" class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <i class="fas fa-phone mr-2 text-indigo-600"></i>Phone Number
+          </label>
+          <div class="flex">
+            <div class="relative flex-shrink-0 w-24">
+              <select id="countryCode" class="w-full px-3 py-3 border border-gray-300 rounded-l-lg bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none">
+                <option value="+1">🇺🇸 +1</option>
+                <option value="+44">🇬🇧 +44</option>
+                <option value="+91" selected>🇮🇳 +91</option>
+                <option value="+61">🇦🇺 +61</option>
+                <option value="+49">🇩🇪 +49</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+              </div>
+            </div>
+            <div class="relative flex-1">
+              <input 
+                type="tel" 
+                id="phone" 
+                name="phone"
+                class="w-full px-4 py-3 border border-gray-300 rounded-r-lg input-focus-effect transition-all placeholder-gray-400"
+                placeholder="9876543210"
+                required
+              >
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-mobile-alt text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+          <div class="error-message hidden mt-2 text-sm text-red-600 flex items-start">
+            <i class="fas fa-exclamation-circle mr-1 mt-0.5"></i>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-6">
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <i class="fas fa-lock mr-2 text-indigo-600"></i>Password
+            <div class="tooltip ml-1">
+              <i class="fas fa-info-circle text-gray-400 text-xs"></i>
+              <span class="tooltip-text">Minimum 8 characters with at least one uppercase, one number, and one special character</span>
+            </div>
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="password" 
+              name="password"
+              class="w-full px-4 py-3 pl-11 pr-12 border border-gray-300 rounded-lg input-focus-effect transition-all placeholder-gray-400"
+              placeholder="••••••••"
+              required
+              minlength="8"
+            >
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i class="fas fa-lock text-gray-400"></i>
+            </div>
+            <button 
+              type="button" 
+              id="togglePassword"
+              class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-indigo-600 transition-colors"
+              aria-label="Toggle password visibility"
+            >
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          
+          <!-- Password Strength Indicator -->
+          <div class="mt-3">
+            <div class="flex justify-between mb-1">
+              <span class="text-xs font-medium text-gray-500">Password strength</span>
+              <span id="strengthText" class="text-xs font-medium">Weak</span>
+            </div>
+            <div class="password-strength bg-gray-200 rounded-full overflow-hidden">
+              <div id="strengthBar" class="h-full transition-all duration-500"></div>
+            </div>
+          </div>
+          <div class="error-message hidden mt-2 text-sm text-red-600 flex items-start">
+            <i class="fas fa-exclamation-circle mr-1 mt-0.5"></i>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Account Type -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <i class="fas fa-user-tag mr-2 text-indigo-600"></i>Account Type
+          </label>
+          <div class="grid grid-cols-2 gap-4">
+            <label class="account-type-card cursor-pointer">
+              <input type="radio" name="accountType" value="customer" class="sr-only peer" checked>
+              <div class="border-2 border-gray-200 rounded-lg p-4 text-center transition-all hover:border-indigo-300 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:ring-2 peer-checked:ring-indigo-200">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <i class="fas fa-shopping-bag text-xl text-indigo-600"></i>
+                </div>
+                <h3 class="font-medium text-gray-900">Customer</h3>
+                <p class="text-xs text-gray-500 mt-1">Shop from local sellers</p>
+              </div>
+            </label>
+            
+            <label class="account-type-card cursor-pointer">
+              <input type="radio" name="accountType" value="seller" class="sr-only peer">
+              <div class="border-2 border-gray-200 rounded-lg p-4 text-center transition-all hover:border-indigo-300 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:ring-2 peer-checked:ring-indigo-200">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <i class="fas fa-store text-xl text-indigo-600"></i>
+                </div>
+                <h3 class="font-medium text-gray-900">Seller</h3>
+                <p class="text-xs text-gray-500 mt-1">Sell your products locally</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Terms and Conditions -->
+        <div class="mb-6">
+          <label class="flex items-start">
+            <div class="relative flex items-center h-5">
+              <input 
+                type="checkbox" 
+                id="agreeTerms" 
+                name="agreeTerms"
+                class="checkbox h-5 w-5 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer appearance-none relative"
+                required
+              >
+            </div>
+            <span class="ml-3 text-sm text-gray-600">
+              I agree to QuickLocal's 
+              <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Terms of Service</a> 
+              and 
+              <a href="#" class="text-indigo-600 hover:text-indigo-700 font-medium">Privacy Policy</a>
+            </span>
+          </label>
+          <div class="error-message hidden mt-2 text-sm text-red-600 flex items-start">
+            <i class="fas fa-exclamation-circle mr-1 mt-0.5"></i>
+            <span></span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          id="submitBtn"
+          class="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors font-medium focus:ring-4 focus:ring-indigo-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        >
+          <span id="submitText">Create Account</span>
+          <span id="submitLoader" class="ml-2 hidden">
+            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-300"></div>
+        </div>
+        <div class="relative flex justify-center text-sm">
+          <span class="px-2 bg-white text-gray-500">or continue with</span>
+        </div>
+      </div>
+
+      <!-- Social Login Buttons -->
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <a href="#" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+          <i class="fab fa-google text-red-500"></i>
+        </a>
+        <a href="#" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+          <i class="fab fa-facebook-f text-blue-600"></i>
+        </a>
+        <a href="#" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+          <i class="fab fa-apple text-gray-900"></i>
+        </a>
+      </div>
+
+      <!-- Login Link -->
+      <div class="text-center">
+        <p class="text-gray-600 text-sm">
+          Already have an account? 
+          <a href="login.html" class="text-indigo-600 hover:text-indigo-700 font-medium">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
   <script>
-    document.addEventListener('DOMContentLoaded', renderNavLinks);
-    document.getElementById('registerForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = document.getElementById('name').value;
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      auth.register(name, email, password);
+    class RegistrationManager {
+      constructor() {
+        this.form = document.getElementById('registerForm');
+        this.passwordInput = document.getElementById('password');
+        this.strengthBar = document.getElementById('strengthBar');
+        this.strengthText = document.getElementById('strengthText');
+        this.submitBtn = document.getElementById('submitBtn');
+        
+        this.init();
+      }
+      
+      init() {
+        this.setupEventListeners();
+        this.setupAccountTypeToggle();
+        this.setupPasswordToggle();
+        this.setupCustomCheckbox();
+      }
+      
+      setupEventListeners() {
+        // Form submission
+        this.form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          this.handleSubmit();
+        });
+        
+        // Real-time validation
+        const inputs = this.form.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+          input.addEventListener('blur', () => this.validateField(input));
+          input.addEventListener('input', () => this.clearFieldError(input));
+          
+          // Add focus effect
+          input.addEventListener('focus', () => {
+            input.classList.add('ring-2', 'ring-indigo-200');
+          });
+          
+          input.addEventListener('blur', () => {
+            input.classList.remove('ring-2', 'ring-indigo-200');
+          });
+        });
+        
+        // Password strength check
+        this.passwordInput.addEventListener('input', () => {
+          this.checkPasswordStrength();
+        });
+      }
+      
+      setupAccountTypeToggle() {
+        const accountTypeInputs = document.querySelectorAll('input[name="accountType"]');
+        
+        accountTypeInputs.forEach(input => {
+          input.addEventListener('change', () => {
+            const accountTypeCards = document.querySelectorAll('.account-type-card div');
+            accountTypeCards.forEach(card => {
+              card.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-200');
+              card.classList.add('border-gray-200');
+            });
+            
+            const selectedCard = input.closest('.account-type-card').querySelector('div');
+            selectedCard.classList.remove('border-gray-200');
+            selectedCard.classList.add('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-200');
+          });
+        });
+        
+        // Set initial state
+        document.querySelector('input[name="accountType"]:checked').dispatchEvent(new Event('change'));
+      }
+      
+      setupPasswordToggle() {
+        const toggleBtn = document.getElementById('togglePassword');
+        
+        toggleBtn.addEventListener('click', () => {
+          const type = this.passwordInput.type === 'password' ? 'text' : 'password';
+          this.passwordInput.type = type;
+          
+          const icon = toggleBtn.querySelector('i');
+          icon.classList.toggle('fa-eye');
+          icon.classList.toggle('fa-eye-slash');
+          
+          // Update ARIA label
+          const label = type === 'password' ? 'Show password' : 'Hide password';
+          toggleBtn.setAttribute('aria-label', label);
+        });
+      }
+      
+      setupCustomCheckbox() {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+          checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+              checkbox.classList.add('checked');
+            } else {
+              checkbox.classList.remove('checked');
+            }
+          });
+        });
+      }
+      
+      checkPasswordStrength() {
+        const password = this.passwordInput.value;
+        let strength = 0;
+        let messages = [];
+        
+        // Length check
+        if (password.length >= 8) strength += 20;
+        else messages.push('at least 8 characters');
+        
+        // Uppercase check
+        if (/[A-Z]/.test(password)) strength += 20;
+        else messages.push('one uppercase letter');
+        
+        // Lowercase check
+        if (/[a-z]/.test(password)) strength += 20;
+        else messages.push('one lowercase letter');
+        
+        // Number check
+        if (/\d/.test(password)) strength += 20;
+        else messages.push('one number');
+        
+        // Special character check
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength += 20;
+        else messages.push('one special character');
+        
+        // Update strength bar
+        this.strengthBar.style.width = `${strength}%`;
+        
+        if (strength < 40) {
+          this.strengthBar.className = 'h-full bg-red-500';
+          this.strengthText.textContent = 'Weak';
+          this.strengthText.className = 'text-xs font-medium text-red-500';
+        } else if (strength < 60) {
+          this.strengthBar.className = 'h-full bg-yellow-500';
+          this.strengthText.textContent = 'Fair';
+          this.strengthText.className = 'text-xs font-medium text-yellow-500';
+        } else if (strength < 80) {
+          this.strengthBar.className = 'h-full bg-blue-500';
+          this.strengthText.textContent = 'Good';
+          this.strengthText.className = 'text-xs font-medium text-blue-500';
+        } else {
+          this.strengthBar.className = 'h-full bg-green-500';
+          this.strengthText.textContent = 'Strong';
+          this.strengthText.className = 'text-xs font-medium text-green-500';
+        }
+        
+        // Update password requirements tooltip
+        if (messages.length > 0) {
+          const tooltip = document.querySelector('.tooltip .tooltip-text');
+          tooltip.innerHTML = `Password must contain: <br>${messages.join('<br>')}`;
+        } else {
+          const tooltip = document.querySelector('.tooltip .tooltip-text');
+          tooltip.textContent = 'Password meets all requirements';
+        }
+      }
+      
+      validateField(field) {
+        const value = field.value.trim();
+        let isValid = true;
+        let message = '';
+        
+        // Required field check
+        if (field.required && !value) {
+          isValid = false;
+          message = `${this.getFieldName(field)} is required`;
+        }
+        
+        // Email validation
+        if (field.type === 'email' && value) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) {
+            isValid = false;
+            message = 'Please enter a valid email address';
+          }
+        }
+        
+        // Phone validation
+        if (field.id === 'phone' && value) {
+          const phoneRegex = /^\d{10}$/;
+          if (!phoneRegex.test(value.replace(/\s/g, ''))) {
+            isValid = false;
+            message = 'Please enter a valid 10-digit phone number';
+          }
+        }
+        
+        // Password validation
+        if (field.type === 'password' && value) {
+          if (value.length < 8) {
+            isValid = false;
+            message = 'Password must be at least 8 characters long';
+          }
+        }
+        
+        // Terms checkbox validation
+        if (field.id === 'agreeTerms' && !field.checked) {
+          isValid = false;
+          message = 'You must agree to the terms and conditions';
+        }
+        
+        this.showFieldError(field, isValid ? null : message);
+        return isValid;
+      }
+      
+      getFieldName(field) {
+        const fieldNames = {
+          fullName: 'Full name',
+          email: 'Email',
+          phone: 'Phone number',
+          password: 'Password',
+          agreeTerms: 'Terms agreement'
+        };
+        return fieldNames[field.id] || field.name;
+      }
+      
+      showFieldError(field, message) {
+        let errorDiv;
+        
+        // Special case for checkbox
+        if (field.type === 'checkbox') {
+          errorDiv = field.closest('label').nextElementSibling;
+        } else {
+          errorDiv = field.closest('.mb-6').querySelector('.error-message');
+        }
+        
+        if (message) {
+          errorDiv.querySelector('span').textContent = message;
+          errorDiv.classList.remove('hidden');
+          
+          if (field.type !== 'checkbox') {
+            field.classList.add('border-red-500');
+            field.closest('.mb-6').classList.add('shake');
+            
+            setTimeout(() => {
+              field.closest('.mb-6').classList.remove('shake');
+            }, 500);
+          }
+        } else {
+          errorDiv.classList.add('hidden');
+          if (field.type !== 'checkbox') {
+            field.classList.remove('border-red-500');
+          }
+        }
+      }
+      
+      clearFieldError(field) {
+        let errorDiv;
+        
+        // Special case for checkbox
+        if (field.type === 'checkbox') {
+          errorDiv = field.closest('label').nextElementSibling;
+        } else {
+          errorDiv = field.closest('.mb-6').querySelector('.error-message');
+        }
+        
+        if (errorDiv) {
+          errorDiv.classList.add('hidden');
+          if (field.type !== 'checkbox') {
+            field.classList.remove('border-red-500');
+          }
+        }
+      }
+      
+      async handleSubmit() {
+        const submitText = document.getElementById('submitText');
+        const submitLoader = document.getElementById('submitLoader');
+        
+        // Validate all fields
+        const inputs = this.form.querySelectorAll('input[required]');
+        let isFormValid = true;
+        
+        inputs.forEach(input => {
+          if (!this.validateField(input)) {
+            isFormValid = false;
+          }
+        });
+        
+        if (!isFormValid) {
+          this.showNotification('Please fix the errors above', 'error');
+          return;
+        }
+        
+        // Show loading state
+        this.submitBtn.disabled = true;
+        submitText.textContent = 'Creating Account...';
+        submitLoader.classList.remove('hidden');
+        
+        try {
+          const formData = {
+            fullName: document.getElementById('fullName').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            phone: document.getElementById('countryCode').value + document.getElementById('phone').value.trim(),
+            password: document.getElementById('password').value,
+            accountType: document.querySelector('input[name="accountType"]:checked').value
+          };
+          
+          // Simulate API call with timeout
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // In a real app, you would call your API here:
+          /*
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || 'Registration failed');
+          }
+          */
+          
+          // For demo purposes, we'll simulate a successful registration
+          this.showNotification('Account created successfully! Redirecting to login...', 'success');
+          
+          setTimeout(() => {
+            window.location.href = 'login.html';
+          }, 2000);
+          
+        } catch (error) {
+          console.error('Registration error:', error);
+          this.showNotification(error.message || 'Registration failed. Please try again.', 'error');
+        } finally {
+          // Reset button state
+          this.submitBtn.disabled = false;
+          submitText.textContent = 'Create Account';
+          submitLoader.classList.add('hidden');
+        }
+      }
+      
+      showNotification(message, type = 'info') {
+        // Remove any existing notifications first
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transition-all duration-300 transform translate-x-full max-w-sm flex items-start`;
+        
+        const colors = {
+          success: 'bg-green-600',
+          error: 'bg-red-600',
+          info: 'bg-blue-600'
+        };
+        
+        const icons = {
+          success: 'fas fa-check-circle',
+          error: 'fas fa-exclamation-circle',
+          info: 'fas fa-info-circle'
+        };
+        
+        notification.classList.add(colors[type]);
+        notification.innerHTML = `
+          <i class="${icons[type]} mr-3 mt-0.5"></i>
+          <div class="flex-1">
+            <div class="font-medium">${type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info'}</div>
+            <div class="text-sm">${message}</div>
+          </div>
+          <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+          </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+          notification.classList.remove('translate-x-full');
+        }, 10);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+              document.body.removeChild(notification);
+            }, 300);
+          }
+        }, 5000);
+      }
+    }
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      new RegistrationManager();
     });
   </script>
 </body>

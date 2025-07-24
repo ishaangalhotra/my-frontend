@@ -2,32 +2,632 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Profile</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile - QuickLocal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .profile-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .slide-in {
+      animation: slideIn 0.6s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      transition: all 0.3s ease;
+    }
+  </style>
 </head>
-<body>
-  <header class="header">
-    <div class="logo"><a href="index.html">MyStore</a></div>
-    <nav class="nav-links" id="nav-links"></nav>
-  </header>
-  <main class="main">
-    <div class="form-container">
-      <h1>Your Profile</h1>
-      <div id="profileDetails">
-        <p><strong>Name:</strong> <span id="userName"></span></p>
-        <p><strong>Email:</strong> <span id="userEmail"></span></p>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-md sticky top-0 z-40">
+    <div class="container mx-auto px-4">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-4">
+          <a href="index.html" class="text-2xl font-bold text-blue-600">
+            <i class="fas fa-bolt mr-2"></i>
+            QuickLocal
+          </a>
+        </div>
+        
+        <div class="flex items-center space-x-6">
+          <a href="index.html" class="text-gray-700 hover:text-blue-600 transition-colors">
+            <i class="fas fa-home mr-1"></i>Home
+          </a>
+          <a href="#" class="text-gray-700 hover:text-blue-600 transition-colors">
+            <i class="fas fa-shopping-cart mr-1"></i>Orders
+          </a>
+          <button id="logoutBtn" class="text-red-600 hover:text-red-700 transition-colors">
+            <i class="fas fa-sign-out-alt mr-1"></i>Logout
+          </button>
+        </div>
       </div>
     </div>
-  </main>
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+  </nav>
+
+  <!-- Profile Header -->
+  <section class="gradient-bg text-white py-16">
+    <div class="container mx-auto px-4">
+      <div class="profile-card rounded-2xl p-8 slide-in">
+        <div class="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
+          <!-- Profile Picture -->
+          <div class="relative">
+            <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-xl">
+              <img id="profileImage" src="" alt="Profile" class="w-full h-full rounded-full object-cover hidden">
+              <i id="profileIcon" class="fas fa-user text-4xl text-gray-400"></i>
+            </div>
+            <button id="changePhotoBtn" class="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+              <i class="fas fa-camera text-sm"></i>
+            </button>
+            <input type="file" id="photoInput" class="hidden" accept="image/*">
+          </div>
+          
+          <!-- Profile Info -->
+          <div class="text-center md:text-left flex-1">
+            <h1 id="userName" class="text-3xl font-bold mb-2">Loading...</h1>
+            <p id="userEmail" class="text-blue-100 mb-4">Loading...</p>
+            
+            <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+              <div class="bg-white bg-opacity-20 px-4 py-2 rounded-full">
+                <i class="fas fa-calendar mr-2"></i>
+                <span id="memberSince">Member since Jan 2024</span>
+              </div>
+              <div id="userRole" class="bg-green-500 bg-opacity-80 px-4 py-2 rounded-full">
+                <i class="fas fa-user mr-2"></i>
+                <span>Customer</span>
+              </div>
+              <div id="verifiedBadge" class="bg-blue-500 bg-opacity-80 px-4 py-2 rounded-full hidden">
+                <i class="fas fa-check-circle mr-2"></i>
+                <span>Verified</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="flex flex-col space-y-2">
+            <button id="editProfileBtn" class="bg-white text-blue-600 px-6 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+              <i class="fas fa-edit mr-2"></i>Edit Profile
+            </button>
+            <button id="securityBtn" class="bg-white bg-opacity-20 text-white px-6 py-2 rounded-lg hover:bg-opacity-30 transition-colors">
+              <i class="fas fa-shield-alt mr-2"></i>Security
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Profile Stats -->
+  <section class="py-12 -mt-8 relative z-10">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="stat-card bg-white rounded-xl p-6 shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm mb-1">Total Orders</p>
+              <p id="totalOrders" class="text-2xl font-bold text-gray-800">24</p>
+            </div>
+            <div class="bg-blue-100 p-3 rounded-full">
+              <i class="fas fa-shopping-bag text-blue-600"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-white rounded-xl p-6 shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm mb-1">Total Spent</p>
+              <p id="totalSpent" class="text-2xl font-bold text-gray-800">₹2,450</p>
+            </div>
+            <div class="bg-green-100 p-3 rounded-full">
+              <i class="fas fa-rupee-sign text-green-600"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-white rounded-xl p-6 shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm mb-1">Avg Delivery</p>
+              <p id="avgDelivery" class="text-2xl font-bold text-gray-800">18 min</p>
+            </div>
+            <div class="bg-purple-100 p-3 rounded-full">
+              <i class="fas fa-clock text-purple-600"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card bg-white rounded-xl p-6 shadow-md">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm mb-1">Saved Amount</p>
+              <p id="savedAmount" class="text-2xl font-bold text-gray-800">₹340</p>
+            </div>
+            <div class="bg-orange-100 p-3 rounded-full">
+              <i class="fas fa-piggy-bank text-orange-600"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <section class="pb-16">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Profile Details -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-xl shadow-md">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200">
+              <nav class="flex space-x-8 px-6">
+                <button class="tab-btn py-4 border-b-2 border-blue-600 text-blue-600 font-medium" data-tab="personal">
+                  <i class="fas fa-user mr-2"></i>Personal Info
+                </button>
+                <button class="tab-btn py-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="address">
+                  <i class="fas fa-map-marker-alt mr-2"></i>Addresses
+                </button>
+                <button class="tab-btn py-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="orders">
+                  <i class="fas fa-box mr-2"></i>Order History
+                </button>
+                <button class="tab-btn py-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="preferences">
+                  <i class="fas fa-cog mr-2"></i>Preferences
+                </button>
+              </nav>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="p-6">
+              <!-- Personal Info Tab -->
+              <div id="personal-tab" class="tab-content">
+                <form id="personalInfoForm">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label for="firstName" class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                      <input type="text" id="firstName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value="John">
+                    </div>
+                    
+                    <div>
+                      <label for="lastName" class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                      <input type="text" id="lastName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value="Doe">
+                    </div>
+                    
+                    <div>
+                      <label for="emailUpdate" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input type="email" id="emailUpdate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value="john@example.com">
+                    </div>
+                    
+                    <div>
+                      <label for="phoneUpdate" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                      <input type="tel" id="phoneUpdate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value="+91 9876543210">
+                    </div>
+                    
+                    <div>
+                      <label for="dateOfBirth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                      <input type="date" id="dateOfBirth" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                      <label for="gender" class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                      <select id="gender" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer-not-to-say">Prefer not to say</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-6">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                      <i class="fas fa-save mr-2"></i>Save Changes
+                    </button>
+                  </div>
+                </form>
+              </div>
+              
+              <!-- Address Tab -->
+              <div id="address-tab" class="tab-content hidden">
+                <div class="space-y-6">
+                  <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Saved Addresses</h3>
+                    <button id="addAddressBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                      <i class="fas fa-plus mr-2"></i>Add New Address
+                    </button>
+                  </div>
+                  
+                  <div id="addressList" class="space-y-4">
+                    <!-- Dynamic address cards will be inserted here -->
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Orders Tab -->
+              <div id="orders-tab" class="tab-content hidden">
+                <div class="space-y-4">
+                  <h3 class="text-lg font-semibold text-gray-800">Recent Orders</h3>
+                  <div id="ordersList" class="space-y-4">
+                    <!-- Dynamic order cards will be inserted here -->
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Preferences Tab -->
+              <div id="preferences-tab" class="tab-content hidden">
+                <div class="space-y-6">
+                  <h3 class="text-lg font-semibold text-gray-800">Notification Preferences</h3>
+                  
+                  <div class="space-y-4">
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">Order Updates</span>
+                      <input type="checkbox" class="toggle-switch" checked>
+                    </label>
+                    
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">Promotional Offers</span>
+                      <input type="checkbox" class="toggle-switch">
+                    </label>
+                    
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">New Sellers Near You</span>
+                      <input type="checkbox" class="toggle-switch" checked>
+                    </label>
+                    
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">Weekly Digest</span>
+                      <input type="checkbox" class="toggle-switch">
+                    </label>
+                  </div>
+                  
+                  <h3 class="text-lg font-semibold text-gray-800 pt-4">Privacy Settings</h3>
+                  
+                  <div class="space-y-4">
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">Profile Visibility</span>
+                      <input type="checkbox" class="toggle-switch" checked>
+                    </label>
+                    
+                    <label class="flex items-center justify-between">
+                      <span class="text-gray-700">Show Order History</span>
+                      <input type="checkbox" class="toggle-switch">
+                    </label>
+                  </div>
+                  
+                  <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Preferences
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+            <div class="space-y-3">
+              <button class="w-full text-left px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <i class="fas fa-redo mr-3 text-blue-600"></i>Reorder Favorites
+              </button>
+              <button class="w-full text-left px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <i class="fas fa-heart mr-3 text-red-500"></i>View Wishlist
+              </button>
+              <button class="w-full text-left px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <i class="fas fa-gift mr-3 text-purple-600"></i>Referral Program
+              </button>
+              <button class="w-full text-left px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <i class="fas fa-headset mr-3 text-green-600"></i>Customer Support
+              </button>
+            </div>
+          </div>
+          
+          <!-- Loyalty Card -->
+          <div class="bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-xl p-6">
+            <h3 class="text-lg font-semibold mb-2">Loyalty Points</h3>
+            <div class="text-3xl font-bold mb-2">1,240</div>
+            <p class="text-purple-100 text-sm mb-4">Points available to use</p>
+            <button class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors">
+              <i class="fas fa-gift mr-2"></i>Redeem Points
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <script>
+    class ProfileManager {
+      constructor() {
+        this.currentTab = 'personal';
+        this.userData = {};
+        
+        this.init();
+      }
+      
+      init() {
+        this.loadUserData();
+        this.setupEventListeners();
+        this.setupTabs();
+        this.loadAddresses();
+        this.loadOrderHistory();
+      }
+      
+      loadUserData() {
+        // Simulate loading user data
+        this.userData = {
+          firstName: 'John',
+          lastName: 'Doe',
+          email: localStorage.getItem('userEmail') || 'customer@demo.com',
+          phone: '+91 9876543210',
+          memberSince: 'January 2024',
+          role: 'customer',
+          verified: true,
+          stats: {
+            totalOrders: 24,
+            totalSpent: 2450,
+            avgDelivery: 18,
+            savedAmount: 340
+          }
+        };
+        
+        this.updateUI();
+      }
+      
+      updateUI() {
+        document.getElementById('userName').textContent = `${this.userData.firstName} ${this.userData.lastName}`;
+        document.getElementById('userEmail').textContent = this.userData.email;
+        document.getElementById('memberSince').textContent = `Member since ${this.userData.memberSince}`;
+        
+        // Update stats
+        document.getElementById('totalOrders').textContent = this.userData.stats.totalOrders;
+        document.getElementById('totalSpent').textContent = `₹${this.userData.stats.totalSpent.toLocaleString()}`;
+        document.getElementById('avgDelivery').textContent = `${this.userData.stats.avgDelivery} min`;
+        document.getElementById('savedAmount').textContent = `₹${this.userData.stats.savedAmount}`;
+        
+        // Update form fields
+        document.getElementById('firstName').value = this.userData.firstName;
+        document.getElementById('lastName').value = this.userData.lastName;
+        document.getElementById('emailUpdate').value = this.userData.email;
+        document.getElementById('phoneUpdate').value = this.userData.phone;
+        
+        // Show verified badge if applicable
+        if (this.userData.verified) {
+          document.getElementById('verifiedBadge').classList.remove('hidden');
+        }
+      }
+      
+      setupEventListeners() {
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+          if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userEmail');
+            window.location.href = 'login.html';
+          }
+        });
+        
+        // Profile photo change
+        document.getElementById('changePhotoBtn').addEventListener('click', () => {
+          document.getElementById('photoInput').click();
+        });
+        
+        document.getElementById('photoInput').addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = document.getElementById('profileImage');
+              const icon = document.getElementById('profileIcon');
+              
+              img.src = e.target.result;
+              img.classList.remove('hidden');
+              icon.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+        
+        // Personal info form
+        document.getElementById('personalInfoForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          this.savePersonalInfo();
+        });
+      }
+      
+      setupTabs() {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        
+        tabBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            const tabName = btn.dataset.tab;
+            this.switchTab(tabName);
+          });
+        });
+      }
+      
+      switchTab(tabName) {
+        // Update active tab button
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.remove('border-blue-600', 'text-blue-600');
+          btn.classList.add('border-transparent', 'text-gray-500');
+        });
+        
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('border-blue-600', 'text-blue-600');
+        document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-gray-500');
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.add('hidden');
+        });
+        
+        document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+        this.currentTab = tabName;
+      }
+      
+      loadAddresses() {
+        const addressList = document.getElementById('addressList');
+        const addresses = [
+          {
+            id: 1,
+            type: 'Home',
+            address: '123 Main Street, Sector 15, New Delhi - 110001',
+            isDefault: true
+          },
+          {
+            id: 2,
+            type: 'Work',
+            address: '456 Business Park, Gurgaon, Haryana - 122001',
+            isDefault: false
+          }
+        ];
+        
+        addressList.innerHTML = addresses.map(addr => `
+          <div class="border border-gray-200 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center space-x-2 mb-2">
+                  <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${addr.type}</span>
+                  ${addr.isDefault ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Default</span>' : ''}
+                </div>
+                <p class="text-gray-700">${addr.address}</p>
+              </div>
+              <div class="flex space-x-2">
+                <button class="text-blue-600 hover:text-blue-700">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="text-red-600 hover:text-red-700">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      loadOrderHistory() {
+        const ordersList = document.getElementById('ordersList');
+        const orders = [
+          {
+            id: 'ORD-2024-001',
+            date: '2024-01-15',
+            items: 3,
+            total: 450,
+            status: 'Delivered',
+            deliveryTime: 18
+          },
+          {
+            id: 'ORD-2024-002',
+            date: '2024-01-12',
+            items: 5,
+            total: 680,
+            status: 'Delivered',
+            deliveryTime: 15
+          },
+          {
+            id: 'ORD-2024-003',
+            date: '2024-01-10',
+            items: 2,
+            total: 230,
+            status: 'Cancelled',
+            deliveryTime: null
+          }
+        ];
+        
+        ordersList.innerHTML = orders.map(order => `
+          <div class="border border-gray-200 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="font-semibold text-gray-800">${order.id}</h4>
+                <p class="text-gray-600 text-sm">${new Date(order.date).toLocaleDateString()} • ${order.items} items</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-gray-800">₹${order.total}</p>
+                <span class="text-xs px-2 py-1 rounded-full ${
+                  order.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                  order.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }">${order.status}</span>
+                ${order.deliveryTime ? `<p class="text-xs text-gray-500">Delivered in ${order.deliveryTime} min</p>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      async savePersonalInfo() {
+        try {
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Update local data
+          this.userData.firstName = document.getElementById('firstName').value;
+          this.userData.lastName = document.getElementById('lastName').value;
+          this.userData.email = document.getElementById('emailUpdate').value;
+          this.userData.phone = document.getElementById('phoneUpdate').value;
+          
+          this.updateUI();
+          this.showToast('Profile updated successfully!', 'success');
+          
+        } catch (error) {
+          this.showToast('Failed to update profile', 'error');
+        }
+      }
+      
+      showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white transition-all duration-300 transform translate-x-full`;
+        
+        const colors = {
+          success: 'bg-green-600',
+          error: 'bg-red-600',
+          info: 'bg-blue-600'
+        };
+        
+        toast.classList.add(colors[type]);
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.classList.remove('translate-x-full');
+        }, 100);
+        
+        setTimeout(() => {
+          toast.classList.add('translate-x-full');
+          setTimeout(() => {
+            document.body.removeChild(toast);
+          }, 300);
+        }, 3000);
+      }
+    }
+    
+    // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', () => {
-      renderNavLinks();
-      const user = auth.getUserInfo();
-      if (!user) return location.href = 'login.html';
-      document.getElementById('userName').textContent = user.name;
-      document.getElementById('userEmail').textContent = user.email;
+      // Check if user is logged in
+      if (!localStorage.getItem('authToken')) {
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      new ProfileManager();
     });
   </script>
 </body>

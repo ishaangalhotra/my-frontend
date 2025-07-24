@@ -2,40 +2,515 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+            animation: slideUp 0.6s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .login-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .login-form {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input:invalid {
+            border-color: #e74c3c;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: 400;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-button.loading {
+            color: transparent;
+        }
+
+        .login-button.loading::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        /* Toast Notifications */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-notification.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .toast-notification.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            margin-left: auto;
+            opacity: 0.7;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-form {
+                padding: 30px 20px;
+            }
+            
+            .login-header {
+                padding: 25px 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header class="header">
-        <div class="logo"><a href="index.html">MyStore</a></div>
-        <nav class="nav-links" id="nav-links"></nav>
-    </header>
-
-    <div class="form-container">
-        <h1>Login</h1>
-        <form id="loginForm">
+    <div class="login-container">
+        <div class="login-header">
+            <h2><i class="fas fa-store"></i> QuickLocal</h2>
+            <p>Welcome back! Please sign in to your account.</p>
+        </div>
+        
+        <form class="login-form" id="loginForm">
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" required>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+                <div class="error-message" id="emailError"></div>
             </div>
+            
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" required>
+                <input type="password" id="password" name="password" required placeholder="Enter your password">
+                <div class="error-message" id="passwordError"></div>
             </div>
-            <button type="submit" class="btn-primary">Login</button>
-            <p class="form-text">New Customer? <a href="register.html">Register</a></p>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                <label for="rememberMe">Remember me</label>
+            </div>
+            
+            <button type="submit" class="login-button" id="loginButton">
+                Sign In
+            </button>
+            
+            <div class="form-footer">
+                <p>Don't have an account? <a href="register.html">Create one here</a></p>
+                <p style="margin-top: 10px;"><a href="forgot-password.html">Forgot your password?</a></p>
+            </div>
         </form>
     </div>
 
-    <script src="config.js"></script>
-    <script src="script.js"></script>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="payment.js"></script>
+    <script src="js/integration.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', renderNavLinks);
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+            
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                info: 'fas fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="${icons[type]}"></i>
+                    <span>${message}</span>
+                    <button class="toast-close">&times;</button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto-dismiss
+            const timer = setTimeout(() => {
+                toast.remove();
+            }, duration);
+            
+            // Manual dismiss
+            toast.querySelector('.toast-close').addEventListener('click', () => {
+                clearTimeout(timer);
+                toast.remove();
+            });
+        }
+
+        // Form validation
+        function validateForm() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            auth.login(email, password);
+            let isValid = true;
+
+            // Reset previous errors
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email) {
+                document.getElementById('emailError').textContent = 'Email is required';
+                document.getElementById('emailError').style.display = 'block';
+                isValid = false;
+            } else if (!emailRegex.test(email)) {
+                document.getElementById('emailError').textContent = 'Please enter a valid email';
+                document.getElementById('emailError').style.display = 'block';
+                isValid = false;
+            }
+
+            // Password validation
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Password is required';
+                document.getElementById('passwordError').style.display = 'block';
+                isValid = false;
+            } else if (password.length < 6) {
+                document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
+                document.getElementById('passwordError').style.display = 'block';
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Handle form submission
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            if (!validateForm()) {
+                return;
+            }
+
+            const loginButton = document.getElementById('loginButton');
+            const originalText = loginButton.textContent;
+            
+            // Show loading state
+            loginButton.disabled = true;
+            loginButton.classList.add('loading');
+            
+            try {
+                // Wait for integration to load
+                if (typeof quickLocal === 'undefined') {
+                    // Fallback login for demo
+                    await demoLogin();
+                    return;
+                }
+
+                const formData = new FormData(e.target);
+                const credentials = {
+                    email: formData.get('email'),
+                    password: formData.get('password'),
+                    rememberMe: formData.get('rememberMe') === 'on'
+                };
+
+                console.log('🔐 Attempting login...');
+                const result = await quickLocal.auth.login(credentials);
+
+                if (result.success) {
+                    showToast('Login successful! Redirecting...', 'success');
+                    
+                    // Redirect after short delay
+                    setTimeout(() => {
+                        const redirectUrl = localStorage.getItem('redirectAfterLogin') || 'index.html';
+                        localStorage.removeItem('redirectAfterLogin');
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                } else {
+                    throw new Error(result.message || 'Login failed');
+                }
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast(error.message || 'Login failed. Please try again.', 'error');
+            } finally {
+                // Reset button state
+                loginButton.disabled = false;
+                loginButton.classList.remove('loading');
+            }
+        }
+
+        // Demo login fallback
+        async function demoLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Demo credentials
+            if (email === 'demo@quicklocal.com' && password === 'demo123') {
+                // Set demo auth
+                localStorage.setItem('authToken', 'demo-token-' + Date.now());
+                localStorage.setItem('userData', JSON.stringify({
+                    id: 'demo-user',
+                    name: 'Demo User',
+                    email: email,
+                    role: 'customer'
+                }));
+                
+                showToast('Demo login successful!', 'success');
+                
+                setTimeout(() => {
+                    const redirectUrl = localStorage.getItem('redirectAfterLogin') || 'index.html';
+                    localStorage.removeItem('redirectAfterLogin');
+                    window.location.href = redirectUrl;
+                }, 1500);
+            } else if (email === 'admin@quicklocal.com' && password === 'admin123') {
+                // Admin demo login
+                localStorage.setItem('authToken', 'admin-token-' + Date.now());
+                localStorage.setItem('userData', JSON.stringify({
+                    id: 'admin-user',
+                    name: 'Admin User',
+                    email: email,
+                    role: 'admin'
+                }));
+                
+                showToast('Admin login successful!', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'business-analytics.html';
+                }, 1500);
+            } else {
+                throw new Error('Invalid credentials. Try demo@quicklocal.com / demo123 or admin@quicklocal.com / admin123');
+            }
+        }
+
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('loginForm');
+            loginForm.addEventListener('submit', handleLogin);
+            
+            // Auto-fill demo credentials
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('demo') === 'true') {
+                document.getElementById('email').value = 'demo@quicklocal.com';
+                document.getElementById('password').value = 'demo123';
+                showToast('Demo credentials auto-filled. Click Sign In to continue.', 'info');
+            }
+            
+            console.log('🔐 Login page ready');
+            console.log('💡 Demo credentials: demo@quicklocal.com / demo123');
+            console.log('👨‍💼 Admin credentials: admin@quicklocal.com / admin123');
+        });
+
+        // Check if already logged in
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            if (token) {
+                showToast('You are already logged in. Redirecting...', 'info');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+            }
         });
     </script>
 </body>
