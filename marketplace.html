@@ -2499,3 +2499,49 @@
     </script>
 </body>
 </html>
+// Add this function to your marketplace.html
+function viewProduct(productId) {
+    // Store product data for detail page
+    const product = state.allProducts.find(p => p.id === productId);
+    localStorage.setItem('current_product', JSON.stringify(product));
+    
+    // Redirect to product detail page
+    window.location.href = `product-detail.html?id=${productId}`;
+}
+
+// Update your product card HTML to include click handler
+function createProductCard(product) {
+    return `
+        <div class="product-card" onclick="viewProduct('${product.id}')">
+            <!-- Your existing product card content -->
+            <div class="product-image-container">
+                <img src="${product.images?.[0]?.url || 'default.jpg'}" alt="${product.name}" class="product-image">
+            </div>
+            <div class="product-content">
+                <h3 class="product-title">${product.name}</h3>
+                <div class="product-price">₹${product.finalPrice || product.price}</div>
+                <!-- Your existing content -->
+            </div>
+        </div>
+    `;
+}
+// Add this function to your marketplace.html
+function viewProduct(productId) {
+    const product = state.allProducts.find(p => p.id === productId);
+    if (product) {
+        // Store product data for the detail page
+        localStorage.setItem('current_product', JSON.stringify(product));
+        // Redirect to product detail page
+        window.location.href = `product-detail.html?id=${productId}`;
+    }
+}
+
+// Update your product card creation to include click handler
+function createProductCard(product) {
+    return `
+        <div class="product-card" onclick="viewProduct('${product.id}')" style="cursor: pointer;">
+            <!-- Your existing product card HTML -->
+        </div>
+    `;
+}
+
