@@ -1,365 +1,547 @@
 /**
- * QuickLocal API Client - ERROR-FREE WORKING VERSION
- * Simple, reliable, works immediately without backend dependency
+ * Enhanced API Client with improved error handling, caching, and resilience
+ * Supports both backend API calls and localStorage fallback for offline functionality
  */
 
-class QuickLocalAPI {
-    constructor() {
-        this.baseURL = 'http://localhost:3000/api';
-        this.isInitialized = true; // ✅ Always ready immediately
-        this.backendAvailable = false;
-        
-        console.log('🚀 QuickLocal API Client initialized and ready');
-        
-        // Initialize sample data if localStorage is empty
-        this.initSampleData();
-        
-        // Try backend connection in background (don't block)
-        setTimeout(() => this.tryBackendConnection(), 100);
+// Configuration with validation
+const getConfig = () => {
+  const config = {
+    API: {
+      BASE_URL: window.APP_CONFIG?.API?.BASE_URL || 'http://localhost:3000',
+      ENDPOINTS: {
+        LOGIN: '/api/users/login',
+        REGISTER: '/api/users/register', 
+        PROFILE: '/api/users/profile',
+        PRODUCTS: '/api/products',
+        ORDERS: '/api/orders',
+        HEALTH: '/healthcheck',
+        ...window.APP_CONFIG?.API?.ENDPOINTS
+      },
+      DEFAULT_HEADERS: {
+        'Content-Type': 'application/json',
+        ...window.APP_CONFIG?.API?.DEFAULT_HEADERS
+      },
+      TIMEOUT: window.APP_CONFIG?.API?.TIMEOUT || 10000,
+      RETRY_ATTEMPTS: window.APP_CONFIG?.API?.RETRY_ATTEMPTS || 3,
+      RETRY_DELAY: window.APP_CONFIG?.API?.RETRY_DELAY || 1000
     }
+  };
+  
+  return config;
+};
 
-    /**
-     * Try to connect to backend (non-blocking)
-     */
-    async tryBackendConnection() {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
-            
-            const response = await fetch(`${this.baseURL}/health`, {
-                method: 'GET',
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                this.backendAvailable = true;
-                console.log('✅ Backend connected');
-            }
-        } catch (error) {
-            console.log('📱 Using localStorage only (backend not available)');
-            this.backendAvailable = false;
-        }
-    }
-
-    /**
-     * Get all products from localStorage
-     */
-    async getProducts() {
-        try {
-            console.log('🔍 Loading products...');
-            
-            const products = JSON.parse(localStorage.getItem('ql_products') || '[]');
-            console.log(`📦 Found ${products.length} products`);
-            
-            return { 
-                success: true, 
-                data: products, 
-                source: 'localStorage', 
-                message: `Loaded ${products.length} products` 
-            };
-        } catch (error) {
-            console.error('❌ Error loading products:', error);
-            return { 
-                success: false, 
-                data: [], 
-                source: 'error', 
-                message: error.message 
-            };
-        }
-    }
-
-    /**
-     * Add a new product
-     */
-    async addProduct(productData) {
-        try {
-            console.log(`➕ Adding product: ${productData.name}`);
-
-            // Validation
-            if (!productData.name || !productData.category) {
-                throw new Error('Product name and category are required');
-            }
-
-            if (!productData.price || parseFloat(productData.price) <= 0) {
-                throw new Error('Valid price is required');
-            }
-
-            // Create product object
-            const product = {
-                id: 'ql_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                name: productData.name,
-                description: productData.description || '',
-                price: parseFloat(productData.price),
-                category: productData.category,
-                stock: parseInt(productData.stock) || 0,
-                image: productData.image || this.getDefaultImage(productData.category),
-                images: productData.images || [productData.image || this.getDefaultImage(productData.category)],
-                status: 'active',
-                sellerId: 'local_seller',
-                sellerName: 'Local Seller',
-                rating: 4.0,
-                reviews: 0,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-
-            console.log('📦 Prepared product:', product);
-
-            // Get existing products
-            const existingProducts = JSON.parse(localStorage.getItem('ql_products') || '[]');
-            console.log(`📋 Current products in storage: ${existingProducts.length}`);
-            
-            // Add new product
-            existingProducts.push(product);
-            localStorage.setItem('ql_products', JSON.stringify(existingProducts));
-            
-            console.log('✅ Product added successfully');
-            console.log(`📊 Total products now: ${existingProducts.length}`);
-            
-            return { 
-                success: true, 
-                data: product, 
-                source: 'localStorage',
-                message: 'Product added successfully'
-            };
-        } catch (error) {
-            console.error(`❌ Add product error: ${error.message}`);
-            return { 
-                success: false, 
-                message: error.message, 
-                error: error 
-            };
-        }
-    }
-
-    /**
-     * Update a product
-     */
-    async updateProduct(productId, updateData) {
-        try {
-            console.log(`📝 Updating product: ${productId}`);
-
-            const products = JSON.parse(localStorage.getItem('ql_products') || '[]');
-            const index = products.findIndex(p => p.id === productId);
-            
-            if (index === -1) {
-                throw new Error('Product not found');
-            }
-
-            // Update product
-            products[index] = { 
-                ...products[index], 
-                ...updateData,
-                id: productId,
-                updatedAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem('ql_products', JSON.stringify(products));
-            
-            console.log('✅ Product updated successfully');
-            return { 
-                success: true, 
-                data: products[index], 
-                source: 'localStorage',
-                message: 'Product updated successfully'
-            };
-        } catch (error) {
-            console.error(`❌ Update product error: ${error.message}`);
-            return { 
-                success: false, 
-                message: error.message 
-            };
-        }
-    }
-
-    /**
-     * Delete a product
-     */
-    async deleteProduct(productId) {
-        try {
-            console.log(`🗑️ Deleting product: ${productId}`);
-
-            const products = JSON.parse(localStorage.getItem('ql_products') || '[]');
-            const filteredProducts = products.filter(p => p.id !== productId);
-            
-            if (filteredProducts.length === products.length) {
-                throw new Error('Product not found');
-            }
-            
-            localStorage.setItem('ql_products', JSON.stringify(filteredProducts));
-            
-            console.log('✅ Product deleted successfully');
-            return { 
-                success: true, 
-                source: 'localStorage',
-                message: 'Product deleted successfully'
-            };
-        } catch (error) {
-            console.error(`❌ Delete product error: ${error.message}`);
-            return { 
-                success: false, 
-                message: error.message 
-            };
-        }
-    }
-
-    /**
-     * Submit an order
-     */
-    async submitOrder(orderData) {
-        try {
-            console.log('💳 Submitting order...');
-            
-            // Generate order ID
-            const orderId = 'QL' + Date.now().toString().substr(-8);
-            
-            // Create order object
-            const order = {
-                id: orderId,
-                ...orderData,
-                createdAt: new Date().toISOString(),
-                status: orderData.paymentMethod === 'cod' ? 'pending' : 'processing'
-            };
-            
-            // Store order
-            const orders = JSON.parse(localStorage.getItem('ql_orders') || '[]');
-            orders.push(order);
-            localStorage.setItem('ql_orders', JSON.stringify(orders));
-            
-            console.log(`✅ Order created: ${orderId}`);
-            
-            return {
-                success: true,
-                orderId: orderId,
-                message: 'Order placed successfully'
-            };
-        } catch (error) {
-            console.error(`❌ Order submission error: ${error.message}`);
-            return {
-                success: false,
-                message: error.message
-            };
-        }
-    }
-
-    /**
-     * Get default image for category
-     */
-    getDefaultImage(category) {
-        const defaultImages = {
-            fruits: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23ff6b6b'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🍎 Fruits%3C/text%3E%3C/svg%3E",
-            vegetables: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%2348bb78'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🥕 Vegetables%3C/text%3E%3C/svg%3E",
-            grocery: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%234fc3f7'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🛒 Grocery%3C/text%3E%3C/svg%3E",
-            electronics: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23348fe2'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E📱 Electronics%3C/text%3E%3C/svg%3E",
-            clothing: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23f939a2'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E👕 Clothing%3C/text%3E%3C/svg%3E",
-            handicrafts: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23ff9a9e'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🎨 Handicrafts%3C/text%3E%3C/svg%3E",
-            home: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%2348bb78'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🏠 Home%3C/text%3E%3C/svg%3E",
-            food: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23ff6b35'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🍽️ Food%3C/text%3E%3C/svg%3E",
-            books: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23795548'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E📚 Books%3C/text%3E%3C/svg%3E",
-            toys: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23e91e63'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🧸 Toys%3C/text%3E%3C/svg%3E",
-            sports: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23ff5722'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E⚽ Sports%3C/text%3E%3C/svg%3E",
-            beauty: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23e91e63'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E💄 Beauty%3C/text%3E%3C/svg%3E",
-            automotive: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23607d8b'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🚗 Auto%3C/text%3E%3C/svg%3E",
-            health: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%234caf50'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E🏥 Health%3C/text%3E%3C/svg%3E",
-            other: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%236c757d'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='white' font-family='Arial' font-size='16' font-weight='bold'%3E📦 Other%3C/text%3E%3C/svg%3E",
-            default: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect width='300' height='200' fill='%23e5e7eb'/%3E%3Ctext x='150' y='100' text-anchor='middle' fill='%23374151' font-family='Arial' font-size='16'%3EProduct Image%3C/text%3E%3C/svg%3E"
-        };
-        return defaultImages[category.toLowerCase()] || defaultImages.default;
-    }
-
-    /**
-     * Initialize sample data if localStorage is empty
-     */
-    initSampleData() {
-        const existingProducts = JSON.parse(localStorage.getItem('ql_products') || '[]');
-        
-        if (existingProducts.length === 0) {
-            console.log('📦 Initializing sample data...');
-            
-            const sampleProducts = [
-                {
-                    id: 'sample_1',
-                    name: 'Fresh Organic Apples',
-                    description: 'Crisp and sweet local apples, perfect for snacking',
-                    price: 150,
-                    category: 'fruits',
-                    stock: 50,
-                    image: this.getDefaultImage('fruits'),
-                    images: [this.getDefaultImage('fruits')],
-                    status: 'active',
-                    sellerId: 'sample_seller',
-                    sellerName: 'Local Farm',
-                    rating: 4.5,
-                    reviews: 12,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                },
-                {
-                    id: 'sample_2',
-                    name: 'Wireless Bluetooth Headphones',
-                    description: 'High-quality wireless headphones with noise cancellation',
-                    price: 2999,
-                    category: 'electronics',
-                    stock: 15,
-                    image: this.getDefaultImage('electronics'),
-                    images: [this.getDefaultImage('electronics')],
-                    status: 'active',
-                    sellerId: 'sample_seller',
-                    sellerName: 'Tech Store',
-                    rating: 4.2,
-                    reviews: 8,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                },
-                {
-                    id: 'sample_3',
-                    name: 'Handmade Clay Pottery Set',
-                    description: 'Beautiful handcrafted pottery items for home decoration',
-                    price: 800,
-                    category: 'handicrafts',
-                    stock: 5,
-                    image: this.getDefaultImage('handicrafts'),
-                    images: [this.getDefaultImage('handicrafts')],
-                    status: 'active',
-                    sellerId: 'sample_seller',
-                    sellerName: 'Artisan Shop',
-                    rating: 4.8,
-                    reviews: 15,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                }
-            ];
-            
-            localStorage.setItem('ql_products', JSON.stringify(sampleProducts));
-            console.log('✅ Sample data initialized with 3 products');
-        } else {
-            console.log(`📦 Found ${existingProducts.length} existing products`);
-        }
-    }
-
-    // Alias methods for compatibility
-    async getSellerProducts() {
-        return await this.getProducts();
-    }
-
-    async getAllProducts() {
-        const result = await this.getProducts();
-        return {
-            success: result.success,
-            products: result.data,
-            count: result.data.length,
-            source: result.source
-        };
-    }
+// Enhanced error classes
+class NetworkError extends Error {
+  constructor(message, status = null, code = null) {
+    super(message);
+    this.name = 'NetworkError';
+    this.status = status;
+    this.code = code;
+  }
 }
 
-// Initialize immediately
-console.log('🔄 Auto-initializing QuickLocal API...');
-window.QuickLocalAPI = new QuickLocalAPI();
-
-// Export for Node.js compatibility
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = QuickLocalAPI;
+class ValidationError extends Error {
+  constructor(message, field = null) {
+    super(message);
+    this.name = 'ValidationError';
+    this.field = field;
+  }
 }
+
+// Utility: Enhanced fetch with timeout, retry, and better error handling
+async function fetchWithRetry(resource, options = {}) {
+  const config = getConfig();
+  const {
+    timeout = config.API.TIMEOUT,
+    retries = config.API.RETRY_ATTEMPTS,
+    retryDelay = config.API.RETRY_DELAY,
+    ...fetchOptions
+  } = options;
+
+  let lastError;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(resource, {
+        ...fetchOptions,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Handle HTTP errors
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new NetworkError(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+          response.status,
+          errorData.code
+        );
+      }
+      
+      return response;
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      
+      // Don't retry on certain errors
+      if (error.name === 'ValidationError' || 
+          (error.status && error.status >= 400 && error.status < 500)) {
+        throw error;
+      }
+      
+      // Wait before retry (with exponential backoff)
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, attempt)));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Enhanced health check with caching
+class HealthChecker {
+  constructor() {
+    this.lastCheck = 0;
+    this.status = null;
+    this.cacheDuration = 30000; // 30 seconds
+  }
+  
+  async isBackendAvailable() {
+    const now = Date.now();
+    
+    // Return cached result if still valid
+    if (this.status !== null && (now - this.lastCheck) < this.cacheDuration) {
+      return this.status;
+    }
+    
+    try {
+      const config = getConfig();
+      const healthEndpoint = `${config.API.BASE_URL}${config.API.ENDPOINTS.HEALTH}`;
+      
+      const response = await fetchWithRetry(healthEndpoint, {
+        method: 'GET',
+        timeout: 3000,
+        retries: 1
+      });
+      
+      this.status = response.ok;
+      this.lastCheck = now;
+      return this.status;
+      
+    } catch (error) {
+      console.warn('Health check failed:', error.message);
+      this.status = false;
+      this.lastCheck = now;
+      return false;
+    }
+  }
+  
+  invalidateCache() {
+    this.status = null;
+    this.lastCheck = 0;
+  }
+}
+
+// Enhanced localStorage manager with validation and compression
+class StorageManager {
+  constructor(prefix = 'quicklocal_') {
+    this.prefix = prefix;
+    this.compression = {
+      enabled: true,
+      threshold: 1024 // Compress if data > 1KB
+    };
+  }
+  
+  _getKey(key) {
+    return `${this.prefix}${key}`;
+  }
+  
+  _compress(data) {
+    // Simple compression placeholder - in production, use a proper compression library
+    return JSON.stringify(data);
+  }
+  
+  _decompress(data) {
+    return JSON.parse(data);
+  }
+  
+  get(key) {
+    try {
+      const data = localStorage.getItem(this._getKey(key));
+      if (!data) return null;
+      
+      return this._decompress(data);
+    } catch (error) {
+      console.warn(`Failed to retrieve ${key} from storage:`, error);
+      return null;
+    }
+  }
+  
+  set(key, value) {
+    try {
+      const data = this._compress(value);
+      localStorage.setItem(this._getKey(key), data);
+      return true;
+    } catch (error) {
+      console.error(`Failed to store ${key}:`, error);
+      return false;
+    }
+  }
+  
+  remove(key) {
+    try {
+      localStorage.removeItem(this._getKey(key));
+      return true;
+    } catch (error) {
+      console.warn(`Failed to remove ${key}:`, error);
+      return false;
+    }
+  }
+  
+  clear() {
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith(this.prefix)) {
+          localStorage.removeItem(key);
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to clear storage:', error);
+      return false;
+    }
+  }
+}
+
+// Sample data generator
+class SampleDataGenerator {
+  static products = [
+    {
+      id: 1,
+      name: "Premium Wireless Headphones",
+      price: 5999,
+      originalPrice: 7999,
+      description: "Active Noise Cancellation, 30-hour battery life, Bluetooth 5.0 connectivity with premium sound quality.",
+      category: "Electronics",
+      image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+      inStock: true,
+      rating: 4.5,
+      reviews: 156,
+      tags: ["wireless", "noise-cancelling", "bluetooth"],
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: "Smart Fitness Watch",
+      price: 8999,
+      originalPrice: 12999,
+      description: "Advanced health monitoring with heart rate, GPS tracking, and 7-day battery life.",
+      category: "Wearables",
+      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
+      inStock: true,
+      rating: 4.3,
+      reviews: 89,
+      tags: ["fitness", "smartwatch", "health"],
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 3,
+      name: "Organic Coffee Beans",
+      price: 1299,
+      originalPrice: 1599,
+      description: "Premium single-origin coffee beans, ethically sourced and freshly roasted.",
+      category: "Food & Beverages",
+      image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400",
+      inStock: true,
+      rating: 4.8,
+      reviews: 234,
+      tags: ["organic", "coffee", "fair-trade"],
+      createdAt: new Date().toISOString()
+    }
+  ];
+  
+  static initializeSampleData(storage) {
+    if (!storage.get('products')) {
+      storage.set('products', this.products);
+    }
+    
+    if (!storage.get('orders')) {
+      storage.set('orders', []);
+    }
+  }
+}
+
+// Main API Client with enhanced features
+const ApiClient = (function() {
+  const config = getConfig();
+  const healthChecker = new HealthChecker();
+  const storage = new StorageManager();
+
+  // Event system for API status changes
+  const eventHandlers = {
+    'backend-available': [],
+    'backend-unavailable': [],
+    'fallback-mode': []
+  };
+
+  function emit(event, data) {
+    if (eventHandlers[event]) {
+      eventHandlers[event].forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error(`Error in event handler for ${event}:`, error);
+        }
+      });
+    }
+  }
+
+  // Validation helpers
+  function validateProduct(product) {
+    const required = ['name', 'price', 'description'];
+    const missing = required.filter(field => !product[field]);
+
+    if (missing.length > 0) {
+      throw new ValidationError(`Missing required fields: ${missing.join(', ')}`);
+    }
+
+    if (typeof product.price !== 'number' || product.price <= 0) {
+      throw new ValidationError('Price must be a positive number', 'price');
+    }
+
+    return true;
+  }
+
+  function validateOrder(order) {
+    const required = ['items', 'customerInfo'];
+    const missing = required.filter(field => !order[field]);
+
+    if (missing.length > 0) {
+      throw new ValidationError(`Missing required fields: ${missing.join(', ')}`);
+    }
+
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      throw new ValidationError('Order must contain at least one item', 'items');
+    }
+
+    return true;
+  }
+
+  // Enhanced API methods
+  async function makeApiCall(endpoint, options = {}) {
+    const url = `${config.API.BASE_URL}${endpoint}`;
+    const finalOptions = {
+      headers: config.API.DEFAULT_HEADERS,
+      ...options
+    };
+
+    return await fetchWithRetry(url, finalOptions);
+  }
+
+  return {
+    // Event system
+    on(event, handler) {
+      if (eventHandlers[event]) {
+        eventHandlers[event].push(handler);
+      }
+    },
+
+    off(event, handler) {
+      if (eventHandlers[event]) {
+        const index = eventHandlers[event].indexOf(handler);
+        if (index > -1) {
+          eventHandlers[event].splice(index, 1);
+        }
+      }
+    },
+
+    // Initialize demo data
+    async initDemo() {
+      SampleDataGenerator.initializeSampleData(storage);
+
+      // Check backend availability
+      const available = await healthChecker.isBackendAvailable();
+      emit(available ? 'backend-available' : 'backend-unavailable', { available });
+    },
+
+    // Health check
+    async checkHealth() {
+      healthChecker.invalidateCache();
+      return await healthChecker.isBackendAvailable();
+    },
+
+    // Products API
+    async fetchProducts(options = {}) {
+      const { forceRefresh = false, category = null } = options;
+
+      try {
+        const backendAvailable = await healthChecker.isBackendAvailable();
+
+        if (backendAvailable && !forceRefresh) {
+          const response = await makeApiCall(config.API.ENDPOINTS.PRODUCTS);
+          const products = await response.json();
+
+          // Cache the results
+          storage.set('products', products);
+
+          return category ? products.filter(p => p.category === category) : products;
+        }
+      } catch (error) {
+        console.warn('Backend fetch failed, using local storage:', error.message);
+        emit('fallback-mode', { operation: 'fetchProducts', error: error.message });
+      }
+
+      // Fallback to local storage
+      const products = storage.get('products') || [];
+      return category ? products.filter(p => p.category === category) : products;
+    },
+
+    async addProduct(product) {
+      validateProduct(product);
+
+      // Enhance product with metadata
+      const enhancedProduct = {
+        ...product,
+        id: product.id || Date.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        const backendAvailable = await healthChecker.isBackendAvailable();
+
+        if (backendAvailable) {
+          const response = await makeApiCall(config.API.ENDPOINTS.PRODUCTS, {
+            method: 'POST',
+            body: JSON.stringify(enhancedProduct)
+          });
+
+          const result = await response.json();
+
+          // Update local cache
+          const products = storage.get('products') || [];
+          products.push(result);
+          storage.set('products', products);
+
+          return result;
+        }
+      } catch (error) {
+        console.warn('Backend addProduct failed, using local storage:', error.message);
+        emit('fallback-mode', { operation: 'addProduct', error: error.message });
+      }
+
+      // Fallback to local storage
+      const products = storage.get('products') || [];
+      products.push(enhancedProduct);
+      storage.set('products', products);
+
+      return enhancedProduct;
+    },
+
+    // Orders API
+    async submitOrder(order) {
+      validateOrder(order);
+
+      const enhancedOrder = {
+        ...order,
+        id: order.id || Date.now(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        total: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      };
+
+      try {
+        const backendAvailable = await healthChecker.isBackendAvailable();
+
+        if (backendAvailable) {
+          const response = await makeApiCall(config.API.ENDPOINTS.ORDERS, {
+            method: 'POST',
+            body: JSON.stringify(enhancedOrder)
+          });
+
+          const result = await response.json();
+
+          // Update local cache
+          const orders = storage.get('orders') || [];
+          orders.push(result);
+          storage.set('orders', orders);
+
+          return result;
+        }
+      } catch (error) {
+        console.warn('Backend submitOrder failed, using local storage:', error.message);
+        emit('fallback-mode', { operation: 'submitOrder', error: error.message });
+      }
+
+      // Fallback to local storage
+      const orders = storage.get('orders') || [];
+      orders.push(enhancedOrder);
+      storage.set('orders', orders);
+
+      return enhancedOrder;
+    },
+
+    async fetchOrders() {
+      try {
+        const backendAvailable = await healthChecker.isBackendAvailable();
+
+        if (backendAvailable) {
+          const response = await makeApiCall(config.API.ENDPOINTS.ORDERS);
+          const orders = await response.json();
+
+          storage.set('orders', orders);
+          return orders;
+        }
+      } catch (error) {
+        console.warn('Backend fetchOrders failed, using local storage:', error.message);
+        emit('fallback-mode', { operation: 'fetchOrders', error: error.message });
+      }
+
+      return storage.get('orders') || [];
+    },
+
+    // Authentication API (backend only)
+    async login(email, password) {
+      if (!email || !password) {
+        throw new ValidationError('Email and password are required');
+      }
+
+      const backendAvailable = await healthChecker.isBackendAvailable();
+      if (!backendAvailable) {
+        throw new NetworkError('Authentication requires backend connection');
+      }
+
+      const response = await makeApiCall(config.API.ENDPOINTS.LOGIN, {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+
+      const result = await response.json();
+
+      // Store auth token if provided
+      if (result.token) {
+        storage.set('auth_token', result.token);
+        storage.set('user', result.user);
+      }
+
+      return result;
+    },
+
+    async register(userData) {
+      const required = ['email', 'password', 'name'];
+      const missing = required.filter(field => !userData[field]);
+
+      if (missing.length > 0) {
+        throw new ValidationError(`Missing required fields: ${missing.join(', ')}`);
+      }
+
+      const backendAvailable = await healthChecker.isBackendAvailable();
+      if (!backendAvailable) {
+        throw new NetworkError('Registration requires backend
