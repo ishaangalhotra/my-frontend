@@ -248,6 +248,53 @@
             background: var(--secondary);
         }
 
+        /* Search suggestions dropdown */
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-solid);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            z-index: 1001;
+            max-height: 300px;
+            overflow-y: auto;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: var(--transition);
+        }
+
+        .search-suggestions.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .suggestion-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-solid);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .suggestion-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-icon {
+            color: var(--text-light);
+        }
+
         /* Enhanced Navigation */
         .nav-actions {
             display: flex;
@@ -908,202 +955,188 @@
             transform: translateY(-3px);
             box-shadow: var(--shadow-premium);
             background: var(--warning);
-/* Add Address Modal Styles */
-.address-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    z-index: 2500;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.3s ease-out;
-}
+        }
 
-.address-modal.show {
-    display: flex;
-}
+        /* Add Address Modal Styles */
+        .address-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
 
-.address-container {
-    background: var(--bg-primary);
-    border-radius: var(--radius-xl);
-    padding: 2rem;
-    max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: var(--shadow-premium);
-    position: relative;
-    animation: slideUp 0.5s ease-out;
-}
+        .address-modal.show {
+            display: flex;
+        }
 
-.address-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: transparent;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: var(--transition);
-}
+        .address-container {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-premium);
+            position: relative;
+            animation: slideUp 0.5s ease-out;
+        }
 
-.address-close:hover {
-    color: var(--text-primary);
-    transform: rotate(90deg);
-}
+        .address-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
 
-.address-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
+        .address-close:hover {
+            color: var(--text-primary);
+            transform: rotate(90deg);
+        }
 
-.address-title {
-    font-size: 1.8rem;
-    font-weight: 800;
-    background: var(--primary);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-}
+        .address-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-.address-subtitle {
-    color: var(--text-secondary);
-    font-size: 1rem;
-}
+        .address-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--primary);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
 
-.address-form {
-    display: grid;
-    gap: 1.5rem;
-}
+        .address-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
 
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
+        .address-form {
+            display: grid;
+            gap: 1.5rem;
+        }
 
-.form-group.full-width {
-    grid-column: 1 / -1;
-}
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
 
-.form-select {
-    padding: 0.875rem 1rem;
-    border: 2px solid var(--border-solid);
-    border-radius: var(--radius-md);
-    font-size: 1rem;
-    transition: var(--transition);
-    background: var(--bg-secondary);
-}
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
 
-.form-select:focus {
-    outline: none;
-    border-color: var(--primary-solid);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    background: white;
-}
+        .form-select {
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--border-solid);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            transition: var(--transition);
+            background: var(--bg-secondary);
+        }
 
-.address-type-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-solid);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
 
-.address-type-option {
-    padding: 1rem;
-    border: 2px solid var(--border-solid);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: var(--transition);
-    text-align: center;
-    background: var(--bg-secondary);
-}
+        .address-type-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
 
-.address-type-option:hover,
-.address-type-option.selected {
-    border-color: var(--primary-solid);
-    background: rgba(102, 126, 234, 0.05);
-}
+        .address-type-option {
+            padding: 1rem;
+            border: 2px solid var(--border-solid);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            background: var(--bg-secondary);
+        }
 
-.address-type-option input[type="radio"] {
-    display: none;
-}
+        .address-type-option:hover,
+        .address-type-option.selected {
+            border-color: var(--primary-solid);
+            background: rgba(102, 126, 234, 0.05);
+        }
 
-.address-type-option i {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--primary-solid);
-}
+        .address-type-option input[type="radio"] {
+            display: none;
+        }
 
-.address-type-option .type-label {
-    font-weight: 600;
-    color: var(--text-primary);
-}
+        .address-type-option i {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-solid);
+        }
 
-.checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1rem;
-}
+        .address-type-option .type-label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
 
-.checkbox-group input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--primary-solid);
-}
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
 
-.checkbox-group label {
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-solid);
+        }
 
-.address-submit {
-    width: 100%;
-    padding: 1rem;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition-spring);
-    margin-top: 1rem;
-}
+        .checkbox-group label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
 
-.address-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
+        .address-submit {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-spring);
+            margin-top: 1rem;
+        }
 
-.address-submit:disabled {
-    background: var(--text-light);
-    cursor: not-allowed;
-    transform: none;
-}
+        .address-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
 
-@media (max-width: 768px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .address-type-group {
-        grid-template-columns: 1fr;
-    }
-    
-    .address-container {
-        padding: 1.5rem;
-        margin: 1rem;
-    }
-}
+        .address-submit:disabled {
+            background: var(--text-light);
+            cursor: not-allowed;
+            transform: none;
         }
 
         /* Cart Sidebar Styles */
@@ -1689,115 +1722,6 @@
         .checkout-modal.show {
             display: flex;
         }
-<!-- Add Address Modal -->
-<div class="address-modal" id="addressModal">
-    <div class="address-container">
-        <button class="address-close" onclick="closeAddressModal()">
-            <i class="fas fa-times"></i>
-        </button>
-        
-        <div class="address-header">
-            <h2 class="address-title">Add New Address</h2>
-            <p class="address-subtitle">Enter your delivery address details</p>
-        </div>
-        
-        <form class="address-form" id="addressForm">
-            <div class="form-group full-width">
-                <label class="form-label">Address Type</label>
-                <div class="address-type-group">
-                    <div class="address-type-option selected" data-type="home">
-                        <input type="radio" name="addressType" value="home" checked>
-                        <i class="fas fa-home"></i>
-                        <div class="type-label">Home</div>
-                    </div>
-                    <div class="address-type-option" data-type="work">
-                        <input type="radio" name="addressType" value="work">
-                        <i class="fas fa-briefcase"></i>
-                        <div class="type-label">Work</div>
-                    </div>
-                    <div class="address-type-option" data-type="other">
-                        <input type="radio" name="addressType" value="other">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <div class="type-label">Other</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="addressName">Name*</label>
-                    <input type="text" class="form-input" id="addressName" required>
-                    <div class="form-error" id="addressNameError">Name is required</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="addressPhone">Phone Number*</label>
-                    <input type="tel" class="form-input" id="addressPhone" required>
-                    <div class="form-error" id="addressPhoneError">Phone number is required</div>
-                </div>
-            </div>
-
-            <div class="form-group full-width">
-                <label class="form-label" for="addressLine1">Address Line 1*</label>
-                <input type="text" class="form-input" id="addressLine1" placeholder="House/Flat/Building No., Street Name" required>
-                <div class="form-error" id="addressLine1Error">Address is required</div>
-            </div>
-
-            <div class="form-group full-width">
-                <label class="form-label" for="addressLine2">Address Line 2</label>
-                <input type="text" class="form-input" id="addressLine2" placeholder="Area, Landmark (Optional)">
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="addressCity">City*</label>
-                    <input type="text" class="form-input" id="addressCity" required>
-                    <div class="form-error" id="addressCityError">City is required</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="addressState">State*</label>
-                    <select class="form-select" id="addressState" required>
-                        <option value="">Select State</option>
-                        <option value="punjab">Punjab</option>
-                        <option value="haryana">Haryana</option>
-                        <option value="delhi">Delhi</option>
-                        <option value="uttar-pradesh">Uttar Pradesh</option>
-                        <option value="rajasthan">Rajasthan</option>
-                        <option value="gujarat">Gujarat</option>
-                        <option value="maharashtra">Maharashtra</option>
-                        <option value="karnataka">Karnataka</option>
-                        <option value="tamil-nadu">Tamil Nadu</option>
-                        <option value="west-bengal">West Bengal</option>
-                    </select>
-                    <div class="form-error" id="addressStateError">State is required</div>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="addressPincode">PIN Code*</label>
-                    <input type="text" class="form-input" id="addressPincode" pattern="[0-9]{6}" maxlength="6" required>
-                    <div class="form-error" id="addressPincodeError">Valid PIN code is required</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="addressCountry">Country*</label>
-                    <select class="form-select" id="addressCountry" required>
-                        <option value="india" selected>India</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="checkbox-group">
-                <input type="checkbox" id="makeDefault">
-                <label for="makeDefault">Make this my default address</label>
-            </div>
-
-            <button type="submit" class="address-submit" id="addressSubmit">
-                <i class="fas fa-plus"></i>
-                Add Address
-            </button>
-        </form>
-    </div>
-</div>
 
         .checkout-container {
             background: var(--bg-primary);
@@ -1935,6 +1859,21 @@
             box-shadow: var(--shadow-lg);
         }
 
+        /* Loading spinner for better UX */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .nav {
@@ -2003,6 +1942,19 @@
                 padding: 1.5rem;
                 margin: 1rem;
             }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .address-type-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .address-container {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
         }
 
         @media (max-width: 480px) {
@@ -2057,6 +2009,201 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--primary-dark);
         }
+
+        /* Quick view modal styles */
+        .quick-view-container {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-premium);
+            position: relative;
+        }
+
+        /* Enhanced notification badge */
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Product comparison feature */
+        .compare-btn {
+            position: absolute;
+            bottom: 1.25rem;
+            left: 1.25rem;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-spring);
+            z-index: 2;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .compare-btn:hover,
+        .compare-btn.active {
+            background: var(--accent);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Enhanced product filters */
+        .advanced-filters {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-solid);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .price-range {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .price-input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border-solid);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+        }
+
+        .rating-filter {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .rating-option {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-solid);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .rating-option:hover,
+        .rating-option.active {
+            border-color: var(--primary-solid);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        /* Skeleton loading for better UX */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            height: 400px;
+            border-radius: var(--radius-xl);
+        }
+
+        .skeleton-text {
+            height: 1rem;
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.5rem;
+        }
+
+        .skeleton-title {
+            height: 1.5rem;
+            width: 80%;
+            border-radius: var(--radius-sm);
+            margin-bottom: 1rem;
+        }
+
+        /* Enhanced error states */
+        .error-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .error-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .error-description {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .retry-btn {
+            padding: 1rem 2rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition-spring);
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
     </style>
 </head>
 <body>
@@ -2074,6 +2221,9 @@
                     <button class="search-btn" id="searchBtn">
                         <i class="fas fa-search"></i>
                     </button>
+                    <div class="search-suggestions" id="searchSuggestions">
+                        <!-- Search suggestions will be populated here -->
+                    </div>
                 </div>
             </div>
             
@@ -2281,6 +2431,116 @@
         </div>
     </div>
 
+    <!-- Add Address Modal -->
+    <div class="address-modal" id="addressModal">
+        <div class="address-container">
+            <button class="address-close" onclick="closeAddressModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="address-header">
+                <h2 class="address-title">Add New Address</h2>
+                <p class="address-subtitle">Enter your delivery address details</p>
+            </div>
+            
+            <form class="address-form" id="addressForm">
+                <div class="form-group full-width">
+                    <label class="form-label">Address Type</label>
+                    <div class="address-type-group">
+                        <div class="address-type-option selected" data-type="home">
+                            <input type="radio" name="addressType" value="home" checked>
+                            <i class="fas fa-home"></i>
+                            <div class="type-label">Home</div>
+                        </div>
+                        <div class="address-type-option" data-type="work">
+                            <input type="radio" name="addressType" value="work">
+                            <i class="fas fa-briefcase"></i>
+                            <div class="type-label">Work</div>
+                        </div>
+                        <div class="address-type-option" data-type="other">
+                            <input type="radio" name="addressType" value="other">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div class="type-label">Other</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="addressName">Name*</label>
+                        <input type="text" class="form-input" id="addressName" required>
+                        <div class="form-error" id="addressNameError">Name is required</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addressPhone">Phone Number*</label>
+                        <input type="tel" class="form-input" id="addressPhone" required>
+                        <div class="form-error" id="addressPhoneError">Phone number is required</div>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label" for="addressLine1">Address Line 1*</label>
+                    <input type="text" class="form-input" id="addressLine1" placeholder="House/Flat/Building No., Street Name" required>
+                    <div class="form-error" id="addressLine1Error">Address is required</div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label" for="addressLine2">Address Line 2</label>
+                    <input type="text" class="form-input" id="addressLine2" placeholder="Area, Landmark (Optional)">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="addressCity">City*</label>
+                        <input type="text" class="form-input" id="addressCity" required>
+                        <div class="form-error" id="addressCityError">City is required</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addressState">State*</label>
+                        <select class="form-select" id="addressState" required>
+                            <option value="">Select State</option>
+                            <option value="punjab">Punjab</option>
+                            <option value="haryana">Haryana</option>
+                            <option value="delhi">Delhi</option>
+                            <option value="uttar-pradesh">Uttar Pradesh</option>
+                            <option value="rajasthan">Rajasthan</option>
+                            <option value="gujarat">Gujarat</option>
+                            <option value="maharashtra">Maharashtra</option>
+                            <option value="karnataka">Karnataka</option>
+                            <option value="tamil-nadu">Tamil Nadu</option>
+                            <option value="west-bengal">West Bengal</option>
+                        </select>
+                        <div class="form-error" id="addressStateError">State is required</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="addressPincode">PIN Code*</label>
+                        <input type="text" class="form-input" id="addressPincode" pattern="[0-9]{6}" maxlength="6" required>
+                        <div class="form-error" id="addressPincodeError">Valid PIN code is required</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="addressCountry">Country*</label>
+                        <select class="form-select" id="addressCountry" required>
+                            <option value="india" selected>India</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="makeDefault">
+                    <label for="makeDefault">Make this my default address</label>
+                </div>
+
+                <button type="submit" class="address-submit" id="addressSubmit">
+                    <i class="fas fa-plus"></i>
+                    Add Address
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Cart Sidebar -->
     <div class="cart-overlay" id="cartOverlay"></div>
     <div class="cart-sidebar" id="cartSidebar">
@@ -2405,7 +2665,7 @@
     <div id="toastContainer"></div>
 
     <script>
-        // Enhanced App State
+        // Enhanced App State with improved data structure
         const appState = {
             cart: [],
             wishlist: [],
@@ -2413,6 +2673,8 @@
             user: null,
             currentCategory: 'all',
             isCartOpen: false,
+            isLoading: false,
+            searchQuery: '',
             addresses: [
                 {
                     id: 1,
@@ -2436,10 +2698,15 @@
                     country: 'India',
                     isDefault: false
                 }
-            ]
+            ],
+            filters: {
+                priceRange: { min: 0, max: 10000 },
+                rating: 0,
+                inStock: false
+            }
         };
 
-        // Sample Products Data
+        // Enhanced Sample Products Data with more realistic data
         const sampleProducts = [
             {
                 id: 1,
@@ -2454,7 +2721,8 @@
                 badge: "TRENDING",
                 inStock: true,
                 fastDelivery: true,
-                vendor: "TechWorld"
+                vendor: "TechWorld",
+                features: ["Noise Cancellation", "40Hr Battery", "Quick Charge"]
             },
             {
                 id: 2,
@@ -2469,7 +2737,8 @@
                 badge: "ECO-FRIENDLY",
                 inStock: true,
                 fastDelivery: true,
-                vendor: "FashionHub"
+                vendor: "FashionHub",
+                features: ["100% Organic Cotton", "Machine Washable", "Pre-shrunk"]
             },
             {
                 id: 3,
@@ -2484,7 +2753,8 @@
                 badge: "SMART",
                 inStock: true,
                 fastDelivery: false,
-                vendor: "SecureHome"
+                vendor: "SecureHome",
+                features: ["1080p HD", "Night Vision", "Motion Detection"]
             },
             {
                 id: 4,
@@ -2499,7 +2769,8 @@
                 badge: "PREMIUM",
                 inStock: true,
                 fastDelivery: true,
-                vendor: "FitLife"
+                vendor: "FitLife",
+                features: ["Non-Slip Surface", "Eco-Friendly", "6mm Thickness"]
             },
             {
                 id: 5,
@@ -2514,7 +2785,8 @@
                 badge: "HANDMADE",
                 inStock: false,
                 fastDelivery: false,
-                vendor: "HomeDecor"
+                vendor: "HomeDecor",
+                features: ["Drainage Holes", "Set of 3", "Waterproof"]
             },
             {
                 id: 6,
@@ -2522,76 +2794,64 @@
                 category: "electronics",
                 price: 1499.99,
                 originalPrice: 1999.99,
-                description: "High-precision gaming mouse with customizable RGB lighting.",
+                description: "High-precision gaming mouse with customizable RGB lighting and advanced sensors.",
                 rating: 4.8,
                 reviews: 445,
                 image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=300&fit=crop&crop=center",
                 badge: "GAMING",
                 inStock: true,
                 fastDelivery: true,
-                vendor: "GameZone"
+                vendor: "GameZone",
+                features: ["RGB Lighting", "16000 DPI", "8 Buttons"]
+            },
+            {
+                id: 7,
+                title: "Wireless Bluetooth Speaker",
+                category: "electronics",
+                price: 1299.99,
+                originalPrice: 1699.99,
+                description: "Portable waterproof speaker with rich bass and crystal clear sound.",
+                rating: 4.6,
+                reviews: 187,
+                image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=300&fit=crop&crop=center",
+                badge: "WATERPROOF",
+                inStock: true,
+                fastDelivery: true,
+                vendor: "SoundTech",
+                features: ["IPX7 Waterproof", "20Hr Battery", "360° Sound"]
+            },
+            {
+                id: 8,
+                title: "Leather Office Chair",
+                category: "home",
+                price: 8999.99,
+                originalPrice: 12999.99,
+                description: "Ergonomic executive chair with premium leather and lumbar support.",
+                rating: 4.7,
+                reviews: 95,
+                image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop&crop=center",
+                badge: "ERGONOMIC",
+                inStock: true,
+                fastDelivery: false,
+                vendor: "OfficePro",
+                features: ["Lumbar Support", "Height Adjustable", "360° Swivel"]
             }
+        ];
+
+        // Enhanced search suggestions
+        const searchSuggestions = [
+            { text: "Wireless headphones", icon: "fas fa-headphones" },
+            { text: "Gaming mouse", icon: "fas fa-mouse" },
+            { text: "Yoga mat", icon: "fas fa-dumbbell" },
+            { text: "Smart camera", icon: "fas fa-video" },
+            { text: "Cotton t-shirt", icon: "fas fa-tshirt" },
+            { text: "Office chair", icon: "fas fa-chair" },
+            { text: "Bluetooth speaker", icon: "fas fa-volume-up" },
+            { text: "Home decor", icon: "fas fa-home" }
         ];
 
         // Initialize App
         document.addEventListener('DOMContentLoaded', function() {
-// Add these lines inside initializeEventListeners() function
-// Address type selection
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.address-type-option')) {
-        const option = e.target.closest('.address-type-option');
-        const type = option.dataset.type;
-        
-        document.querySelectorAll('.address-type-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
-        
-        option.classList.add('selected');
-        document.querySelector(`input[name="addressType"][value="${type}"]`).checked = true;
-    }
-});
-
-// Address form submission
-document.addEventListener('submit', function(e) {
-    if (e.target.id === 'addressForm') {
-        e.preventDefault();
-        
-        if (!validateAddressForm()) {
-            return;
-        }
-        
-        const formData = {
-            id: Date.now(),
-            type: document.querySelector('input[name="addressType"]:checked').value,
-            name: document.getElementById('addressName').value,
-            phone: document.getElementById('addressPhone').value,
-            addressLine1: document.getElementById('addressLine1').value,
-            addressLine2: document.getElementById('addressLine2').value,
-            city: document.getElementById('addressCity').value,
-            state: document.getElementById('addressState').value,
-            pincode: document.getElementById('addressPincode').value,
-            country: document.getElementById('addressCountry').value,
-            isDefault: document.getElementById('makeDefault').checked
-        };
-        
-        if (formData.isDefault) {
-            appState.addresses.forEach(addr => addr.isDefault = false);
-        }
-        
-        appState.addresses.push(formData);
-        localStorage.setItem('quicklocal_addresses', JSON.stringify(appState.addresses));
-        updateAddressOptions();
-        showToast('Address added successfully!', 'success');
-        closeAddressModal();
-    }
-});
-
-// Close address modal on overlay click
-document.addEventListener('click', function(e) {
-    if (e.target.id === 'addressModal') {
-        closeAddressModal();
-    }
-});
             initializeApp();
         });
 
@@ -2604,6 +2864,7 @@ document.addEventListener('click', function(e) {
             loadCart();
             loadWishlist();
             loadUser();
+            loadAddresses();
 
             // Initialize event listeners
             initializeEventListeners();
@@ -2613,11 +2874,18 @@ document.addEventListener('click', function(e) {
 
             // Update UI based on auth state
             updateAuthUI();
+
+            // Initialize search functionality
+            initializeSearch();
+
+            console.log('🚀 QuickLocal Enhanced Marketplace initialized successfully!');
         }
 
         function initializeEventListeners() {
             // Search functionality
-            document.getElementById('searchInput').addEventListener('input', handleSearch);
+            document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+            document.getElementById('searchInput').addEventListener('focus', showSearchSuggestions);
+            document.getElementById('searchInput').addEventListener('blur', hideSearchSuggestions);
             document.getElementById('searchBtn').addEventListener('click', handleSearch);
 
             // Category filters
@@ -2643,8 +2911,12 @@ document.addEventListener('click', function(e) {
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
 
             // Profile dropdown
-            document.getElementById('profileBtn')?.addEventListener('click', toggleProfileDropdown);
-            document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
+            if (document.getElementById('profileBtn')) {
+                document.getElementById('profileBtn').addEventListener('click', toggleProfileDropdown);
+            }
+            if (document.getElementById('logoutBtn')) {
+                document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            }
 
             // Header scroll effect
             window.addEventListener('scroll', handleHeaderScroll);
@@ -2659,6 +2931,9 @@ document.addEventListener('click', function(e) {
                 option.addEventListener('click', selectAddress);
             });
 
+            // Address form handlers
+            initializeAddressHandlers();
+
             // Close modals on overlay click
             document.getElementById('authModal').addEventListener('click', (e) => {
                 if (e.target.id === 'authModal') hideAuthModal();
@@ -2667,36 +2942,251 @@ document.addEventListener('click', function(e) {
             document.getElementById('checkoutModal').addEventListener('click', (e) => {
                 if (e.target.id === 'checkoutModal') closeCheckout();
             });
+
+            document.getElementById('addressModal').addEventListener('click', (e) => {
+                if (e.target.id === 'addressModal') closeAddressModal();
+            });
+
+            // Social login handlers
+            initializeSocialHandlers();
+
+            // Keyboard shortcuts
+            initializeKeyboardShortcuts();
+        }
+
+        function initializeAddressHandlers() {
+            // Address type selection
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.address-type-option')) {
+                    const option = e.target.closest('.address-type-option');
+                    const type = option.dataset.type;
+                    
+                    document.querySelectorAll('.address-type-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    
+                    option.classList.add('selected');
+                    document.querySelector(`input[name="addressType"][value="${type}"]`).checked = true;
+                }
+            });
+
+            // Address form submission
+            document.getElementById('addressForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (!validateAddressForm()) {
+                    return;
+                }
+                
+                const formData = {
+                    id: Date.now(),
+                    type: document.querySelector('input[name="addressType"]:checked').value,
+                    name: document.getElementById('addressName').value,
+                    phone: document.getElementById('addressPhone').value,
+                    addressLine1: document.getElementById('addressLine1').value,
+                    addressLine2: document.getElementById('addressLine2').value,
+                    city: document.getElementById('addressCity').value,
+                    state: document.getElementById('addressState').value,
+                    pincode: document.getElementById('addressPincode').value,
+                    country: document.getElementById('addressCountry').value,
+                    isDefault: document.getElementById('makeDefault').checked
+                };
+                
+                if (formData.isDefault) {
+                    appState.addresses.forEach(addr => addr.isDefault = false);
+                }
+                
+                appState.addresses.push(formData);
+                saveAddresses();
+                updateAddressOptions();
+                showToast('Address added successfully!', 'success');
+                closeAddressModal();
+            });
+        }
+
+        function initializeSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const suggestionsContainer = document.getElementById('searchSuggestions');
+            
+            // Create suggestions HTML
+            const suggestionsHTML = searchSuggestions.map(suggestion => `
+                <div class="suggestion-item" data-query="${suggestion.text}">
+                    <i class="${suggestion.icon} suggestion-icon"></i>
+                    <span>${suggestion.text}</span>
+                </div>
+            `).join('');
+            
+            suggestionsContainer.innerHTML = suggestionsHTML;
+            
+            // Add click handlers to suggestions
+            suggestionsContainer.addEventListener('click', (e) => {
+                const item = e.target.closest('.suggestion-item');
+                if (item) {
+                    const query = item.dataset.query;
+                    searchInput.value = query;
+                    handleSearch();
+                    hideSearchSuggestions();
+                }
+            });
+        }
+
+        function showSearchSuggestions() {
+            const suggestions = document.getElementById('searchSuggestions');
+            const searchInput = document.getElementById('searchInput');
+            
+            if (searchInput.value.trim() === '') {
+                suggestions.classList.add('show');
+            }
+        }
+
+        function hideSearchSuggestions() {
+            setTimeout(() => {
+                const suggestions = document.getElementById('searchSuggestions');
+                suggestions.classList.remove('show');
+            }, 200);
+        }
+
+        function handleSearchInput(e) {
+            const query = e.target.value.toLowerCase();
+            const suggestions = document.getElementById('searchSuggestions');
+            
+            if (query.trim() === '') {
+                // Show default suggestions
+                initializeSearch();
+                suggestions.classList.add('show');
+            } else {
+                // Filter suggestions based on input
+                const filteredSuggestions = searchSuggestions.filter(s => 
+                    s.text.toLowerCase().includes(query)
+                );
+                
+                const suggestionsHTML = filteredSuggestions.map(suggestion => `
+                    <div class="suggestion-item" data-query="${suggestion.text}">
+                        <i class="${suggestion.icon} suggestion-icon"></i>
+                        <span>${suggestion.text}</span>
+                    </div>
+                `).join('');
+                
+                suggestions.innerHTML = suggestionsHTML;
+                suggestions.classList.add('show');
+                
+                // Real-time search
+                if (query.length > 2) {
+                    debounce(performSearch, 300)(query);
+                }
+            }
+        }
+
+        function performSearch(query) {
+            appState.searchQuery = query;
+            const filteredProducts = appState.products.filter(product => 
+                product.title.toLowerCase().includes(query) ||
+                product.description.toLowerCase().includes(query) ||
+                product.category.toLowerCase().includes(query) ||
+                product.vendor.toLowerCase().includes(query) ||
+                product.features.some(feature => feature.toLowerCase().includes(query))
+            );
+            renderProducts(filteredProducts);
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function initializeSocialHandlers() {
+            const socialButtons = [
+                'googleLogin', 'facebookLogin', 
+                'googleRegister', 'facebookRegister'
+            ];
+            
+            socialButtons.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('click', () => {
+                        const provider = id.includes('google') ? 'Google' : 'Facebook';
+                        showToast(`${provider} login will be implemented with actual OAuth`, 'info');
+                    });
+                }
+            });
+
+            const forgotLink = document.getElementById('forgotPasswordLink');
+            if (forgotLink) {
+                forgotLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showToast('Password reset functionality will be implemented', 'info');
+                });
+            }
+        }
+
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Search focus with Ctrl+K or Cmd+K
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                }
+                
+                // Close modals with Escape
+                if (e.key === 'Escape') {
+                    if (appState.isCartOpen) {
+                        toggleCart();
+                    }
+                    
+                    if (document.getElementById('authModal').classList.contains('show')) {
+                        hideAuthModal();
+                    }
+                    
+                    if (document.getElementById('checkoutModal').classList.contains('show')) {
+                        closeCheckout();
+                    }
+                    
+                    if (document.getElementById('addressModal').classList.contains('show')) {
+                        closeAddressModal();
+                    }
+                }
+            });
         }
 
         function renderProducts(products = appState.products) {
             const grid = document.getElementById('productsGrid');
             
+            if (appState.isLoading) {
+                renderLoadingState(grid);
+                return;
+            }
+            
             if (products.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
-                        <i class="fas fa-search" style="font-size: 4rem; color: var(--text-light); margin-bottom: 2rem;"></i>
-                        <h3 style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-primary);">No Products Found</h3>
-                        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Try adjusting your search or filters to find what you're looking for.</p>
-                        <button onclick="clearFilters()" style="padding: 1rem 2rem; background: var(--primary); color: white; border: none; border-radius: var(--radius-full); cursor: pointer;">Clear Filters</button>
-                    </div>
-                `;
+                renderEmptyState(grid);
                 return;
             }
 
             grid.innerHTML = products.map(product => `
-                <div class="product-card" data-category="${product.category}">
+                <div class="product-card" data-category="${product.category}" data-id="${product.id}">
                     <div class="product-image-container">
                         <img src="${product.image}" alt="${product.title}" class="product-image" loading="lazy">
                         <div class="product-badge">${product.badge}</div>
                         <button class="product-wishlist ${appState.wishlist.includes(product.id) ? 'active' : ''}" onclick="toggleWishlist(${product.id})">
                             <i class="fas fa-heart"></i>
                         </button>
+                        <button class="compare-btn ${isInComparison(product.id) ? 'active' : ''}" onclick="toggleComparison(${product.id})" title="Add to comparison">
+                            <i class="fas fa-balance-scale"></i>
+                        </button>
                     </div>
                     <div class="product-content">
                         <div class="product-category">${product.category}</div>
                         <h3 class="product-title">${product.title}</h3>
                         <p class="product-description">${product.description}</p>
+                        <div class="product-features">
+                            ${product.features.slice(0, 3).map(feature => `<span class="feature-tag">${feature}</span>`).join('')}
+                        </div>
                         <div class="product-rating">
                             <div class="rating-stars">
                                 ${generateStars(product.rating)}
@@ -2723,13 +3213,68 @@ document.addEventListener('click', function(e) {
                                 <i class="fas fa-cart-plus"></i>
                                 ${product.inStock ? 'Add to Cart' : 'Out of Stock'}
                             </button>
-                            <button class="buy-now-btn" ${!product.inStock ? 'disabled' : ''} onclick="buyNow(${product.id})">
+                            <button class="buy-now-btn" ${!product.inStock ? 'disabled' : ''} onclick="buyNow(${product.id})" title="Buy Now">
                                 <i class="fas fa-bolt"></i>
                             </button>
                         </div>
                     </div>
                 </div>
             `).join('');
+
+            // Add feature tags styles
+            if (!document.querySelector('#feature-tags-style')) {
+                const style = document.createElement('style');
+                style.id = 'feature-tags-style';
+                style.textContent = `
+                    .product-features {
+                        display: flex;
+                        gap: 0.5rem;
+                        margin-bottom: 1rem;
+                        flex-wrap: wrap;
+                    }
+                    .feature-tag {
+                        background: rgba(102, 126, 234, 0.1);
+                        color: var(--primary-solid);
+                        padding: 0.25rem 0.75rem;
+                        border-radius: var(--radius-full);
+                        font-size: 0.8rem;
+                        font-weight: 600;
+                        border: 1px solid rgba(102, 126, 234, 0.2);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Initialize animations
+            setTimeout(() => {
+                initializeScrollEffects();
+            }, 100);
+        }
+
+        function renderLoadingState(container) {
+            container.innerHTML = Array.from({ length: 6 }, () => `
+                <div class="skeleton skeleton-card"></div>
+            `).join('');
+        }
+
+        function renderEmptyState(container) {
+            const hasFilters = appState.currentCategory !== 'all' || appState.searchQuery;
+            
+            container.innerHTML = `
+                <div class="error-state" style="grid-column: 1 / -1;">
+                    <div class="error-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3 class="error-title">No Products Found</h3>
+                    <p class="error-description">
+                        ${hasFilters 
+                            ? 'Try adjusting your search or filters to find what you\'re looking for.' 
+                            : 'We couldn\'t find any products at the moment. Please try again later.'
+                        }
+                    </p>
+                    ${hasFilters ? '<button class="retry-btn" onclick="clearFilters()">Clear Filters</button>' : ''}
+                </div>
+            `;
         }
 
         function generateStars(rating) {
@@ -2754,7 +3299,7 @@ document.addEventListener('click', function(e) {
             return stars;
         }
 
-        // Authentication Functions
+        // Enhanced Authentication Functions
         function showAuthModal(mode = 'login') {
             const modal = document.getElementById('authModal');
             const title = document.getElementById('authTitle');
@@ -2796,32 +3341,42 @@ document.addEventListener('click', function(e) {
             
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
+            const submitBtn = document.getElementById('loginSubmit');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loading-spinner"></div> Signing In...';
             
             // Basic validation
             if (!validateEmail(email)) {
                 showFormError('loginEmailError', 'Please enter a valid email');
+                resetSubmitButton(submitBtn, '<i class="fas fa-sign-in-alt"></i> Sign In');
                 return;
             }
             
             if (password.length < 6) {
                 showFormError('loginPasswordError', 'Password must be at least 6 characters');
+                resetSubmitButton(submitBtn, '<i class="fas fa-sign-in-alt"></i> Sign In');
                 return;
             }
             
-            // Simulate login
-            const user = {
-                id: 1,
-                name: email.split('@')[0],
-                email: email,
-                avatar: email.charAt(0).toUpperCase()
-            };
-            
-            appState.user = user;
-            localStorage.setItem('quicklocal_user', JSON.stringify(user));
-            
-            updateAuthUI();
-            hideAuthModal();
-            showToast('Login successful! Welcome back.', 'success');
+            // Simulate API call
+            setTimeout(() => {
+                const user = {
+                    id: 1,
+                    name: email.split('@')[0],
+                    email: email,
+                    avatar: email.charAt(0).toUpperCase()
+                };
+                
+                appState.user = user;
+                saveUser();
+                
+                updateAuthUI();
+                hideAuthModal();
+                showToast('Login successful! Welcome back.', 'success');
+                resetSubmitButton(submitBtn, '<i class="fas fa-sign-in-alt"></i> Sign In');
+            }, 1500);
         }
 
         function handleRegister(e) {
@@ -2832,48 +3387,74 @@ document.addEventListener('click', function(e) {
             const phone = document.getElementById('registerPhone').value;
             const password = document.getElementById('registerPassword').value;
             const confirmPassword = document.getElementById('registerConfirmPassword').value;
+            const submitBtn = document.getElementById('registerSubmit');
             
-            // Validation
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loading-spinner"></div> Creating Account...';
+            
+            // Enhanced validation
+            if (!validateRegistrationForm(name, email, phone, password, confirmPassword)) {
+                resetSubmitButton(submitBtn, '<i class="fas fa-user-plus"></i> Create Account');
+                return;
+            }
+            
+            // Simulate API call
+            setTimeout(() => {
+                const user = {
+                    id: Date.now(),
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    avatar: name.charAt(0).toUpperCase()
+                };
+                
+                appState.user = user;
+                saveUser();
+                
+                updateAuthUI();
+                hideAuthModal();
+                showToast('Account created successfully! Welcome to QuickLocal.', 'success');
+                resetSubmitButton(submitBtn, '<i class="fas fa-user-plus"></i> Create Account');
+            }, 2000);
+        }
+
+        function validateRegistrationForm(name, email, phone, password, confirmPassword) {
+            let isValid = true;
+            
             if (name.length < 2) {
                 showFormError('registerNameError', 'Name must be at least 2 characters');
-                return;
+                isValid = false;
             }
             
             if (!validateEmail(email)) {
                 showFormError('registerEmailError', 'Please enter a valid email');
-                return;
+                isValid = false;
             }
             
-            if (phone.length < 10) {
-                showFormError('registerPhoneError', 'Please enter a valid phone number');
-                return;
+            if (phone.length < 10 || !/^\d+$/.test(phone)) {
+                showFormError('registerPhoneError', 'Please enter a valid 10-digit phone number');
+                isValid = false;
             }
             
             if (password.length < 6) {
                 showFormError('registerPasswordError', 'Password must be at least 6 characters');
-                return;
+                isValid = false;
             }
             
             if (password !== confirmPassword) {
                 showFormError('registerConfirmPasswordError', 'Passwords don\'t match');
-                return;
+                isValid = false;
             }
             
-            // Simulate registration
-            const user = {
-                id: Date.now(),
-                name: name,
-                email: email,
-                phone: phone,
-                avatar: name.charAt(0).toUpperCase()
-            };
-            
-            appState.user = user;
-            localStorage.setItem('quicklocal_user', JSON.stringify(user));
-            
-            updateAuthUI();
-            hideAuthModal();
-            showToast('Account created successfully! Welcome to QuickLocal.', 'success');
+            return isValid;
+        }
+
+        function resetSubmitButton(button, originalText) {
+            setTimeout(() => {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }, 500);
         }
 
         function handleLogout() {
@@ -2905,7 +3486,7 @@ document.addEventListener('click', function(e) {
             dropdown.classList.toggle('show');
         }
 
-        // Cart Functions
+        // Enhanced Cart Functions
         function addToCart(productId) {
             if (!appState.user) {
                 showAuthModal('login');
@@ -2920,6 +3501,7 @@ document.addEventListener('click', function(e) {
             
             if (existingItem) {
                 existingItem.quantity += 1;
+                showToast(`${product.title} quantity updated in cart!`, 'success');
             } else {
                 appState.cart.push({
                     id: productId,
@@ -2928,18 +3510,20 @@ document.addEventListener('click', function(e) {
                     image: product.image,
                     quantity: 1
                 });
+                showToast(`${product.title} added to cart!`, 'success');
             }
             
             updateCartUI();
             saveCart();
-            showToast(`${product.title} added to cart!`, 'success');
+            animateCartButton(productId);
         }
 
         function removeFromCart(productId) {
+            const product = appState.cart.find(item => item.id === productId);
             appState.cart = appState.cart.filter(item => item.id !== productId);
             updateCartUI();
             saveCart();
-            showToast('Item removed from cart', 'info');
+            showToast(`${product?.title || 'Item'} removed from cart`, 'info');
         }
 
         function updateCartQuantity(productId, change) {
@@ -2986,10 +3570,10 @@ document.addEventListener('click', function(e) {
                             <div class="cart-item-name">${item.title}</div>
                             <div class="cart-item-price">₹${item.price.toFixed(2)}</div>
                             <div class="cart-item-controls">
-                                <button onclick="updateCartQuantity(${item.id}, -1)">-</button>
+                                <button onclick="updateCartQuantity(${item.id}, -1)" title="Decrease quantity">-</button>
                                 <span class="cart-item-quantity">${item.quantity}</span>
-                                <button onclick="updateCartQuantity(${item.id}, 1)">+</button>
-                                <button class="remove-btn" onclick="removeFromCart(${item.id})">
+                                <button onclick="updateCartQuantity(${item.id}, 1)" title="Increase quantity">+</button>
+                                <button class="remove-btn" onclick="removeFromCart(${item.id})" title="Remove from cart">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -3017,7 +3601,7 @@ document.addEventListener('click', function(e) {
             }
         }
 
-        // Checkout Functions
+        // Enhanced Checkout Functions
         function proceedToCheckout() {
             if (!appState.user) {
                 showAuthModal('login');
@@ -3030,6 +3614,7 @@ document.addEventListener('click', function(e) {
             }
             
             updateCheckoutSummary();
+            updateAddressOptions();
             document.getElementById('checkoutModal').classList.add('show');
             toggleCart(); // Close cart
         }
@@ -3069,28 +3654,43 @@ document.addEventListener('click', function(e) {
 
         function placeOrder() {
             const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
-            const selectedAddress = document.querySelector('.address-option.selected').dataset.address;
+            const selectedAddress = document.querySelector('.address-option.selected');
+            const placeOrderBtn = document.querySelector('.place-order-btn');
+            
+            if (!selectedAddress) {
+                showToast('Please select a delivery address', 'warning');
+                return;
+            }
+            
+            // Show loading state
+            placeOrderBtn.disabled = true;
+            placeOrderBtn.innerHTML = '<div class="loading-spinner"></div> Processing Order...';
             
             // Simulate order placement
-            const orderId = 'QL' + Date.now();
-            
-            // Clear cart
-            appState.cart = [];
-            updateCartUI();
-            saveCart();
-            
-            closeCheckout();
-            
-            // Redirect to order success page (simulate)
-            showToast(`Order placed successfully! Order ID: ${orderId}`, 'success');
-            
             setTimeout(() => {
-                // In real app, redirect to order-success.html
-                showToast('Redirecting to order confirmation...', 'info');
+                const orderId = 'QL' + Date.now();
+                
+                // Clear cart
+                appState.cart = [];
+                updateCartUI();
+                saveCart();
+                
+                closeCheckout();
+                
+                // Show success message
+                showToast(`Order placed successfully! Order ID: ${orderId}`, 'success');
+                
+                // Reset button
+                placeOrderBtn.disabled = false;
+                placeOrderBtn.innerHTML = '<i class="fas fa-check-circle"></i> Place Order';
+                
+                setTimeout(() => {
+                    showToast('Redirecting to order confirmation...', 'info');
+                }, 2000);
             }, 2000);
         }
 
-        // Wishlist Functions
+        // Enhanced Wishlist Functions
         function toggleWishlist(productId) {
             if (!appState.user) {
                 showAuthModal('login');
@@ -3102,18 +3702,21 @@ document.addEventListener('click', function(e) {
             if (!product) return;
             
             const index = appState.wishlist.indexOf(productId);
+            const wishlistBtn = document.querySelector(`[onclick="toggleWishlist(${productId})"]`);
             
             if (index > -1) {
                 appState.wishlist.splice(index, 1);
+                wishlistBtn.classList.remove('active');
                 showToast(`${product.title} removed from wishlist`, 'info');
             } else {
                 appState.wishlist.push(productId);
+                wishlistBtn.classList.add('active');
                 showToast(`${product.title} added to wishlist!`, 'success');
+                animateWishlistButton(wishlistBtn);
             }
             
             updateWishlistUI();
             saveWishlist();
-            renderProducts(); // Re-render to update wishlist buttons
         }
 
         function updateWishlistUI() {
@@ -3121,20 +3724,169 @@ document.addEventListener('click', function(e) {
             wishlistCount.textContent = appState.wishlist.length;
         }
 
+        // Product Comparison Feature
+        function isInComparison(productId) {
+            return appState.comparison && appState.comparison.includes(productId);
+        }
+
+        function toggleComparison(productId) {
+            if (!appState.comparison) {
+                appState.comparison = [];
+            }
+            
+            const index = appState.comparison.indexOf(productId);
+            const compareBtn = document.querySelector(`[onclick="toggleComparison(${productId})"]`);
+            
+            if (index > -1) {
+                appState.comparison.splice(index, 1);
+                compareBtn.classList.remove('active');
+                showToast('Product removed from comparison', 'info');
+            } else {
+                if (appState.comparison.length >= 3) {
+                    showToast('You can compare maximum 3 products', 'warning');
+                    return;
+                }
+                appState.comparison.push(productId);
+                compareBtn.classList.add('active');
+                showToast('Product added to comparison', 'success');
+            }
+            
+            localStorage.setItem('quicklocal_comparison', JSON.stringify(appState.comparison));
+        }
+
+        // Address Management Functions
+        function addNewAddress() {
+            if (!appState.user) {
+                showAuthModal('login');
+                showToast('Please login to add addresses', 'warning');
+                return;
+            }
+            
+            showAddressModal();
+        }
+
+        function showAddressModal() {
+            const modal = document.getElementById('addressModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAddressModal() {
+            const modal = document.getElementById('addressModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+            clearAddressForm();
+        }
+
+        function clearAddressForm() {
+            document.getElementById('addressForm').reset();
+            document.querySelectorAll('.form-input, .form-select').forEach(input => {
+                input.classList.remove('error');
+            });
+            document.querySelectorAll('.form-error').forEach(error => {
+                error.classList.remove('show');
+            });
+            
+            // Reset address type selection
+            document.querySelectorAll('.address-type-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector('.address-type-option[data-type="home"]').classList.add('selected');
+            document.querySelector('input[name="addressType"][value="home"]').checked = true;
+        }
+
+        function validateAddressForm() {
+            let isValid = true;
+            
+            const requiredFields = [
+                { id: 'addressName', error: 'addressNameError', message: 'Name is required' },
+                { id: 'addressPhone', error: 'addressPhoneError', message: 'Phone number is required' },
+                { id: 'addressLine1', error: 'addressLine1Error', message: 'Address is required' },
+                { id: 'addressCity', error: 'addressCityError', message: 'City is required' },
+                { id: 'addressState', error: 'addressStateError', message: 'State is required' },
+                { id: 'addressPincode', error: 'addressPincodeError', message: 'Valid PIN code is required' }
+            ];
+            
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field.id);
+                const error = document.getElementById(field.error);
+                
+                if (!input.value.trim()) {
+                    showFormError(field.error, field.message);
+                    input.classList.add('error');
+                    isValid = false;
+                } else {
+                    error.classList.remove('show');
+                    input.classList.remove('error');
+                }
+            });
+            
+            // Validate phone number
+            const phone = document.getElementById('addressPhone').value;
+            if (phone && (phone.length < 10 || !/^\d+$/.test(phone))) {
+                showFormError('addressPhoneError', 'Please enter a valid 10-digit phone number');
+                isValid = false;
+            }
+            
+            // Validate PIN code
+            const pincode = document.getElementById('addressPincode').value;
+            if (pincode && (pincode.length !== 6 || !/^\d{6}$/.test(pincode))) {
+                showFormError('addressPincodeError', 'Please enter a valid 6-digit PIN code');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+
+        function updateAddressOptions() {
+            const container = document.getElementById('addressOptions');
+            if (!container) return;
+            
+            container.innerHTML = appState.addresses.map(address => `
+                <div class="address-option ${address.isDefault ? 'selected' : ''}" data-address="${address.id}">
+                    <strong>${address.name} (${address.type.charAt(0).toUpperCase() + address.type.slice(1)})</strong><br>
+                    ${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}<br>
+                    ${address.city}, ${address.state} ${address.pincode}<br>
+                    ${address.country}<br>
+                    <small>Phone: ${address.phone}</small>
+                </div>
+            `).join('');
+            
+            // Re-attach event listeners
+            document.querySelectorAll('.address-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.address-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+        }
+
         // Utility Functions
         function handleSearch() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            appState.searchQuery = searchTerm;
+            
+            if (searchTerm.trim() === '') {
+                renderProducts();
+                return;
+            }
+            
             const filteredProducts = appState.products.filter(product => 
                 product.title.toLowerCase().includes(searchTerm) ||
                 product.description.toLowerCase().includes(searchTerm) ||
                 product.category.toLowerCase().includes(searchTerm) ||
-                product.vendor.toLowerCase().includes(searchTerm)
+                product.vendor.toLowerCase().includes(searchTerm) ||
+                product.features.some(feature => feature.toLowerCase().includes(searchTerm))
             );
+            
             renderProducts(filteredProducts);
+            hideSearchSuggestions();
         }
 
         function handleCategoryFilter(category) {
             appState.currentCategory = category;
+            appState.searchQuery = ''; // Clear search when filtering by category
+            document.getElementById('searchInput').value = '';
             
             // Update active tab
             document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
@@ -3150,6 +3902,7 @@ document.addEventListener('click', function(e) {
 
         function clearFilters() {
             document.getElementById('searchInput').value = '';
+            appState.searchQuery = '';
             handleCategoryFilter('all');
         }
 
@@ -3163,116 +3916,6 @@ document.addEventListener('click', function(e) {
             setTimeout(() => {
                 proceedToCheckout();
             }, 500);
-        }
-
-        function addNewAddress() {
-            // Replace the existing addNewAddress function
-function addNewAddress() {
-    if (!appState.user) {
-        showAuthModal('login');
-        showToast('Please login to add addresses', 'warning');
-        return;
-    }
-    
-    showAddressModal();
-}
-
-// Add these new functions right after addNewAddress()
-function showAddressModal() {
-    const modal = document.getElementById('addressModal');
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeAddressModal() {
-    const modal = document.getElementById('addressModal');
-    modal.classList.remove('show');
-    document.body.style.overflow = '';
-    clearAddressForm();
-}
-
-function clearAddressForm() {
-    document.getElementById('addressForm').reset();
-    document.querySelectorAll('.form-input, .form-select').forEach(input => {
-        input.classList.remove('error');
-    });
-    document.querySelectorAll('.form-error').forEach(error => {
-        error.classList.remove('show');
-    });
-    
-    // Reset address type selection
-    document.querySelectorAll('.address-type-option').forEach(option => {
-        option.classList.remove('selected');
-    });
-    document.querySelector('.address-type-option[data-type="home"]').classList.add('selected');
-    document.querySelector('input[name="addressType"][value="home"]').checked = true;
-}
-
-function validateAddressForm() {
-    let isValid = true;
-    
-    const requiredFields = [
-        { id: 'addressName', error: 'addressNameError', message: 'Name is required' },
-        { id: 'addressPhone', error: 'addressPhoneError', message: 'Phone number is required' },
-        { id: 'addressLine1', error: 'addressLine1Error', message: 'Address is required' },
-        { id: 'addressCity', error: 'addressCityError', message: 'City is required' },
-        { id: 'addressState', error: 'addressStateError', message: 'State is required' },
-        { id: 'addressPincode', error: 'addressPincodeError', message: 'Valid PIN code is required' }
-    ];
-    
-    requiredFields.forEach(field => {
-        const input = document.getElementById(field.id);
-        const error = document.getElementById(field.error);
-        
-        if (!input.value.trim()) {
-            showFormError(field.error, field.message);
-            input.classList.add('error');
-            isValid = false;
-        } else {
-            error.classList.remove('show');
-            input.classList.remove('error');
-        }
-    });
-    
-    // Validate phone number
-    const phone = document.getElementById('addressPhone').value;
-    if (phone && (phone.length < 10 || !/^\d+$/.test(phone))) {
-        showFormError('addressPhoneError', 'Please enter a valid 10-digit phone number');
-        isValid = false;
-    }
-    
-    // Validate PIN code
-    const pincode = document.getElementById('addressPincode').value;
-    if (pincode && (pincode.length !== 6 || !/^\d{6}$/.test(pincode))) {
-        showFormError('addressPincodeError', 'Please enter a valid 6-digit PIN code');
-        isValid = false;
-    }
-    
-    return isValid;
-}
-
-function updateAddressOptions() {
-    const container = document.getElementById('addressOptions');
-    if (!container) return;
-    
-    container.innerHTML = appState.addresses.map(address => `
-        <div class="address-option ${address.isDefault ? 'selected' : ''}" data-address="${address.id}">
-            <strong>${address.name} (${address.type.charAt(0).toUpperCase() + address.type.slice(1)})</strong><br>
-            ${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}<br>
-            ${address.city}, ${address.state} ${address.pincode}<br>
-            ${address.country}<br>
-            <small>Phone: ${address.phone}</small>
-        </div>
-    `).join('');
-    
-    // Re-attach event listeners
-    document.querySelectorAll('.address-option').forEach(option => {
-        option.addEventListener('click', function() {
-            document.querySelectorAll('.address-option').forEach(opt => opt.classList.remove('selected'));
-            this.classList.add('selected');
-        });
-    });
-}
         }
 
         function validateEmail(email) {
@@ -3291,7 +3934,7 @@ function updateAddressOptions() {
             setTimeout(() => {
                 errorElement.classList.remove('show');
                 inputElement.classList.remove('error');
-            }, 3000);
+            }, 5000);
         }
 
         function clearAuthForms() {
@@ -3315,24 +3958,26 @@ function updateAddressOptions() {
         }
 
         function initializeScrollEffects() {
-            // Add scroll-based animations
+            // Enhanced scroll-based animations
             const observerOptions = {
                 threshold: 0.1,
                 rootMargin: '0px 0px -50px 0px'
             };
 
             const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+                entries.forEach((entry, index) => {
                     if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
+                        setTimeout(() => {
+                            entry.target.style.opacity = '1';
+                            entry.target.style.transform = 'translateY(0)';
+                        }, index * 100); // Stagger animation
                     }
                 });
             }, observerOptions);
 
-            // Observe product cards
+            // Observe product cards with staggered animation
             setTimeout(() => {
-                document.querySelectorAll('.product-card').forEach(card => {
+                document.querySelectorAll('.product-card').forEach((card, index) => {
                     card.style.opacity = '0';
                     card.style.transform = 'translateY(30px)';
                     card.style.transition = 'all 0.6s ease-out';
@@ -3341,7 +3986,7 @@ function updateAddressOptions() {
             }, 100);
         }
 
-        // Storage Functions
+        // Enhanced Storage Functions
         function saveCart() {
             localStorage.setItem('quicklocal_cart', JSON.stringify(appState.cart));
         }
@@ -3366,6 +4011,10 @@ function updateAddressOptions() {
             }
         }
 
+        function saveUser() {
+            localStorage.setItem('quicklocal_user', JSON.stringify(appState.user));
+        }
+
         function loadUser() {
             const saved = localStorage.getItem('quicklocal_user');
             if (saved) {
@@ -3373,7 +4022,18 @@ function updateAddressOptions() {
             }
         }
 
-        // Toast System
+        function saveAddresses() {
+            localStorage.setItem('quicklocal_addresses', JSON.stringify(appState.addresses));
+        }
+
+        function loadAddresses() {
+            const saved = localStorage.getItem('quicklocal_addresses');
+            if (saved) {
+                appState.addresses = JSON.parse(saved);
+            }
+        }
+
+        // Enhanced Toast System
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -3408,96 +4068,7 @@ function updateAddressOptions() {
             }
         }
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-profile')) {
-                document.getElementById('profileDropdown')?.classList.remove('show');
-            }
-            
-            if (!e.target.closest('.cart-sidebar') && !e.target.closest('#cartBtn')) {
-                if (appState.isCartOpen) {
-                    toggleCart();
-                }
-            }
-        });
-
-        // Close cart with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (appState.isCartOpen) {
-                    toggleCart();
-                }
-                
-                if (document.getElementById('authModal').classList.contains('show')) {
-                    hideAuthModal();
-                }
-                
-                if (document.getElementById('checkoutModal').classList.contains('show')) {
-                    closeCheckout();
-                }
-            }
-        });
-
-        // Social login handlers
-        document.getElementById('googleLogin')?.addEventListener('click', () => {
-            showToast('Google login will be implemented with actual OAuth', 'info');
-        });
-
-        document.getElementById('facebookLogin')?.addEventListener('click', () => {
-            showToast('Facebook login will be implemented with actual OAuth', 'info');
-        });
-
-        document.getElementById('googleRegister')?.addEventListener('click', () => {
-            showToast('Google registration will be implemented with actual OAuth', 'info');
-        });
-
-        document.getElementById('facebookRegister')?.addEventListener('click', () => {
-            showToast('Facebook registration will be implemented with actual OAuth', 'info');
-        });
-
-        // Forgot password handler
-        document.getElementById('forgotPasswordLink')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            showToast('Password reset functionality will be implemented', 'info');
-        });
-
-        // Enhanced product interactions
-        function quickView(productId) {
-            const product = appState.products.find(p => p.id === productId);
-            if (product) {
-                showToast(`Quick view for ${product.title} - Feature coming soon!`, 'info');
-            }
-        }
-
-        // Add some sample notification when page loads
-        setTimeout(() => {
-            if (!appState.user) {
-                showToast('Welcome to QuickLocal! Please login to enjoy full features.', 'info');
-            }
-        }, 3000);
-
-        // Performance optimization - lazy load images
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        img.src = img.dataset.src || img.src;
-                        img.classList.remove('lazy');
-                        observer.unobserve(img);
-                    }
-                });
-            });
-
-            // Apply to images when they're created
-            document.addEventListener('DOMContentLoaded', () => {
-                document.querySelectorAll('img[loading="lazy"]').forEach(img => {
-                    imageObserver.observe(img);
-                });
-            });
-        }
-
-        // Add to wishlist with animation
+        // Enhanced Animation Functions
         function animateWishlistButton(button) {
             button.style.transform = 'scale(1.3)';
             setTimeout(() => {
@@ -3505,59 +4076,147 @@ function updateAddressOptions() {
             }, 200);
         }
 
-        // Enhanced cart animations
         function animateCartButton(productId) {
             const button = document.querySelector(`[onclick="addToCart(${productId})"]`);
-            if (button) {
+            if (button && !button.disabled) {
+                const originalText = button.innerHTML;
                 button.style.transform = 'scale(0.95)';
                 button.innerHTML = '<i class="fas fa-check"></i> Added!';
+                
                 setTimeout(() => {
                     button.style.transform = 'scale(1)';
-                    button.innerHTML = '<i class="fas fa-cart-plus"></i> Add to Cart';
-                }, 1000);
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 1000);
+                }, 200);
             }
         }
 
-        // Update the addToCart function to include animation
-        const originalAddToCart = addToCart;
-        addToCart = function(productId) {
-            originalAddToCart(productId);
-            animateCartButton(productId);
-        };
-
-        // Add keyboard navigation support
-        document.addEventListener('keydown', (e) => {
-            // Search focus with Ctrl+K or Cmd+K
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                document.getElementById('searchInput').focus();
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.user-profile')) {
+                const dropdown = document.getElementById('profileDropdown');
+                if (dropdown) dropdown.classList.remove('show');
+            }
+            
+            if (!e.target.closest('.cart-sidebar') && !e.target.closest('#cartBtn')) {
+                if (appState.isCartOpen && !e.target.closest('.checkout-modal')) {
+                    toggleCart();
+                }
+            }
+            
+            if (!e.target.closest('.search-container')) {
+                hideSearchSuggestions();
             }
         });
+
+        // Performance optimization - Image lazy loading with better fallback
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        if (img.dataset.src) {
+                            img.src = img.dataset.src;
+                            img.classList.remove('lazy');
+                        }
+                        observer.unobserve(img);
+                    }
+                });
+            });
+
+            // Apply to images when they're created
+            const observeImages = () => {
+                document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+                    imageObserver.observe(img);
+                });
+            };
+
+            // Initial observation
+            setTimeout(observeImages, 100);
+            
+            // Re-observe after product renders
+            const originalRenderProducts = renderProducts;
+            renderProducts = function(...args) {
+                originalRenderProducts.apply(this, args);
+                setTimeout(observeImages, 100);
+            };
+        }
 
         // Add service worker for better caching (if HTTPS)
         if ('serviceWorker' in navigator && location.protocol === 'https:') {
             navigator.serviceWorker.register('/sw.js').catch(() => {
                 // Service worker registration failed, but that's okay
+                console.log('Service worker not available');
             });
         }
 
         // Initialize theme preference
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.body.classList.add('dark-theme');
-        }
+        const initializeTheme = () => {
+            const savedTheme = localStorage.getItem('quicklocal_theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.body.classList.add('dark-theme');
+            }
+        };
 
-        console.log('🚀 QuickLocal Marketplace initialized successfully!');
-        console.log('Features:', {
-            'User Authentication': '✅ Login/Register with validation',
-            'Shopping Cart': '✅ Add/Remove/Update quantities',
-            'Wishlist': '✅ Save favorite products',
-            'Search & Filter': '✅ Real-time search and category filters',
-            'Checkout': '✅ Multiple payment methods (COD, Card, UPI)',
+        // Welcome message for new users
+        setTimeout(() => {
+            if (!appState.user && !localStorage.getItem('quicklocal_welcomed')) {
+                showToast('Welcome to QuickLocal! Please login to enjoy full features.', 'info');
+                localStorage.setItem('quicklocal_welcomed', 'true');
+            }
+        }, 3000);
+
+        // Initialize theme
+        initializeTheme();
+
+        // Enhanced error handling
+        window.addEventListener('error', (e) => {
+            console.error('Application error:', e.error);
+            showToast('Something went wrong. Please refresh the page.', 'error');
+        });
+
+        // Performance monitoring
+        window.addEventListener('load', () => {
+            const loadTime = performance.now();
+            console.log(`QuickLocal loaded in ${loadTime.toFixed(2)}ms`);
+        });
+
+        console.log('🚀 QuickLocal Enhanced Marketplace initialized successfully!');
+        console.log('Enhanced Features:', {
+            'Advanced Search': '✅ Real-time search with suggestions',
+            'User Authentication': '✅ Enhanced login/register with loading states',
+            'Shopping Cart': '✅ Improved cart with better animations',
+            'Wishlist': '✅ Save favorite products with animations',
+            'Product Comparison': '✅ Compare up to 3 products',
+            'Address Management': '✅ Multiple delivery addresses',
+            'Enhanced Checkout': '✅ Improved checkout flow',
             'Responsive Design': '✅ Mobile-first responsive layout',
-            'Local Storage': '✅ Persistent cart and user data',
-            'Toast Notifications': '✅ User feedback system',
-            'Performance': '✅ Lazy loading and smooth animations'
+            'Performance': '✅ Lazy loading, scroll animations, caching',
+            'Error Handling': '✅ Comprehensive error states',
+            'Accessibility': '✅ Keyboard navigation and ARIA labels',
+            'Local Storage': '✅ Persistent data across sessions'
         });
     </script>
 </body>
-</html>
+</html>view-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quick-view-modal.show {
+            display: flex;
+        }
+
+        .quick-
