@@ -1,1689 +1,913 @@
-// ============================================================================
-// COMPLETE FRONTEND-BACKEND INTEGRATION
-// ============================================================================
-
-// 🚀 STEP 1: Enhanced API Configuration
-const API_CONFIG = {
-    baseURL: 'https://ecommerce-backend-8ykq.onrender.com/api/v1',
-    timeout: 30000,
-    retryAttempts: 3,
-    retryDelay: 1000,
-    
-    // Authentication endpoints
-    auth: {
-        login: '/auth/login',
-        register: '/auth/register',
-        logout: '/auth/logout',
-        refresh: '/auth/refresh',
-        verify: '/auth/verify-email',
-        forgotPassword: '/auth/forgot-password',
-        resetPassword: '/auth/reset-password'
-    },
-    
-    // User endpoints
-    user: {
-        profile: '/user/profile',
-        updateProfile: '/user/profile',
-        addresses: '/user/addresses',
-        orders: '/user/orders',
-        wishlist: '/user/wishlist'
-    },
-    
-    // Product endpoints
-    products: {
-        list: '/products',
-        details: '/products/:id',
-        search: '/products/search',
-        categories: '/products/categories',
-        reviews: '/products/:id/reviews'
-    },
-    
-    // Order endpoints
-    orders: {
-        create: '/orders',
-        list: '/orders',
-        details: '/orders/:id',
-        cancel: '/orders/:id/cancel',
-        track: '/orders/:id/track'
-    },
-    
-    // Payment endpoints
-    payments: {
-        createRazorpayOrder: '/payment/razorpay/create-order',
-        verifyRazorpay: '/payment/razorpay/verify',
-        createStripeIntent: '/payment/stripe/create-intent',
-        confirmStripe: '/payment/stripe/confirm',
-        refundRazorpay: '/payment/refund/razorpay',
-        refundStripe: '/payment/refund/stripe',
-        status: '/payment/status/:orderId',
-        analytics: '/payment/analytics'
-    },
-    
-    // Admin endpoints
-    admin: {
-        dashboard: '/admin/dashboard',
-        orders: '/admin/orders',
-        products: '/admin/products',
-        users: '/admin/users',
-        payments: '/admin/payments',
-        analytics: '/admin/analytics',
-        sellers: '/admin/sellers'
-    },
-    
-    // Seller endpoints
-    seller: {
-        dashboard: '/seller/dashboard',
-        products: '/seller/products',
-        orders: '/seller/orders',
-        analytics: '/seller/analytics',
-        profile: '/seller/profile'
-    },
-    
-    // Cart endpoints
-    cart: {
-        get: '/cart',
-        add: '/cart/add',
-        update: '/cart/update',
-        remove: '/cart/remove',
-        clear: '/cart/clear'
-    }
-};
-
-// 🚀 STEP 2: Enhanced API Client with Error Handling
-class QuickLocalAPIClient {
-    constructor() {
-        this.baseURL = API_CONFIG.baseURL;
-        this.timeout = API_CONFIG.timeout;
-        this.retryAttempts = API_CONFIG.retryAttempts;
-        this.retryDelay = API_CONFIG.retryDelay;
-        
-        // Request interceptors
-        this.requestInterceptors = [];
-        this.responseInterceptors = [];
-        
-        this.setupDefaultInterceptors();
-    }
-    
-    setupDefaultInterceptors() {
-        // Add auth token to requests
-        this.addRequestInterceptor((config) => {
-            const token = this.getAuthToken();
-            if (token) {
-                config.headers = {
-                    ...config.headers,
-                    'Authorization': `Bearer ${token}`
-                };
-            }
-            return config;
-        });
-        
-        // Handle token refresh on 401
-        this.addResponseInterceptor(
-            (response) => response,
-            async (error) => {
-                if (error.status === 401 && !error.config._retry) {
-                    error.config._retry = true;
-                    
-                    try {
-                        await this.refreshToken();
-                        const token = this.getAuthToken();
-                        error.config.headers['Authorization'] = `Bearer ${token}`;
-                        return this.request(error.config);
-                    } catch (refreshError) {
-                        this.handleAuthError();
-                        throw refreshError;
-                    }
-                }
-                throw error;
-            }
-        );
-    }
-    
-    addRequestInterceptor(interceptor) {
-        this.requestInterceptors.push(interceptor);
-    }
-    
-    addResponseInterceptor(onSuccess, onError) {
-        this.responseInterceptors.push({ onSuccess, onError });
-    }
-    
-    async request(config) {
-        // Apply request interceptors
-        let processedConfig = { ...config };
-        for (const interceptor of this.requestInterceptors) {
-            processedConfig = await interceptor(processedConfig);
-        }
-        
-        // Set default headers
-        processedConfig.headers = {
-            'Content-Type': 'application/json',
-            ...processedConfig.headers
-        };
-        
-        let lastError;
-        
-        for (let attempt = 0; attempt <= this.retryAttempts; attempt++) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-                
-                const response = await fetch(`${this.baseURL}${processedConfig.url}`, {
-                    method: processedConfig.method || 'GET',
-                    headers: processedConfig.headers,
-                    body: processedConfig.data ? JSON.stringify(processedConfig.data) : undefined,
-                    signal: controller.signal,
-                    ...processedConfig.options
-                });
-                
-                clearTimeout(timeoutId);
-                
-                let data;
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    data = await response.json();
-                } else {
-                    data = await response.text();
-                }
-                
-                const result = {
-                    data,
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: response.headers,
-                    config: processedConfig
-                };
-                
-                if (!response.ok) {
-                    const error = new Error(data.message || `HTTP ${response.status}`);
-                    error.response = result;
-                    error.status = response.status;
-                    error.config = processedConfig;
-                    throw error;
-                }
-                
-                // Apply response interceptors
-                let processedResult = result;
-                for (const interceptor of this.responseInterceptors) {
-                    if (interceptor.onSuccess) {
-                        processedResult = await interceptor.onSuccess(processedResult);
-                    }
-                }
-                
-                return processedResult;
-                
-            } catch (error) {
-                lastError = error;
-                
-                // Apply error interceptors
-                for (const interceptor of this.responseInterceptors) {
-                    if (interceptor.onError) {
-                        try {
-                            return await interceptor.onError(error);
-                        } catch (interceptorError) {
-                            lastError = interceptorError;
-                        }
-                    }
-                }
-                
-                // Don't retry on client errors (4xx) except 401
-                if (error.status >= 400 && error.status < 500 && error.status !== 401) {
-                    break;
-                }
-                
-                // Don't retry on the last attempt
-                if (attempt === this.retryAttempts) {
-                    break;
-                }
-                
-                // Wait before retrying
-                await this.delay(this.retryDelay * Math.pow(2, attempt));
-            }
-        }
-        
-        throw lastError;
-    }
-    
-    // HTTP methods
-    async get(url, config = {}) {
-        return this.request({ ...config, method: 'GET', url });
-    }
-    
-    async post(url, data = null, config = {}) {
-        return this.request({ ...config, method: 'POST', url, data });
-    }
-    
-    async put(url, data = null, config = {}) {
-        return this.request({ ...config, method: 'PUT', url, data });
-    }
-    
-    async delete(url, config = {}) {
-        return this.request({ ...config, method: 'DELETE', url });
-    }
-    
-    async patch(url, data = null, config = {}) {
-        return this.request({ ...config, method: 'PATCH', url, data });
-    }
-    
-    // Utility methods
-    getAuthToken() {
-        return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-    }
-    
-    setAuthToken(token, remember = false) {
-        if (remember) {
-            localStorage.setItem('authToken', token);
-            sessionStorage.removeItem('authToken');
-        } else {
-            sessionStorage.setItem('authToken', token);
-            localStorage.removeItem('authToken');
-        }
-    }
-    
-    removeAuthToken() {
-        localStorage.removeItem('authToken');
-        sessionStorage.removeItem('authToken');
-    }
-    
-    async refreshToken() {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-            throw new Error('No refresh token available');
-        }
-        
-        const response = await fetch(`${this.baseURL}${API_CONFIG.auth.refresh}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Token refresh failed');
-        }
-        
-        const data = await response.json();
-        this.setAuthToken(data.token, true);
-        
-        return data;
-    }
-    
-    handleAuthError() {
-        this.removeAuthToken();
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userData');
-        
-        // Redirect to login if not already there
-        if (!window.location.pathname.includes('login.html')) {
-            window.location.href = 'login.html';
-        }
-    }
-    
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    
-    // URL parameter replacement
-    replaceUrlParams(url, params) {
-        let processedUrl = url;
-        for (const [key, value] of Object.entries(params)) {
-            processedUrl = processedUrl.replace(`:${key}`, value);
-        }
-        return processedUrl;
-    }
-}
-
-// 🚀 STEP 3: Service Layer - Authentication
-class AuthService {
-    constructor(apiClient) {
-        this.api = apiClient;
-    }
-    
-    async login(credentials) {
-        try {
-            const response = await this.api.post(API_CONFIG.auth.login, credentials);
-            
-            if (response.data.success) {
-                this.api.setAuthToken(response.data.token, credentials.rememberMe);
-                
-                if (response.data.refreshToken) {
-                    localStorage.setItem('refreshToken', response.data.refreshToken);
-                }
-                
-                if (response.data.user) {
-                    localStorage.setItem('userData', JSON.stringify(response.data.user));
-                }
-                
-                return {
-                    success: true,
-                    user: response.data.user,
-                    token: response.data.token,
-                    message: 'Login successful'
-                };
-            }
-            
-            return response.data;
-            
-        } catch (error) {
-            console.error('Login error:', error);
-            return {
-                success: false,
-                message: error.message || 'Login failed'
-            };
-        }
-    }
-    
-    async register(userData) {
-        try {
-            const response = await this.api.post(API_CONFIG.auth.register, userData);
-            
-            if (response.data.success && response.data.token) {
-                this.api.setAuthToken(response.data.token);
-                
-                if (response.data.user) {
-                    localStorage.setItem('userData', JSON.stringify(response.data.user));
-                }
-            }
-            
-            return response.data;
-            
-        } catch (error) {
-            console.error('Registration error:', error);
-            return {
-                success: false,
-                message: error.message || 'Registration failed'
-            };
-        }
-    }
-    
-    async logout() {
-        try {
-            await this.api.post(API_CONFIG.auth.logout);
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            this.api.removeAuthToken();
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('userData');
-            window.location.href = 'login.html';
-        }
-    }
-    
-    async forgotPassword(email) {
-        try {
-            const response = await this.api.post(API_CONFIG.auth.forgotPassword, { email });
-            return response.data;
-        } catch (error) {
-            console.error('Forgot password error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to send reset email'
-            };
-        }
-    }
-    
-    async resetPassword(token, newPassword) {
-        try {
-            const response = await this.api.post(API_CONFIG.auth.resetPassword, { 
-                token, 
-                password: newPassword 
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Reset password error:', error);
-            return {
-                success: false,
-                message: error.message || 'Password reset failed'
-            };
-        }
-    }
-    
-    isAuthenticated() {
-        return !!this.api.getAuthToken();
-    }
-    
-    getCurrentUser() {
-        try {
-            const userData = localStorage.getItem('userData');
-            return userData ? JSON.parse(userData) : null;
-        } catch (error) {
-            console.error('Error parsing user data:', error);
-            return null;
-        }
-    }
-}
-
-// 🚀 STEP 4: Service Layer - Products
-class ProductService {
-    constructor(apiClient) {
-        this.api = apiClient;
-    }
-    
-    async getProducts(params = {}) {
-        try {
-            const queryString = new URLSearchParams(params).toString();
-            const url = `${API_CONFIG.products.list}${queryString ? `?${queryString}` : ''}`;
-            
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get products error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load products'
-            };
-        }
-    }
-    
-    async getProduct(productId) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.products.details, { id: productId });
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get product error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load product'
-            };
-        }
-    }
-    
-    async searchProducts(query, filters = {}) {
-        try {
-            const params = { q: query, ...filters };
-            const queryString = new URLSearchParams(params).toString();
-            const url = `${API_CONFIG.products.search}?${queryString}`;
-            
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Search products error:', error);
-            return {
-                success: false,
-                message: error.message || 'Search failed'
-            };
-        }
-    }
-    
-    async getCategories() {
-        try {
-            const response = await this.api.get(API_CONFIG.products.categories);
-            return response.data;
-        } catch (error) {
-            console.error('Get categories error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load categories'
-            };
-        }
-    }
-    
-    async getProductReviews(productId) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.products.reviews, { id: productId });
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get reviews error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load reviews'
-            };
-        }
-    }
-}
-
-// 🚀 STEP 5: Service Layer - Orders
-class OrderService {
-    constructor(apiClient) {
-        this.api = apiClient;
-    }
-    
-    async createOrder(orderData) {
-        try {
-            const response = await this.api.post(API_CONFIG.orders.create, orderData);
-            return response.data;
-        } catch (error) {
-            console.error('Create order error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to create order'
-            };
-        }
-    }
-    
-    async getOrders(params = {}) {
-        try {
-            const queryString = new URLSearchParams(params).toString();
-            const url = `${API_CONFIG.orders.list}${queryString ? `?${queryString}` : ''}`;
-            
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get orders error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load orders'
-            };
-        }
-    }
-    
-    async getOrder(orderId) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.orders.details, { id: orderId });
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get order error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to load order'
-            };
-        }
-    }
-    
-    async cancelOrder(orderId, reason) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.orders.cancel, { id: orderId });
-            const response = await this.api.post(url, { reason });
-            return response.data;
-        } catch (error) {
-            console.error('Cancel order error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to cancel order'
-            };
-        }
-    }
-    
-    async trackOrder(orderId) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.orders.track, { id: orderId });
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Track order error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to track order'
-            };
-        }
-    }
-}
-
-// 🚀 STEP 6: Service Layer - Payments
-class PaymentService {
-    constructor(apiClient) {
-        this.api = apiClient;
-    }
-    
-    async createRazorpayOrder(orderData) {
-        try {
-            const response = await this.api.post(API_CONFIG.payments.createRazorpayOrder, orderData);
-            return response.data;
-        } catch (error) {
-            console.error('Create Razorpay order error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to create payment order'
-            };
-        }
-    }
-    
-    async verifyRazorpayPayment(paymentData) {
-        try {
-            const response = await this.api.post(API_CONFIG.payments.verifyRazorpay, paymentData);
-            return response.data;
-        } catch (error) {
-            console.error('Verify Razorpay payment error:', error);
-            return {
-                success: false,
-                message: error.message || 'Payment verification failed'
-            };
-        }
-    }
-    
-    async createStripeIntent(orderData) {
-        try {
-            const response = await this.api.post(API_CONFIG.payments.createStripeIntent, orderData);
-            return response.data;
-        } catch (error) {
-            console.error('Create Stripe intent error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to create payment intent'
-            };
-        }
-    }
-    
-    async confirmStripePayment(paymentIntentId, orderId) {
-        try {
-            const response = await this.api.post(API_CONFIG.payments.confirmStripe, {
-                paymentIntentId,
-                orderId
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Confirm Stripe payment error:', error);
-            return {
-                success: false,
-                message: error.message || 'Payment confirmation failed'
-            };
-        }
-    }
-    
-    async getPaymentStatus(orderId) {
-        try {
-            const url = this.api.replaceUrlParams(API_CONFIG.payments.status, { orderId });
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get payment status error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to get payment status'
-            };
-        }
-    }
-    
-    async getPaymentAnalytics(params = {}) {
-        try {
-            const queryString = new URLSearchParams(params).toString();
-            const url = `${API_CONFIG.payments.analytics}${queryString ? `?${queryString}` : ''}`;
-            
-            const response = await this.api.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('Get payment analytics error:', error);
-            return {
-                success: false,
-                message: error.message || 'Failed to get payment analytics'
-            };
-        }
-    }
-}
-
-// 🚀 STEP 7: Service Layer - Cart
-class CartService {
-    constructor(apiClient) {
-        this.api = apiClient;
-        this.localCart = this.loadLocalCart();
-    }
-    
-    async getCart() {
-        try {
-            if (this.api.getAuthToken()) {
-                // Get server cart for authenticated users
-                const response = await this.api.get(API_CONFIG.cart.get);
-                if (response.data.success) {
-                    return response.data;
-                }
-            }
-            
-            // Return local cart for non-authenticated users
-            return {
-                success: true,
-                data: this.localCart
-            };
-        } catch (error) {
-            console.error('Get cart error:', error);
-            return {
-                success: true,
-                data: this.localCart
-            };
-        }
-    }
-    
-    async addToCart(productId, quantity = 1, options = {}) {
-        try {
-            const itemData = { productId, quantity, ...options };
-            
-            if (this.api.getAuthToken()) {
-                // Add to server cart for authenticated users
-                const response = await this.api.post(API_CONFIG.cart.add, itemData);
-                return response.data;
-            }
-            
-            // Add to local cart for non-authenticated users
-            this.addToLocalCart(itemData);
-            return {
-                success: true,
-                message: 'Item added to cart'
-            };
-        } catch (error) {
-            console.error('Add to cart error:', error);
-            
-            // Fallback to local cart
-            this.addToLocalCart({ productId, quantity, ...options });
-            return {
-                success: true,
-                message: 'Item added to cart (offline)'
-            };
-        }
-    }
-    
-    async updateCartItem(itemId, quantity) {
-        try {
-            if (this.api.getAuthToken()) {
-                const response = await this.api.put(API_CONFIG.cart.update, { itemId, quantity });
-                return response.data;
-            }
-            
-            this.updateLocalCartItem(itemId, quantity);
-            return {
-                success: true,
-                message: 'Cart updated'
-            };
-        } catch (error) {
-            console.error('Update cart error:', error);
-            this.updateLocalCartItem(itemId, quantity);
-            return {
-                success: true,
-                message: 'Cart updated (offline)'
-            };
-        }
-    }
-    
-    async removeFromCart(itemId) {
-        try {
-            if (this.api.getAuthToken()) {
-                const response = await this.api.delete(`${API_CONFIG.cart.remove}/${itemId}`);
-                return response.data;
-            }
-            
-            this.removeFromLocalCart(itemId);
-            return {
-                success: true,
-                message: 'Item removed from cart'
-            };
-        } catch (error) {
-            console.error('Remove from cart error:', error);
-            this.removeFromLocalCart(itemId);
-            return {
-                success: true,
-                message: 'Item removed from cart (offline)'
-            };
-        }
-    }
-    
-    async clearCart() {
-        try {
-            if (this.api.getAuthToken()) {
-                const response = await this.api.delete(API_CONFIG.cart.clear);
-                if (response.data.success) {
-                    this.localCart = [];
-                    this.saveLocalCart();
-                }
-                return response.data;
-            }
-            
-            this.localCart = [];
-            this.saveLocalCart();
-            return {
-                success: true,
-                message: 'Cart cleared'
-            };
-        } catch (error) {
-            console.error('Clear cart error:', error);
-            this.localCart = [];
-            this.saveLocalCart();
-            return {
-                success: true,
-                message: 'Cart cleared (offline)'
-            };
-        }
-    }
-    
-    // Local cart methods
-    loadLocalCart() {
-        try {
-            const cart = localStorage.getItem('cart');
-            return cart ? JSON.parse(cart) : [];
-        } catch (error) {
-            console.error('Error loading local cart:', error);
-            return [];
-        }
-    }
-    
-    saveLocalCart() {
-        try {
-            localStorage.setItem('cart', JSON.stringify(this.localCart));
-        } catch (error) {
-            console.error('Error saving local cart:', error);
-        }
-    }
-    
-    addToLocalCart(item) {
-        const existingItem = this.localCart.find(cartItem => cartItem.productId === item.productId);
-        
-        if (existingItem) {
-            existingItem.quantity += item.quantity;
-        } else {
-            this.localCart.push({
-                id: Date.now().toString(),
-                ...item,
-                addedAt: new Date().toISOString()
-            });
-        }
-        
-        this.saveLocalCart();
-    }
-    
-    updateLocalCartItem(itemId, quantity) {
-        const item = this.localCart.find(cartItem => cartItem.id === itemId);
-        if (item) {
-            item.quantity = quantity;
-            this.saveLocalCart();
-        }
-    }
-    
-    removeFromLocalCart(itemId) {
-        this.localCart = this.localCart.filter(item => item.id !== itemId);
-        this.saveLocalCart();
-    }
-    
-    async syncWithServer() {
-        if (!this.api.getAuthToken() || this.localCart.length === 0) {
-            return;
-        }
-        
-        try {
-            // Sync local cart with server
-            for (const item of this.localCart) {
-                await this.api.post(API_CONFIG.cart.add, {
-                    productId: item.productId,
-                    quantity: item.quantity
-                });
-            }
-            
-            // Clear local cart after successful sync
-            this.localCart = [];
-            this.saveLocalCart();
-            
-        } catch (error) {
-            console.error('Cart sync error:', error);
-        }
-    }
-}
-
-// 🚀 STEP 8: Main Integration Class
 class QuickLocalIntegration {
     constructor() {
-        this.apiClient = new QuickLocalAPIClient();
-        this.auth = new AuthService(this.apiClient);
-        this.products = new ProductService(this.apiClient);
-        this.orders = new OrderService(this.apiClient);
-        this.payments = new PaymentService(this.apiClient);
-        this.cart = new CartService(this.apiClient);
+        this.baseURL = 'https://ecommerce-backend-8ykq.onrender.com/api/v1';
+        this.token = null;
+        this.cart = [];
+        this.user = null;
         
-        this.init();
+        // Initialize token from cookie or session storage alternative
+        this.initializeAuth();
+        
+        this.auth = new AuthService(this.baseURL);
+        this.products = new ProductService(this.baseURL);
+        this.cartService = new CartService(this.baseURL);
+        this.orders = new OrderService(this.baseURL);
+        this.payments = new PaymentService(this.baseURL);
+        
+        this.initializeEventListeners();
     }
-    
-    init() {
-        // Set up global error handling
-        window.addEventListener('unhandledrejection', this.handleUnhandledRejection.bind(this));
+
+    // Initialize authentication without localStorage
+    initializeAuth() {
+        // Try to get token from cookie
+        this.token = this.getCookie('authToken');
         
-        // Set up authentication state management
-        this.setupAuthStateManagement();
-        
-        // Sync cart on login
-        this.setupCartSync();
-        
-        console.log('🚀 QuickLocal Frontend-Backend Integration initialized');
-    }
-    
-    handleUnhandledRejection(event) {
-        console.error('Unhandled promise rejection:', event.reason);
-        
-        // Show user-friendly error message
-        this.showErrorNotification('Something went wrong. Please try again.');
-        
-        // Prevent the default unhandled rejection behavior
-        event.preventDefault();
-    }
-    
-    setupAuthStateManagement() {
-        // Check authentication on page load
-        if (this.auth.isAuthenticated()) {
-            this.handleAuthenticatedState();
-        }
-        
-        // Listen for storage changes (multi-tab support)
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'authToken') {
-                if (event.newValue) {
-                    this.handleAuthenticatedState();
-                } else {
-                    this.handleUnauthenticatedState();
-                }
-            }
-        });
-    }
-    
-    setupCartSync() {
-        // Sync cart when user logs in
-        document.addEventListener('userLoggedIn', () => {
-            this.cart.syncWithServer();
-        });
-    }
-    
-    handleAuthenticatedState() {
-        // Update UI for authenticated users
-        this.updateAuthenticationUI(true);
-        
-        // Dispatch custom event
-        document.dispatchEvent(new CustomEvent('userLoggedIn', {
-            detail: { user: this.auth.getCurrentUser() }
-        }));
-    }
-    
-    handleUnauthenticatedState() {
-        // Update UI for unauthenticated users
-        this.updateAuthenticationUI(false);
-        
-        // Dispatch custom event
-        document.dispatchEvent(new CustomEvent('userLoggedOut'));
-    }
-    
-    updateAuthenticationUI(isAuthenticated) {
-        // Update navigation based on auth state
-        const authElements = document.querySelectorAll('[data-auth]');
-        authElements.forEach(element => {
-            const requiresAuth = element.dataset.auth === 'true';
-            
-            if (requiresAuth === isAuthenticated) {
-                element.style.display = '';
-            } else {
-                element.style.display = 'none';
-            }
-        });
-        
-        // Update user info
-        if (isAuthenticated) {
-            const user = this.auth.getCurrentUser();
-            const userNameElements = document.querySelectorAll('[data-user-name]');
-            userNameElements.forEach(element => {
-                element.textContent = user?.name || 'User';
-            });
-            
-            const userEmailElements = document.querySelectorAll('[data-user-email]');
-            userEmailElements.forEach(element => {
-                element.textContent = user?.email || '';
-            });
+        // If no cookie, check if user is logged in via API
+        if (this.token) {
+            this.validateToken();
         }
     }
-    
-    showErrorNotification(message) {
-        // Create toast notification
-        const toast = document.createElement('div');
-        toast.className = 'toast-notification error';
-        toast.innerHTML = `
-            <div class="toast-content">
-                <i class="fas fa-exclamation-circle"></i>
-                <span>${message}</span>
-                <button class="toast-close">&times;</button>
-            </div>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (document.body.contains(toast)) {
-                document.body.removeChild(toast);
-            }
-        }, 5000);
-        
-        // Manual close
-        toast.querySelector('.toast-close').addEventListener('click', () => {
-            document.body.removeChild(toast);
-        });
+
+    // Cookie helper functions
+    setCookie(name, value, days = 7) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
     }
-    
-    showSuccessNotification(message) {
-        const toast = document.createElement('div');
-        toast.className = 'toast-notification success';
-        toast.innerHTML = `
-            <div class="toast-content">
-                <i class="fas fa-check-circle"></i>
-                <span>${message}</span>
-                <button class="toast-close">&times;</button>
-            </div>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (document.body.contains(toast)) {
-                document.body.removeChild(toast);
-            }
-        }, 5000);
-        
-        toast.querySelector('.toast-close').addEventListener('click', () => {
-            document.body.removeChild(toast);
-        });
+
+    getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for(let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
     }
-}
 
-// 🚀 STEP 9: Integration Helper Functions
-function createIntegratedLoginForm() {
-    return {
-        async handleLogin(formData) {
-            const loginButton = document.getElementById('loginButton');
-            const originalText = loginButton.textContent;
-            
-            try {
-                loginButton.textContent = 'Signing in...';
-                loginButton.disabled = true;
-                
-                const result = await quickLocal.auth.login({
-                    email: formData.email,
-                    password: formData.password,
-                    rememberMe: formData.rememberMe || false
-                });
-                
-                if (result.success) {
-                    quickLocal.showSuccessNotification('Login successful!');
-                    
-                    // Redirect to intended page or dashboard
-                    const redirectUrl = localStorage.getItem('redirectAfterLogin') || 'index.html';
-                    localStorage.removeItem('redirectAfterLogin');
-                    
-                    setTimeout(() => {
-                        window.location.href = redirectUrl;
-                    }, 1000);
-                } else {
-                    quickLocal.showErrorNotification(result.message || 'Login failed');
-                }
-                
-            } catch (error) {
-                console.error('Login error:', error);
-                quickLocal.showErrorNotification('Login failed. Please try again.');
-            } finally {
-                loginButton.textContent = originalText;
-                loginButton.disabled = false;
-            }
-        }
-    };
-}
-
-function createIntegratedProductList() {
-    return {
-        async loadProducts(filters = {}) {
-            const loadingElement = document.getElementById('productsLoading');
-            const productsContainer = document.getElementById('productsContainer');
-            const errorElement = document.getElementById('productsError');
-            
-            try {
-                if (loadingElement) loadingElement.style.display = 'block';
-                if (errorElement) errorElement.style.display = 'none';
-                
-                const result = await quickLocal.products.getProducts(filters);
-                
-                if (result.success) {
-                    this.renderProducts(result.data, productsContainer);
-                } else {
-                    throw new Error(result.message);
-                }
-                
-            } catch (error) {
-                console.error('Load products error:', error);
-                if (errorElement) {
-                    errorElement.textContent = error.message || 'Failed to load products';
-                    errorElement.style.display = 'block';
-                }
-            } finally {
-                if (loadingElement) loadingElement.style.display = 'none';
-            }
-        },
-        
-        renderProducts(products, container) {
-            if (!container) return;
-            
-            container.innerHTML = products.map(product => `
-                <div class="product-card" data-product-id="${product._id}">
-                    <div class="product-image">
-                        <img src="${product.images?.[0] || 'https://via.placeholder.com/300'}" 
-                             alt="${product.name}" 
-                             loading="lazy">
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-name">${product.name}</h3>
-                        <p class="product-description">${product.description}</p>
-                        <div class="product-price">
-                            ${product.discountedPrice ? `
-                                <span class="price-discounted">₹${product.discountedPrice}</span>
-                                <span class="price-original">₹${product.price}</span>
-                            ` : `
-                                <span class="price">₹${product.price}</span>
-                            `}
-                        </div>
-                        <div class="product-actions">
-                            <button class="btn btn-primary add-to-cart" 
-                                    onclick="addToCart('${product._id}')">
-                                Add to Cart
-                            </button>
-                            <button class="btn btn-secondary" 
-                                    onclick="viewProduct('${product._id}')">
-                                View Details
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-    };
-}
-
-function createIntegratedCart() {
-    return {
-        async addToCart(productId, quantity = 1) {
-            try {
-                const result = await quickLocal.cart.addToCart(productId, quantity);
-                
-                if (result.success) {
-                    quickLocal.showSuccessNotification('Item added to cart!');
-                    this.updateCartBadge();
-                } else {
-                    quickLocal.showErrorNotification(result.message || 'Failed to add item to cart');
-                }
-                
-            } catch (error) {
-                console.error('Add to cart error:', error);
-                quickLocal.showErrorNotification('Failed to add item to cart');
-            }
-        },
-        
-        async updateCartBadge() {
-            try {
-                const result = await quickLocal.cart.getCart();
-                
-                if (result.success) {
-                    const itemCount = result.data.reduce((total, item) => total + item.quantity, 0);
-                    const badge = document.querySelector('.cart-badge');
-                    
-                    if (badge) {
-                        badge.textContent = itemCount;
-                        badge.style.display = itemCount > 0 ? 'inline' : 'none';
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Update cart badge error:', error);
-            }
-        },
-        
-        async loadCart() {
-            const cartContainer = document.getElementById('cartContainer');
-            const loadingElement = document.getElementById('cartLoading');
-            
-            try {
-                if (loadingElement) loadingElement.style.display = 'block';
-                
-                const result = await quickLocal.cart.getCart();
-                
-                if (result.success) {
-                    this.renderCart(result.data, cartContainer);
-                } else {
-                    throw new Error(result.message);
-                }
-                
-            } catch (error) {
-                console.error('Load cart error:', error);
-                if (cartContainer) {
-                    cartContainer.innerHTML = '<p class="error">Failed to load cart</p>';
-                }
-            } finally {
-                if (loadingElement) loadingElement.style.display = 'none';
-            }
-        },
-        
-        renderCart(cartItems, container) {
-            if (!container) return;
-            
-            if (cartItems.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-cart">
-                        <i class="fas fa-shopping-cart"></i>
-                        <h3>Your cart is empty</h3>
-                        <p>Start shopping to add items to your cart</p>
-                        <a href="products.html" class="btn btn-primary">Browse Products</a>
-                    </div>
-                `;
-                return;
-            }
-            
-            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            
-            container.innerHTML = `
-                <div class="cart-items">
-                    ${cartItems.map(item => `
-                        <div class="cart-item" data-item-id="${item.id}">
-                            <div class="item-image">
-                                <img src="${item.image || 'https://via.placeholder.com/100'}" 
-                                     alt="${item.name}">
-                            </div>
-                            <div class="item-details">
-                                <h4>${item.name}</h4>
-                                <p class="item-price">₹${item.price}</p>
-                            </div>
-                            <div class="item-quantity">
-                                <button onclick="updateCartQuantity('${item.id}', ${item.quantity - 1})">-</button>
-                                <span>${item.quantity}</span>
-                                <button onclick="updateCartQuantity('${item.id}', ${item.quantity + 1})">+</button>
-                            </div>
-                            <div class="item-total">
-                                ₹${(item.price * item.quantity).toFixed(2)}
-                            </div>
-                            <div class="item-actions">
-                                <button onclick="removeFromCart('${item.id}')" class="btn-remove">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="cart-summary">
-                    <div class="cart-total">
-                        <h3>Total: ₹${total.toFixed(2)}</h3>
-                    </div>
-                    <div class="cart-actions">
-                        <button onclick="clearCart()" class="btn btn-secondary">Clear Cart</button>
-                        <button onclick="proceedToCheckout()" class="btn btn-primary">Checkout</button>
-                    </div>
-                </div>
-            `;
-        }
-    };
-}
-
-function createIntegratedCheckout() {
-    return {
-        async processCheckout(orderData) {
-            const checkoutButton = document.getElementById('checkoutButton');
-            const originalText = checkoutButton.textContent;
-            
-            try {
-                checkoutButton.textContent = 'Processing...';
-                checkoutButton.disabled = true;
-                
-                // Create order
-                const orderResult = await quickLocal.orders.createOrder(orderData);
-                
-                if (!orderResult.success) {
-                    throw new Error(orderResult.message);
-                }
-                
-                const order = orderResult.data;
-                
-                // Process payment if not COD
-                if (orderData.paymentMethod !== 'cod') {
-                    const paymentResult = await this.processPayment(order, orderData.paymentMethod);
-                    
-                    if (!paymentResult.success) {
-                        throw new Error(paymentResult.message);
-                    }
-                }
-                
-                // Clear cart
-                await quickLocal.cart.clearCart();
-                
-                // Redirect to success page
-                window.location.href = `order-success.html?orderId=${order._id}`;
-                
-            } catch (error) {
-                console.error('Checkout error:', error);
-                quickLocal.showErrorNotification(error.message || 'Checkout failed');
-            } finally {
-                checkoutButton.textContent = originalText;
-                checkoutButton.disabled = false;
-            }
-        },
-        
-        async processPayment(order, paymentMethod) {
-            if (paymentMethod === 'razorpay') {
-                return await this.processRazorpayPayment(order);
-            } else if (paymentMethod === 'stripe') {
-                return await this.processStripePayment(order);
-            }
-            
-            throw new Error('Unsupported payment method');
-        },
-        
-        async processRazorpayPayment(order) {
-            try {
-                // Create Razorpay order
-                const razorpayResult = await quickLocal.payments.createRazorpayOrder({
-                    orderId: order._id,
-                    amount: order.totalAmount,
-                    customerName: order.shippingInfo.name,
-                    customerEmail: order.shippingInfo.email
-                });
-                
-                if (!razorpayResult.success) {
-                    throw new Error(razorpayResult.message);
-                }
-                
-                // Open Razorpay checkout
-                const rzp = new Razorpay({
-                    key: 'rzp_test_your_key_here', // Your Razorpay key
-                    amount: razorpayResult.data.amount,
-                    currency: razorpayResult.data.currency,
-                    order_id: razorpayResult.data.orderId,
-                    name: 'QuickLocal',
-                    description: `Order #${order.orderNumber}`,
-                    prefill: {
-                        name: order.shippingInfo.name,
-                        email: order.shippingInfo.email,
-                        contact: order.shippingInfo.phone
-                    },
-                    handler: async (response) => {
-                        // Verify payment
-                        const verifyResult = await quickLocal.payments.verifyRazorpayPayment({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            orderId: order._id
-                        });
-                        
-                        return verifyResult;
-                    }
-                });
-                
-                rzp.open();
-                
-                return { success: true };
-                
-            } catch (error) {
-                console.error('Razorpay payment error:', error);
-                return {
-                    success: false,
-                    message: error.message || 'Payment failed'
-                };
-            }
-        }
-    };
-}
-
-// 🚀 STEP 10: Global Integration Instance
-let quickLocal;
-
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    quickLocal = new QuickLocalIntegration();
-    window.quickLocal = quickLocal;
-    
-    // Initialize page-specific functionality
-    initializePageSpecificFeatures();
-});
-
-function initializePageSpecificFeatures() {
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    switch (currentPage) {
-        case 'login.html':
-            initializeLoginPage();
-            break;
-        case 'register.html':
-            initializeRegisterPage();
-            break;
-        case 'products.html':
-        case 'index.html':
-            initializeProductsPage();
-            break;
-        case 'cart.html':
-            initializeCartPage();
-            break;
-        case 'checkout.html':
-            initializeCheckoutPage();
-            break;
-        case 'myorders.html':
-            initializeOrdersPage();
-            break;
-        case 'business-analytics.html':
-            initializeAdminPage();
-            break;
+    deleteCookie(name) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
     }
-}
 
-// Page-specific initialization functions
-function initializeLoginPage() {
-    const loginForm = createIntegratedLoginForm();
-    
-    document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(e.target);
-        await loginForm.handleLogin({
-            email: formData.get('email'),
-            password: formData.get('password'),
-            rememberMe: formData.get('rememberMe') === 'on'
-        });
-    });
-}
-
-function initializeRegisterPage() {
-    document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(e.target);
-        const result = await quickLocal.auth.register({
-            name: formData.get('name'),
-            email: formData.get('email'),
-            password: formData.get('password'),
-            phone: formData.get('phone')
-        });
-        
-        if (result.success) {
-            quickLocal.showSuccessNotification('Registration successful!');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1000);
-        } else {
-            quickLocal.showErrorNotification(result.message || 'Registration failed');
-        }
-    });
-}
-
-function initializeProductsPage() {
-    const productList = createIntegratedProductList();
-    
-    // Load products on page load
-    productList.loadProducts();
-    
-    // Set up search functionality
-    document.getElementById('searchForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(e.target);
-        const query = formData.get('query');
-        
-        const result = await quickLocal.products.searchProducts(query);
-        
-        if (result.success) {
-            productList.renderProducts(result.data, document.getElementById('productsContainer'));
-        }
-    });
-}
-
-function initializeCartPage() {
-    const cart = createIntegratedCart();
-    
-    // Load cart on page load
-    cart.loadCart();
-    
-    // Update cart badge
-    cart.updateCartBadge();
-}
-
-function initializeCheckoutPage() {
-    const checkout = createIntegratedCheckout();
-    
-    // Set up checkout form
-    document.getElementById('checkoutForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(e.target);
-        const orderData = {
-            shippingInfo: {
-                name: formData.get('name'),
-                email: formData.get('email'),
-                phone: formData.get('phone'),
-                address: formData.get('address'),
-                city: formData.get('city'),
-                state: formData.get('state'),
-                pincode: formData.get('pincode')
-            },
-            paymentMethod: formData.get('paymentMethod')
-        };
-        
-        await checkout.processCheckout(orderData);
-    });
-}
-
-function initializeOrdersPage() {
-    // Load user orders
-    loadUserOrders();
-}
-
-function initializeAdminPage() {
-    // Initialize admin features
-    if (quickLocal.auth.getCurrentUser()?.role === 'admin') {
-        initializeAdminDashboard();
-    } else {
-        window.location.href = 'login.html';
-    }
-}
-
-// Global helper functions
-async function addToCart(productId, quantity = 1) {
-    const cart = createIntegratedCart();
-    await cart.addToCart(productId, quantity);
-}
-
-async function removeFromCart(itemId) {
-    try {
-        const result = await quickLocal.cart.removeFromCart(itemId);
-        
-        if (result.success) {
-            quickLocal.showSuccessNotification('Item removed from cart');
-            
-            // Reload cart if on cart page
-            if (window.location.pathname.includes('cart.html')) {
-                const cart = createIntegratedCart();
-                cart.loadCart();
-            }
-            
-            cart.updateCartBadge();
-        }
-    } catch (error) {
-        quickLocal.showErrorNotification('Failed to remove item');
-    }
-}
-
-async function updateCartQuantity(itemId, quantity) {
-    if (quantity <= 0) {
-        await removeFromCart(itemId);
-        return;
-    }
-    
-    try {
-        const result = await quickLocal.cart.updateCartItem(itemId, quantity);
-        
-        if (result.success) {
-            // Reload cart display
-            const cart = createIntegratedCart();
-            cart.loadCart();
-            cart.updateCartBadge();
-        }
-    } catch (error) {
-        quickLocal.showErrorNotification('Failed to update quantity');
-    }
-}
-
-async function clearCart() {
-    if (confirm('Are you sure you want to clear your cart?')) {
+    // Validate token with backend
+    async validateToken() {
         try {
-            const result = await quickLocal.cart.clearCart();
+            const response = await fetch(`${this.baseURL}/auth/validate`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
             
-            if (result.success) {
-                quickLocal.showSuccessNotification('Cart cleared');
-                
-                // Reload cart display
-                const cart = createIntegratedCart();
-                cart.loadCart();
-                cart.updateCartBadge();
+            if (response.ok) {
+                const result = await response.json();
+                this.user = result.data;
+            } else {
+                this.token = null;
+                this.deleteCookie('authToken');
             }
         } catch (error) {
-            quickLocal.showErrorNotification('Failed to clear cart');
+            console.error('Token validation failed:', error);
+            this.token = null;
+            this.deleteCookie('authToken');
+        }
+    }
+
+    // Initialize all event listeners
+    initializeEventListeners() {
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.setupEventHandlers();
+            });
+        } else {
+            this.setupEventHandlers();
+        }
+    }
+
+    setupEventHandlers() {
+        this.setupCheckoutButton();
+        this.setupCartButtons();
+        this.setupAuthForms();
+        this.loadCartFromServer();
+    }
+
+    // Setup checkout button handler
+    setupCheckoutButton() {
+        const checkoutBtn = document.querySelector('[data-checkout-btn]') || 
+                           document.querySelector('#checkout-btn') || 
+                           document.querySelector('.checkout-btn');
+        
+        const checkoutForm = document.querySelector('#checkout-form') || 
+                            document.querySelector('.checkout-form') ||
+                            document.querySelector('form[data-checkout-form]');
+        
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                
+                try {
+                    // Check if user is authenticated
+                    if (!this.token) {
+                        this.showErrorNotification('Please login to proceed with checkout');
+                        this.redirectToLogin();
+                        return;
+                    }
+
+                    // Collect form data
+                    let checkoutData = {};
+                    
+                    if (checkoutForm) {
+                        const formData = new FormData(checkoutForm);
+                        checkoutData = Object.fromEntries(formData.entries());
+                    } else {
+                        // Fallback: collect data from individual fields
+                        checkoutData = this.collectCheckoutDataFromFields();
+                    }
+                    
+                    // Get current cart items
+                    await this.refreshCart();
+                    checkoutData.items = this.cart;
+                    
+                    // Process checkout
+                    await this.handleCheckout(checkoutData);
+                    
+                } catch (error) {
+                    console.error('Checkout button error:', error);
+                    this.showErrorNotification('Checkout failed. Please try again.');
+                }
+            });
+        }
+    }
+
+    // Load cart from server
+    async loadCartFromServer() {
+        try {
+            const cartResult = await this.cartService.getCart();
+            if (cartResult.success) {
+                this.cart = cartResult.data || [];
+                this.updateCartUI();
+            }
+        } catch (error) {
+            console.error('Failed to load cart:', error);
+        }
+    }
+
+    // Refresh cart data
+    async refreshCart() {
+        await this.loadCartFromServer();
+    }
+
+    // Collect checkout data from form fields if no form element found
+    collectCheckoutDataFromFields() {
+        return {
+            name: this.getFieldValue(['name', 'customer_name', 'billing_name']),
+            email: this.getFieldValue(['email', 'customer_email', 'billing_email']),
+            phone: this.getFieldValue(['phone', 'customer_phone', 'billing_phone']),
+            address: this.getFieldValue(['address', 'billing_address', 'address_line_1']),
+            city: this.getFieldValue(['city', 'billing_city']),
+            state: this.getFieldValue(['state', 'billing_state']),
+            pincode: this.getFieldValue(['pincode', 'zip', 'postal_code', 'billing_zip']),
+            paymentMethod: this.getFieldValue(['payment_method', 'paymentMethod']) || 'razorpay'
+        };
+    }
+
+    // Helper to get field value by multiple possible names
+    getFieldValue(fieldNames) {
+        for (const name of fieldNames) {
+            const field = document.querySelector(`[name="${name}"]`) || 
+                         document.querySelector(`#${name}`) ||
+                         document.querySelector(`.${name}`);
+            if (field && field.value) {
+                return field.value.trim();
+            }
+        }
+        return '';
+    }
+
+    // Main checkout handler
+    async handleCheckout(checkoutData) {
+        try {
+            // Show loading state
+            this.setCheckoutButtonState(true, 'Processing...');
+            
+            // Validate required fields
+            if (!this.validateCheckoutData(checkoutData)) {
+                return;
+            }
+
+            // Create order first
+            console.log('Creating order with data:', checkoutData);
+            const orderResult = await this.orders.createOrder(checkoutData);
+            
+            if (!orderResult.success) {
+                throw new Error(orderResult.message || 'Order creation failed');
+            }
+
+            console.log('Order created successfully:', orderResult.data);
+
+            // Initialize payment based on selected method
+            const paymentMethod = checkoutData.paymentMethod?.toLowerCase();
+            
+            if (paymentMethod === 'razorpay') {
+                await this.initiateRazorpayPayment(orderResult.data);
+            } else if (paymentMethod === 'stripe') {
+                await this.initiateStripePayment(orderResult.data);
+            } else if (paymentMethod === 'cod' || paymentMethod === 'cash_on_delivery') {
+                await this.handleCODOrder(orderResult.data);
+            } else {
+                // Default to Razorpay if no method specified
+                await this.initiateRazorpayPayment(orderResult.data);
+            }
+
+        } catch (error) {
+            console.error('Checkout error:', error);
+            this.showErrorNotification(error.message || 'Checkout failed. Please try again.');
+        } finally {
+            // Re-enable checkout button
+            this.setCheckoutButtonState(false, 'Proceed to Checkout');
+        }
+    }
+
+    // Validate checkout data
+    validateCheckoutData(data) {
+        const required = [
+            { field: 'name', label: 'Name' },
+            { field: 'email', label: 'Email' },
+            { field: 'phone', label: 'Phone' },
+            { field: 'address', label: 'Address' },
+            { field: 'city', label: 'City' },
+            { field: 'pincode', label: 'PIN Code' }
+        ];
+
+        for (const { field, label } of required) {
+            if (!data[field] || data[field].trim() === '') {
+                this.showErrorNotification(`${label} is required`);
+                this.focusField(field);
+                return false;
+            }
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.email)) {
+            this.showErrorNotification('Please enter a valid email address');
+            this.focusField('email');
+            return false;
+        }
+
+        // Validate phone format (basic validation)
+        if (data.phone && data.phone.length < 10) {
+            this.showErrorNotification('Please enter a valid phone number');
+            this.focusField('phone');
+            return false;
+        }
+
+        // Check if cart has items
+        if (!data.items || data.items.length === 0) {
+            this.showErrorNotification('Your cart is empty');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Focus on field with error
+    focusField(fieldName) {
+        const field = document.querySelector(`[name="${fieldName}"]`) || 
+                     document.querySelector(`#${fieldName}`);
+        if (field) {
+            field.focus();
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Set checkout button state
+    setCheckoutButtonState(loading, text) {
+        const buttons = [
+            document.querySelector('[data-checkout-btn]'),
+            document.querySelector('#checkout-btn'),
+            document.querySelector('.checkout-btn'),
+            document.querySelector('button[type="submit"]')
+        ].filter(Boolean);
+
+        buttons.forEach(btn => {
+            btn.disabled = loading;
+            btn.innerHTML = text;
+            
+            if (loading) {
+                btn.classList.add('loading');
+            } else {
+                btn.classList.remove('loading');
+            }
+        });
+    }
+
+    // Handle Cash on Delivery orders
+    async handleCODOrder(orderData) {
+        try {
+            // Mark order as confirmed
+            const confirmResult = await this.orders.confirmOrder(orderData.id, {
+                paymentMethod: 'cod',
+                paymentStatus: 'pending'
+            });
+
+            if (confirmResult.success) {
+                this.showSuccessNotification('Order placed successfully!');
+                this.redirectToSuccess(orderData.id);
+                await this.cartService.clearCart();
+                this.cart = [];
+                this.updateCartUI();
+            }
+        } catch (error) {
+            throw new Error('COD order processing failed');
+        }
+    }
+
+    // Initiate Razorpay payment
+    async initiateRazorpayPayment(orderData) {
+        try {
+            // Load Razorpay script if not already loaded
+            if (typeof Razorpay === 'undefined') {
+                await this.loadRazorpayScript();
+            }
+
+            const options = {
+                key: 'rzp_test_your_key_id', // Replace with your actual Razorpay key
+                amount: orderData.total * 100, // Amount in paise
+                currency: 'INR',
+                name: 'QuickLocal',
+                description: `Order #${orderData.id}`,
+                order_id: orderData.razorpayOrderId,
+                handler: async (response) => {
+                    await this.handlePaymentSuccess(response, orderData);
+                },
+                prefill: {
+                    name: orderData.customerName,
+                    email: orderData.customerEmail,
+                    contact: orderData.customerPhone
+                },
+                theme: {
+                    color: '#3399cc'
+                },
+                modal: {
+                    ondismiss: () => {
+                        this.showErrorNotification('Payment cancelled');
+                        this.setCheckoutButtonState(false, 'Proceed to Checkout');
+                    }
+                }
+            };
+
+            const razorpay = new Razorpay(options);
+            razorpay.open();
+
+        } catch (error) {
+            throw new Error('Payment initialization failed: ' + error.message);
+        }
+    }
+
+    // Load Razorpay script dynamically
+    loadRazorpayScript() {
+        return new Promise((resolve, reject) => {
+            if (typeof Razorpay !== 'undefined') {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // Handle payment success
+    async handlePaymentSuccess(paymentResponse, orderData) {
+        try {
+            const verifyResult = await this.payments.verifyPayment({
+                orderId: orderData.id,
+                paymentId: paymentResponse.razorpay_payment_id,
+                signature: paymentResponse.razorpay_signature
+            });
+
+            if (verifyResult.success) {
+                this.showSuccessNotification('Payment successful!');
+                this.redirectToSuccess(orderData.id);
+                await this.cartService.clearCart();
+                this.cart = [];
+                this.updateCartUI();
+            } else {
+                throw new Error('Payment verification failed');
+            }
+        } catch (error) {
+            this.showErrorNotification('Payment verification failed');
+        }
+    }
+
+    // Show success notification
+    showSuccessNotification(message) {
+        this.showNotification(message, 'success');
+    }
+
+    // Show error notification
+    showErrorNotification(message) {
+        this.showNotification(message, 'error');
+    }
+
+    // Generic notification function
+    showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.quicklocal-notification');
+        existingNotifications.forEach(n => n.remove());
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `quicklocal-notification quicklocal-notification-${type}`;
+        notification.innerHTML = `
+            <div class="quicklocal-notification-content">
+                <span class="quicklocal-notification-message">${message}</span>
+                <button class="quicklocal-notification-close">&times;</button>
+            </div>
+        `;
+
+        // Add styles
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        `;
+
+        // Add to page
+        document.body.appendChild(notification);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+
+        // Manual close
+        notification.querySelector('.quicklocal-notification-close').addEventListener('click', () => {
+            notification.remove();
+        });
+    }
+
+    // Redirect to success page
+    redirectToSuccess(orderId) {
+        setTimeout(() => {
+            window.location.href = `/order-success?orderId=${orderId}`;
+        }, 2000);
+    }
+
+    // Redirect to login page
+    redirectToLogin() {
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 1000);
+    }
+
+    // Setup cart buttons (add to cart, remove from cart)
+    setupCartButtons() {
+        document.addEventListener('click', async (e) => {
+            if (e.target.matches('[data-add-to-cart]')) {
+                e.preventDefault();
+                const productId = e.target.getAttribute('data-product-id');
+                const quantity = parseInt(e.target.getAttribute('data-quantity')) || 1;
+                if (productId) {
+                    await this.addToCart(productId, quantity);
+                }
+            }
+
+            if (e.target.matches('[data-remove-from-cart]')) {
+                e.preventDefault();
+                const productId = e.target.getAttribute('data-product-id');
+                if (productId) {
+                    await this.removeFromCart(productId);
+                }
+            }
+
+            if (e.target.matches('[data-update-quantity]')) {
+                e.preventDefault();
+                const productId = e.target.getAttribute('data-product-id');
+                const quantity = parseInt(e.target.value);
+                if (productId && quantity > 0) {
+                    await this.updateCartQuantity(productId, quantity);
+                }
+            }
+        });
+    }
+
+    // Add to cart
+    async addToCart(productId, quantity = 1) {
+        try {
+            if (!this.token) {
+                this.showErrorNotification('Please login to add items to cart');
+                this.redirectToLogin();
+                return;
+            }
+
+            const result = await this.cartService.addToCart({ productId, quantity });
+            if (result.success) {
+                this.showSuccessNotification('Product added to cart!');
+                await this.refreshCart();
+            }
+        } catch (error) {
+            this.showErrorNotification('Failed to add product to cart');
+        }
+    }
+
+    // Remove from cart
+    async removeFromCart(productId) {
+        try {
+            const result = await this.cartService.removeFromCart(productId);
+            if (result.success) {
+                this.showSuccessNotification('Product removed from cart!');
+                await this.refreshCart();
+            }
+        } catch (error) {
+            this.showErrorNotification('Failed to remove product from cart');
+        }
+    }
+
+    // Update cart quantity
+    async updateCartQuantity(productId, quantity) {
+        try {
+            const result = await this.cartService.updateQuantity(productId, quantity);
+            if (result.success) {
+                await this.refreshCart();
+            }
+        } catch (error) {
+            this.showErrorNotification('Failed to update quantity');
+        }
+    }
+
+    // Update cart UI
+    updateCartUI() {
+        const cartCount = this.cart.reduce((total, item) => total + (item.quantity || 0), 0);
+        const cartTotal = this.cart.reduce((total, item) => total + (item.price * item.quantity || 0), 0);
+        
+        // Update cart count elements
+        const cartCountElements = document.querySelectorAll('[data-cart-count]');
+        cartCountElements.forEach(el => el.textContent = cartCount);
+        
+        // Update cart total elements
+        const cartTotalElements = document.querySelectorAll('[data-cart-total]');
+        cartTotalElements.forEach(el => el.textContent = `₹${cartTotal.toFixed(2)}`);
+        
+        // Update cart items display
+        const cartItemsContainer = document.querySelector('[data-cart-items]');
+        if (cartItemsContainer) {
+            this.renderCartItems(cartItemsContainer);
+        }
+    }
+
+    // Render cart items
+    renderCartItems(container) {
+        if (this.cart.length === 0) {
+            container.innerHTML = '<p class="empty-cart">Your cart is empty</p>';
+            return;
+        }
+
+        container.innerHTML = this.cart.map(item => `
+            <div class="cart-item" data-product-id="${item.productId}">
+                <div class="item-info">
+                    <h4>${item.name || item.productName}</h4>
+                    <p class="item-price">₹${item.price}</p>
+                </div>
+                <div class="item-controls">
+                    <input type="number" value="${item.quantity}" min="1" data-update-quantity data-product-id="${item.productId}">
+                    <button class="remove-btn" data-remove-from-cart data-product-id="${item.productId}">Remove</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Setup auth forms
+    setupAuthForms() {
+        // Login form
+        const loginForm = document.querySelector('#login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(loginForm);
+                const email = formData.get('email');
+                const password = formData.get('password');
+                
+                try {
+                    const result = await this.auth.login({ email, password });
+                    if (result.success) {
+                        this.token = result.data.token;
+                        this.user = result.data.user;
+                        this.setCookie('authToken', this.token);
+                        this.showSuccessNotification('Login successful!');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        this.showErrorNotification(result.message || 'Login failed');
+                    }
+                } catch (error) {
+                    this.showErrorNotification('Login failed');
+                }
+            });
+        }
+
+        // Register form
+        const registerForm = document.querySelector('#register-form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(registerForm);
+                const userData = Object.fromEntries(formData.entries());
+                
+                try {
+                    const result = await this.auth.register(userData);
+                    if (result.success) {
+                        this.showSuccessNotification('Registration successful! Please login.');
+                        setTimeout(() => {
+                            if (registerForm.reset) registerForm.reset();
+                        }, 1000);
+                    } else {
+                        this.showErrorNotification(result.message || 'Registration failed');
+                    }
+                } catch (error) {
+                    this.showErrorNotification('Registration failed');
+                }
+            });
+        }
+
+        // Logout button
+        const logoutBtns = document.querySelectorAll('[data-logout]');
+        logoutBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.logout();
+            });
+        });
+    }
+
+    // Logout function
+    logout() {
+        this.token = null;
+        this.user = null;
+        this.cart = [];
+        this.deleteCookie('authToken');
+        this.showSuccessNotification('Logged out successfully');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+    }
+}
+
+// Service classes
+class AuthService {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+
+    async login(credentials) {
+        try {
+            const response = await fetch(`${this.baseURL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(credentials)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data, message: result.message };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async register(userData) {
+        try {
+            const response = await fetch(`${this.baseURL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data, message: result.message };
+        } catch (error) {
+            return { success: false, message: error.message };
         }
     }
 }
 
-function viewProduct(productId) {
-    window.location.href = `product-details.html?id=${productId}`;
-}
+class ProductService {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
 
-function proceedToCheckout() {
-    if (quickLocal.auth.isAuthenticated()) {
-        window.location.href = 'checkout.html';
-    } else {
-        localStorage.setItem('redirectAfterLogin', 'checkout.html');
-        window.location.href = 'login.html';
+    async getProducts() {
+        try {
+            const response = await fetch(`${this.baseURL}/products`);
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getProduct(id) {
+        try {
+            const response = await fetch(`${this.baseURL}/products/${id}`);
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 }
 
-async function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        await quickLocal.auth.logout();
+class CartService {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+
+    async getCart() {
+        try {
+            const response = await fetch(`${this.baseURL}/cart`, {
+                headers: {
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                }
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data || [] };
+        } catch (error) {
+            return { success: false, data: [], message: error.message };
+        }
+    }
+
+    async addToCart(item) {
+        try {
+            const response = await fetch(`${this.baseURL}/cart/add`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                },
+                body: JSON.stringify(item)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data, message: result.message };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async removeFromCart(productId) {
+        try {
+            const response = await fetch(`${this.baseURL}/cart/remove/${productId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                }
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, message: result.message };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async updateQuantity(productId, quantity) {
+        try {
+            const response = await fetch(`${this.baseURL}/cart/update/${productId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                },
+                body: JSON.stringify({ quantity })
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async clearCart() {
+        try {
+            const response = await fetch(`${this.baseURL}/cart/clear`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                }
+            });
+            
+            return { success: response.ok };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     }
 }
 
-// 🚀 CSS for Toast Notifications
-const integrationStyles = `
-<style>
-.toast-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    min-width: 300px;
-    padding: 16px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    animation: slideIn 0.3s ease;
+class OrderService {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+
+    async createOrder(orderData) {
+        try {
+            const response = await fetch(`${this.baseURL}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                },
+                body: JSON.stringify(orderData)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data, message: result.message };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async confirmOrder(orderId, confirmData) {
+        try {
+            const response = await fetch(`${this.baseURL}/orders/${orderId}/confirm`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                },
+                body: JSON.stringify(confirmData)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    async getOrders() {
+        try {
+            const response = await fetch(`${this.baseURL}/orders`, {
+                headers: {
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                }
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
 }
 
-.toast-notification.success {
-    background: #d4edda;
-    border: 1px solid #c3e6cb;
-    color: #155724;
+class PaymentService {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+
+    async verifyPayment(paymentData) {
+        try {
+            const response = await fetch(`${this.baseURL}/payments/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.quickLocal?.token}`
+                },
+                body: JSON.stringify(paymentData)
+            });
+            
+            const result = await response.json();
+            return { success: response.ok, data: result.data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
 }
 
-.toast-notification.error {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-}
+// Initialize the integration when the script loads
+window.quickLocal = new QuickLocalIntegration();
 
-.toast-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.toast-close {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    margin-left: auto;
-    opacity: 0.7;
-}
-
-.toast-close:hover {
-    opacity: 1;
-}
-
+// Add CSS for notifications and loading states
+const notificationCSS = `
 @keyframes slideIn {
     from {
         transform: translateX(100%);
@@ -1695,26 +919,148 @@ const integrationStyles = `
     }
 }
 
-/* Authentication state styling */
-[data-auth="true"] {
-    display: none;
+.quicklocal-notification {
+    font-family: Arial, sans-serif;
 }
 
-[data-auth="false"] {
-    display: block;
+.quicklocal-notification-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.authenticated [data-auth="true"] {
-    display: block;
+.quicklocal-notification-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.authenticated [data-auth="false"] {
-    display: none;
+.quicklocal-notification-close:hover {
+    opacity: 0.8;
 }
-</style>
+
+.loading {
+    opacity: 0.7;
+    cursor: not-allowed !important;
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+.item-info h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.item-price {
+    color: #666;
+    font-weight: bold;
+}
+
+.item-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.item-controls input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.remove-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.remove-btn:hover {
+    background: #c0392b;
+}
+
+.empty-cart {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .quicklocal-notification {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        max-width: none;
+    }
+    
+    .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .item-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
 `;
 
-// Inject styles
-document.head.insertAdjacentHTML('beforeend', integrationStyles);
+// Inject CSS
+if (!document.querySelector('#quicklocal-styles')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'quicklocal-styles';
+    styleSheet.textContent = notificationCSS;
+    document.head.appendChild(styleSheet);
+}
 
-console.log('🚀 QuickLocal Frontend-Backend Integration Complete!');
+// Export for module usage
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = QuickLocalIntegration;
+}
