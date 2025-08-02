@@ -2443,3 +2443,73 @@
     </script>
 </body>
 </html>
+    <!-- Include Razorpay Script -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    
+    <!-- Include Integration Script -->
+    <script src="js/integration.js"></script>
+
+    <script>
+        // Cart functionality
+        function toggleCart() {
+            const sidebar = document.getElementById('cart-sidebar');
+            const overlay = document.querySelector('.cart-overlay');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+            
+            // Update cart display when opened
+            if (sidebar.classList.contains('open') && window.quickLocal) {
+                window.quickLocal.updateCartUI();
+            }
+        }
+
+        // Proceed to checkout function
+        function proceedToCheckout() {
+            // Check if user is logged in
+            if (!window.quickLocal || !window.quickLocal.token) {
+                if (confirm('You need to login to proceed to checkout. Would you like to login now?')) {
+                    window.location.href = 'login.html';
+                }
+                return;
+            }
+
+            // Check if cart has items
+            if (!window.quickLocal.cart || window.quickLocal.cart.length === 0) {
+                alert('Your cart is empty! Please add some items before checkout.');
+                return;
+            }
+
+            // Redirect to checkout page
+            window.location.href = 'checkout.html';
+        }
+
+        // Buy now functionality
+        function buyNow(productId) {
+            const button = document.querySelector(`[data-product-id="${productId}"]`);
+            if (button && window.quickLocal) {
+                const productName = button.getAttribute('data-product-name');
+                const productPrice = parseInt(button.getAttribute('data-product-price'));
+                
+                window.quickLocal.addToCart(productId, 1).then(() => {
+                    proceedToCheckout();
+                });
+            }
+        }
+
+        // Initialize QuickLocal integration
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (window.quickLocal) {
+                    console.log('QuickLocal integration loaded');
+                    window.quickLocal.loadCartFromServer();
+                    window.quickLocal.updateCartUI();
+                } else {
+                    console.error('QuickLocal integration not found');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+
