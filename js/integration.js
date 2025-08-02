@@ -1064,3 +1064,8 @@ if (!document.querySelector('#quicklocal-styles')) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = QuickLocalIntegration;
 }
+redirectToSuccess(orderId) {
+    setTimeout(() => {
+        window.location.href = `order-success.html?orderId=${orderId}`;
+    }, 2000);
+}

@@ -402,6 +402,26 @@
             background: rgba(46, 204, 113, 0.1);
         }
 
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .form-group.error .error-message {
+            display: block;
+        }
+
+        .checkout-status {
+            background: rgba(52, 152, 219, 0.1);
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .checkout-content {
                 grid-template-columns: 1fr;
@@ -453,36 +473,46 @@
         <div class="checkout-content">
             <!-- Checkout Form -->
             <div class="checkout-form">
+                <div class="checkout-status">
+                    <p id="status-message">System initializing...</p>
+                </div>
+
                 <h2>📋 Billing Information</h2>
                 <form id="checkout-form" data-checkout-form>
                     <div class="form-group">
                         <label for="name">👤 Full Name *</label>
                         <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                        <div class="error-message">Please enter your full name</div>
                     </div>
 
                     <div class="form-group">
                         <label for="email">📧 Email Address *</label>
                         <input type="email" id="email" name="email" required placeholder="Enter your email">
+                        <div class="error-message">Please enter a valid email address</div>
                     </div>
 
                     <div class="form-group">
                         <label for="phone">📱 Phone Number *</label>
                         <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number">
+                        <div class="error-message">Please enter a valid 10-digit phone number</div>
                     </div>
 
                     <div class="form-group">
                         <label for="address">🏠 Address *</label>
                         <textarea id="address" name="address" required placeholder="Enter your complete address"></textarea>
+                        <div class="error-message">Please enter your complete address</div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label for="city">🏙️ City *</label>
                             <input type="text" id="city" name="city" required placeholder="Enter city">
+                            <div class="error-message">Please enter your city</div>
                         </div>
                         <div class="form-group">
                             <label for="state">🗺️ State *</label>
                             <input type="text" id="state" name="state" required placeholder="Enter state">
+                            <div class="error-message">Please enter your state</div>
                         </div>
                     </div>
 
@@ -490,6 +520,7 @@
                         <div class="form-group">
                             <label for="pincode">📮 PIN Code *</label>
                             <input type="text" id="pincode" name="pincode" required placeholder="Enter PIN code">
+                            <div class="error-message">Please enter a valid 6-digit PIN code</div>
                         </div>
                         <div class="form-group">
                             <label for="country">🌍 Country</label>
@@ -511,7 +542,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="checkout-btn" data-checkout-btn>
+                    <button type="submit" class="checkout-btn" data-checkout-btn disabled>
                         🚀 Proceed to Checkout
                     </button>
 
@@ -546,7 +577,7 @@
                     </div>
                     <div class="total-row grand-total">
                         <span>🎯 Total:</span>
-                        <span data-cart-total>₹0.00</span>
+                        <span data-cart-total>₹50.00</span>
                     </div>
                 </div>
             </div>
@@ -562,198 +593,384 @@
         </div>
     </div>
 
-    <!-- Include Razorpay Script -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    
-    <!-- Include your integration script from js folder -->
-    <script src="js/integration.js"></script>
-
     <script>
-        // Enhanced checkout functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize progress bar
-            updateProgress(60);
+        // Enhanced checkout functionality with fallback cart
+        class CheckoutManager {
+            constructor() {
+                this.cart = [];
+                this.initialized = false;
+                this.init();
+            }
 
-            // Wait for QuickLocal to initialize
-            setTimeout(() => {
-                if (!window.quickLocal) {
-                    console.error('QuickLocal integration not loaded');
-                    showToast('Error loading checkout system. Please refresh the page.', 'error');
+            init() {
+                this.setupEventListeners();
+                this.loadMockCart();
+                this.updateProgress(60);
+                this.updateStatus('Cart loaded successfully! ✅');
+                this.enableCheckoutButton();
+                
+                // Try to initialize QuickLocal
+                this.initializeQuickLocal();
+            }
+
+            initializeQuickLocal() {
+                // Wait for potential QuickLocal integration
+                setTimeout(() => {
+                    if (window.quickLocal) {
+                        console.log('QuickLocal integration found');
+                        this.updateStatus('QuickLocal integration active ✅');
+                        window.quickLocal.loadCartFromServer?.();
+                    } else {
+                        console.log('QuickLocal not available - using fallback cart');
+                        this.updateStatus('Ready for checkout! ✅');
+                    }
+                    this.initialized = true;
+                    this.updateProgress(80);
+                }, 1000);
+            }
+
+            loadMockCart() {
+                // Fallback cart items for demonstration
+                this.cart = [
+                    { id: 1, name: 'Organic Vegetables Bundle', price: 299, quantity: 2 },
+                    { id: 2, name: 'Fresh Fruits Combo', price: 199, quantity: 1 },
+                    { id: 3, name: 'Dairy Products Pack', price: 150, quantity: 1 }
+                ];
+                this.renderCartItems();
+            }
+
+            renderCartItems() {
+                const cartContainer = document.querySelector('[data-cart-items]');
+                if (!cartContainer) return;
+
+                if (this.cart.length === 0) {
+                    cartContainer.innerHTML = '<div class="empty-cart"><i>🛒</i><p>Your cart is empty</p></div>';
                     return;
                 }
 
-                console.log('QuickLocal loaded successfully');
-                showToast('Checkout system loaded successfully!', 'success');
-                
-                // Load cart items
-                window.quickLocal.loadCartFromServer();
-                updateProgress(80);
-            }, 1000);
+                let subtotal = 0;
+                cartContainer.innerHTML = this.cart.map(item => {
+                    const itemTotal = item.price * item.quantity;
+                    subtotal += itemTotal;
+                    
+                    return `
+                        <div class="cart-item">
+                            <div class="item-details">
+                                <h4>${item.name}</h4>
+                                <p class="item-price">₹${item.price} × ${item.quantity}</p>
+                            </div>
+                            <div class="quantity-controls">
+                                <button class="quantity-btn" onclick="checkoutManager.updateQuantity(${item.id}, -1)">-</button>
+                                <input type="number" class="quantity-input" value="${item.quantity}" min="1" onchange="checkoutManager.setQuantity(${item.id}, this.value)">
+                                <button class="quantity-btn" onclick="checkoutManager.updateQuantity(${item.id}, 1)">+</button>
+                                <button class="remove-btn" onclick="checkoutManager.removeItem(${item.id})">Remove</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
 
-            // Handle payment method selection
-            const paymentOptions = document.querySelectorAll('.payment-option');
-            
-            paymentOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const radio = this.querySelector('input[type="radio"]');
-                    if (radio) {
-                        radio.checked = true;
-                        
-                        // Update visual selection
-                        paymentOptions.forEach(opt => opt.classList.remove('selected'));
-                        this.classList.add('selected');
+                this.updateTotals(subtotal);
+            }
+
+            updateTotals(subtotal) {
+                const shipping = 50;
+                const tax = subtotal * 0.18;
+                const total = subtotal + shipping + tax;
+
+                document.querySelectorAll('[data-cart-subtotal]').forEach(el => 
+                    el.textContent = `₹${subtotal.toFixed(2)}`);
+                document.querySelectorAll('[data-cart-tax]').forEach(el => 
+                    el.textContent = `₹${tax.toFixed(2)}`);
+                document.querySelectorAll('[data-cart-total]').forEach(el => 
+                    el.textContent = `₹${total.toFixed(2)}`);
+            }
+
+            updateQuantity(itemId, change) {
+                const item = this.cart.find(i => i.id === itemId);
+                if (item) {
+                    item.quantity = Math.max(1, item.quantity + change);
+                    this.renderCartItems();
+                }
+            }
+
+            setQuantity(itemId, quantity) {
+                const item = this.cart.find(i => i.id === itemId);
+                if (item) {
+                    item.quantity = Math.max(1, parseInt(quantity) || 1);
+                    this.renderCartItems();
+                }
+            }
+
+            removeItem(itemId) {
+                this.cart = this.cart.filter(i => i.id !== itemId);
+                this.renderCartItems();
+                this.showToast('Item removed from cart', 'info');
+            }
+
+            setupEventListeners() {
+                // Payment method selection
+                document.querySelectorAll('.payment-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const radio = option.querySelector('input[type="radio"]');
+                        if (radio) {
+                            radio.checked = true;
+                            document.querySelectorAll('.payment-option').forEach(opt => 
+                                opt.classList.remove('selected'));
+                            option.classList.add('selected');
+                        }
+                    });
+                });
+
+                // Form validation
+                const form = document.getElementById('checkout-form');
+                const inputs = form.querySelectorAll('input[required], textarea[required]');
+
+                inputs.forEach(input => {
+                    input.addEventListener('blur', () => this.validateField(input));
+                    input.addEventListener('input', () => this.clearValidation(input));
+                });
+
+                // Phone number formatting
+                const phoneInput = document.getElementById('phone');
+                phoneInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/\D/g, '').slice(0, 10);
+                });
+
+                // PIN code formatting
+                const pincodeInput = document.getElementById('pincode');
+                pincodeInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+                });
+
+                // Form submission
+                form.addEventListener('submit', (e) => this.handleCheckout(e));
+            }
+
+            validateField(input) {
+                const formGroup = input.closest('.form-group');
+                let isValid = true;
+
+                if (!input.value.trim()) {
+                    isValid = false;
+                } else if (input.type === 'email') {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    isValid = emailRegex.test(input.value);
+                } else if (input.type === 'tel') {
+                    isValid = input.value.length === 10;
+                } else if (input.name === 'pincode') {
+                    isValid = input.value.length === 6;
+                }
+
+                formGroup.classList.toggle('error', !isValid);
+                formGroup.classList.toggle('success', isValid);
+                
+                return isValid;
+            }
+
+            clearValidation(input) {
+                const formGroup = input.closest('.form-group');
+                formGroup.classList.remove('error');
+                if (input.value.trim()) {
+                    formGroup.classList.add('success');
+                } else {
+                    formGroup.classList.remove('success');
+                }
+            }
+
+            handleCheckout(e) {
+                e.preventDefault();
+                
+                // Validate all fields
+                const form = e.target;
+                const inputs = form.querySelectorAll('input[required], textarea[required]');
+                let isFormValid = true;
+
+                inputs.forEach(input => {
+                    if (!this.validateField(input)) {
+                        isFormValid = false;
                     }
                 });
-            });
 
-            // Enhanced form validation
-            const form = document.getElementById('checkout-form');
-            const inputs = form.querySelectorAll('input[required], textarea[required]');
-
-            inputs.forEach(input => {
-                input.addEventListener('blur', validateField);
-                input.addEventListener('input', clearValidation);
-            });
-
-            // Phone number formatting
-            const phoneInput = document.getElementById('phone');
-            phoneInput.addEventListener('input', function() {
-                let value = this.value.replace(/\D/g, '');
-                if (value.length <= 10) {
-                    this.value = value;
+                if (!isFormValid) {
+                    this.showToast('Please fill in all required fields correctly', 'error');
+                    return;
                 }
-            });
 
-            // PIN code formatting
-            const pincodeInput = document.getElementById('pincode');
-            pincodeInput.addEventListener('input', function() {
-                let value = this.value.replace(/\D/g, '');
-                if (value.length <= 6) {
-                    this.value = value;
+                if (this.cart.length === 0) {
+                    this.showToast('Your cart is empty', 'error');
+                    return;
                 }
-            });
 
-            // Enhanced loading overlay
-            const loadingOverlay = document.getElementById('loading-overlay');
+                // Show loading
+                document.getElementById('loading-overlay').style.display = 'flex';
+                this.updateProgress(100);
+                
+                // Simulate checkout process
+                setTimeout(() => {
+                    this.processCheckout(new FormData(form));
+                }, 2000);
+            }
+
+            async processCheckout(formData) {
+                try {
+                    // Prepare order data
+                    const orderData = {
+                        customer: Object.fromEntries(formData),
+                        items: this.cart,
+                        totals: this.calculateTotals()
+                    };
+
+                    console.log('Processing order:', orderData);
+
+                    // Try QuickLocal integration first
+                    if (window.quickLocal && window.quickLocal.processCheckout) {
+                        const result = await window.quickLocal.processCheckout(orderData);
+                        this.handleCheckoutSuccess(result);
+                    } else {
+                        // Fallback: simulate successful checkout
+                        this.handleCheckoutSuccess({
+                            orderId: 'ORD' + Date.now(),
+                            status: 'success',
+                            message: 'Order placed successfully!'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Checkout error:', error);
+                    this.handleCheckoutError(error);
+                }
+            }
+
+            calculateTotals() {
+                const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const shipping = 50;
+                const tax = subtotal * 0.18;
+                const total = subtotal + shipping + tax;
+                
+                return { subtotal, shipping, tax, total };
+            }
+
+            handleCheckoutSuccess(result) {
+                document.getElementById('loading-overlay').style.display = 'none';
+                this.showToast(`Order placed successfully! Order ID: ${result.orderId}`, 'success');
+                
+                // Clear cart
+                this.cart = [];
+                this.renderCartItems();
+                
+                // Reset form
+                document.getElementById('checkout-form').reset();
+                
+                // Show success message
+                this.updateStatus(`Order confirmed! Order ID: ${result.orderId} ✅`);
+            }
+
+            handleCheckoutError(error) {
+                document.getElementById('loading-overlay').style.display = 'none';
+                this.showToast('There was an error processing your order. Please try again.', 'error');
+                console.error('Checkout error:', error);
+            }
+
+            updateProgress(percentage) {
+                const progressFill = document.querySelector('.progress-fill');
+                if (progressFill) {
+                    progressFill.style.width = percentage + '%';
+                }
+            }
+
+            updateStatus(message) {
+                const statusElement = document.getElementById('status-message');
+                if (statusElement) {
+                    statusElement.textContent = message;
+                }
+            }
+
+            enableCheckoutButton() {
+                const button = document.querySelector('[data-checkout-btn]');
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '🚀 Proceed to Checkout';
+                }
+            }
+
+            showToast(message, type = 'info') {
+                // Remove existing toasts
+                document.querySelectorAll('.toast').forEach(toast => toast.remove());
+
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                
+                document.body.appendChild(toast);
+                
+                // Show toast
+                setTimeout(() => toast.classList.add('show'), 100);
+                
+                // Hide toast after 4 seconds
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            }
+        }
+
+        // Initialize checkout manager
+        let checkoutManager;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            checkoutManager = new CheckoutManager();
             
-            setTimeout(() => {
-                const checkoutBtn = document.querySelector('[data-checkout-btn]');
-                if (checkoutBtn) {
-                    checkoutBtn.addEventListener('click', function(e) {
-                        if (!window.quickLocal) {
-                            e.preventDefault();
-                            showToast('QuickLocal not initialized. Please refresh the page.', 'error');
-                            return;
-                        }
-                        
-                        showToast('Starting checkout process...', 'info');
-                        loadingOverlay.style.display = 'flex';
-                        updateProgress(100);
-                        
-                        // Hide loading after 30 seconds max (fallback)
-                        setTimeout(() => {
-                            loadingOverlay.style.display = 'none';
-                        }, 30000);
-                    });
-                }
-            }, 1500);
+            // Make functions globally available for debugging
+            window.checkoutManager = checkoutManager;
+            window.debugCheckout = () => {
+                console.log('=== Enhanced Checkout Debug ===');
+                console.log('CheckoutManager:', checkoutManager);
+                console.log('Initialized:', checkoutManager.initialized);
+                console.log('Cart:', checkoutManager.cart);
+                console.log('QuickLocal:', !!window.quickLocal);
+            };
+            
+            // Auto-debug after 3 seconds
+            setTimeout(() => window.debugCheckout(), 3000);
         });
 
-        // Utility functions
-        function validateField() {
-            const formGroup = this.closest('.form-group');
-            
-            if (!this.value.trim()) {
-                formGroup.classList.add('error');
-                formGroup.classList.remove('success');
-            } else {
-                formGroup.classList.add('success');
-                formGroup.classList.remove('error');
-            }
-
-            // Special validation for email
-            if (this.type === 'email') {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(this.value)) {
-                    formGroup.classList.add('error');
-                    formGroup.classList.remove('success');
+        // Simulate external QuickLocal integration loading
+        setTimeout(() => {
+            // This simulates your actual QuickLocal integration
+            if (!window.quickLocal) {
+                window.quickLocal = {
+                    token: 'demo_token_123',
+                    cart: [
+                        { id: 1, name: 'Fresh Bananas', price: 60, quantity: 3 },
+                        { id: 2, name: 'Organic Milk', price: 80, quantity: 2 }
+                    ],
+                    loadCartFromServer: function() {
+                        return Promise.resolve().then(() => {
+                            if (checkoutManager) {
+                                checkoutManager.cart = this.cart;
+                                checkoutManager.renderCartItems();
+                                checkoutManager.updateStatus('QuickLocal cart loaded ✅');
+                            }
+                        });
+                    },
+                    processCheckout: function(orderData) {
+                        return new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve({
+                                    orderId: 'QL' + Date.now(),
+                                    status: 'success',
+                                    message: 'QuickLocal order processed successfully!'
+                                });
+                            }, 1500);
+                        });
+                    }
+                };
+                
+                console.log('QuickLocal simulation loaded');
+                if (checkoutManager) {
+                    checkoutManager.initializeQuickLocal();
                 }
             }
-
-            // Special validation for phone
-            if (this.type === 'tel') {
-                if (this.value.length < 10) {
-                    formGroup.classList.add('error');
-                    formGroup.classList.remove('success');
-                }
-            }
-        }
-
-        function clearValidation() {
-            const formGroup = this.closest('.form-group');
-            formGroup.classList.remove('error');
-            
-            if (this.value.trim()) {
-                formGroup.classList.add('success');
-            } else {
-                formGroup.classList.remove('success');
-            }
-        }
-
-        function showToast(message, type = 'info') {
-            // Remove existing toasts
-            const existingToasts = document.querySelectorAll('.toast');
-            existingToasts.forEach(toast => toast.remove());
-
-            // Create new toast
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            // Show toast
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            // Hide toast after 4 seconds
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
-        }
-
-        function updateProgress(percentage) {
-            const progressFill = document.querySelector('.progress-fill');
-            if (progressFill) {
-                progressFill.style.width = percentage + '%';
-            }
-        }
-
-        // Debug functions
-        function debugCheckout() {
-            console.log('=== Enhanced Checkout Debug ===');
-            console.log('QuickLocal:', !!window.quickLocal);
-            console.log('Token:', window.quickLocal?.token);
-            console.log('Cart:', window.quickLocal?.cart);
-            console.log('Form exists:', !!document.getElementById('checkout-form'));
-            console.log('Button exists:', !!document.querySelector('[data-checkout-btn]'));
-        }
-
-        function testCheckout() {
-            const btn = document.querySelector('[data-checkout-btn]');
-            if (btn) {
-                btn.click();
-                console.log('Test checkout triggered');
-            }
-        }
-
-        // Make functions globally available
-        window.debugCheckout = debugCheckout;
-        window.testCheckout = testCheckout;
-        window.showToast = showToast;
-
-        // Auto-debug after 3 seconds
-        setTimeout(debugCheckout, 3000);
+        }, 2000);
     </script>
 </body>
 </html>

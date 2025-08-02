@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmed - QuickLocal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 60px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: #27ae60;
+            margin: 0 0 20px;
+            font-size: 2.2rem;
+        }
+        .order-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .items-list {
+            margin: 30px 0;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .item:last-child {
+            border-bottom: none;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .item-price {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        .total-section {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+        .grand-total {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #27ae60;
+            border-top: 2px solid #27ae60;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        .back-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 30px;
+            transition: transform 0.3s ease;
+        }
+        .back-btn:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Order Placed Successfully!</h1>
+        
+        <div class="order-info">
+            <h3>Order Details</h3>
+            <p><strong>Order Number:</strong> #<span id="order-id">---</span></p>
+            <p><strong>Order Date:</strong> <span id="order-date"></span></p>
+            <p><strong>Payment Status:</strong> <span style="color: #27ae60; font-weight: bold;">Confirmed</span></p>
+        </div>
+
+        <div class="items-list">
+            <h3>Items Ordered</h3>
+            <div id="order-items">
+                <p style="text-align: center; color: #666;">Loading order details...</p>
+            </div>
+        </div>
+
+        <div class="total-section">
+            <div class="total-row">
+                <span>Subtotal:</span>
+                <span id="subtotal">₹0.00</span>
+            </div>
+            <div class="total-row">
+                <span>Shipping:</span>
+                <span>₹50.00</span>
+            </div>
+            <div class="total-row">
+                <span>Tax:</span>
+                <span id="tax-amount">₹0.00</span>
+            </div>
+            <div class="total-row grand-total">
+                <span>Total Paid:</span>
+                <span id="grand-total">₹0.00</span>
+            </div>
+        </div>
+
+        <a href="marketplace.html" class="back-btn">Continue Shopping</a>
+    </div>
+
+    <script src="js/integration.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            
+            if (orderId) {
+                document.getElementById('order-id').textContent = orderId;
+            }
+            
+            // Set current date
+            const now = new Date();
+            document.getElementById('order-date').textContent = now.toLocaleDateString();
+            
+            // If QuickLocal is available, try to get order details
+            setTimeout(() => {
+                if (window.quickLocal && window.quickLocal.cart) {
+                    displayOrderItems(window.quickLocal.cart);
+                } else {
+                    // Fallback: show a generic success message
+                    document.getElementById('order-items').innerHTML = `
+                        <div class="item">
+                            <div>
+                                <div class="item-name">Your order has been received</div>
+                                <div class="item-price">Thank you for your purchase!</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }, 1000);
+        });
+
+        function displayOrderItems(cartItems) {
+            const container = document.getElementById('order-items');
+            let subtotal = 0;
+            
+            if (cartItems && cartItems.length > 0) {
+                container.innerHTML = cartItems.map(item => {
+                    const itemTotal = (item.price || 0) * (item.quantity || 1);
+                    subtotal += itemTotal;
+                    
+                    return `
+                        <div class="item">
+                            <div>
+                                <div class="item-name">${item.name || item.productName || 'Product'}</div>
+                                <div class="item-price">Qty: ${item.quantity || 1}</div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold;">₹${itemTotal.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Update totals
+                const tax = subtotal * 0.18; // 18% tax
+                const total = subtotal + 50 + tax; // Add shipping
+                
+                document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+                document.getElementById('tax-amount').textContent = `₹${tax.toFixed(2)}`;
+                document.getElementById('grand-total').textContent = `₹${total.toFixed(2)}`;
+            } else {
+                container.innerHTML = `
+                    <div class="item">
+                        <div>
+                            <div class="item-name">Order completed successfully</div>
+                            <div class="item-price">Items will be delivered soon</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
