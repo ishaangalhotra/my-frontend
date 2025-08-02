@@ -1838,7 +1838,7 @@
                 </div>
             </div>
             <div class="cart-actions">
-                <button class="cart-btn primary" onclick="checkout()">
+                <button class="cart-btn primary" onclick="proceedToCheckout()">
                     <i class="fas fa-credit-card"></i>
                     Checkout Now
                 </button>
@@ -1857,11 +1857,30 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
+        // Initialize QuickLocal global object for proper state management
+        window.quickLocal = {
+            cart: [],
+            token: null,
+            user: null
+        };
+
         // Enhanced Shopping Cart System
         class ShoppingCart {
             constructor() {
-                this.items = JSON.parse(localStorage.getItem('cart')) || [];
+                this.items = this.loadCartFromStorage();
                 this.updateCartUI();
+            }
+
+            loadCartFromStorage() {
+                try {
+                    const stored = localStorage.getItem('quickLocalCart');
+                    const items = stored ? JSON.parse(stored) : [];
+                    window.quickLocal.cart = items;
+                    return items;
+                } catch (error) {
+                    console.error('Error loading cart from storage:', error);
+                    return [];
+                }
             }
 
             addItem(product, quantity = 1) {
@@ -1909,7 +1928,12 @@
             }
 
             saveCart() {
-                localStorage.setItem('cart', JSON.stringify(this.items));
+                try {
+                    localStorage.setItem('quickLocalCart', JSON.stringify(this.items));
+                    window.quickLocal.cart = this.items;
+                } catch (error) {
+                    console.error('Error saving cart to storage:', error);
+                }
             }
 
             updateCartUI() {
@@ -2270,13 +2294,78 @@
             document.getElementById('overlay').classList.remove('show');
         }
 
-        function checkout() {
-            if (cart.items.length === 0) {
+        // Fixed checkout function
+        function proceedToCheckout() {
+            console.log('Checkout process started...');
+            
+            // Check if cart has items
+            if (!cart || cart.items.length === 0) {
                 cart.showToast('warning', 'Empty Cart', 'Please add some items to your cart first.');
                 return;
             }
-            cart.showToast('success', 'Redirecting to Checkout', 'Taking you to secure payment...');
-            // Here you would typically redirect to checkout page
+            
+            console.log('Cart items found:', cart.items);
+            
+            // Show checkout messages
+            showCheckoutMessage('Redirecting to Checkout...');
+            
+            // Save cart state and redirect
+            setTimeout(() => {
+                showCheckoutMessage('Taking you to secure payment...');
+                
+                // Try to redirect to checkout page
+                setTimeout(() => {
+                    try {
+                        window.location.href = 'checkout.html';
+                    } catch (error) {
+                        console.error('Redirect failed:', error);
+                        hideCheckoutMessage();
+                        cart.showToast('error', 'Redirect Failed', 'Unable to go to checkout page. Please check if checkout.html exists.');
+                    }
+                }, 1500);
+            }, 1000);
+        }
+
+        // Show checkout message function
+        function showCheckoutMessage(message) {
+            // Remove existing messages
+            const existing = document.getElementById('checkout-message');
+            if (existing) existing.remove();
+            
+            // Create message overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'checkout-message';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                color: white;
+                font-size: 1.5rem;
+                font-weight: bold;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="text-align: center; background: rgba(52, 152, 219, 0.9); padding: 2rem; border-radius: 10px;">
+                    <div style="margin-bottom: 1rem;">🛒</div>
+                    <div>${message}</div>
+                    <div style="margin-top: 1rem; font-size: 1rem; opacity: 0.8;">Please wait...</div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+
+        // Hide checkout message
+        function hideCheckoutMessage() {
+            const existing = document.getElementById('checkout-message');
+            if (existing) existing.remove();
         }
 
         function continueShopping() {
@@ -2312,6 +2401,14 @@
                 grid.style.display = 'grid';
                 grid.innerHTML = products.map(product => createProductCard(product)).join('');
             }
+        }
+
+        function clearAllFilters() {
+            document.querySelector('.section-title').textContent = 'Featured Products';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('productsGrid').style.display = 'grid';
+            document.getElementById('searchInput').value = '';
+            loadProducts();
         }
 
         // Wishlist functionality
