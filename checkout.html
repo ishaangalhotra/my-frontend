@@ -690,48 +690,117 @@
     async function processPayment(orderData) {
       const { total } = calculateOrderSummary();
       
-      if (state.paymentMethod === 'cod') {
-        // Cash on Delivery
-        showToast('Order placed successfully! You will pay on delivery.', 'success');
-        setTimeout(() => {
-          window.location.href = `order-success.html?orderId=${Date.now()}`;
-        }, 2000);
-        return;
-      }
+      console.log('Processing payment for:', state.paymentMethod);
+      console.log('Order data:', orderData);
+      
+      try {
+        if (state.paymentMethod === 'cod') {
+          // Cash on Delivery - simulate processing time
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          showToast('Order placed successfully! You will pay on delivery.', 'success');
+          
+          // Save order data
+          saveOrderData(orderData);
+          
+          // Clear cart and redirect
+          cartItems = [];
+          updateCartBadge();
+          
+          setTimeout(() => {
+            window.location.href = `#order-success?orderId=${Date.now()}&method=cod`;
+          }, 1500);
+          
+          return;
+        }
 
-      if (state.paymentMethod === 'razorpay') {
-        const options = {
-          key: CONFIG.razorpayKey,
-          amount: Math.round(total * 100), // Amount in paise
-          currency: 'INR',
-          name: 'QuickLocal',
-          description: 'Order Payment',
-          image: '/favicon.ico',
-          prefill: {
-            name: orderData.fullName,
-            email: orderData.email,
-            contact: orderData.phone
-          },
-          theme: {
-            color: '#4f46e5'
-          },
-          handler: function(response) {
-            showToast('Payment successful! Order confirmed.', 'success');
+        if (state.paymentMethod === 'razorpay') {
+          // Check if Razorpay is loaded
+          if (typeof Razorpay === 'undefined') {
+            console.warn('Razorpay not loaded, simulating payment...');
+            
+            // Simulate Razorpay payment
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            showToast('Payment simulation successful! (Razorpay not available)', 'success');
+            saveOrderData(orderData);
+            cartItems = [];
+            updateCartBadge();
+            
             setTimeout(() => {
-              window.location.href = `order-success.html?orderId=${Date.now()}&paymentId=${response.razorpay_payment_id}`;
-            }, 2000);
-          },
-          modal: {
-            ondismiss: function() {
-              document.getElementById('placeOrderBtn').disabled = false;
-              document.getElementById('placeOrderBtn').classList.remove('btn-loading');
-              document.getElementById('placeOrderBtn').textContent = `Place Order ${formatPrice(total)}`;
-            }
+              window.location.href = `#order-success?orderId=${Date.now()}&method=razorpay&paymentId=sim_${Date.now()}`;
+            }, 1500);
+            
+            return;
           }
-        };
 
-        const rzp = new Razorpay(options);
-        rzp.open();
+          const options = {
+            key: CONFIG.razorpayKey || 'rzp_test_demo_key',
+            amount: Math.round(total * 100), // Amount in paise
+            currency: 'INR',
+            name: 'QuickLocal',
+            description: 'Order Payment',
+            order_id: `order_${Date.now()}`,
+            prefill: {
+              name: orderData.fullName,
+              email: orderData.email,
+              contact: orderData.phone
+            },
+            theme: {
+              color: '#4f46e5'
+            },
+            handler: function(response) {
+              console.log('Razorpay payment success:', response);
+              showToast('Payment successful! Order confirmed.', 'success');
+              
+              saveOrderData(orderData);
+              cartItems = [];
+              updateCartBadge();
+              
+              setTimeout(() => {
+                window.location.href = `#order-success?orderId=${Date.now()}&method=razorpay&paymentId=${response.razorpay_payment_id}`;
+              }, 1500);
+            },
+            modal: {
+              ondismiss: function() {
+                console.log('Razorpay payment dismissed');
+                resetOrderButton();
+              }
+            }
+          };
+
+          const rzp = new Razorpay(options);
+          rzp.open();
+        }
+
+        if (state.paymentMethod === 'stripe') {
+          // Stripe payment simulation
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          showToast('Stripe payment successful! (Simulated)', 'success');
+          saveOrderData(orderData);
+          cartItems = [];
+          updateCartBadge();
+          
+          setTimeout(() => {
+            window.location.href = `#order-success?orderId=${Date.now()}&method=stripe&paymentId=stripe_${Date.now()}`;
+          }, 1500);
+        }
+        
+      } catch (error) {
+        console.error('Payment processing error:', error);
+        throw error;
+      }
+    }
+
+    // Reset order button to original state
+    function resetOrderButton() {
+      const btn = document.getElementById('placeOrderBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        const { total } = calculateOrderSummary();
+        btn.innerHTML = `<i class="fas fa-lock"></i> Place Order ${formatPrice(total)}`;
       }
     }
 
@@ -752,14 +821,20 @@
     async function handleCheckoutSubmit(event) {
       event.preventDefault();
       
+      console.log('Form submitted, validating...');
+      
       if (!validateForm()) {
         showToast('Please fill in all required fields correctly.', 'error');
         return;
       }
 
       const btn = document.getElementById('placeOrderBtn');
+      const originalHTML = btn.innerHTML;
+      
+      // Update button state
       btn.disabled = true;
       btn.classList.add('btn-loading');
+      btn.innerHTML = 'Processing...';
 
       // Collect form data
       const formData = new FormData(event.target);
@@ -776,14 +851,19 @@
         timestamp: new Date().toISOString()
       };
 
+      console.log('Order data collected:', orderData);
+      console.log('Payment method:', state.paymentMethod);
+
       try {
         await processPayment(orderData);
       } catch (error) {
         console.error('Payment error:', error);
         showToast('Payment failed. Please try again.', 'error');
+        
+        // Reset button
         btn.disabled = false;
         btn.classList.remove('btn-loading');
-        btn.textContent = `Place Order ${formatPrice(calculateOrderSummary().total)}`;
+        btn.innerHTML = originalHTML;
       }
     }
 
@@ -1106,14 +1186,74 @@
     // Save order to localStorage for order success page
     function saveOrderData(orderData) {
       try {
-        localStorage.setItem('lastOrder', JSON.stringify({
+        const orderToSave = {
           ...orderData,
-          orderId: Date.now(),
+          orderId: `QL${Date.now()}`,
+          orderNumber: `#${Math.floor(Math.random() * 900000) + 100000}`,
           timestamp: new Date().toISOString(),
-          total: calculateOrderSummary().total
-        }));
+          ...calculateOrderSummary(),
+          status: 'confirmed'
+        };
+        
+        localStorage.setItem('lastOrder', JSON.stringify(orderToSave));
+        console.log('Order saved to localStorage:', orderToSave);
+        
+        // Also save to order history
+        const orderHistory = JSON.parse(localStorage.getItem('orderHistory') || '[]');
+        orderHistory.unshift(orderToSave);
+        localStorage.setItem('orderHistory', JSON.stringify(orderHistory.slice(0, 10))); // Keep last 10 orders
+        
       } catch (error) {
         console.error('Error saving order data:', error);
+      }
+    }
+
+    // Create order success page functionality
+    function createOrderSuccessPage() {
+      const urlParams = new URLSearchParams(window.location.hash.substring(1));
+      const orderId = urlParams.get('orderId');
+      const method = urlParams.get('method');
+      const paymentId = urlParams.get('paymentId');
+      
+      if (orderId) {
+        const order = JSON.parse(localStorage.getItem('lastOrder') || '{}');
+        
+        document.body.innerHTML = `
+          <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 2rem;">
+            <div style="background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); text-align: center; max-width: 500px; width: 100%;">
+              <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem;">
+                <i class="fas fa-check" style="color: white; font-size: 2rem;"></i>
+              </div>
+              
+              <h1 style="color: #1e293b; margin-bottom: 1rem; font-size: 2rem;">Order Confirmed!</h1>
+              <p style="color: #64748b; margin-bottom: 2rem; font-size: 1.1rem;">Thank you for your purchase. Your order has been successfully placed.</p>
+              
+              <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: left;">
+                <h3 style="margin-bottom: 1rem; color: #1e293b;">Order Details</h3>
+                <p><strong>Order ID:</strong> ${order.orderId || orderId}</p>
+                <p><strong>Order Number:</strong> ${order.orderNumber || '#123456'}</p>
+                <p><strong>Payment Method:</strong> ${method === 'cod' ? 'Cash on Delivery' : method === 'razorpay' ? 'Razorpay' : 'Card Payment'}</p>
+                ${paymentId ? `<p><strong>Payment ID:</strong> ${paymentId}</p>` : ''}
+                <p><strong>Total Amount:</strong> ${formatPrice(order.total || 0)}</p>
+                <p><strong>Estimated Delivery:</strong> 3-5 business days</p>
+              </div>
+              
+              <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <button onclick="goHome()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                  <i class="fas fa-home"></i> Continue Shopping
+                </button>
+                <button onclick="viewOrders()" style="background: transparent; color: #4f46e5; border: 2px solid #4f46e5; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                  <i class="fas fa-list"></i> View Orders
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <script>
+            function goHome() { window.location.href = '#'; window.location.reload(); }
+            function viewOrders() { alert('Order history feature coming soon!'); }
+          </script>
+        `;
       }
     }
 
@@ -1152,12 +1292,25 @@
 
     // Initialize everything when DOM is loaded
     document.addEventListener('DOMContentLoaded', () => {
+      // Check if we're on order success page
+      if (window.location.hash.includes('order-success')) {
+        createOrderSuccessPage();
+        return;
+      }
+      
       initializeCheckout();
       
       // Initialize address suggestions after form is rendered
       setTimeout(() => {
         initializeAddressSuggestions();
       }, 1500);
+    });
+
+    // Handle hash changes for order success
+    window.addEventListener('hashchange', () => {
+      if (window.location.hash.includes('order-success')) {
+        createOrderSuccessPage();
+      }
     });
 
     // Handle browser back button
