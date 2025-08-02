@@ -1202,3 +1202,45 @@
     </script>
 </body>
 </html>
+// In checkout.html
+class CheckoutManager {
+    // ... existing code ...
+
+    loadCartData() {
+        this.debugLog('🔄 Loading cart data from multiple sources...');
+        
+        try {
+            // 1. Check sessionStorage first (most recent)
+            const sessionCart = sessionStorage.getItem('current_cart');
+            if (sessionCart) {
+                this.debugLog('✅ Found sessionStorage cart');
+                const savedCart = JSON.parse(sessionCart);
+                this.cart = this.normalizeCartItems(savedCart);
+                this.renderCartItems();
+                this.updateStatus('Cart loaded from session ✅');
+                return;
+            }
+
+            // 2. Check localStorage (persistent storage)
+            const localCart = localStorage.getItem('quicklocal_cart');
+            if (localCart) {
+                this.debugLog('✅ Found localStorage cart');
+                const savedCart = JSON.parse(localCart);
+                this.cart = this.normalizeCartItems(savedCart);
+                this.renderCartItems();
+                this.updateStatus('Cart loaded from storage ✅');
+                return;
+            }
+
+            // 3. Fallback to demo cart if nothing found
+            this.debugLog('❌ No cart data found');
+            this.updateStatus('No items in cart');
+            this.loadFallbackCart();
+
+        } catch (error) {
+            this.debugLog('❌ Error loading cart: ' + error.message);
+            this.updateStatus('Error loading cart - using fallback');
+            this.loadFallbackCart();
+        }
+    }
+}
