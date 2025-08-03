@@ -1,239 +1,407 @@
-const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:3000/api';
+// checkout.js
+const ORDER_API = "https://quicklocal-backend.onrender.com/api/v1/orders";
 
-document.addEventListener('DOMContentLoaded', () => {
-  const cart = JSON.parse(localStorage.getItem('cart')) || [];
-  const checkoutForm = document.getElementById('checkout-form');
-  
-  if (!checkoutForm) return;
+let orderData = null; // Store order data globally for reuse
 
-  renderCartSummary(cart);
-  setupFormValidation(checkoutForm);
-
-  checkoutForm.addEventListener('submit', handleCheckoutSubmit);
+document.addEventListener("DOMContentLoaded", () => {
+  renderOrderSummary();
+  setupForm();
+  loadSavedAddress();
 });
 
-async function handleCheckoutSubmit(e) {
-  e.preventDefault();
+function setupForm() {
+  const form = document.getElementById("checkout-form");
+  if (form) {
+    form.addEventListener("submit", placeOrder);
+    
+    // Add real-time validation
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+      input.addEventListener('blur', validateField);
+      input.addEventListener('input', clearFieldError);
+    });
+    
+    // Add pincode validation
+    const pincodeInput = document.getElementById("pincode");
+    if (pincodeInput) {
+      pincodeInput.addEventListener('input', validatePincode);
+    }
+    
+    // Add phone validation
+    const phoneInput = document.getElementById("phone");
+    if (phoneInput) {
+      phoneInput.addEventListener('input', validatePhone);
+    }
+    
+    // Add email validation
+    const emailInput = document.getElementById("email");
+    if (emailInput) {
+      emailInput.addEventListener('input', validateEmail);
+    }
+  }
+}
+
+function renderOrderSummary() {
+  const cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
+  const container = document.getElementById("cart-items");
+  const subtotalElem = document.getElementById("subtotal");
+  const shippingElem = document.getElementById("shipping");
+  const taxElem = document.getElementById("tax");
+  const totalElem = document.getElementById("total");
   
-  const cart = JSON.parse(localStorage.getItem('cart')) || [];
-  if (cart.length === 0) {
-    showToast('Your cart is empty!', 'warning');
+  // Check if required elements exist
+  if (!container) {
+    console.error("Cart items container not found");
     return;
   }
 
-  const formData = getFormData();
-  if (!formData) return;
-
-  const orderData = prepareOrderData(cart, formData);
-  
-  try {
-    const response = await placeOrder(orderData);
+  if (!cart.length) {
+    container.innerHTML = `
+      <div class="empty-cart">
+        <p>Your cart is empty.</p>
+        <a href="marketplace.html" class="continue-shopping-btn">Continue Shopping</a>
+      </div>
+    `;
     
-    if (response.success) {
-      handleSuccessfulCheckout(response.orderId);
-    } else {
-      handleCheckoutError(response.message);
+    // Disable checkout form if cart is empty
+    const form = document.getElementById("checkout-form");
+    if (form) {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Cart is Empty";
+      }
     }
-  } catch (error) {
-    handleCheckoutError(error.message);
-  }
-}
-
-function getFormData() {
-  const shippingAddress = document.getElementById('shipping-address').value.trim();
-  const shippingCity = document.getElementById('shipping-city').value.trim();
-  const shippingZip = document.getElementById('shipping-zip').value.trim();
-  const paymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value;
-
-  // Basic validation
-  if (!shippingAddress || !shippingCity || !shippingZip) {
-    showToast('Please fill in all shipping details', 'warning');
-    return null;
+    return;
   }
 
-  if (!paymentMethod) {
-    showToast('Please select a payment method', 'warning');
-    return null;
-  }
+  let subtotal = 0;
+  
+  // Render cart items with better formatting
+  container.innerHTML = cart.map(item => {
+    const itemTotal = (item.price || 0) * (item.quantity || 1);
+    subtotal += itemTotal;
+    
+    return `
+      <div class="cart-item" data-product-id="${item._id}">
+        <div class="item-image">
+          <img src="${item.image || '/placeholder-image.jpg'}" 
+               alt="${escapeHtml(item.name || 'Product')}"
+               onerror="this.src='/placeholder-image.jpg'">
+        </div>
+        <div class="item-info">
+          <h4>${escapeHtml(item.name || 'Unnamed Product')}</h4>
+          <p class="item-details">
+            <span class="quantity">Qty: ${item.quantity}</span>
+            <span class="unit-price">₹${item.price || 0} each</span>
+          </p>
+          <button onclick="removeFromCart('${item._id}')" class="remove-item-btn" title="Remove item">
+            ×
+          </button>
+        </div>
+        <div class="item-price">₹${itemTotal.toFixed(2)}</div>
+      </div>
+    `;
+  }).join('');
 
-  return {
-    shipping: {
-      address: shippingAddress,
-      city: shippingCity,
-      zip: shippingZip
-    },
-    paymentMethod
-  };
-}
-
-function prepareOrderData(cart, formData) {
-  const products = cart.map(item => ({
-    productId: item.productId,
-    name: item.name,
-    price: item.price,
-    qty: item.quantity,
-    image: item.image // Include image for order confirmation
-  }));
-
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingFee = calculateShippingFee(cart);
+  // Calculate costs
+  const shipping = calculateShipping(subtotal);
   const tax = calculateTax(subtotal);
-  const total = subtotal + shippingFee + tax;
-
-  return {
-    products,
-    shipping: formData.shipping,
-    paymentMethod: formData.paymentMethod,
-    subtotal,
-    shippingFee,
-    tax,
-    total
-  };
+  const total = subtotal + shipping + tax;
+  
+  // Update price elements safely
+  if (subtotalElem) subtotalElem.textContent = `₹${subtotal.toFixed(2)}`;
+  if (shippingElem) shippingElem.textContent = shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`;
+  if (taxElem) taxElem.textContent = `₹${tax.toFixed(2)}`;
+  if (totalElem) totalElem.textContent = `₹${total.toFixed(2)}`;
+  
+  // Store calculated total for order processing
+  window.orderTotal = total;
 }
 
-function calculateShippingFee(cart) {
-  // Implement your shipping logic
-  return cart.length > 2 ? 50 : 30; // Example: ₹30-50 based on item count
+function calculateShipping(subtotal) {
+  // Free shipping over ₹500, otherwise ₹50
+  return subtotal > 500 ? 0 : 50;
 }
 
 function calculateTax(subtotal) {
-  // Example: 5% tax
-  return parseFloat((subtotal * 0.05).toFixed(2));
+  // 18% GST
+  return Math.round(subtotal * 0.18 * 100) / 100; // Round to 2 decimal places
 }
 
-async function placeOrder(orderData) {
-  const response = await fetch(`${API_BASE_URL}/orders`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    },
-    body: JSON.stringify(orderData)
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to place order');
+function removeFromCart(productId) {
+  let cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
+  cart = cart.filter(item => item._id !== productId);
+  localStorage.setItem("quicklocal_cart", JSON.stringify(cart));
+  
+  showNotification("Item removed from cart", "info");
+  renderOrderSummary();
+  
+  // Update cart badge if function exists
+  if (typeof updateCartBadge === 'function') {
+    updateCartBadge();
   }
-
-  return data;
 }
 
-function handleSuccessfulCheckout(orderId) {
-  // Clear cart and show success message
-  localStorage.removeItem('cart');
+function validateField(e) {
+  const field = e.target;
+  const value = field.value.trim();
   
-  // Show order confirmation
-  document.getElementById('checkout-form').style.display = 'none';
-  document.getElementById('order-confirmation').innerHTML = `
-    <div class="confirmation-message">
-      <h2>🎉 Order Placed Successfully!</h2>
-      <p>Your order ID: <strong>${orderId}</strong></p>
-      <p>We've sent a confirmation to your email.</p>
-      <a href="/orders/${orderId}" class="btn btn-primary">View Order Details</a>
-    </div>
-  `;
+  clearFieldError(field);
   
-  // Track conversion (optional)
-  if (window.gtag) {
-    gtag('event', 'purchase', {
-      transaction_id: orderId,
-      value: orderData.total,
-      currency: 'INR',
-      items: orderData.products.map(item => ({
-        id: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.qty
-      }))
+  if (field.hasAttribute('required') && !value) {
+    showFieldError(field, 'This field is required');
+    return false;
+  }
+  
+  return true;
+}
+
+function validateEmail(e) {
+  const email = e.target.value.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (email && !emailRegex.test(email)) {
+    showFieldError(e.target, 'Please enter a valid email address');
+    return false;
+  }
+  
+  clearFieldError(e.target);
+  return true;
+}
+
+function validatePhone(e) {
+  const phone = e.target.value.trim();
+  const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile number format
+  
+  if (phone && !phoneRegex.test(phone)) {
+    showFieldError(e.target, 'Please enter a valid 10-digit mobile number');
+    return false;
+  }
+  
+  clearFieldError(e.target);
+  return true;
+}
+
+function validatePincode(e) {
+  const pincode = e.target.value.trim();
+  const pincodeRegex = /^[1-9][0-9]{5}$/; // Indian pincode format
+  
+  if (pincode && !pincodeRegex.test(pincode)) {
+    showFieldError(e.target, 'Please enter a valid 6-digit pincode');
+    return false;
+  }
+  
+  clearFieldError(e.target);
+  return true;
+}
+
+function showFieldError(field, message) {
+  clearFieldError(field);
+  
+  field.classList.add('error');
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'field-error';
+  errorDiv.textContent = message;
+  
+  field.parentNode.appendChild(errorDiv);
+}
+
+function clearFieldError(field) {
+  if (typeof field === 'object' && field.target) {
+    field = field.target;
+  }
+  
+  field.classList.remove('error');
+  const existingError = field.parentNode.querySelector('.field-error');
+  if (existingError) {
+    existingError.remove();
+  }
+}
+
+function validateForm() {
+  const form = document.getElementById("checkout-form");
+  const requiredFields = form.querySelectorAll('input[required]');
+  let isValid = true;
+  
+  requiredFields.forEach(field => {
+    if (!validateField({ target: field })) {
+      isValid = false;
+    }
+  });
+  
+  // Validate payment method selection
+  const paymentMethod = document.querySelector("input[name='payment']:checked");
+  if (!paymentMethod) {
+    showNotification("Please select a payment method", "error");
+    isValid = false;
+  }
+  
+  return isValid;
+}
+
+function loadSavedAddress() {
+  const user = JSON.parse(localStorage.getItem("quicklocal_user"));
+  if (user && user.address) {
+    const fields = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode', 'country'];
+    fields.forEach(field => {
+      const input = document.getElementById(field);
+      if (input && user.address[field]) {
+        input.value = user.address[field];
+      }
     });
   }
 }
 
-function handleCheckoutError(errorMessage) {
-  console.error('Checkout error:', errorMessage);
-  showToast(errorMessage || 'Something went wrong. Please try again.', 'error');
-  
-  // Re-enable checkout button if disabled
-  const checkoutBtn = document.getElementById('checkout-btn');
-  if (checkoutBtn) {
-    checkoutBtn.disabled = false;
-    checkoutBtn.textContent = 'Place Order';
+function saveAddress() {
+  const user = JSON.parse(localStorage.getItem("quicklocal_user"));
+  if (user) {
+    const address = {
+      name: document.getElementById("name").value,
+      email: document.getElementById("email").value,
+      phone: document.getElementById("phone").value,
+      address: document.getElementById("address").value,
+      city: document.getElementById("city").value,
+      state: document.getElementById("state").value,
+      pincode: document.getElementById("pincode").value,
+      country: document.getElementById("country").value
+    };
+    
+    user.address = address;
+    localStorage.setItem("quicklocal_user", JSON.stringify(user));
   }
 }
 
-function renderCartSummary(cart) {
-  const summaryContainer = document.getElementById('cart-summary');
-  if (!summaryContainer) return;
-
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingFee = calculateShippingFee(cart);
-  const tax = calculateTax(subtotal);
-  const total = subtotal + shippingFee + tax;
-
-  if (!cart.length) {
-    summaryContainer.innerHTML = '<div class="empty-cart">Your cart is empty</div>';
-    return;
-  }
-
-  summaryContainer.innerHTML = `
-    <div class="cart-items">
-      <h3>Your Order</h3>
-      <ul>
-        ${cart.map(item => `
-          <li class="cart-item">
-            <img src="${item.image || '/images/placeholder.jpg'}" alt="${item.name}">
-            <div class="item-details">
-              <span class="item-name">${item.name}</span>
-              <span class="item-price">₹${item.price.toFixed(2)} × ${item.quantity}</span>
-            </div>
-            <span class="item-total">₹${(item.price * item.quantity).toFixed(2)}</span>
-          </li>
-        `).join('')}
-      </ul>
-    </div>
-    <div class="order-summary">
-      <div class="summary-row">
-        <span>Subtotal</span>
-        <span>₹${subtotal.toFixed(2)}</span>
-      </div>
-      <div class="summary-row">
-        <span>Shipping</span>
-        <span>₹${shippingFee.toFixed(2)}</span>
-      </div>
-      <div class="summary-row">
-        <span>Tax (5%)</span>
-        <span>₹${tax.toFixed(2)}</span>
-      </div>
-      <div class="summary-row total">
-        <span>Total</span>
-        <span>₹${total.toFixed(2)}</span>
-      </div>
-    </div>
-  `;
-}
-
-function setupFormValidation(form) {
-  // Add real-time validation feedback
-  const fields = ['shipping-address', 'shipping-city', 'shipping-zip'];
+async function placeOrder(e) {
+  e.preventDefault();
   
-  fields.forEach(id => {
-    const field = document.getElementById(id);
-    if (field) {
-      field.addEventListener('input', () => {
-        field.classList.toggle('is-invalid', !field.value.trim());
-      });
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn.textContent;
+  
+  try {
+    // Validate form
+    if (!validateForm()) {
+      return;
     }
-  });
+    
+    const cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
+    if (!cart.length) {
+      showNotification("Your cart is empty!", "error");
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem("quicklocal_user"));
+    if (!user || !user.token) {
+      localStorage.setItem("checkout_redirect", "true");
+      window.location.href = "login.html?redirect=checkout.html";
+      return;
+    }
+
+    // Disable submit button and show loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Placing Order...";
+
+    // Prepare order data
+    orderData = {
+      items: cart.map(product => ({
+        product: product._id,
+        quantity: product.quantity,
+        price: product.price // Include price for order history
+      })),
+      shippingAddress: {
+        name: document.getElementById("name").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        state: document.getElementById("state").value.trim(),
+        pincode: document.getElementById("pincode").value.trim(),
+        country: document.getElementById("country").value.trim()
+      },
+      paymentMethod: document.querySelector("input[name='payment']:checked").value,
+      orderTotal: window.orderTotal || 0,
+      orderDate: new Date().toISOString()
+    };
+
+    // Save address for future use
+    saveAddress();
+
+    const response = await fetch(ORDER_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${user.token}`
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || `Server error: ${response.status}`);
+    }
+
+    // Success
+    showNotification("🎉 Order placed successfully!", "success");
+    
+    // Clear cart
+    localStorage.removeItem("quicklocal_cart");
+    
+    // Store order details for success page
+    localStorage.setItem("recent_order", JSON.stringify({
+      orderId: result.orderId || result._id,
+      ...orderData
+    }));
+    
+    // Redirect to success page
+    setTimeout(() => {
+      window.location.href = "order-success.html";
+    }, 1500);
+
+  } catch (error) {
+    console.error("Order placement error:", error);
+    showNotification(`❌ Failed to place order: ${error.message}`, "error");
+    
+    // Re-enable submit button
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalBtnText;
+  }
 }
 
-function showToast(message, type = 'success') {
-  // Implement your toast notification system
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  
-  setTimeout(() => toast.remove(), 3000);
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
+
+function showNotification(message, type = 'info') {
+  // Remove existing notifications
+  const existingNotifications = document.querySelectorAll('.notification');
+  existingNotifications.forEach(n => n.remove());
+  
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.textContent = message;
+  
+  // Add to page
+  document.body.appendChild(notification);
+  
+  // Auto remove after 4 seconds
+  setTimeout(() => {
+    notification.classList.add('fade-out');
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 4000);
+}
+
+// Utility functions for external use
+window.checkoutUtils = {
+  validateForm,
+  renderOrderSummary,
+  removeFromCart,
+  loadSavedAddress
+};
