@@ -1,4 +1,4 @@
-// Fixed marketplace.js with proper error handling
+// Fixed marketplace.js with proper error handling and API response parsing
 
 // Global variables
 let products = []; // Initialize as empty array
@@ -7,18 +7,30 @@ let categories = [];
 let currentPage = 1;
 let productsPerPage = 12;
 let isLoading = false;
+let isInitialized = false; // Prevent duplicate initialization
 
 // API Configuration
 const API_BASE = "https://quicklocal-backend.onrender.com/api/v1";
 const PRODUCTS_API = `${API_BASE}/products`;
 
-// Initialize marketplace
+// Initialize marketplace - prevent duplicate calls
 document.addEventListener("DOMContentLoaded", function() {
+    if (isInitialized) {
+        console.log("⚠️ App already initialized, skipping...");
+        return;
+    }
     console.log("🚀 Marketplace initializing...");
     initializeApp();
 });
 
 async function initializeApp() {
+    if (isInitialized) {
+        console.log("⚠️ App already initialized, skipping...");
+        return;
+    }
+    
+    isInitialized = true;
+    
     try {
         showLoadingState();
         
@@ -39,6 +51,233 @@ async function initializeApp() {
     } finally {
         hideLoadingState();
     }
+}
+
+// Enhanced loadProducts with proper API response structure handling
+async function loadProducts() {
+    isLoading = true;
+    
+    try {
+        console.log("📦 Loading products from API...");
+        
+        const response = await fetch(PRODUCTS_API, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("📊 API Response:", data);
+        
+        // FIXED: Enhanced API response structure detection
+        let extractedProducts = [];
+        
+        // Handle the specific API response structure from your logs
+        if (data.success && data.data) {
+            console.log("🔍 API Response structure analysis:");
+            console.log("- data.success:", data.success);
+            console.log("- data.data type:", typeof data.data);
+            console.log("- data.data keys:", data.data ? Object.keys(data.data) : 'null');
+            
+            // Check if data.data has nested structure
+            if (data.data.products && Array.isArray(data.data.products)) {
+                extractedProducts = data.data.products;
+                console.log("✅ Found products in data.data.products");
+            } else if (data.data.items && Array.isArray(data.data.items)) {
+                extractedProducts = data.data.items;
+                console.log("✅ Found products in data.data.items");
+            } else if (Array.isArray(data.data)) {
+                extractedProducts = data.data;
+                console.log("✅ Found products in data.data array");
+            } else {
+                // Search for any array in data.data
+                const nestedArrays = Object.entries(data.data)
+                    .filter(([key, value]) => Array.isArray(value))
+                    .map(([key, value]) => ({ key, value, length: value.length }));
+                
+                console.log("🔍 Found arrays in data.data:", nestedArrays);
+                
+                if (nestedArrays.length > 0) {
+                    // Use the largest array found
+                    const bestMatch = nestedArrays.reduce((max, current) => 
+                        current.length > max.length ? current : max
+                    );
+                    extractedProducts = bestMatch.value;
+                    console.log(`✅ Using array from data.data.${bestMatch.key} (${bestMatch.length} items)`);
+                }
+            }
+        } 
+        // Fallback patterns
+        else if (Array.isArray(data)) {
+            extractedProducts = data;
+            console.log("✅ Found products as root array");
+        } else if (data.products && Array.isArray(data.products)) {
+            extractedProducts = data.products;
+            console.log("✅ Found products in root.products");
+        } else if (data.result && Array.isArray(data.result)) {
+            extractedProducts = data.result;
+            console.log("✅ Found products in root.result");
+        } else if (data.items && Array.isArray(data.items)) {
+            extractedProducts = data.items;
+            console.log("✅ Found products in root.items");
+        }
+        
+        // If still no products found, try to find any array in the response
+        if (extractedProducts.length === 0) {
+            console.log("🔍 Searching for any arrays in the entire response...");
+            const allArrays = findArraysInObject(data);
+            console.log("Found arrays:", allArrays);
+            
+            if (allArrays.length > 0) {
+                extractedProducts = allArrays[0].value;
+                console.log(`✅ Using first array found at path: ${allArrays[0].path}`);
+            }
+        }
+
+        if (extractedProducts.length === 0) {
+            console.error("❌ No valid products array found in API response");
+            console.error("Full API response structure:", JSON.stringify(data, null, 2));
+            throw new Error("No valid products array found in API response");
+        }
+
+        // Validate and clean products data
+        products = extractedProducts
+            .filter(product => product && typeof product === 'object')
+            .map(product => ({
+                _id: product._id || product.id || `temp_${Date.now()}_${Math.random()}`,
+                name: product.name || product.title || 'Unnamed Product',
+                price: parseFloat(product.price) || 0,
+                category: product.category || product.type || 'Uncategorized',
+                image: product.image || product.imageUrl || product.photo || 'https://via.placeholder.com/300x200?text=No+Image',
+                description: product.description || product.desc || 'No description available',
+                rating: parseFloat(product.rating) || 0,
+                inStock: product.inStock !== false && product.stock !== 0,
+                ...product // Keep all original properties
+            }));
+        
+        if (products.length === 0) {
+            throw new Error("No valid products found after processing API response");
+        }
+
+        // Initialize filtered products
+        filteredProducts = [...products];
+        
+        // Extract categories
+        extractCategories();
+        
+        // Cache products for offline use
+        cacheProducts();
+        
+        // Render products
+        renderProducts();
+        
+        console.log(`✅ Loaded ${products.length} products successfully`);
+        
+    } catch (error) {
+        console.error("❌ Failed to load products:", error);
+        
+        // Try to load fallback data
+        await loadFallbackProducts();
+        
+    } finally {
+        isLoading = false;
+    }
+}
+
+// Helper function to recursively find arrays in an object
+function findArraysInObject(obj, path = 'root', maxDepth = 3, currentDepth = 0) {
+    const arrays = [];
+    
+    if (currentDepth >= maxDepth) return arrays;
+    
+    if (Array.isArray(obj)) {
+        arrays.push({ path, value: obj, length: obj.length });
+        return arrays;
+    }
+    
+    if (obj && typeof obj === 'object') {
+        for (const [key, value] of Object.entries(obj)) {
+            const newPath = path === 'root' ? key : `${path}.${key}`;
+            arrays.push(...findArraysInObject(value, newPath, maxDepth, currentDepth + 1));
+        }
+    }
+    
+    return arrays.sort((a, b) => b.length - a.length); // Sort by length descending
+}
+
+// Fallback products for offline/error scenarios
+async function loadFallbackProducts() {
+    console.log("🔄 Loading fallback products...");
+    
+    try {
+        // Check if we have cached products
+        const cachedProducts = localStorage.getItem('quicklocal_cached_products');
+        if (cachedProducts && isCacheValid()) {
+            const parsed = JSON.parse(cachedProducts);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                products = parsed;
+                filteredProducts = [...products];
+                extractCategories();
+                renderProducts();
+                showNotification("Loaded cached products (offline mode)", "info");
+                console.log("✅ Loaded cached products");
+                return;
+            }
+        }
+        
+        // Use demo products as last resort
+        products = getDemoProducts();
+        filteredProducts = [...products];
+        extractCategories();
+        renderProducts();
+        showNotification("Loaded demo products", "warning");
+        console.log("WARNING: Loaded demo products");
+        
+    } catch (error) {
+        console.error("❌ Failed to load fallback products:", error);
+        showErrorState("Unable to load products. Please check your connection and refresh.");
+    }
+}
+
+// Demo products for fallback
+function getDemoProducts() {
+    return [
+        {
+            _id: "demo1",
+            name: "Fresh Apples",
+            price: 120,
+            category: "Fruits",
+            image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400",
+            description: "Fresh red apples, perfect for snacking",
+            rating: 4.5,
+            inStock: true
+        },
+        {
+            _id: "demo2", 
+            name: "Organic Bananas",
+            price: 60,
+            category: "Fruits",
+            image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400",
+            description: "Organic bananas, rich in potassium",
+            rating: 4.3,
+            inStock: true
+        },
+        {
+            _id: "demo3",
+            name: "Fresh Milk",
+            price: 55,
+            category: "Dairy",
+            image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400", 
+            description: "Fresh cow milk, 1 liter pack",
+            rating: 4.8,
+            inStock: true
+        }
+    ];
 }
 
 // Enhanced renderProducts with better container detection
@@ -193,175 +432,6 @@ function renderProducts(productsToRender = null) {
             </div>
         `;
     }
-}
-
-// Enhanced loadProducts with better API response handling
-async function loadProducts() {
-    isLoading = true;
-    
-    try {
-        console.log("📦 Loading products from API...");
-        
-        const response = await fetch(PRODUCTS_API, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log("📊 API Response:", data);
-        
-        // Handle different API response structures
-        let extractedProducts = [];
-        
-        if (data.success && Array.isArray(data.products)) {
-            // Format: { success: true, products: [...] }
-            extractedProducts = data.products;
-        } else if (data.success && Array.isArray(data.data)) {
-            // Format: { success: true, data: [...] }
-            extractedProducts = data.data;
-        } else if (Array.isArray(data)) {
-            // Format: [...]
-            extractedProducts = data;
-        } else if (data.data && Array.isArray(data.data)) {
-            // Format: { data: [...] }
-            extractedProducts = data.data;
-        } else if (data.products && Array.isArray(data.products)) {
-            // Format: { products: [...] }
-            extractedProducts = data.products;
-        } else if (data.result && Array.isArray(data.result)) {
-            // Format: { result: [...] }
-            extractedProducts = data.result;
-        } else if (data.items && Array.isArray(data.items)) {
-            // Format: { items: [...] }
-            extractedProducts = data.items;
-        } else {
-            // Try to find any array in the response
-            const possibleArrays = Object.values(data).filter(Array.isArray);
-            if (possibleArrays.length > 0) {
-                extractedProducts = possibleArrays[0];
-                console.log("🔍 Found products array in unexpected format");
-            } else {
-                console.error("❌ API Response structure:", data);
-                throw new Error("No valid products array found in API response");
-            }
-        }
-
-        // Validate and clean products data
-        products = extractedProducts
-            .filter(product => product && typeof product === 'object')
-            .map(product => ({
-                _id: product._id || product.id || `temp_${Date.now()}_${Math.random()}`,
-                name: product.name || product.title || 'Unnamed Product',
-                price: parseFloat(product.price) || 0,
-                category: product.category || product.type || 'Uncategorized',
-                image: product.image || product.imageUrl || product.photo || 'https://via.placeholder.com/300x200?text=No+Image',
-                description: product.description || product.desc || 'No description available',
-                rating: parseFloat(product.rating) || 0,
-                inStock: product.inStock !== false && product.stock !== 0,
-                ...product // Keep all original properties
-            }));
-        
-        if (products.length === 0) {
-            throw new Error("No valid products found in API response");
-        }
-
-        // Initialize filtered products
-        filteredProducts = [...products];
-        
-        // Extract categories
-        extractCategories();
-        
-        // Cache products for offline use
-        cacheProducts();
-        
-        // Render products
-        renderProducts();
-        
-        console.log(`✅ Loaded ${products.length} products successfully`);
-        
-    } catch (error) {
-        console.error("❌ Failed to load products:", error);
-        
-        // Try to load fallback data
-        await loadFallbackProducts();
-        
-    } finally {
-        isLoading = false;
-    }
-}
-
-// Fallback products for offline/error scenarios
-async function loadFallbackProducts() {
-    console.log("🔄 Loading fallback products...");
-    
-    try {
-        // Check if we have cached products
-        const cachedProducts = localStorage.getItem('quicklocal_cached_products');
-        if (cachedProducts) {
-            const parsed = JSON.parse(cachedProducts);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                products = parsed;
-                filteredProducts = [...products];
-                extractCategories();
-                renderProducts();
-                showNotification("Loaded cached products (offline mode)", "info");
-                return;
-            }
-        }
-        
-        // Use demo products as last resort
-        products = getDemoProducts();
-        filteredProducts = [...products];
-        extractCategories();
-        renderProducts();
-        showNotification("Loaded demo products", "warning");
-        
-    } catch (error) {
-        console.error("❌ Failed to load fallback products:", error);
-        showErrorState("Unable to load products. Please check your connection and refresh.");
-    }
-}
-
-// Demo products for fallback
-function getDemoProducts() {
-    return [
-        {
-            _id: "demo1",
-            name: "Fresh Apples",
-            price: 120,
-            category: "Fruits",
-            image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400",
-            description: "Fresh red apples, perfect for snacking",
-            rating: 4.5,
-            inStock: true
-        },
-        {
-            _id: "demo2", 
-            name: "Organic Bananas",
-            price: 60,
-            category: "Fruits",
-            image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400",
-            description: "Organic bananas, rich in potassium",
-            rating: 4.3,
-            inStock: true
-        },
-        {
-            _id: "demo3",
-            name: "Fresh Milk",
-            price: 55,
-            category: "Dairy",
-            image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400", 
-            description: "Fresh cow milk, 1 liter pack",
-            rating: 4.8,
-            inStock: true
-        }
-    ];
 }
 
 // Extract categories from products
@@ -611,14 +681,37 @@ function hideLoadingState() {
 }
 
 function showErrorState(message) {
-    const container = document.getElementById("products-container");
+    const possibleContainers = [
+        'products-container', 'products-grid', 'product-grid', 
+        'marketplace-products', 'products', 'product-list'
+    ];
+    
+    let container = null;
+    for (const id of possibleContainers) {
+        container = document.getElementById(id) || document.querySelector(`.${id}`);
+        if (container) break;
+    }
+    
     if (container) {
         container.innerHTML = `
-            <div class="error-state">
-                <div class="error-icon">⚠️</div>
-                <h3>Something went wrong</h3>
-                <p>${escapeHtml(message)}</p>
-                <button onclick="location.reload()" class="btn btn-primary">
+            <div class="error-state" style="
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #666;
+            ">
+                <div class="error-icon" style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
+                <h3 style="margin-bottom: 10px; color: #333;">Something went wrong</h3>
+                <p style="margin-bottom: 20px;">${escapeHtml(message)}</p>
+                <button onclick="location.reload()" style="
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                ">
                     Try Again
                 </button>
             </div>
@@ -759,20 +852,53 @@ function showNotification(message, type = 'info') {
     }, 4000);
 }
 
-// Additional helper functions (add these if they don't exist)
+// Enhanced setup functions
 function setupEventListeners() {
-    // Add your event listeners here
     console.log("Setting up event listeners...");
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(performSearch, 300));
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+    
+    // Category filter
+    const categorySelect = document.getElementById('category-filter');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', filterByCategory);
+    }
+    
+    // Price filter
+    const priceSelect = document.getElementById('price-filter');
+    if (priceSelect) {
+        priceSelect.addEventListener('change', filterByPrice);
+    }
+    
+    // Sort functionality
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', applySorting);
+    }
 }
 
 function setupSearch() {
-    // Add your search functionality here
     console.log("Setting up search...");
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.placeholder = "Search products...";
+        searchInput.setAttribute('autocomplete', 'off');
+    }
 }
 
 function setupFilters() {
-    // Add your filter functionality here
     console.log("Setting up filters...");
+    updateCategoryFilter();
+    updatePriceFilter();
 }
 
 function updateCartBadge() {
@@ -791,6 +917,19 @@ function updateCategoryFilter() {
         categorySelect.innerHTML = '<option value="">All Categories</option>' +
             categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
         categorySelect.value = currentValue;
+    }
+}
+
+function updatePriceFilter() {
+    const priceSelect = document.getElementById('price-filter');
+    if (priceSelect && priceSelect.innerHTML.trim() === '') {
+        priceSelect.innerHTML = `
+            <option value="">All Prices</option>
+            <option value="under-50">Under ₹50</option>
+            <option value="50-100">₹50 - ₹100</option>
+            <option value="100-200">₹100 - ₹200</option>
+            <option value="over-200">Over ₹200</option>
+        `;
     }
 }
 
@@ -901,81 +1040,6 @@ function filterByPrice() {
     renderProducts();
 }
 
-// Enhanced setup functions
-function setupEventListeners() {
-    console.log("Setting up event listeners...");
-    
-    // Search functionality
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(performSearch, 300));
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-    }
-    
-    // Category filter
-    const categorySelect = document.getElementById('category-filter');
-    if (categorySelect) {
-        categorySelect.addEventListener('change', filterByCategory);
-    }
-    
-    // Price filter
-    const priceSelect = document.getElementById('price-filter');
-    if (priceSelect) {
-        priceSelect.addEventListener('change', filterByPrice);
-    }
-    
-    // Sort functionality
-    const sortSelect = document.getElementById('sort-select');
-    if (sortSelect) {
-        sortSelect.addEventListener('change', applySorting);
-    }
-}
-
-function setupSearch() {
-    console.log("Setting up search...");
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-        searchInput.placeholder = "Search products...";
-        searchInput.setAttribute('autocomplete', 'off');
-    }
-}
-
-function setupFilters() {
-    console.log("Setting up filters...");
-    updateCategoryFilter();
-    updatePriceFilter();
-}
-
-function updatePriceFilter() {
-    const priceSelect = document.getElementById('price-filter');
-    if (priceSelect && priceSelect.innerHTML.trim() === '') {
-        priceSelect.innerHTML = `
-            <option value="">All Prices</option>
-            <option value="under-50">Under ₹50</option>
-            <option value="50-100">₹50 - ₹100</option>
-            <option value="100-200">₹100 - ₹200</option>
-            <option value="over-200">Over ₹200</option>
-        `;
-    }
-}
-
-// Utility function for debouncing
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
 // Sort products
 function applySorting() {
     const sortSelect = document.getElementById('sort-select');
@@ -1010,12 +1074,26 @@ function applySorting() {
     renderProducts();
 }
 
+// Utility function for debouncing
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 // Cache products for offline use
 function cacheProducts() {
     if (Array.isArray(products) && products.length > 0) {
         try {
             localStorage.setItem('quicklocal_cached_products', JSON.stringify(products));
             localStorage.setItem('quicklocal_cache_timestamp', Date.now().toString());
+            console.log(`✅ Cached ${products.length} products for offline use`);
         } catch (error) {
             console.warn("Failed to cache products:", error);
         }
@@ -1042,5 +1120,14 @@ window.quickLocalMarketplace = {
     filterByCategory,
     filterByPrice,
     clearAllFilters,
-    changePage
+    changePage,
+    // Debug functions
+    getProducts: () => products,
+    getFilteredProducts: () => filteredProducts,
+    forceReload: () => {
+        isInitialized = false;
+        products = [];
+        filteredProducts = [];
+        initializeApp();
+    }
 };
