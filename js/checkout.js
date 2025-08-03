@@ -4,6 +4,23 @@ const ORDER_API = "https://quicklocal-backend.onrender.com/api/v1/orders";
 let orderData = null; // Store order data globally for reuse
 
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("Checkout page loaded");
+  
+  // Check if we're being redirected back from somewhere
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectParam = urlParams.get('redirect');
+  
+  if (redirectParam) {
+    console.log("Detected redirect parameter:", redirectParam);
+  }
+  
+  // Check for any stored redirect flags
+  const checkoutRedirect = localStorage.getItem("checkout_redirect");
+  if (checkoutRedirect) {
+    console.log("Found checkout redirect flag, clearing it");
+    localStorage.removeItem("checkout_redirect");
+  }
+  
   renderOrderSummary();
   setupForm();
   loadSavedAddress();
@@ -11,8 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function setupForm() {
   const form = document.getElementById("checkout-form");
+  const checkoutBtn = document.getElementById("checkout-btn");
+  
   if (form) {
-    form.addEventListener("submit", placeOrder);
+    // Prevent default form submission
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      placeOrder(e);
+    });
     
     // Add real-time validation
     const inputs = form.querySelectorAll('input[required]');
@@ -39,6 +62,14 @@ function setupForm() {
       emailInput.addEventListener('input', validateEmail);
     }
   }
+  
+  // Handle checkout button click (this is the main fix)
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      placeOrder(e);
+    });
+  }
 }
 
 function renderOrderSummary() {
@@ -63,14 +94,11 @@ function renderOrderSummary() {
       </div>
     `;
     
-    // Disable checkout form if cart is empty
-    const form = document.getElementById("checkout-form");
-    if (form) {
-      const submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Cart is Empty";
-      }
+    // Disable checkout button if cart is empty
+    const checkoutBtn = document.getElementById("checkout-btn");
+    if (checkoutBtn) {
+      checkoutBtn.disabled = true;
+      checkoutBtn.textContent = "Cart is Empty";
     }
     return;
   }
@@ -84,11 +112,6 @@ function renderOrderSummary() {
     
     return `
       <div class="cart-item" data-product-id="${item._id}">
-        <div class="item-image">
-          <img src="${item.image || '/placeholder-image.jpg'}" 
-               alt="${escapeHtml(item.name || 'Product')}"
-               onerror="this.src='/placeholder-image.jpg'">
-        </div>
         <div class="item-info">
           <h4>${escapeHtml(item.name || 'Unnamed Product')}</h4>
           <p class="item-details">
@@ -221,7 +244,12 @@ function clearFieldError(field) {
 
 function validateForm() {
   const form = document.getElementById("checkout-form");
-  const requiredFields = form.querySelectorAll('input[required]');
+  if (!form) {
+    console.error("Checkout form not found");
+    return false;
+  }
+  
+  const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
   let isValid = true;
   
   requiredFields.forEach(field => {
@@ -274,13 +302,24 @@ function saveAddress() {
 
 async function placeOrder(e) {
   e.preventDefault();
+  e.stopPropagation(); // Prevent event bubbling
   
-  const submitBtn = e.target.querySelector('button[type="submit"]');
-  const originalBtnText = submitBtn.textContent;
+  // Get the checkout button
+  const checkoutBtn = document.getElementById("checkout-btn");
+  const originalBtnText = checkoutBtn ? checkoutBtn.textContent : "Place Order";
+  
+  // Prevent multiple submissions
+  if (checkoutBtn && checkoutBtn.disabled) {
+    console.log("Order already being processed...");
+    return;
+  }
   
   try {
-    // Validate form
+    console.log("Starting order placement process...");
+    
+    // Validate form first
     if (!validateForm()) {
+      console.log("Form validation failed");
       return;
     }
     
@@ -292,21 +331,26 @@ async function placeOrder(e) {
 
     const user = JSON.parse(localStorage.getItem("quicklocal_user"));
     if (!user || !user.token) {
+      console.log("User not authenticated, redirecting to login...");
       localStorage.setItem("checkout_redirect", "true");
       window.location.href = "login.html?redirect=checkout.html";
       return;
     }
 
     // Disable submit button and show loading
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Placing Order...";
+    if (checkoutBtn) {
+      checkoutBtn.disabled = true;
+      checkoutBtn.textContent = "Placing Order...";
+    }
+
+    console.log("Preparing order data...");
 
     // Prepare order data
     orderData = {
       items: cart.map(product => ({
         product: product._id,
         quantity: product.quantity,
-        price: product.price // Include price for order history
+        price: product.price
       })),
       shippingAddress: {
         name: document.getElementById("name").value.trim(),
@@ -323,8 +367,12 @@ async function placeOrder(e) {
       orderDate: new Date().toISOString()
     };
 
+    console.log("Order data prepared:", orderData);
+
     // Save address for future use
     saveAddress();
+
+    console.log("Sending order to API...");
 
     const response = await fetch(ORDER_API, {
       method: "POST",
@@ -335,36 +383,51 @@ async function placeOrder(e) {
       body: JSON.stringify(orderData)
     });
 
+    console.log("Response status:", response.status);
     const result = await response.json();
+    console.log("API Response:", result);
 
     if (!response.ok) {
       throw new Error(result.message || `Server error: ${response.status}`);
     }
 
-    // Success
-    showNotification("🎉 Order placed successfully!", "success");
-    
-    // Clear cart
+    // Success - Clear cart immediately
+    console.log("Order placed successfully!");
     localStorage.removeItem("quicklocal_cart");
     
     // Store order details for success page
-    localStorage.setItem("recent_order", JSON.stringify({
-      orderId: result.orderId || result._id,
-      ...orderData
-    }));
+    const orderDetails = {
+      orderId: result.orderId || result._id || Date.now().toString(),
+      status: 'success',
+      ...orderData,
+      timestamp: Date.now()
+    };
     
-    // Redirect to success page
-    setTimeout(() => {
-      window.location.href = "order-success.html";
-    }, 1500);
+    localStorage.setItem("recent_order", JSON.stringify(orderDetails));
+    console.log("Order details stored:", orderDetails);
+    
+    // Show success notification
+    showNotification("🎉 Order placed successfully! Redirecting...", "success");
+    
+    // Immediate redirect to prevent any issues
+    console.log("Redirecting to order-success.html...");
+    window.location.replace("order-success.html"); // Use replace instead of href
 
   } catch (error) {
     console.error("Order placement error:", error);
-    showNotification(`❌ Failed to place order: ${error.message}`, "error");
+    
+    // Check if it's a network error vs API error
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      showNotification("❌ Network error. Please check your connection and try again.", "error");
+    } else {
+      showNotification(`❌ Failed to place order: ${error.message}`, "error");
+    }
     
     // Re-enable submit button
-    submitBtn.disabled = false;
-    submitBtn.textContent = originalBtnText;
+    if (checkoutBtn) {
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = originalBtnText;
+    }
   }
 }
 
@@ -375,6 +438,8 @@ function escapeHtml(text) {
 }
 
 function showNotification(message, type = 'info') {
+  console.log(`Notification: ${message} (${type})`);
+  
   // Remove existing notifications
   const existingNotifications = document.querySelectorAll('.notification');
   existingNotifications.forEach(n => n.remove());
@@ -383,6 +448,7 @@ function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
   notification.textContent = message;
+  notification.style.transform = 'translateX(0)'; // Ensure it's visible
   
   // Add to page
   document.body.appendChild(notification);
