@@ -41,13 +41,53 @@ async function initializeApp() {
     }
 }
 
-// Enhanced renderProducts with error handling
+// Enhanced renderProducts with better container detection
 function renderProducts(productsToRender = null) {
-    const container = document.getElementById("products-container");
+    // Try multiple possible container IDs/classes
+    const possibleContainers = [
+        'products-container',
+        'products-grid', 
+        'product-grid',
+        'marketplace-products',
+        'products',
+        'product-list'
+    ];
+    
+    let container = null;
+    for (const id of possibleContainers) {
+        container = document.getElementById(id) || document.querySelector(`.${id}`);
+        if (container) break;
+    }
+    
+    // If no container found, try to find any container with product-related class
+    if (!container) {
+        container = document.querySelector('[class*="product"]') || 
+                   document.querySelector('[id*="product"]') ||
+                   document.querySelector('.grid') ||
+                   document.querySelector('.container');
+    }
     
     if (!container) {
-        console.error("Products container not found");
-        return;
+        console.error("No suitable products container found. Creating one...");
+        // Create a container if none exists
+        const mainContent = document.querySelector('main') || 
+                           document.querySelector('.main-content') || 
+                           document.body;
+        
+        container = document.createElement('div');
+        container.id = 'products-container';
+        container.className = 'products-grid';
+        container.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        `;
+        
+        mainContent.appendChild(container);
+        console.log("✅ Created products container");
     }
 
     // Use provided products or fall back to global products/filteredProducts
@@ -61,8 +101,21 @@ function renderProducts(productsToRender = null) {
     // Show loading state if products are still loading
     if (isLoading) {
         container.innerHTML = `
-            <div class="loading-state">
-                <div class="loading-spinner"></div>
+            <div class="loading-state" style="
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #666;
+            ">
+                <div class="loading-spinner" style="
+                    width: 40px;
+                    height: 40px;
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #667eea;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                "></div>
                 <p>Loading amazing products...</p>
             </div>
         `;
@@ -72,11 +125,24 @@ function renderProducts(productsToRender = null) {
     // Handle empty state
     if (!Array.isArray(targetProducts) || targetProducts.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">📦</div>
-                <h3>No products found</h3>
-                <p>Try adjusting your search or filter criteria</p>
-                <button onclick="clearAllFilters()" class="btn btn-primary">
+            <div class="empty-state" style="
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #666;
+            ">
+                <div class="empty-icon" style="font-size: 4rem; margin-bottom: 20px;">📦</div>
+                <h3 style="margin-bottom: 10px; color: #333;">No products found</h3>
+                <p style="margin-bottom: 20px;">Try adjusting your search or filter criteria</p>
+                <button onclick="clearAllFilters()" style="
+                    background: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                ">
                     Clear Filters
                 </button>
             </div>
@@ -99,14 +165,29 @@ function renderProducts(productsToRender = null) {
         // Update results count
         updateResultsCount(targetProducts.length);
         
+        console.log(`✅ Rendered ${paginatedProducts.length} products`);
+        
     } catch (error) {
         console.error("Error rendering products:", error);
         container.innerHTML = `
-            <div class="error-state">
-                <div class="error-icon">⚠️</div>
-                <h3>Error displaying products</h3>
-                <p>Something went wrong. Please try refreshing the page.</p>
-                <button onclick="location.reload()" class="btn btn-primary">
+            <div class="error-state" style="
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #666;
+            ">
+                <div class="error-icon" style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
+                <h3 style="margin-bottom: 10px; color: #333;">Error displaying products</h3>
+                <p style="margin-bottom: 20px;">Something went wrong. Please try refreshing the page.</p>
+                <button onclick="location.reload()" style="
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                ">
                     Refresh Page
                 </button>
             </div>
@@ -114,7 +195,7 @@ function renderProducts(productsToRender = null) {
     }
 }
 
-// Enhanced loadProducts with better error handling
+// Enhanced loadProducts with better API response handling
 async function loadProducts() {
     isLoading = true;
     
@@ -133,23 +214,61 @@ async function loadProducts() {
         }
 
         const data = await response.json();
+        console.log("📊 API Response:", data);
         
         // Handle different API response structures
+        let extractedProducts = [];
+        
         if (data.success && Array.isArray(data.products)) {
-            products = data.products;
+            // Format: { success: true, products: [...] }
+            extractedProducts = data.products;
+        } else if (data.success && Array.isArray(data.data)) {
+            // Format: { success: true, data: [...] }
+            extractedProducts = data.data;
         } else if (Array.isArray(data)) {
-            products = data;
+            // Format: [...]
+            extractedProducts = data;
         } else if (data.data && Array.isArray(data.data)) {
-            products = data.data;
+            // Format: { data: [...] }
+            extractedProducts = data.data;
+        } else if (data.products && Array.isArray(data.products)) {
+            // Format: { products: [...] }
+            extractedProducts = data.products;
+        } else if (data.result && Array.isArray(data.result)) {
+            // Format: { result: [...] }
+            extractedProducts = data.result;
+        } else if (data.items && Array.isArray(data.items)) {
+            // Format: { items: [...] }
+            extractedProducts = data.items;
         } else {
-            throw new Error("Invalid API response format");
+            // Try to find any array in the response
+            const possibleArrays = Object.values(data).filter(Array.isArray);
+            if (possibleArrays.length > 0) {
+                extractedProducts = possibleArrays[0];
+                console.log("🔍 Found products array in unexpected format");
+            } else {
+                console.error("❌ API Response structure:", data);
+                throw new Error("No valid products array found in API response");
+            }
         }
 
-        // Validate products data
-        products = products.filter(product => product && typeof product === 'object');
+        // Validate and clean products data
+        products = extractedProducts
+            .filter(product => product && typeof product === 'object')
+            .map(product => ({
+                _id: product._id || product.id || `temp_${Date.now()}_${Math.random()}`,
+                name: product.name || product.title || 'Unnamed Product',
+                price: parseFloat(product.price) || 0,
+                category: product.category || product.type || 'Uncategorized',
+                image: product.image || product.imageUrl || product.photo || 'https://via.placeholder.com/300x200?text=No+Image',
+                description: product.description || product.desc || 'No description available',
+                rating: parseFloat(product.rating) || 0,
+                inStock: product.inStock !== false && product.stock !== 0,
+                ...product // Keep all original properties
+            }));
         
         if (products.length === 0) {
-            console.warn("⚠️ No valid products received from API");
+            throw new Error("No valid products found in API response");
         }
 
         // Initialize filtered products
@@ -157,6 +276,9 @@ async function loadProducts() {
         
         // Extract categories
         extractCategories();
+        
+        // Cache products for offline use
+        cacheProducts();
         
         // Render products
         renderProducts();
@@ -262,7 +384,7 @@ function extractCategories() {
     updateCategoryFilter();
 }
 
-// Create product card with error handling
+// Create product card with error handling and inline styles
 function createProductCard(product) {
     if (!product || typeof product !== 'object') {
         return '<div class="product-card error">Invalid product data</div>';
@@ -283,29 +405,131 @@ function createProductCard(product) {
     const safeRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
     
     return `
-        <div class="product-card" data-product-id="${_id}">
-            <div class="product-image">
+        <div class="product-card" data-product-id="${_id}" style="
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #e1e8ed;
+            position: relative;
+        " onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'" 
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'">
+           
+            <div class="product-image" style="
+                position: relative;
+                height: 200px;
+                overflow: hidden;
+                background: #f8f9fa;
+            ">
                 <img src="${image}" 
                      alt="${escapeHtml(name)}" 
+                     style="
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                        transition: transform 0.3s ease;
+                     "
                      onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'"
+                     onmouseover="this.style.transform='scale(1.05)'"
+                     onmouseout="this.style.transform='scale(1)'"
                      loading="lazy">
-                ${!inStock ? '<div class="out-of-stock-badge">Out of Stock</div>' : ''}
+                ${!inStock ? `<div style="
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: #e74c3c;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 600;
+                ">Out of Stock</div>` : ''}
             </div>
-            <div class="product-info">
-                <h3 class="product-name">${escapeHtml(name)}</h3>
-                <p class="product-description">${escapeHtml(description)}</p>
-                <div class="product-meta">
-                    <span class="product-category">${escapeHtml(category)}</span>
-                    <div class="product-rating">
-                        ${'★'.repeat(Math.floor(safeRating))}${'☆'.repeat(5 - Math.floor(safeRating))}
-                        <span class="rating-text">(${safeRating.toFixed(1)})</span>
+            
+            <div class="product-info" style="padding: 16px;">
+                <h3 class="product-name" style="
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: #333;
+                    margin: 0 0 8px 0;
+                    line-height: 1.4;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                ">${escapeHtml(name)}</h3>
+                
+                <p class="product-description" style="
+                    color: #666;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    margin: 0 0 12px 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                ">${escapeHtml(description)}</p>
+                
+                <div class="product-meta" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                ">
+                    <span class="product-category" style="
+                        background: #e3f2fd;
+                        color: #1976d2;
+                        padding: 4px 8px;
+                        border-radius: 12px;
+                        font-size: 0.8rem;
+                        font-weight: 500;
+                    ">${escapeHtml(category)}</span>
+                    
+                    <div class="product-rating" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                    ">
+                        <span style="color: #ffa726; font-size: 0.9rem;">
+                            ${'★'.repeat(Math.floor(safeRating))}${'☆'.repeat(5 - Math.floor(safeRating))}
+                        </span>
+                        <span class="rating-text" style="
+                            color: #666;
+                            font-size: 0.8rem;
+                        ">(${safeRating.toFixed(1)})</span>
                     </div>
                 </div>
-                <div class="product-footer">
-                    <span class="product-price">₹${safePrice.toFixed(2)}</span>
+                
+                <div class="product-footer" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                ">
+                    <span class="product-price" style="
+                        font-size: 1.3rem;
+                        font-weight: 700;
+                        color: #2e7d32;
+                    ">₹${safePrice.toFixed(2)}</span>
+                    
                     <button onclick="addToCart('${_id}')" 
-                            class="add-to-cart-btn ${!inStock ? 'disabled' : ''}"
-                            ${!inStock ? 'disabled' : ''}>
+                            style="
+                                background: ${!inStock ? '#bdc3c7' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+                                color: white;
+                                border: none;
+                                padding: 10px 16px;
+                                border-radius: 8px;
+                                font-size: 0.9rem;
+                                font-weight: 600;
+                                cursor: ${!inStock ? 'not-allowed' : 'pointer'};
+                                transition: all 0.3s ease;
+                                display: flex;
+                                align-items: center;
+                                gap: 6px;
+                            "
+                            ${!inStock ? 'disabled' : ''}
+                            onmouseover="if(!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)'; }"
+                            onmouseout="if(!this.disabled) { this.style.transform='translateY(0)'; this.style.boxShadow='none'; }">
                         ${!inStock ? '❌ Out of Stock' : '🛒 Add to Cart'}
                     </button>
                 </div>
@@ -321,16 +545,65 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Show loading state with CSS animation
 function showLoadingState() {
-    const container = document.getElementById("products-container");
-    if (container) {
-        container.innerHTML = `
-            <div class="loading-state">
-                <div class="loading-spinner"></div>
-                <p>Loading amazing products...</p>
-            </div>
-        `;
+    // Try to find container with multiple fallbacks
+    const possibleContainers = [
+        'products-container', 'products-grid', 'product-grid', 
+        'marketplace-products', 'products', 'product-list'
+    ];
+    
+    let container = null;
+    for (const id of possibleContainers) {
+        container = document.getElementById(id) || document.querySelector(`.${id}`);
+        if (container) break;
     }
+    
+    if (!container) {
+        console.warn("No container found for loading state");
+        return;
+    }
+    
+    // Add CSS animation keyframes if not already added
+    if (!document.getElementById('spinner-styles')) {
+        const style = document.createElement('style');
+        style.id = 'spinner-styles';
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            .loading-spinner {
+                animation: spin 1s linear infinite;
+            }
+            
+            .product-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    container.innerHTML = `
+        <div class="loading-state" style="
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        ">
+            <div class="loading-spinner" style="
+                width: 50px;
+                height: 50px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #667eea;
+                border-radius: 50%;
+                margin: 0 auto 20px;
+            "></div>
+            <p style="font-size: 1.1rem; margin: 0;">Loading amazing products...</p>
+        </div>
+    `;
 }
 
 function hideLoadingState() {
