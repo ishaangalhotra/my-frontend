@@ -1,0 +1,2166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        .table-row { transition: all 0.2s ease; }
+        .category-chip { transition: all 0.2s ease; }
+        .tooltip { position: relative; }
+        .tooltip:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+        .notification-toast { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-boxes text-3xl text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h1 class="text-2xl font-bold text-gray-900">Product Management</h1>
+                        <p class="text-sm text-gray-500">Manage your inventory efficiently</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="productManager.exportAllProducts()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-download mr-2"></i>Export All
+                    </button>
+                    <button id="addProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-plus mr-2"></i>Add Product
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-boxes text-2xl text-blue-500"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Products</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="totalProducts">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-check-circle text-2xl text-green-500"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Active Products</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="activeProducts">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-2xl text-yellow-500"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Low Stock</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="lowStock">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-dollar-sign text-2xl text-purple-500"></i>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Value</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="totalValue">₹0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Category Distribution</h3>
+                <div class="relative h-64">
+                    <canvas id="categoryChart"></canvas>
+                    <div id="chartLoading" class="absolute inset-0 flex items-center justify-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Stats</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Categories</span>
+                        <span class="text-sm font-medium" id="categoriesCount">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Avg Rating</span>
+                        <span class="text-sm font-medium" id="avgRating">0.0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Top Category</span>
+                        <span class="text-sm font-medium" id="topCategory">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="bg-white p-6 rounded-lg shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                    <div class="relative">
+                        <input type="text" id="globalSearch" placeholder="Search products..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select id="categoryFilter" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All Categories</option>
+                        <option value="fruits">Fruits</option>
+                        <option value="vegetables">Vegetables</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="bakery">Bakery</option>
+                        <option value="groceries">Groceries</option>
+                        <option value="meat">Meat & Seafood</option>
+                        <option value="bedsheet">Bedsheet</option>
+                        <option value="handloom">Handloom</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="statusFilter" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="draft">Draft</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Min Price</label>
+                    <input type="number" id="minPrice" placeholder="0" min="0" step="0.01" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Price</label>
+                    <input type="number" id="maxPrice" placeholder="1000" min="0" step="0.01" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div class="mt-4 flex justify-between items-center">
+                <button id="resetFilters" class="text-sm text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-undo mr-1"></i>Reset Filters
+                </button>
+                <div class="flex items-center space-x-4">
+                    <select id="sellerFilter" class="py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">All Sellers</option>
+                    </select>
+                    <input type="file" id="csvImport" accept=".csv" class="hidden" onchange="productManager.handleFileUpload(event)">
+                    <button onclick="document.getElementById('csvImport').click()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fas fa-upload mr-2"></i>Import CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div id="bulkActions" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-check-square text-yellow-600 mr-2"></i>
+                    <span class="text-sm font-medium text-yellow-800">
+                        <span id="selectedCount">0</span> products selected
+                    </span>
+                </div>
+                <div class="relative">
+                    <button class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-cog mr-2"></i>Bulk Actions
+                        <i class="fas fa-chevron-down ml-2"></i>
+                    </button>
+                    <div id="bulkActionsDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                        <div class="py-1">
+                            <button onclick="productManager.bulkUpdateStatus('active')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                                <i class="fas fa-check-circle mr-2 text-green-500"></i>Mark as Active
+                            </button>
+                            <button onclick="productManager.bulkUpdateStatus('inactive')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                                <i class="fas fa-times-circle mr-2 text-red-500"></i>Mark as Inactive
+                            </button>
+                            <button onclick="productManager.exportSelectedProducts()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                                <i class="fas fa-download mr-2 text-blue-500"></i>Export Selected
+                            </button>
+                            <button onclick="productManager.bulkDelete()" class="block px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left">
+                                <i class="fas fa-trash mr-2 text-red-500"></i>Delete Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-gray-900">Products</h3>
+                    <div class="flex items-center space-x-4">
+                        <select id="itemsPerPage" class="py-2 px-3 border border-gray-300 rounded-lg text-sm">
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                        <button onclick="productManager.printProductList()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input type="checkbox" id="selectAllHeader" class="rounded">
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="name">
+                                Product <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="category">
+                                Category <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="price">
+                                Price <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="stock">
+                                Stock <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="seller">
+                                Seller <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Rating & Sales
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="status">
+                                Status <i class="fas fa-sort ml-1 text-gray-400"></i>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr id="loadingRow" style="display: none;">
+                            <td colspan="9" class="px-6 py-8 text-center">
+                                <div class="flex justify-center items-center">
+                                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+                                    <span class="text-gray-500">Loading products...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 flex justify-between sm:hidden">
+                        <div id="paginationInfo" class="text-sm text-gray-700"></div>
+                    </div>
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p id="paginationInfo" class="text-sm text-gray-700"></p>
+                        </div>
+                        <div>
+                            <nav id="paginationControls" class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"></nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900">Add New Product</h3>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="productForm" class="space-y-6" onsubmit="return false;">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Basic Information -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-semibold text-gray-900">Basic Information</h4>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                            <input type="text" id="productName" required class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div class="flex space-x-2">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
+                                <input type="text" id="productSKU" required class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" id="generateSKUBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm" onclick="productManager.generateSKU()">
+                                    <i class="fas fa-random"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                            <select id="productCategory" required class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select Category</option>
+                                <option value="fruits">Fruits</option>
+                                <option value="vegetables">Vegetables</option>
+                                <option value="dairy">Dairy</option>
+                                <option value="bakery">Bakery</option>
+                                <option value="groceries">Groceries</option>
+                                <option value="meat">Meat & Seafood</option>
+                                <option value="bedsheet">Bedsheet</option>
+                                <option value="handloom">Handloom</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+                                <input type="number" id="productPrice" step="0.01" min="0" required class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
+                                <input type="number" id="productStock" min="0" required class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Seller</label>
+                            <input type="text" id="productSeller" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select id="productStatus" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="draft">Draft</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Image Upload -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-semibold text-gray-900">Product Images</h4>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Main Image</label>
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                                <div id="mainImagePlaceholder">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-600">Click to upload main image</p>
+                                    <button type="button" id="mainImageUpload" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                                        Choose File
+                                    </button>
+                                </div>
+                                
+                                <div id="mainImagePreview" class="hidden">
+                                    <img id="mainImageDisplay" src="" alt="Preview" class="max-h-32 mx-auto rounded">
+                                    <button type="button" id="removeMainImage" class="mt-2 text-red-600 hover:text-red-800 text-sm">
+                                        <i class="fas fa-trash mr-1"></i>Remove
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="file" id="mainImageInput" accept="image/*" class="hidden">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Additional Images (Max 5)</label>
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                <button type="button" id="additionalImageUpload" class="text-sm text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-plus mr-1"></i>Add More Images
+                                </button>
+                                <input type="file" id="additionalImageInput" accept="image/*" multiple class="hidden">
+                                <div id="additionalImagesPreview" class="mt-3 grid grid-cols-3 gap-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="productDescription" rows="4" class="w-full py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter product description..."></textarea>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <button type="button" id="saveDraftBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium" onclick="productManager.saveProductAsDraft()">
+                        Save as Draft
+                    </button>
+                    <button type="button" id="cancelBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-medium" onclick="productManager.closeProductModal()">
+                        Cancel
+                    </button>
+                    <button type="button" id="saveProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium" onclick="handleSaveProduct()">
+                        <span id="saveButtonText">Save Product</span>
+                        <i id="saveButtonSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Include your JavaScript -->
+    <script>
+        // Your ProductManager JavaScript code goes here
+        
+        // Global function to handle save button click
+        function handleSaveProduct() {
+          console.log('handleSaveProduct called');
+          if (window.productManager) {
+            console.log('Calling productManager.saveProduct()');
+            window.productManager.saveProduct();
+          } else {
+            console.error('productManager not available');
+            alert('Product manager not initialized. Please refresh the page.');
+          }
+        }
+        
+        class ProductManager {
+  constructor() {
+    this.products = [];
+    this.filteredProducts = [];
+    this.currentPage = 1;
+    this.itemsPerPage = 25;
+    this.filters = {};
+    this.sortBy = 'name';
+    this.sortOrder = 'asc';
+    this.editingProduct = null;
+    this.selectedProducts = [];
+    this.apiBaseUrl = 'https://quicklocal-backend.onrender.com/api';
+    this.init();
+  }
+  
+  init() {
+    this.setupEventListeners();
+    this.fetchProducts(); 
+    this.initializeChart();
+  }
+  
+  // =================================================================
+  // API METHODS (FIXED)
+  // =================================================================
+  // FIXED: Added fallback for when backend is not available
+  async fetchProducts() {
+    const loadingElement = document.getElementById('loadingRow');
+    if (loadingElement) loadingElement.style.display = 'table-row';
+    
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/products`);
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+      this.products = await response.json();
+      this.filteredProducts = [...this.products];
+      
+      this.renderProducts();
+      this.updateStats();
+      this.updateChart();
+
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      this.showNotification('Failed to load products from the server. Using demo data.', 'warning');
+      
+      // Load some demo data when backend is not available
+      this.products = this.getDemoProducts();
+      this.filteredProducts = [...this.products];
+      
+      this.renderProducts();
+      this.updateStats();
+      this.updateChart();
+      
+    } finally {
+      if (loadingElement) loadingElement.style.display = 'none';
+    }
+  }
+
+  // Demo data for when backend is not available
+  getDemoProducts() {
+    return [
+      {
+        id: '1',
+        name: 'Fresh Apples',
+        sku: 'FRE-FRU-001',
+        category: 'fruits',
+        price: 120.50,
+        stock: 45,
+        seller: 'Green Valley Farm',
+        description: 'Fresh red apples from the valley',
+        status: 'active',
+        rating: 4.5,
+        sales: 150,
+        image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=150'
+      },
+      {
+        id: '2', 
+        name: 'Organic Carrots',
+        sku: 'ORG-VEG-002',
+        category: 'vegetables',
+        price: 80.00,
+        stock: 30,
+        seller: 'Organic Farms',
+        description: 'Organic fresh carrots',
+        status: 'active',
+        rating: 4.2,
+        sales: 89,
+        image: 'https://images.unsplash.com/photo-1445282768818-728615cc910a?w=150'
+      },
+      {
+        id: '3',
+        name: 'Fresh Milk',
+        sku: 'FRE-DAI-003', 
+        category: 'dairy',
+        price: 55.00,
+        stock: 25,
+        seller: 'Dairy Best',
+        description: 'Fresh cow milk 1L',
+        status: 'active',
+        rating: 4.8,
+        sales: 200,
+        image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=150'
+      },
+      {
+        id: '4',
+        name: 'Cotton Bedsheet Set',
+        sku: 'COT-BED-004',
+        category: 'bedsheet',
+        price: 1500.00,
+        stock: 15,
+        seller: 'Home Textiles Co',
+        description: 'Premium cotton bedsheet set with pillow covers',
+        status: 'active',
+        rating: 4.3,
+        sales: 45,
+        image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=150'
+      },
+      {
+        id: '5',
+        name: 'Handwoven Cotton Saree',
+        sku: 'HAN-HAN-005',
+        category: 'handloom',
+        price: 2800.00,
+        stock: 8,
+        seller: 'Traditional Weavers',
+        description: 'Beautiful handwoven cotton saree with traditional patterns',
+        status: 'active',
+        rating: 4.7,
+        sales: 23,
+        image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=150'
+      }
+    ];
+  }
+
+  async saveProduct() {
+    console.log('saveProduct method called');
+    
+    const saveBtn = document.getElementById('saveProductBtn');
+    const saveButtonText = document.getElementById('saveButtonText');
+    const saveButtonSpinner = document.getElementById('saveButtonSpinner');
+    
+    // Show loading state
+    if (saveBtn) saveBtn.disabled = true;
+    if (saveButtonText) saveButtonText.textContent = 'Saving...';
+    if (saveButtonSpinner) saveButtonSpinner.classList.remove('hidden');
+    
+    const isEditing = !!this.editingProduct;
+    console.log('Is editing:', isEditing);
+    
+    try {
+      // Get form data
+      const productData = this.collectFormData();
+      console.log('Product data collected:', productData);
+      
+      // Validation
+      if (!productData.name || !productData.sku || !productData.category) {
+        console.log('Validation failed:', { name: productData.name, sku: productData.sku, category: productData.category });
+        this.showNotification('Please fill in all required fields (Name, SKU, Category)', 'error');
+        return;
+      }
+
+      if (productData.price <= 0 || productData.stock < 0) {
+        console.log('Price/Stock validation failed:', { price: productData.price, stock: productData.stock });
+        this.showNotification('Please enter valid price and stock values', 'error');
+        return;
+      }
+
+      // If backend is available, try to save to server
+      let success = false;
+      try {
+        const imageInput = document.getElementById('mainImageInput');
+        const imageFile = imageInput ? imageInput.files[0] : null;
+
+        const formData = new FormData();
+        
+        // Add all product data fields to formData
+        for (const key in productData) {
+          formData.append(key, productData[key]);
+        }
+        
+        // Add the image file if it exists
+        if (imageFile) {
+          formData.append('image', imageFile);
+        }
+
+        const url = isEditing
+          ? `${this.apiBaseUrl}/products/${this.editingProduct.id || this.editingProduct._id}`
+          : `${this.apiBaseUrl}/products`;
+        
+        console.log('Sending request to:', url);
+        
+        const response = await fetch(url, {
+          method: isEditing ? 'PUT' : 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          success = true;
+          console.log('Server save successful');
+        } else {
+          throw new Error(`Server error: ${response.status}`);
+        }
+      } catch (serverError) {
+        console.log('Server save failed, saving locally:', serverError.message);
+        // Fall back to local save
+      }
+
+      // Local save (either as fallback or primary method)
+      if (!success) {
+        console.log('Saving locally');
+        
+        if (isEditing) {
+          // Update existing product
+          const index = this.products.findIndex(p => (p.id || p._id) === (this.editingProduct.id || this.editingProduct._id));
+          if (index !== -1) {
+            this.products[index] = { ...this.editingProduct, ...productData };
+            console.log('Product updated locally');
+          }
+        } else {
+          // Add new product
+          const newProduct = {
+            id: Date.now().toString(),
+            ...productData,
+            image: 'https://via.placeholder.com/150',
+            rating: 0,
+            sales: 0
+          };
+          this.products.push(newProduct);
+          console.log('Product added locally:', newProduct);
+        }
+        
+        this.filteredProducts = [...this.products];
+        this.renderProducts();
+        this.updateStats();
+        this.updateChart();
+      }
+
+      this.showNotification(`Product ${isEditing ? 'updated' : 'added'} successfully!`, 'success');
+      this.closeProductModal();
+      
+      if (success) {
+        await this.fetchProducts(); // Refresh from server if server save was successful
+      }
+
+    } catch (error) {
+      console.error('Save failed:', error);
+      this.showNotification(`Save failed: ${error.message}`, 'error');
+    } finally {
+      // Reset loading state
+      if (saveBtn) saveBtn.disabled = false;
+      if (saveButtonText) saveButtonText.textContent = 'Save Product';
+      if (saveButtonSpinner) saveButtonSpinner.classList.add('hidden');
+    }
+  }
+
+  async deleteProduct(productId) {
+    if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/products/${productId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('The product could not be deleted on the server.');
+        }
+
+        this.showNotification('Product deleted successfully!', 'success');
+        await this.fetchProducts();
+
+      } catch (error) {
+        console.error('Failed to delete product:', error);
+        this.showNotification(error.message, 'error');
+      }
+    }
+  }
+
+  // =================================================================
+  // EVENT LISTENERS SETUP
+  // =================================================================
+  setupEventListeners() {
+    // Search
+    const globalSearch = document.getElementById('globalSearch');
+    if (globalSearch) {
+      globalSearch.addEventListener('input', (e) => {
+        this.debounce(this.handleSearch.bind(this), 500)(e.target.value);
+      });
+    }
+    
+    // Filters
+    ['categoryFilter', 'statusFilter', 'sellerFilter'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('change', () => {
+          this.applyFilters();
+        });
+      }
+    });
+    
+    // Price range
+    ['minPrice', 'maxPrice'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('input', 
+          this.debounce(() => this.applyFilters(), 500)
+        );
+      }
+    });
+    
+    // Sorting
+    document.querySelectorAll('[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const sortField = th.getAttribute('data-sort');
+        this.sortProducts(sortField);
+      });
+    });
+    
+    // Modal controls
+    const addProductBtn = document.getElementById('addProductBtn');
+    if (addProductBtn) {
+      addProductBtn.addEventListener('click', () => {
+        this.openProductModal();
+      });
+    }
+    
+    const closeModal = document.getElementById('closeModal');
+    if (closeModal) {
+      closeModal.addEventListener('click', () => {
+        this.closeProductModal();
+      });
+    }
+    
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        this.closeProductModal();
+      });
+    }
+    
+    // Form submission - SIMPLIFIED approach
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+      console.log('Form found, attaching listener');
+      productForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        console.log('Form submitted via addEventListener');
+        this.saveProduct();
+      });
+    } else {
+      console.error('Product form not found');
+    }
+    
+    // Direct button click handler as backup  
+    const saveProductBtn = document.getElementById('saveProductBtn');
+    if (saveProductBtn) {
+      console.log('Save button found');
+      // The onclick is handled in HTML, but add backup listener
+      saveProductBtn.addEventListener('click', (e) => {
+        console.log('Save button clicked via addEventListener');
+        e.preventDefault();
+        this.saveProduct();
+      });
+    } else {
+      console.error('Save button not found');
+    }
+    
+    // Save draft
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    if (saveDraftBtn) {
+      saveDraftBtn.addEventListener('click', () => {
+        this.saveProductAsDraft();
+      });
+    }
+    
+    // Generate SKU
+    const generateSKUBtn = document.getElementById('generateSKUBtn');
+    if (generateSKUBtn) {
+      generateSKUBtn.addEventListener('click', () => {
+        this.generateSKU();
+      });
+    }
+    
+    // Image uploads
+    this.setupImageUpload();
+    
+    // Bulk actions
+    const bulkActions = document.getElementById('bulkActions');
+    if (bulkActions) {
+      bulkActions.addEventListener('click', (e) => {
+        this.toggleBulkActionsDropdown(e);
+      });
+    }
+    
+    // Select all checkbox
+    const selectAllHeader = document.getElementById('selectAllHeader');
+    if (selectAllHeader) {
+      selectAllHeader.addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.product-checkbox');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        this.updateSelectedProducts();
+      });
+    }
+    
+    // Reset filters
+    const resetFilters = document.getElementById('resetFilters');
+    if (resetFilters) {
+      resetFilters.addEventListener('click', () => {
+        this.resetFilters();
+      });
+    }
+    
+    // Items per page
+    const itemsPerPage = document.getElementById('itemsPerPage');
+    if (itemsPerPage) {
+      itemsPerPage.addEventListener('change', (e) => {
+        this.itemsPerPage = parseInt(e.target.value);
+        this.currentPage = 1;
+        this.renderProducts();
+      });
+    }
+    
+    // Close bulk actions when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#bulkActions') && !e.target.closest('#bulkActionsDropdown')) {
+        const dropdown = document.getElementById('bulkActionsDropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  // Continue with the rest of your methods...
+  // Adding all the remaining methods from your original code
+  
+  setupImageUpload() {
+    // Main image upload
+    const mainImageUpload = document.getElementById('mainImageUpload');
+    const mainImageInput = document.getElementById('mainImageInput');
+    
+    if (mainImageUpload && mainImageInput) {
+      mainImageUpload.addEventListener('click', () => {
+        mainImageInput.click();
+      });
+      
+      mainImageInput.addEventListener('change', (e) => {
+        this.handleMainImageUpload(e.target.files[0]);
+      });
+    }
+    
+    // Additional images upload
+    const additionalImageUpload = document.getElementById('additionalImageUpload');
+    const additionalImageInput = document.getElementById('additionalImageInput');
+    
+    if (additionalImageUpload && additionalImageInput) {
+      additionalImageUpload.addEventListener('click', () => {
+        additionalImageInput.click();
+      });
+      
+      additionalImageInput.addEventListener('change', (e) => {
+        this.handleAdditionalImagesUpload(e.target.files);
+      });
+    }
+  }
+  
+  handleMainImageUpload(file) {
+    if (!file) return;
+    
+    // Validate file type and size
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (!validTypes.includes(file.type)) {
+      this.showNotification('Please upload a valid image (JPEG, PNG, GIF, WebP)', 'error');
+      return;
+    }
+    
+    if (file.size > maxSize) {
+      this.showNotification('Image size should be less than 5MB', 'error');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const preview = document.getElementById('mainImagePreview');
+      const placeholder = document.getElementById('mainImagePlaceholder');
+      const display = document.getElementById('mainImageDisplay');
+      
+      if (display) display.src = e.target.result;
+      if (preview) preview.classList.remove('hidden');
+      if (placeholder) placeholder.classList.add('hidden');
+      
+      // Set up remove image functionality
+      const removeBtn = document.getElementById('removeMainImage');
+      if (removeBtn) {
+        removeBtn.onclick = () => this.removeMainImage();
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  removeMainImage() {
+    const preview = document.getElementById('mainImagePreview');
+    const placeholder = document.getElementById('mainImagePlaceholder');
+    const input = document.getElementById('mainImageInput');
+    
+    if (preview) preview.classList.add('hidden');
+    if (placeholder) placeholder.classList.remove('hidden');
+    if (input) input.value = '';
+  }
+
+  handleAdditionalImagesUpload(files) {
+    if (!files || files.length === 0) return;
+    
+    const previewContainer = document.getElementById('additionalImagesPreview');
+    if (!previewContainer) return;
+    
+    // Clear existing previews
+    previewContainer.innerHTML = '';
+    
+    // Limit to 5 additional images
+    const maxImages = 5;
+    const filesToProcess = Array.from(files).slice(0, maxImages);
+    
+    filesToProcess.forEach((file, index) => {
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      if (!validTypes.includes(file.type)) {
+        this.showNotification(`Image ${index + 1} is not a valid type (JPEG, PNG, GIF, WebP)`, 'error');
+        return;
+      }
+      
+      if (file.size > maxSize) {
+        this.showNotification(`Image ${index + 1} exceeds 5MB limit`, 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const previewItem = document.createElement('div');
+        previewItem.className = 'relative group';
+        previewItem.innerHTML = `
+          <img src="${e.target.result}" class="w-full h-20 object-cover rounded-lg">
+          <button class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="this.parentElement.remove()">
+            <i class="fas fa-times text-xs"></i>
+          </button>
+        `;
+        previewContainer.appendChild(previewItem);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  initializeChart() {
+    const ctx = document.getElementById('categoryChart');
+    if (!ctx) return;
+    
+            this.categoryChart = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E67E22', '#8E44AD'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15, font: { size: 11 }}},
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = Math.round((context.raw / total) * 100);
+                return `${context.label}: ${context.raw} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    const chartLoading = document.getElementById('chartLoading');
+    if (chartLoading) chartLoading.style.display = 'none';
+  }
+
+  updateChart() {
+    if (!this.categoryChart) return;
+    
+    const categoryCount = this.products.reduce((acc, product) => {
+      acc[product.category] = (acc[product.category] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const totalProducts = this.products.length;
+    let topCategory = { name: '', count: 0 };
+    
+    for (const [category, count] of Object.entries(categoryCount)) {
+      if (count > topCategory.count) {
+        topCategory = { name: category, count };
+      }
+    }
+    
+    const topCategoryElement = document.getElementById('topCategory');
+    if (topCategoryElement) {
+      topCategoryElement.textContent = `${this.formatCategoryName(topCategory.name)} (${totalProducts > 0 ? Math.round((topCategory.count / totalProducts) * 100) : 0}%)`;
+    }
+    
+    this.categoryChart.data.labels = Object.keys(categoryCount).map(cat => this.formatCategoryName(cat));
+    this.categoryChart.data.datasets[0].data = Object.values(categoryCount);
+    this.categoryChart.update();
+  }
+
+  formatCategoryName(category) {
+    const names = {
+      fruits: 'Fruits',
+      vegetables: 'Vegetables',
+      dairy: 'Dairy',
+      bakery: 'Bakery',
+      groceries: 'Groceries',
+      meat: 'Meat & Seafood',
+      bedsheet: 'Bedsheet',
+      handloom: 'Handloom'
+    };
+    return names[category] || category.charAt(0).toUpperCase() + category.slice(1);
+  }
+
+  // Adding remaining essential methods...
+  
+  renderProducts() {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+    
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    const paginatedProducts = this.filteredProducts.slice(startIndex, endIndex);
+    
+    const loadingRow = document.getElementById('loadingRow');
+    if (loadingRow) loadingRow.style.display = 'none';
+    
+    tbody.innerHTML = '';
+    
+    if (paginatedProducts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center"><div class="flex flex-col items-center justify-center space-y-3"><i class="fas fa-box-open text-4xl text-gray-400"></i><p class="text-gray-600 font-medium">No products found</p></div></td></tr>`;
+      return;
+    }
+    
+    paginatedProducts.forEach(product => {
+      const row = document.createElement('tr');
+      row.className = 'table-row hover:bg-gray-50 transition-colors';
+      row.innerHTML = `
+        <td class="px-4 md:px-6 py-3 md:py-4"><input type="checkbox" class="product-checkbox rounded" value="${product.id || product._id}" onchange="productManager.updateSelectedProducts()"></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="flex items-center"><img src="${product.image || 'https://via.placeholder.com/150'}" alt="${product.name}" class="w-12 md:w-16 h-12 md:h-16 rounded-lg object-cover mr-3 md:mr-4 shadow-sm"><div><div class="font-semibold text-gray-900 text-xs md:text-sm">${product.name}</div><div class="text-gray-500 text-xs">${product.sku}</div></div></div></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><span class="category-chip inline-flex items-center px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs font-medium text-white" style="background-color: ${this.getCategoryColor(product.category)}">${this.getCategoryIcon(product.category)} ${this.formatCategoryName(product.category)}</span></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="text-sm font-semibold text-gray-900">₹${(product.price || 0).toFixed(2)}</div></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="flex items-center"><span class="text-sm font-medium text-gray-900 mr-2">${product.stock}</span>${this.getStockIndicator(product.stock)}</div></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="text-sm font-medium text-gray-900">${product.seller || 'N/A'}</div></td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="flex items-center space-x-2"><div class="flex items-center"><span class="text-yellow-400 mr-1">⭐</span><span class="font-medium text-sm">${product.rating || 'N/A'}</span></div><div class="text-gray-500 text-xs">${product.sales || 0} sales</div></div></td>
+        <td class="px-4 md:px-6 py-3 md:py-4">${this.getStatusBadge(product.status)}</td>
+        <td class="px-4 md:px-6 py-3 md:py-4"><div class="flex items-center space-x-1 md:space-x-2"><button onclick="productManager.editProduct('${product.id || product._id}')" class="text-green-600 hover:text-green-900 transition-colors tooltip" title="Edit"><i class="fas fa-edit"></i></button><button onclick="productManager.viewProductDetails('${product.id || product._id}')" class="text-blue-600 hover:text-blue-900 transition-colors tooltip" title="View"><i class="fas fa-eye"></i></button><button onclick="productManager.deleteProduct('${product.id || product._id}')" class="text-red-600 hover:text-red-900 transition-colors tooltip" title="Delete"><i class="fas fa-trash"></i></button></div></td>
+      `;
+      tbody.appendChild(row);
+    });
+    
+    this.updatePagination();
+  }
+
+  getCategoryIcon(category) {
+    const icons = {
+      fruits: '🍎',
+      vegetables: '🥕',
+      dairy: '🥛',
+      bakery: '🍞',
+      groceries: '📦',
+      meat: '🥩',
+      bedsheet: '🛏️',
+      handloom: '🧵'
+    };
+    return icons[category] || '📦';
+  }
+  
+  getCategoryColor(category) {
+    const colors = {
+      fruits: '#FF6384',
+      vegetables: '#4BC0C0',
+      dairy: '#36A2EB',
+      bakery: '#FFCE56',
+      groceries: '#9966FF',
+      meat: '#FF9F40'
+    };
+    return colors[category] || '#6B7280';
+  }
+  
+  getStockIndicator(stock) {
+    if (stock <= 0) {
+      return '<span class="inline-flex w-2 h-2 bg-red-500 rounded-full" title="Out of stock"></span>';
+    } else if (stock <= 10) {
+      return '<span class="inline-flex w-2 h-2 bg-yellow-500 rounded-full" title="Low stock"></span>';
+    } else {
+      return '<span class="inline-flex w-2 h-2 bg-green-500 rounded-full" title="In stock"></span>';
+    }
+  }
+  
+  getStatusBadge(status) {
+    const statusConfig = {
+      active: { text: 'Active', class: 'bg-green-100 text-green-800' },
+      inactive: { text: 'Inactive', class: 'bg-red-100 text-red-800' },
+      draft: { text: 'Draft', class: 'bg-gray-100 text-gray-800' },
+      pending: { text: 'Pending', class: 'bg-yellow-100 text-yellow-800' }
+    };
+    
+    const config = statusConfig[status] || statusConfig.active;
+    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.class}">${config.text}</span>`;
+  }
+
+  // Modal methods
+  openProductModal(product = null) {
+    this.editingProduct = product;
+    const modal = document.getElementById('productModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const form = document.getElementById('productForm');
+    
+    if (!modal) return;
+    
+    if (modalTitle) modalTitle.textContent = product ? 'Edit Product' : 'Add New Product';
+    
+    if (product) {
+      this.populateForm(product);
+    } else {
+      if (form) form.reset();
+      this.resetImagePreviews();
+    }
+    
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  
+  closeProductModal() {
+    const modal = document.getElementById('productModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+    
+    this.editingProduct = null;
+    const form = document.getElementById('productForm');
+    if (form) form.reset();
+    this.resetImagePreviews();
+  }
+
+  populateForm(product) {
+    const fields = [
+      'productName', 'productSKU', 'productCategory', 'productPrice',
+      'productStock', 'productSeller', 'productDescription', 'productStatus'
+    ];
+    
+    const values = {
+      productName: product.name || '',
+      productSKU: product.sku || '',
+      productCategory: product.category || '',
+      productPrice: product.price || '',
+      productStock: product.stock || '',
+      productSeller: product.seller || '',
+      productDescription: product.description || '',
+      productStatus: product.status || 'active'
+    };
+    
+    fields.forEach(fieldId => {
+      const element = document.getElementById(fieldId);
+      if (element) element.value = values[fieldId];
+    });
+    
+    // Handle image preview if editing
+    if (product.image) {
+      const preview = document.getElementById('mainImagePreview');
+      const placeholder = document.getElementById('mainImagePlaceholder');
+      const display = document.getElementById('mainImageDisplay');
+      
+      if (display) display.src = product.image;
+      if (preview) preview.classList.remove('hidden');
+      if (placeholder) placeholder.classList.add('hidden');
+    }
+  }
+
+  // FIXED: Improved form data collection with better validation
+  collectFormData() {
+    const name = this.getElementValue('productName');
+    const sku = this.getElementValue('productSKU');
+    const category = this.getElementValue('productCategory');
+    const priceStr = this.getElementValue('productPrice');
+    const stockStr = this.getElementValue('productStock');
+    
+    const price = parseFloat(priceStr);
+    const stock = parseInt(stockStr);
+    
+    console.log('Collecting form data:', {
+      name, sku, category, price, stock,
+      priceStr, stockStr
+    });
+    
+    return {
+      name: name,
+      sku: sku,
+      category: category,
+      price: isNaN(price) ? 0 : price,
+      stock: isNaN(stock) ? 0 : stock,
+      seller: this.getElementValue('productSeller'),
+      description: this.getElementValue('productDescription'),
+      status: this.getElementValue('productStatus') || 'active',
+      rating: this.editingProduct ? (this.editingProduct.rating || 0) : 0,
+      sales: this.editingProduct ? (this.editingProduct.sales || 0) : 0
+    };
+  }
+  
+  getElementValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value.trim() : '';
+  }
+
+  resetImagePreviews() {
+    const mainPreview = document.getElementById('mainImagePreview');
+    const mainPlaceholder = document.getElementById('mainImagePlaceholder');
+    const additionalPreview = document.getElementById('additionalImagesPreview');
+    const mainInput = document.getElementById('mainImageInput');
+    
+    if (mainPreview) mainPreview.classList.add('hidden');
+    if (mainPlaceholder) mainPlaceholder.classList.remove('hidden');
+    if (additionalPreview) additionalPreview.innerHTML = '';
+    if (mainInput) mainInput.value = '';
+  }
+
+  editProduct(productId) {
+    const product = this.products.find(p => (p.id || p._id) === productId);
+    if (product) {
+      this.openProductModal(product);
+    }
+  }
+
+  generateSKU() {
+    const name = this.getElementValue('productName');
+    const category = this.getElementValue('productCategory');
+    
+    if (!name || !category) {
+      this.showNotification('Please enter product name and category first', 'error');
+      return;
+    }
+    
+    const namePrefix = name.substring(0, 3).toUpperCase();
+    const categoryPrefix = category.substring(0, 3).toUpperCase();
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    
+    const sku = `${namePrefix}-${categoryPrefix}-${randomNum}`;
+    const skuElement = document.getElementById('productSKU');
+    if (skuElement) skuElement.value = sku;
+  }
+
+  saveProductAsDraft() {
+    const statusField = document.getElementById('productStatus');
+    if (!statusField) return;
+    
+    const originalStatus = statusField.value;
+    statusField.value = 'draft';
+    
+    this.saveProduct().then(() => {
+      statusField.value = originalStatus;
+    });
+  }
+
+  // Search and filter methods
+  handleSearch(searchTerm) {
+    this.filters.search = searchTerm.toLowerCase();
+    this.applyFilters();
+  }
+  
+  applyFilters() {
+    this.filteredProducts = this.products.filter(product => {
+      // Search filter
+      if (this.filters.search) {
+        const searchFields = [product.name, product.sku, product.seller, product.category].join(' ').toLowerCase();
+        if (!searchFields.includes(this.filters.search)) {
+          return false;
+        }
+      }
+      
+      // Category filter
+      const categoryFilter = this.getElementValue('categoryFilter');
+      if (categoryFilter && product.category !== categoryFilter) {
+        return false;
+      }
+      
+      // Status filter
+      const statusFilter = this.getElementValue('statusFilter');
+      if (statusFilter && product.status !== statusFilter) {
+        return false;
+      }
+      
+      // Seller filter
+      const sellerFilter = this.getElementValue('sellerFilter');
+      if (sellerFilter && product.seller !== sellerFilter) {
+        return false;
+      }
+      
+      // Price range filter
+      const minPrice = parseFloat(this.getElementValue('minPrice')) || 0;
+      const maxPrice = parseFloat(this.getElementValue('maxPrice')) || Infinity;
+      if (product.price < minPrice || product.price > maxPrice) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    this.currentPage = 1;
+    this.renderProducts();
+    this.updateStats();
+  }
+
+  resetFilters() {
+    const filterIds = ['globalSearch', 'categoryFilter', 'statusFilter', 'sellerFilter', 'minPrice', 'maxPrice'];
+    filterIds.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.value = '';
+    });
+    
+    this.filters = {};
+    this.filteredProducts = [...this.products];
+    this.currentPage = 1;
+    this.renderProducts();
+    this.updateStats();
+  }
+
+  // Pagination
+  updatePagination() {
+    const totalItems = this.filteredProducts.length;
+    const totalPages = Math.ceil(totalItems / this.itemsPerPage);
+    const paginationControls = document.getElementById('paginationControls');
+    
+    if (!paginationControls || totalPages <= 1) {
+      if (paginationControls) paginationControls.innerHTML = '';
+      this.updatePaginationInfo();
+      return;
+    }
+
+    paginationControls.innerHTML = '';
+    paginationControls.className = 'flex items-center space-x-2';
+
+    // Previous Button
+    const prevButton = document.createElement('button');
+    prevButton.innerHTML = `<i class="fas fa-chevron-left"></i>`;
+    prevButton.className = `px-3 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${this.currentPage === 1 ? 'bg-gray-100' : 'bg-white'}`;
+    prevButton.disabled = this.currentPage === 1;
+    prevButton.onclick = () => {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        this.renderProducts();
+      }
+    };
+    paginationControls.appendChild(prevButton);
+
+    // Page buttons logic (simplified)
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust start page if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    // Page Number Buttons
+    for (let i = startPage; i <= endPage; i++) {
+      const pageButton = document.createElement('button');
+      pageButton.textContent = i;
+      pageButton.className = `px-3 py-2 border border-gray-300 rounded ${i === this.currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:bg-gray-50'}`;
+      pageButton.onclick = () => {
+        this.currentPage = i;
+        this.renderProducts();
+      };
+      paginationControls.appendChild(pageButton);
+    }
+
+    // Next Button
+    const nextButton = document.createElement('button');
+    nextButton.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+    nextButton.className = `px-3 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${this.currentPage === totalPages ? 'bg-gray-100' : 'bg-white'}`;
+    nextButton.disabled = this.currentPage === totalPages;
+    nextButton.onclick = () => {
+      if (this.currentPage < totalPages) {
+        this.currentPage++;
+        this.renderProducts();
+      }
+    };
+    paginationControls.appendChild(nextButton);
+    
+    this.updatePaginationInfo();
+  }
+  
+  updatePaginationInfo() {
+    const start = (this.currentPage - 1) * this.itemsPerPage + 1;
+    const end = Math.min(this.currentPage * this.itemsPerPage, this.filteredProducts.length);
+    const paginationInfo = document.getElementById('paginationInfo');
+    
+    if (paginationInfo) {
+      if (this.filteredProducts.length === 0) {
+        paginationInfo.textContent = 'No results found';
+      } else {
+        paginationInfo.textContent = `Showing ${start} to ${end} of ${this.filteredProducts.length} results`;
+      }
+    }
+  }
+
+  // Sorting
+  sortProducts(field, order = null) {
+    if (field === this.sortBy) {
+      this.sortOrder = order || (this.sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortBy = field;
+      this.sortOrder = 'asc';
+    }
+    
+    document.querySelectorAll('[data-sort]').forEach(th => {
+      const icon = th.querySelector('i');
+      if (icon) {
+        if (th.getAttribute('data-sort') === field) {
+          icon.className = this.sortOrder === 'asc' ? 'fas fa-sort-up ml-1' : 'fas fa-sort-down ml-1';
+        } else {
+          icon.className = 'fas fa-sort ml-1 text-gray-400';
+        }
+      }
+    });
+    
+    this.filteredProducts.sort((a, b) => {
+      let valueA = a[field];
+      let valueB = b[field];
+      
+      if (typeof valueA === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+
+      if (valueA < valueB) return this.sortOrder === 'asc' ? -1 : 1;
+      if (valueA > valueB) return this.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    this.renderProducts();
+  }
+
+  // Bulk actions
+  toggleBulkActionsDropdown(e) {
+    e.stopPropagation();
+    const dropdown = document.getElementById('bulkActionsDropdown');
+    if (dropdown) dropdown.classList.toggle('hidden');
+  }
+  
+  updateSelectedProducts() {
+    const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+    this.selectedProducts = Array.from(checkboxes).map(cb => cb.value);
+    
+    const selectAllHeader = document.getElementById('selectAllHeader');
+    const allCheckboxes = document.querySelectorAll('.product-checkbox');
+    
+    if (selectAllHeader) {
+      if (this.selectedProducts.length === 0) {
+        selectAllHeader.indeterminate = false;
+        selectAllHeader.checked = false;
+      } else if (this.selectedProducts.length === allCheckboxes.length) {
+        selectAllHeader.indeterminate = false;
+        selectAllHeader.checked = true;
+      } else {
+        selectAllHeader.indeterminate = true;
+      }
+    }
+    
+    // Update bulk actions button
+    const bulkActionsBtn = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (bulkActionsBtn) {
+      if (this.selectedProducts.length > 0) {
+        bulkActionsBtn.classList.remove('hidden');
+        if (selectedCount) selectedCount.textContent = this.selectedProducts.length;
+      } else {
+        bulkActionsBtn.classList.add('hidden');
+      }
+    }
+  }
+
+  async bulkDelete() {
+    if (this.selectedProducts.length === 0) {
+      this.showNotification('No products selected', 'error');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${this.selectedProducts.length} selected products? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const promises = this.selectedProducts.map(productId =>
+        fetch(`${this.apiBaseUrl}/products/${productId}`, { method: 'DELETE' })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter(result => result.status === 'rejected').length;
+      const succeeded = results.length - failed;
+      
+      if (succeeded > 0) {
+        this.showNotification(`${succeeded} products deleted successfully!`, 'success');
+      }
+      if (failed > 0) {
+        this.showNotification(`${failed} products could not be deleted`, 'warning');
+      }
+      
+      // Reset selection
+      this.selectedProducts = [];
+      const selectAllHeader = document.getElementById('selectAllHeader');
+      if (selectAllHeader) selectAllHeader.checked = false;
+      
+      const dropdown = document.getElementById('bulkActionsDropdown');
+      if (dropdown) dropdown.classList.add('hidden');
+      
+      await this.fetchProducts();
+      
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      this.showNotification('Bulk delete operation failed', 'error');
+    }
+  }
+
+  async bulkUpdateStatus(status) {
+    if (this.selectedProducts.length === 0) {
+      this.showNotification('No products selected', 'error');
+      return;
+    }
+    
+    try {
+      const promises = this.selectedProducts.map(productId => {
+        const product = this.products.find(p => (p.id || p._id) === productId);
+        if (!product) return Promise.resolve();
+        
+        return fetch(`${this.apiBaseUrl}/products/${productId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...product, status })
+        });
+      });
+      
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter(result => result.status === 'rejected').length;
+      const succeeded = results.length - failed;
+      
+      if (succeeded > 0) {
+        this.showNotification(`${succeeded} products updated to ${status}!`, 'success');
+      }
+      if (failed > 0) {
+        this.showNotification(`${failed} products could not be updated`, 'warning');
+      }
+      
+      // Reset selection
+      this.selectedProducts = [];
+      const selectAllHeader = document.getElementById('selectAllHeader');
+      if (selectAllHeader) selectAllHeader.checked = false;
+      
+      const dropdown = document.getElementById('bulkActionsDropdown');
+      if (dropdown) dropdown.classList.add('hidden');
+      
+      await this.fetchProducts();
+      
+    } catch (error) {
+      console.error('Bulk status update failed:', error);
+      this.showNotification('Bulk status update failed', 'error');
+    }
+  }
+
+  exportSelectedProducts() {
+    if (this.selectedProducts.length === 0) {
+      this.showNotification('No products selected', 'error');
+      return;
+    }
+    
+    const selectedProductsData = this.products.filter(product => 
+      this.selectedProducts.includes(product.id || product._id)
+    );
+    
+    this.exportToCSV(selectedProductsData, 'selected_products.csv');
+    const dropdown = document.getElementById('bulkActionsDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+  }
+
+  // Statistics
+  updateStats() {
+    // Total products
+    const totalProductsEl = document.getElementById('totalProducts');
+    if (totalProductsEl) totalProductsEl.textContent = this.products.length;
+    
+    // Active products
+    const activeProducts = this.products.filter(p => p.status === 'active').length;
+    const activeProductsEl = document.getElementById('activeProducts');
+    if (activeProductsEl) activeProductsEl.textContent = activeProducts;
+    
+    // Low stock products (stock <= 10)
+    const lowStockProducts = this.products.filter(p => p.stock <= 10).length;
+    const lowStockEl = document.getElementById('lowStock') || document.getElementById('lowStockProducts');
+    if (lowStockEl) lowStockEl.textContent = lowStockProducts;
+    
+    // Total value
+    const totalValue = this.products.reduce((sum, product) => sum + (product.price * product.stock), 0);
+    const totalValueEl = document.getElementById('totalValue');
+    if (totalValueEl) totalValueEl.textContent = `₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    
+    // Categories count
+    const categoriesCount = new Set(this.products.map(p => p.category)).size;
+    const categoriesCountEl = document.getElementById('categoriesCount');
+    if (categoriesCountEl) categoriesCountEl.textContent = categoriesCount;
+    
+    // Average rating
+    const productsWithRating = this.products.filter(p => p.rating && p.rating > 0);
+    const avgRating = productsWithRating.length > 0 
+      ? (productsWithRating.reduce((sum, product) => sum + product.rating, 0) / productsWithRating.length).toFixed(1)
+      : '0.0';
+    const avgRatingEl = document.getElementById('avgRating');
+    if (avgRatingEl) avgRatingEl.textContent = avgRating;
+  }
+
+  // Utility methods
+  debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+  
+  showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification-toast');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification-toast fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-sm transition-all duration-300 transform translate-x-full`;
+    
+    // Set notification style based on type
+    const styles = {
+      success: 'bg-green-500 text-white',
+      error: 'bg-red-500 text-white',
+      warning: 'bg-yellow-500 text-white',
+      info: 'bg-blue-500 text-white'
+    };
+    
+    notification.className += ` ${styles[type] || styles.info}`;
+    
+    // Set notification content
+    const icons = {
+      success: 'fa-check-circle',
+      error: 'fa-exclamation-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle'
+    };
+    
+    notification.innerHTML = `
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <i class="fas ${icons[type] || icons.info}"></i>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm font-medium">${message}</p>
+        </div>
+        <button class="ml-4 flex-shrink-0 hover:opacity-75" onclick="this.parentElement.parentElement.remove()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+      notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+          if (notification.parentElement) {
+            notification.remove();
+          }
+        }, 300);
+      }
+    }, 5000);
+  }
+
+  exportToCSV(data, filename) {
+    if (!data || data.length === 0) {
+      this.showNotification('No data to export', 'warning');
+      return;
+    }
+
+    const headers = ['Name', 'SKU', 'Category', 'Price', 'Stock', 'Seller', 'Status', 'Rating', 'Sales'];
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(product => {
+      const row = [
+        `"${(product.name || '').replace(/"/g, '""')}"`,
+        `"${(product.sku || '').replace(/"/g, '""')}"`,
+        `"${(product.category || '').replace(/"/g, '""')}"`,
+        product.price || 0,
+        product.stock || 0,
+        `"${(product.seller || '').replace(/"/g, '""')}"`,
+        `"${(product.status || '').replace(/"/g, '""')}"`,
+        product.rating || 0,
+        product.sales || 0
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('hidden', '');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the URL object
+    URL.revokeObjectURL(url);
+    
+    this.showNotification('Products exported successfully!', 'success');
+  }
+
+  exportAllProducts() {
+    this.exportToCSV(this.products, 'all_products.csv');
+  }
+
+  exportFilteredProducts() {
+    this.exportToCSV(this.filteredProducts, 'filtered_products.csv');
+  }
+
+  handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (file && file.type === 'text/csv') {
+      this.importFromCSV(file);
+    } else {
+      this.showNotification('Please select a valid CSV file', 'error');
+    }
+    // Reset the input
+    event.target.value = '';
+  }
+
+  importFromCSV(file) {
+    if (!file) {
+      this.showNotification('Please select a file', 'error');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csv = e.target.result;
+        const lines = csv.split('\n').filter(line => line.trim());
+        
+        if (lines.length <= 1) {
+          this.showNotification('CSV file appears to be empty or invalid', 'error');
+          return;
+        }
+        
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+        const products = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const values = this.parseCSVLine(lines[i]);
+          if (values.length === 0) continue;
+          
+          const product = {};
+          
+          headers.forEach((header, index) => {
+            if (values[index] !== undefined) {
+              let value = values[index].replace(/"/g, '').trim();
+              
+              switch (header) {
+                case 'price':
+                case 'stock':
+                case 'rating':
+                case 'sales':
+                  product[header] = parseFloat(value) || 0;
+                  break;
+                default:
+                  product[header] = value;
+              }
+            }
+          });
+          
+          // Generate SKU if not provided
+          if (!product.sku && product.name && product.category) {
+            product.sku = this.generateUniqueID(product.name, product.category);
+          }
+          
+          // Set default values
+          product.status = product.status || 'active';
+          product.image = product.image || 'https://via.placeholder.com/150';
+          
+          if (product.name && product.category && product.price !== undefined) {
+            products.push(product);
+          }
+        }
+        
+        if (products.length > 0) {
+          this.importProducts(products);
+        } else {
+          this.showNotification('No valid products found in CSV', 'error');
+        }
+        
+      } catch (error) {
+        console.error('CSV import error:', error);
+        this.showNotification('Error parsing CSV file', 'error');
+      }
+    };
+    
+    reader.readAsText(file);
+  }
+
+  parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current);
+    return result;
+  }
+
+  generateUniqueID(name, category) {
+    const namePrefix = name.substring(0, 3).toUpperCase();
+    const categoryPrefix = category.substring(0, 3).toUpperCase();
+    const timestamp = Date.now().toString().slice(-4);
+    return `${namePrefix}-${categoryPrefix}-${timestamp}`;
+  }
+
+  async importProducts(products) {
+    if (!products || products.length === 0) {
+      this.showNotification('No valid products found in CSV', 'error');
+      return;
+    }
+    
+    this.showNotification(`Importing ${products.length} products...`, 'info');
+    
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Import in batches to avoid overwhelming the server
+      const batchSize = 10;
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+        
+        const promises = batch.map(async (product) => {
+          try {
+            const response = await fetch(`${this.apiBaseUrl}/products`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(product)
+            });
+            
+            if (response.ok) {
+              successCount++;
+            } else {
+              errorCount++;
+              console.error(`Failed to import product: ${product.name}`);
+            }
+          } catch (error) {
+            errorCount++;
+            console.error(`Error importing product ${product.name}:`, error);
+          }
+        });
+        
+        await Promise.all(promises);
+      }
+      
+      const message = `Import completed: ${successCount} products added${errorCount > 0 ? `, ${errorCount} errors` : ''}`;
+      this.showNotification(message, successCount > 0 ? 'success' : 'warning');
+      
+      if (successCount > 0) {
+        await this.fetchProducts();
+      }
+      
+    } catch (error) {
+      console.error('Import error:', error);
+      this.showNotification('Import failed', 'error');
+    }
+  }
+
+  viewProductDetails(productId) {
+    const product = this.products.find(p => (p.id || p._id) === productId);
+    if (!product) return;
+    
+    // Remove existing modal if any
+    const existingModal = document.querySelector('.product-details-modal');
+    if (existingModal) existingModal.remove();
+    
+    // Create and show product details modal
+    const detailsModal = document.createElement('div');
+    detailsModal.className = 'product-details-modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+    detailsModal.innerHTML = `
+      <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-gray-900">Product Details</h3>
+          <button onclick="this.closest('.product-details-modal').remove()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <img src="${product.image || 'https://via.placeholder.com/300'}" alt="${product.name}" class="w-full h-64 object-cover rounded-lg">
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Name</label>
+              <p class="text-sm text-gray-900">${product.name}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">SKU</label>
+              <p class="text-sm text-gray-900">${product.sku}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Category</label>
+              <p class="text-sm text-gray-900">${this.formatCategoryName(product.category)}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Price</label>
+              <p class="text-sm text-gray-900">₹${product.price.toFixed(2)}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Stock</label>
+              <p class="text-sm text-gray-900">${product.stock} units</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Seller</label>
+              <p class="text-sm text-gray-900">${product.seller || 'N/A'}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Status</label>
+              ${this.getStatusBadge(product.status)}
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Rating</label>
+              <p class="text-sm text-gray-900">${product.rating || 'Not rated'} ${product.rating ? '⭐' : ''}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Sales</label>
+              <p class="text-sm text-gray-900">${product.sales || 0} units sold</p>
+            </div>
+          </div>
+        </div>
+        ${product.description ? `
+          <div class="mt-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <p class="text-sm text-gray-900">${product.description}</p>
+          </div>
+        ` : ''}
+        <div class="mt-6 flex justify-end space-x-3">
+          <button onclick="productManager.editProduct('${product.id || product._id}'); this.closest('.product-details-modal').remove();" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Edit Product
+          </button>
+          <button onclick="this.closest('.product-details-modal').remove()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+            Close
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(detailsModal);
+  }
+
+  printProductList() {
+    const printWindow = window.open('', '_blank');
+    const productsHTML = this.filteredProducts.map(product => `
+      <tr>
+        <td>${product.name}</td>
+        <td>${product.sku}</td>
+        <td>${this.formatCategoryName(product.category)}</td>
+        <td>₹${product.price.toFixed(2)}</td>
+        <td>${product.stock}</td>
+        <td>${product.seller || 'N/A'}</td>
+        <td>${product.status}</td>
+        <td>${product.rating || 'N/A'}</td>
+        <td>${product.sales || 0}</td>
+      </tr>
+    `).join('');
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Product List</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            h1 { color: #333; margin-bottom: 20px; }
+            .header { margin-bottom: 30px; }
+            @media print {
+              body { margin: 0; }
+              .header { page-break-after: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Product List</h1>
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <p>Total Products: ${this.filteredProducts.length}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Seller</th>
+                <th>Status</th>
+                <th>Rating</th>
+                <th>Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${productsHTML}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  }
+}
+
+// Initialize the product manager when DOM is ready
+let productManager;
+document.addEventListener('DOMContentLoaded', () => {
+  productManager = new ProductManager();
+});
+
+// Make productManager globally available for HTML onclick handlers
+window.productManager = null;
+document.addEventListener('DOMContentLoaded', () => {
+  window.productManager = new ProductManager();
+});
+    </script>
+</body>
+</html>
