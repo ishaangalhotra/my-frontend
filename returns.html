@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Returns & Refunds - QuickLocal</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .returns-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .returns-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .returns-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .returns-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .returns-section h2 {
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .policy-item {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .policy-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .policy-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        
+        .policy-description {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        
+        .return-form {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            width: 100%;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .faq-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .faq-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 0;
+        }
+        
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+        
+        .faq-question {
+            font-weight: 600;
+            color: #1f2937;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+        
+        .faq-answer {
+            color: #6b7280;
+            padding: 1rem 0;
+            display: none;
+            line-height: 1.6;
+        }
+        
+        .faq-answer.active {
+            display: block;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-top: 1rem;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+        
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 0.5rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #6366f1;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+        
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 1.5rem;
+            width: 2px;
+            height: calc(100% - 1rem);
+            background: #e5e7eb;
+        }
+        
+        .timeline-item:last-child::after {
+            display: none;
+        }
+        
+        .timeline-content {
+            margin-left: 1rem;
+        }
+        
+        .timeline-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        
+        .timeline-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .returns-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <a href="index.html">
+                    <i class="fas fa-bolt"></i>
+                    <span>QuickLocal</span>
+                </a>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="help.html">Help</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-outline">Login</a>
+                <a href="register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="returns-container">
+            <div class="returns-header">
+                <h1>Returns & Refunds</h1>
+                <p>We want you to be completely satisfied with your purchase</p>
+            </div>
+
+            <div class="returns-grid">
+                <div class="returns-section">
+                    <h2><i class="fas fa-undo"></i> Return Policy</h2>
+                    
+                    <div class="policy-item">
+                        <div class="policy-title">30-Day Return Window</div>
+                        <div class="policy-description">
+                            You have 30 days from the date of delivery to return items in their original condition.
+                        </div>
+                    </div>
+                    
+                    <div class="policy-item">
+                        <div class="policy-title">Accepted Return Reasons</div>
+                        <div class="policy-description">
+                            • Damaged or defective items<br>
+                            • Wrong item received<br>
+                            • Not as described<br>
+                            • Quality issues<br>
+                            • Change of mind (unopened items only)
+                        </div>
+                    </div>
+                    
+                    <div class="policy-item">
+                        <div class="policy-title">Non-Returnable Items</div>
+                        <div class="policy-description">
+                            • Perishable goods (food, flowers)<br>
+                            • Personal care items<br>
+                            • Custom or personalized items<br>
+                            • Digital products<br>
+                            • Items marked as non-returnable
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="returns-section">
+                    <h2><i class="fas fa-credit-card"></i> Refund Process</h2>
+                    
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-title">Submit Return Request</div>
+                                <div class="timeline-time">Within 30 days of delivery</div>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-title">Return Approved</div>
+                                <div class="timeline-time">1-2 business days</div>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-title">Item Received</div>
+                                <div class="timeline-time">3-5 business days</div>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-content">
+                                <div class="timeline-title">Refund Processed</div>
+                                <div class="timeline-time">5-10 business days</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="policy-item">
+                        <div class="policy-title">Refund Methods</div>
+                        <div class="policy-description">
+                            • Original payment method<br>
+                            • Store credit (faster processing)<br>
+                            • Bank transfer (for large amounts)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="return-form">
+                <h2>Request a Return</h2>
+                
+                <div class="success-message" id="successMessage">
+                    <i class="fas fa-check-circle"></i>
+                    Your return request has been submitted successfully. We'll review it within 1-2 business days.
+                </div>
+                
+                <div class="error-message" id="errorMessage">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="errorText">Something went wrong. Please try again.</span>
+                </div>
+                
+                <form id="returnForm">
+                    <div class="form-group">
+                        <label for="orderNumber">Order Number *</label>
+                        <input type="text" id="orderNumber" name="orderNumber" placeholder="Enter your order number" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="returnReason">Return Reason *</label>
+                        <select id="returnReason" name="returnReason" required>
+                            <option value="">Select a reason</option>
+                            <option value="damaged">Damaged or defective</option>
+                            <option value="wrong-item">Wrong item received</option>
+                            <option value="not-described">Not as described</option>
+                            <option value="quality">Quality issues</option>
+                            <option value="change-mind">Change of mind</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="items">Items to Return *</label>
+                        <textarea id="items" name="items" placeholder="List the items you want to return and their quantities" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Detailed Description *</label>
+                        <textarea id="description" name="description" placeholder="Please provide a detailed description of the issue or reason for return" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="photos">Upload Photos (Optional)</label>
+                        <input type="file" id="photos" name="photos" multiple accept="image/*">
+                        <small>Upload photos of damaged items or issues (max 5 photos)</small>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-paper-plane"></i>
+                        Submit Return Request
+                    </button>
+                </form>
+            </div>
+            
+            <div class="faq-section">
+                <h2>Frequently Asked Questions</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        How long does it take to process a refund?
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Refunds are typically processed within 5-10 business days after we receive your returned item. The time may vary depending on your payment method and bank processing times.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        Do I have to pay for return shipping?
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Return shipping is free for damaged, defective, or wrong items. For change of mind returns, you may be responsible for return shipping costs.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        Can I return perishable items?
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Perishable items like food and flowers cannot be returned for safety reasons. If you receive damaged perishable items, please contact our support team immediately.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        What if my return is denied?
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        If your return is denied, you'll receive an explanation via email. You can appeal the decision by contacting our customer support team with additional information.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        Can I track my return status?
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Yes! You can track your return status through your account dashboard or by using the return tracking number provided in your confirmation email.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>QuickLocal</h3>
+                <p>Ultra-fast local delivery in 20 minutes</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="help.html">Help</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+                <a href="track.html">Track Order</a>
+                <a href="returns.html">Returns</a>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="cookies.html">Cookie Policy</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 QuickLocal. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // FAQ Toggle
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const answer = question.nextElementSibling;
+                const icon = question.querySelector('i');
+                
+                answer.classList.toggle('active');
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            });
+        });
+
+        // Return form handling
+        const returnForm = document.getElementById('returnForm');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        
+        returnForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(returnForm);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Show success message
+                successMessage.style.display = 'block';
+                returnForm.reset();
+                
+                // Hide success message after 5 seconds
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 5000);
+                
+            } catch (error) {
+                errorText.textContent = 'Failed to submit return request. Please try again.';
+                errorMessage.style.display = 'block';
+                
+                // Hide error message after 5 seconds
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 5000);
+            }
+        });
+        
+        // Form validation
+        const inputs = returnForm.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('blur', () => {
+                if (input.hasAttribute('required') && !input.value.trim()) {
+                    input.style.borderColor = '#ef4444';
+                } else {
+                    input.style.borderColor = '#e5e7eb';
+                }
+            });
+            
+            input.addEventListener('input', () => {
+                if (input.value.trim()) {
+                    input.style.borderColor = '#e5e7eb';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Order - QuickLocal</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .track-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .track-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .track-search {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .order-details {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: none;
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        
+        .order-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .order-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-confirmed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-preparing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-out-for-delivery {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-delivered {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .order-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .info-item {
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .info-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .tracking-timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 2rem;
+        }
+        
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 0.5rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #d1d5db;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #e5e7eb;
+        }
+        
+        .timeline-item.active::before {
+            background: #6366f1;
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+        
+        .timeline-item.completed::before {
+            background: #10b981;
+            box-shadow: 0 0 0 2px #10b981;
+        }
+        
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 1.5rem;
+            width: 2px;
+            height: calc(100% - 1rem);
+            background: #e5e7eb;
+        }
+        
+        .timeline-item:last-child::after {
+            display: none;
+        }
+        
+        .timeline-item.completed::after {
+            background: #10b981;
+        }
+        
+        .timeline-content {
+            margin-left: 1rem;
+        }
+        
+        .timeline-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        
+        .timeline-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .timeline-description {
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+        
+        .delivery-info {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: none;
+        }
+        
+        .delivery-person {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .delivery-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .delivery-details h4 {
+            margin: 0 0 0.25rem 0;
+            color: #1f2937;
+        }
+        
+        .delivery-details p {
+            margin: 0;
+            color: #6b7280;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #6366f1;
+            border-radius: 6px;
+            background: transparent;
+            color: #6366f1;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .action-btn:hover {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .action-btn.primary {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .action-btn.primary:hover {
+            background: #4f46e5;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .order-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <a href="index.html">
+                    <i class="fas fa-bolt"></i>
+                    <span>QuickLocal</span>
+                </a>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="help.html">Help</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div class="nav-actions">
+                <a href="login.html" class="btn btn-outline">Login</a>
+                <a href="register.html" class="btn btn-primary">Sign Up</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="track-container">
+            <div class="track-header">
+                <h1>Track Your Order</h1>
+                <p>Enter your order number to track your delivery in real-time</p>
+            </div>
+
+            <div class="track-search">
+                <form class="search-form" id="trackForm">
+                    <input type="text" class="search-input" id="orderNumber" placeholder="Enter your order number (e.g., QL-2024-001234)" required>
+                    <button type="submit" class="search-btn">
+                        <i class="fas fa-search"></i>
+                        Track Order
+                    </button>
+                </form>
+            </div>
+
+            <div class="error-message" id="errorMessage">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="errorText">Order not found. Please check your order number and try again.</span>
+            </div>
+
+            <div class="order-details" id="orderDetails">
+                <div class="order-header">
+                    <div class="order-number" id="orderNumberDisplay">QL-2024-001234</div>
+                    <div class="order-status" id="orderStatus">Out for Delivery</div>
+                </div>
+
+                <div class="order-info">
+                    <div class="info-item">
+                        <div class="info-label">Order Date</div>
+                        <div class="info-value" id="orderDate">Dec 15, 2024</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estimated Delivery</div>
+                        <div class="info-value" id="estimatedDelivery">Dec 15, 2024 - 2:30 PM</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Amount</div>
+                        <div class="info-value" id="totalAmount">$24.99</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Payment Status</div>
+                        <div class="info-value" id="paymentStatus">Paid</div>
+                    </div>
+                </div>
+
+                <div class="tracking-timeline">
+                    <div class="timeline-item completed">
+                        <div class="timeline-content">
+                            <div class="timeline-title">Order Placed</div>
+                            <div class="timeline-time">Dec 15, 2024 - 1:45 PM</div>
+                            <div class="timeline-description">Your order has been successfully placed and confirmed.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item completed">
+                        <div class="timeline-content">
+                            <div class="timeline-title">Order Confirmed</div>
+                            <div class="timeline-time">Dec 15, 2024 - 1:47 PM</div>
+                            <div class="timeline-description">Your order has been confirmed by the seller.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item completed">
+                        <div class="timeline-content">
+                            <div class="timeline-title">Preparing Order</div>
+                            <div class="timeline-time">Dec 15, 2024 - 1:50 PM</div>
+                            <div class="timeline-description">The seller is preparing your order for delivery.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item active">
+                        <div class="timeline-content">
+                            <div class="timeline-title">Out for Delivery</div>
+                            <div class="timeline-time">Dec 15, 2024 - 2:00 PM</div>
+                            <div class="timeline-description">Your order is on its way! Our delivery partner is heading to your location.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <div class="timeline-title">Delivered</div>
+                            <div class="timeline-time">Estimated: Dec 15, 2024 - 2:30 PM</div>
+                            <div class="timeline-description">Your order will be delivered to your doorstep.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <a href="#" class="action-btn" onclick="contactSupport()">
+                        <i class="fas fa-headset"></i>
+                        Contact Support
+                    </a>
+                    <a href="#" class="action-btn" onclick="viewOrderDetails()">
+                        <i class="fas fa-file-alt"></i>
+                        View Order Details
+                    </a>
+                    <a href="#" class="action-btn primary" onclick="downloadInvoice()">
+                        <i class="fas fa-download"></i>
+                        Download Invoice
+                    </a>
+                </div>
+            </div>
+
+            <div class="delivery-info" id="deliveryInfo">
+                <h3>Delivery Partner</h3>
+                <div class="delivery-person">
+                    <div class="delivery-avatar">JD</div>
+                    <div class="delivery-details">
+                        <h4>John Doe</h4>
+                        <p>Delivery Partner • Vehicle: QL-001</p>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <a href="tel:+1234567890" class="action-btn">
+                        <i class="fas fa-phone"></i>
+                        Call Driver
+                    </a>
+                    <a href="#" class="action-btn" onclick="sendMessage()">
+                        <i class="fas fa-comment"></i>
+                        Send Message
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>QuickLocal</h3>
+                <p>Ultra-fast local delivery in 20 minutes</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="index.html">Home</a>
+                <a href="marketplace.html">Marketplace</a>
+                <a href="help.html">Help</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="help.html">Help Center</a>
+                <a href="contact.html">Contact Us</a>
+                <a href="track.html">Track Order</a>
+                <a href="returns.html">Returns</a>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="cookies.html">Cookie Policy</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 QuickLocal. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Sample order data
+        const sampleOrder = {
+            orderNumber: 'QL-2024-001234',
+            status: 'out-for-delivery',
+            orderDate: 'Dec 15, 2024',
+            estimatedDelivery: 'Dec 15, 2024 - 2:30 PM',
+            totalAmount: '$24.99',
+            paymentStatus: 'Paid',
+            timeline: [
+                {
+                    title: 'Order Placed',
+                    time: 'Dec 15, 2024 - 1:45 PM',
+                    description: 'Your order has been successfully placed and confirmed.',
+                    status: 'completed'
+                },
+                {
+                    title: 'Order Confirmed',
+                    time: 'Dec 15, 2024 - 1:47 PM',
+                    description: 'Your order has been confirmed by the seller.',
+                    status: 'completed'
+                },
+                {
+                    title: 'Preparing Order',
+                    time: 'Dec 15, 2024 - 1:50 PM',
+                    description: 'The seller is preparing your order for delivery.',
+                    status: 'completed'
+                },
+                {
+                    title: 'Out for Delivery',
+                    time: 'Dec 15, 2024 - 2:00 PM',
+                    description: 'Your order is on its way! Our delivery partner is heading to your location.',
+                    status: 'active'
+                },
+                {
+                    title: 'Delivered',
+                    time: 'Estimated: Dec 15, 2024 - 2:30 PM',
+                    description: 'Your order will be delivered to your doorstep.',
+                    status: 'pending'
+                }
+            ]
+        };
+
+        // Track form handling
+        const trackForm = document.getElementById('trackForm');
+        const orderDetails = document.getElementById('orderDetails');
+        const deliveryInfo = document.getElementById('deliveryInfo');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        trackForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const orderNumber = document.getElementById('orderNumber').value.trim();
+            
+            // Hide previous results
+            orderDetails.style.display = 'none';
+            deliveryInfo.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            if (!orderNumber) {
+                showError('Please enter an order number.');
+                return;
+            }
+            
+            // Simulate API call
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // For demo purposes, show sample order for any input
+                if (orderNumber.toLowerCase().includes('ql') || orderNumber.length > 5) {
+                    displayOrder(sampleOrder);
+                } else {
+                    showError('Order not found. Please check your order number and try again.');
+                }
+                
+            } catch (error) {
+                showError('Failed to track order. Please try again.');
+            }
+        });
+
+        function displayOrder(order) {
+            // Update order details
+            document.getElementById('orderNumberDisplay').textContent = order.orderNumber;
+            document.getElementById('orderDate').textContent = order.orderDate;
+            document.getElementById('estimatedDelivery').textContent = order.estimatedDelivery;
+            document.getElementById('totalAmount').textContent = order.totalAmount;
+            document.getElementById('paymentStatus').textContent = order.paymentStatus;
+            
+            // Update status
+            const statusElement = document.getElementById('orderStatus');
+            statusElement.textContent = getStatusText(order.status);
+            statusElement.className = `order-status status-${order.status}`;
+            
+            // Show order details
+            orderDetails.style.display = 'block';
+            
+            // Show delivery info for out-for-delivery status
+            if (order.status === 'out-for-delivery') {
+                deliveryInfo.style.display = 'block';
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'Pending',
+                'confirmed': 'Confirmed',
+                'preparing': 'Preparing',
+                'out-for-delivery': 'Out for Delivery',
+                'delivered': 'Delivered',
+                'cancelled': 'Cancelled'
+            };
+            return statusMap[status] || 'Unknown';
+        }
+
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // Action functions
+        function contactSupport() {
+            window.location.href = 'contact.html';
+        }
+
+        function viewOrderDetails() {
+            alert('Order details page coming soon!');
+        }
+
+        function downloadInvoice() {
+            alert('Invoice download feature coming soon!');
+        }
+
+        function sendMessage() {
+            alert('Message feature coming soon!');
+        }
+
+        // Auto-refresh tracking every 30 seconds
+        setInterval(() => {
+            if (orderDetails.style.display === 'block') {
+                // Simulate real-time updates
+                console.log('Refreshing tracking data...');
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

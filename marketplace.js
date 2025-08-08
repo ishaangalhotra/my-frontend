@@ -10,7 +10,7 @@ let isLoading = false;
 let isInitialized = false; // Prevent duplicate initialization
 
 // API Configuration
-const API_BASE = "https://quicklocal-backend.onrender.com/api/v1";
+const API_BASE = "http://localhost:10000/api/v1";
 const PRODUCTS_API = `${API_BASE}/products`;
 
 // Initialize marketplace - prevent duplicate calls
