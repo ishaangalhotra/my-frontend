@@ -776,8 +776,32 @@
             <h2>Create Your Account</h2>
             
             <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required placeholder="Enter your full name" class="has-icon" autocomplete="name">
+                <div class="input-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email address" class="has-icon" autocomplete="email">
+                <div class="input-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number" class="has-icon" autocomplete="tel">
+                <div class="input-icon">
+                    <i class="fas fa-phone"></i>
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="Create a strong password" class="has-icon" minlength="6" autocomplete="new-password">
+                <input type="password" id="password" name="password" required placeholder="Create a strong password (min 12 chars)" class="has-icon" minlength="12" autocomplete="new-password">
                 <div class="input-icon">
                     <i class="fas fa-lock"></i>
                 </div>
@@ -885,11 +909,11 @@
                 
                 // Use proper authentication service for registration
                 const registrationData = {
-                    fullName: formData.name,
+                    name: formData.name,
                     email: formData.email,
                     phone: formData.phone,
                     password: formData.password,
-                    accountType: 'user' // Default to user account
+                    role: 'customer' // Default to customer account
                 };
                 
                 const result = await authService.register(registrationData);
@@ -976,9 +1000,13 @@
                 throw new Error('Please create a password');
             }
             
-            const passwordStrength = checkPasswordStrength(formData.password);
-            if (passwordStrength.score < 2) {
-                throw new Error('Password is too weak. Please include uppercase, lowercase, numbers, and special characters.');
+            // Updated password validation to match backend requirements
+            if (formData.password.length < 12) {
+                throw new Error('Password must be at least 12 characters long');
+            }
+            
+            if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(formData.password)) {
+                throw new Error('Password must contain uppercase, lowercase, number & special character');
             }
             
             if (formData.password !== formData.confirmPassword) {
