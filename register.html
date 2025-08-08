@@ -823,6 +823,7 @@
         </form>
     </div>
 
+    <script src="js/auth.js"></script>
     <script>
         console.log('[QuickLocal] 📝 Ultra-Enhanced Register page loaded');
 
@@ -882,22 +883,29 @@
                 container.classList.add('loading');
                 registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Your Account...';
                 
-                // Simulate progressive registration process
-                await simulateRegistrationProcess();
+                // Use proper authentication service for registration
+                const registrationData = {
+                    fullName: formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    password: formData.password,
+                    accountType: 'user' // Default to user account
+                };
                 
-                // Create comprehensive user object
-                const user = createNewUser(formData);
+                const result = await authService.register(registrationData);
                 
-                // Save user data with enhanced structure
-                saveRegistrationData(user);
-                
-                // Show celebration and success message
-                celebrateRegistration(user);
-                
-                console.log('[QuickLocal] ✅ User registered successfully:', user);
-                
-                // Enhanced redirect with smooth transition
-                await handleSuccessfulRegistration();
+                if (result.success) {
+                    // Show celebration and success message
+                    showMessage('🎉 Registration successful! Please check your email to verify your account.', 'success');
+                    
+                    console.log('[QuickLocal] ✅ User registered successfully');
+                    
+                    // Enhanced redirect with smooth transition
+                    await handleSuccessfulRegistration();
+                    
+                } else {
+                    throw new Error(result.message || 'Registration failed. Please try again.');
+                }
                 
             } catch (error) {
                 console.error('[QuickLocal] ❌ Registration error:', error);

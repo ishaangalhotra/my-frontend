@@ -725,6 +725,7 @@
         </form>
     </div>
 
+    <script src="js/auth.js"></script>
     <script>
         console.log('[QuickLocal] 🔐 Enhanced Login page loaded');
 
@@ -751,7 +752,7 @@
                 return false;
             }
             
-            if (!isValidEmail(email)) {
+            if (!authService.validateEmail(email)) {
                 showMessage('Please enter a valid email address.', 'error');
                 document.getElementById('email').focus();
                 return false;
@@ -776,26 +777,20 @@
                 container.classList.add('loading');
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing You In...';
                 
-                // Simulate realistic API call with progressive feedback
-                await simulateLoginProcess();
+                // Use proper authentication service
+                const result = await authService.login(email, password, remember);
                 
-                // Enhanced credential validation
-                if (isValidCredentials(email, password)) {
-                    const user = createUserObject(email, remember);
-                    
-                    // Save user data with enhanced structure
-                    saveUserData(user, remember);
-                    
+                if (result.success) {
                     // Show personalized success message
-                    showMessage(`✨ Welcome back, ${user.name}! Redirecting to marketplace...`, 'success');
+                    showMessage(`✨ Welcome back, ${result.user.fullName || result.user.email}! Redirecting to marketplace...`, 'success');
                     
-                    console.log('[QuickLocal] ✅ User logged in successfully:', user);
+                    console.log('[QuickLocal] ✅ User logged in successfully:', result.user);
                     
                     // Enhanced redirect with smooth transition
                     await handleSuccessfulLogin();
                     
                 } else {
-                    throw new Error('Invalid email or password. Please check your credentials and try again.');
+                    throw new Error(result.message || 'Login failed. Please try again.');
                 }
                 
             } catch (error) {
@@ -813,74 +808,7 @@
             }
         }
 
-        async function simulateLoginProcess() {
-            // Simulate progressive loading states
-            const steps = [
-                { delay: 500, message: 'Verifying credentials...' },
-                { delay: 800, message: 'Authenticating user...' },
-                { delay: 600, message: 'Loading profile...' }
-            ];
-            
-            for (const step of steps) {
-                await new Promise(resolve => setTimeout(resolve, step.delay));
-                console.log(`[QuickLocal] ${step.message}`);
-            }
-        }
 
-        function createUserObject(email, remember) {
-            return {
-                id: generateUserId(),
-                email: email,
-                name: extractNameFromEmail(email),
-                loginTime: new Date().toISOString(),
-                isLoggedIn: true,
-                rememberMe: remember,
-                avatar: generateAvatar(email),
-                preferences: {
-                    theme: 'auto',
-                    notifications: true,
-                    location: null,
-                    language: 'en',
-                    currency: 'USD'
-                },
-                profile: {
-                    isComplete: false,
-                    verified: false,
-                    joinDate: new Date().toISOString(),
-                    lastLogin: new Date().toISOString(),
-                    loginCount: 1
-                }
-            };
-        }
-
-        function saveUserData(user, remember) {
-            // Save user data to localStorage
-            const userData = JSON.stringify(user);
-            localStorage.setItem('quicklocal_user', userData);
-            
-            if (remember) {
-                localStorage.setItem('quicklocal_remember', 'true');
-                const expirationDate = new Date();
-                expirationDate.setDate(expirationDate.getDate() + 30);
-                localStorage.setItem('quicklocal_remember_expires', expirationDate.toISOString());
-            }
-            
-            // Save login analytics
-            const loginHistory = JSON.parse(localStorage.getItem('quicklocal_login_history') || '[]');
-            loginHistory.push({
-                timestamp: new Date().toISOString(),
-                email: user.email,
-                method: 'email',
-                success: true
-            });
-            
-            // Keep only last 10 login attempts
-            if (loginHistory.length > 10) {
-                loginHistory.splice(0, loginHistory.length - 10);
-            }
-            
-            localStorage.setItem('quicklocal_login_history', JSON.stringify(loginHistory));
-        }
 
         async function handleSuccessfulLogin() {
             // Add celebration animation
@@ -920,25 +848,8 @@
         }
 
         // Enhanced utility functions
-        function isValidCredentials(email, password) {
-            // Enhanced demo validation with multiple test accounts
-            const testAccounts = [
-                { email: 'demo@quicklocal.shop', password: 'demo123' },
-                { email: 'test@example.com', password: 'test123' },
-                { email: 'user@quicklocal.com', password: 'user123' }
-            ];
-            
-            const isTestAccount = testAccounts.some(account => 
-                account.email === email && account.password === password
-            );
-            
-            // Allow any valid email/password combination for demo
-            return isTestAccount || (isValidEmail(email) && password.length >= 6);
-        }
-
         function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
+            return authService.validateEmail(email);
         }
 
         function extractNameFromEmail(email) {

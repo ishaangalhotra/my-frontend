@@ -1428,28 +1428,31 @@ function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Enhanced Logout Function
-function logout() {
-    // Clear user data
-    localStorage.removeItem('quicklocal_user');
-    localStorage.removeItem('quicklocal_token');
-    
-    // Update UI
-    const guestActions = document.getElementById('guestActions');
-    const userActions = document.getElementById('userActions');
-    
-    if (guestActions && userActions) {
-        guestActions.style.display = 'flex';
-        userActions.style.display = 'none';
-    }
-    
-    showToast('Successfully logged out!', 'success');
-    
-    // Redirect to home page
-    setTimeout(() => {
-        window.location.href = '/';
-    }, 1000);
-}
+        // Enhanced Logout Function
+        async function logout() {
+            try {
+                await authService.logout();
+                
+                // Update UI
+                const guestActions = document.getElementById('guestActions');
+                const userActions = document.getElementById('userActions');
+                
+                if (guestActions && userActions) {
+                    guestActions.style.display = 'flex';
+                    userActions.style.display = 'none';
+                }
+                
+                showToast('Successfully logged out!', 'success');
+                
+                // Redirect to home page
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            } catch (error) {
+                console.error('Logout error:', error);
+                showToast('Logout failed. Please try again.', 'error');
+            }
+        }
 
 // Export functions for global access
 window.quickLocalMarketplace = {
