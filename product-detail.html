@@ -1246,5 +1246,32 @@
             loadProductDetails();
         });
     </script>
+
+<section class="related-products" id="relatedProductsSection">
+  <div class="container">
+    <h3>Related Products</h3>
+    <div class="products-grid" id="relatedProductsGrid"></div>
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const prod = JSON.parse(localStorage.getItem('current_product') || '{}');
+  if (!prod || !prod.id) return;
+  try {
+    const res = await window.apiClient.get('/en.../products/related/' + prod.id);
+    const related = res.related || [];
+    const container = document.getElementById('relatedProductsGrid');
+    if (container) container.innerHTML = related.map(p => `
+      <div class="product-card" onclick="viewProduct('${p._id||p.id}')">
+        <img loading="lazy" src="${'${p.image}'}" alt="${'${p.name}'}">
+        <h4>${'${p.name}'}</h4>
+        <p>₹${'${p.price}'}</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.warn('Related products failed', err);
+  }
+});
+</script>
 </body>
 </html>

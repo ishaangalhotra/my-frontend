@@ -1,6 +1,7 @@
 class ApiClient {
   constructor(baseUrl) {
-    this.baseUrl = baseUrl || 'https://ecommerce-backend-8ykq.onrender.com/api';
+    this.baseUrl = baseUrl || 'https://quicklocal-backend.onrender.com/api/v1';
+    this.defaultRetry = 1;
   }
 
   async request(endpoint, options = {}) {
