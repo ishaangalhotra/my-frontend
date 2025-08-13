@@ -456,6 +456,60 @@
     <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
     <script>
+
+  // ===== ENV / AUTH =====
+  window.ENV = window.ENV || {
+    API_BASE: '/api/v1',
+    IK_PUBLIC_KEY: (window.IK_PUBLIC_KEY || ''),
+    IK_URL_ENDPOINT: (window.IK_URL_ENDPOINT || ''),
+    IK_AUTH_ENDPOINT: '/api/v1/imagekit-auth'
+  };
+  const token = localStorage.getItem('qk_token') || '';
+  const h = (json=false) => json
+    ? { 'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}) }
+    : (token?{'Authorization':'Bearer '+token}:{});  
+
+  // ===== IMAGEKIT UPLOAD =====
+  async function getIKSignature() {
+    try {
+      const r = await fetch(ENV.IK_AUTH_ENDPOINT, { headers: h() });
+      if (!r.ok) throw new Error('Auth endpoint failed');
+      return r.json(); // { signature, expire, token }
+    } catch (err) {
+      console.error('Failed to get ImageKit signature', err);
+      return null;
+    }
+  }
+
+  async function uploadToImageKit(file) {
+    const sig = await getIKSignature();
+    if (!sig || !ENV.IK_URL_ENDPOINT || !ENV.IK_PUBLIC_KEY) {
+      alert('Image upload not configured correctly.');
+      return null;
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('publicKey', ENV.IK_PUBLIC_KEY);
+    form.append('signature', sig.signature);
+    form.append('expire', sig.expire);
+    form.append('token', sig.token);
+
+    try {
+      const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        body: form
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return ENV.IK_URL_ENDPOINT.replace(/\/$/, '') + '/' + data.filePath.replace(/^\//, '');
+    } catch (err) {
+      console.error('ImageKit upload failed', err);
+      alert('Image upload failed');
+      return null;
+    }
+  }
+
         class ProductManager {
             constructor() {
                 this.products = [];

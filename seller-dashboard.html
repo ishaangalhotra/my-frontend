@@ -1,349 +1,57 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seller Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
     :root {
       --primary-color: #4361ee;
       --primary-dark: #3a56d4;
       --danger-color: #f72585;
-      --success-color: #4cc9f0;
+      --success-color: #16a34a;
       --light-color: #f8f9fa;
-      --dark-color: #212529;
-      --gray-color: #6c757d;
-      --border-color: #dee2e6;
-      --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-      --border-radius: 0.375rem;
+      --dark-color: #0f172a;
+      --gray-color: #6b7280;
+      --border-color: #e5e7eb;
+      --border-radius: .5rem;
+      --shadow: 0 8px 24px rgba(0,0,0,.08);
     }
+    body { color: var(--dark-color); background:#f5f7fa; }
+    header { background: var(--primary-color); color:#fff; box-shadow: var(--shadow); }
+    .header-container { max-width:1200px; margin:0 auto; padding:1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+    .sidebar-nav ul { display:flex; gap:1rem; }
+    .sidebar-nav a { color:#fff; padding:.5rem .75rem; border-radius:.5rem; font-weight:600; }
+    .sidebar-nav li.active a, .sidebar-nav a:hover { background: rgba(255,255,255,.2); }
+    main { max-width:1200px; margin:2rem auto; padding:0 1rem; }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    .form-section { background:#fff; padding:1.25rem; border-radius: var(--border-radius); box-shadow: var(--shadow); }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+    .btn { display:inline-flex; align-items:center; gap:.5rem; padding:.625rem 1rem; border-radius:.75rem; font-weight:600; border:1px solid transparent; }
+    .btn-primary { background:var(--primary-color); color:#fff; }
+    .btn-primary:hover { background:var(--primary-dark); }
+    .btn-secondary { background:#fff; border-color:var(--border-color); }
+    .btn-danger { background: var(--danger-color); color:#fff; }
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      color: var(--dark-color);
-      background-color: #f5f7fa;
-    }
+    .file-upload-area { border:2px dashed var(--border-color); border-radius:var(--border-radius); padding:1.5rem; text-align:center; cursor:pointer; transition:.2s; }
+    .file-upload-area:hover { border-color:var(--primary-color); background:#f1f5ff; }
+    .image-preview { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.75rem; }
+    .image-preview-item { position:relative; width:96px; height:96px; }
+    .image-preview-item img { width:100%; height:100%; object-fit:cover; border-radius:.5rem; border:1px solid var(--border-color); }
+    .remove-image { position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:9999px; background:var(--danger-color); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow: var(--shadow); cursor:pointer; }
 
-    header {
-      background-color: var(--primary-color);
-      color: white;
-      padding: 1rem 2rem;
-      box-shadow: var(--shadow);
-    }
+    .product-card { background:#fff; border-radius:var(--border-radius); box-shadow:var(--shadow); overflow:hidden; transition:.2s; }
+    .product-card:hover { transform: translateY(-4px); }
+    .product-image { width:100%; height:180px; object-fit:cover; }
 
-    .header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+    .notification { position:fixed; top:20px; right:20px; background:#111827; color:#fff; padding:.75rem 1rem; border-radius:.75rem; box-shadow:var(--shadow); opacity:0; transform: translateY(-8px); transition: .25s; z-index:1000; }
+    .notification.show { opacity:1; transform: translateY(0); }
 
-    .sidebar-nav ul {
-      list-style: none;
-      display: flex;
-      gap: 1.5rem;
-    }
+    .badge { display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--border-color); background:#f8fafc; }
 
-    .sidebar-nav a {
-      color: white;
-      text-decoration: none;
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      border-radius: var(--border-radius);
-      transition: background-color 0.2s ease;
-    }
-
-    .sidebar-nav a:hover,
-    .sidebar-nav .active a {
-      background-color: rgba(255, 255, 255, 0.2);
-    }
-
-    main {
-      max-width: 1200px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border: none;
-      border-radius: var(--border-radius);
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .btn-primary {
-      background-color: var(--primary-color);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background-color: var(--primary-dark);
-    }
-
-    .btn-danger {
-      background-color: var(--danger-color);
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background-color: #c91e6c;
-    }
-
-    .btn-secondary {
-      background-color: var(--gray-color);
-      color: white;
-    }
-
-    .btn-secondary:hover {
-      background-color: #5a6268;
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .form-section {
-      background-color: white;
-      padding: 1.5rem;
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      margin: 1.5rem 0;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      font-size: 1rem;
-    }
-
-    .form-group input:focus,
-    .form-group textarea:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
-    }
-
-    .file-upload-area {
-      border: 2px dashed var(--border-color);
-      border-radius: var(--border-radius);
-      padding: 2rem;
-      text-align: center;
-      cursor: pointer;
-      margin: 1rem 0;
-    }
-
-    .file-upload-area:hover {
-      border-color: var(--primary-color);
-      background-color: var(--light-color);
-    }
-
-    .image-preview {
-      display: flex;
-      gap: 1rem;
-      margin-top: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .image-preview-item {
-      position: relative;
-      width: 100px;
-      height: 100px;
-    }
-
-    .image-preview img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: var(--border-radius);
-    }
-    
-    .remove-image {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      background-color: var(--danger-color);
-      color: white;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .form-actions {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 2rem;
-    }
-
-    .product-card {
-      background-color: white;
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      transition: transform 0.2s ease;
-    }
-
-    .product-card:hover {
-      transform: translateY(-5px);
-    }
-
-    .product-image {
-      height: 200px;
-      width: 100%;
-      object-fit: cover;
-    }
-
-    .product-details {
-      padding: 1rem;
-    }
-
-    .product-title {
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .product-price {
-      color: var(--primary-color);
-      font-weight: 700;
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .product-stock {
-      font-size: 0.9rem;
-      color: var(--gray-color);
-      margin-bottom: 1rem;
-    }
-
-    .product-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    .dashboard-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background-color: white;
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-
-    .stat-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      color: var(--primary-color);
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-label {
-      color: var(--gray-color);
-      font-size: 0.9rem;
-    }
-
-    .notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 1rem;
-      border-radius: var(--border-radius);
-      background-color: var(--success-color);
-      color: white;
-      box-shadow: var(--shadow);
-      z-index: 1000;
-      opacity: 0;
-      transform: translateY(-20px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    .notification.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    @media (max-width: 768px) {
-      .sidebar-nav ul {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .header-container {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .dashboard-stats {
-        grid-template-columns: 1fr;
-      }
-      
-      .form-actions {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .btn {
-        width: 100%;
-        justify-content: center;
-      }
-    }
+    @media (max-width:768px){ .sidebar-nav ul{ flex-direction:column; } .header-container{ flex-direction:column; align-items:flex-start; } }
   </style>
 </head>
 <body>
@@ -363,686 +71,650 @@
   </header>
 
   <main>
-    <!-- Dashboard Tab -->
-    <div id="dashboard" class="tab-content active">
+    <!-- DASHBOARD TAB -->
+    <section id="dashboard" class="tab-content active">
       <div class="section-header">
         <h2 class="text-2xl font-bold">Dashboard Overview</h2>
-        <div>
-          <button class="btn btn-primary">
-            <i class="fas fa-download"></i> Export Report
-          </button>
+        <div class="flex gap-2">
+          <button id="export-report" class="btn btn-primary"><i class="fas fa-download"></i> Export Report</button>
         </div>
       </div>
 
-      <div class="dashboard-stats">
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-box"></i>
-          </div>
-          <div class="stat-value">24</div>
-          <div class="stat-label">Total Products</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-shopping-cart"></i>
-          </div>
-          <div class="stat-value">18</div>
-          <div class="stat-label">Orders This Month</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-dollar-sign"></i>
-          </div>
-          <div class="stat-value">$2,450</div>
-          <div class="stat-label">Revenue This Month</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i class="fas fa-users"></i>
-          </div>
-          <div class="stat-value">156</div>
-          <div class="stat-label">Total Customers</div>
-        </div>
+      <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Stats cards injected here -->
       </div>
 
       <div class="form-section">
-        <h3 class="text-xl font-bold mb-4">Recent Orders</h3>
+        <h3 class="text-xl font-bold mb-3">Recent Orders</h3>
         <div class="overflow-x-auto">
-          <table class="min-w-full bg-white">
+          <table class="min-w-full bg-white" id="recent-orders">
             <thead>
-              <tr>
-                <th class="py-2 px-4 border-b text-left">Order ID</th>
-                <th class="py-2 px-4 border-b text-left">Customer</th>
-                <th class="py-2 px-4 border-b text-left">Date</th>
-                <th class="py-2 px-4 border-b text-left">Amount</th>
-                <th class="py-2 px-4 border-b text-left">Status</th>
-                <th class="py-2 px-4 border-b text-left">Action</th>
+              <tr class="text-left">
+                <th class="py-2 px-4 border-b">Order #</th>
+                <th class="py-2 px-4 border-b">Customer</th>
+                <th class="py-2 px-4 border-b">Date</th>
+                <th class="py-2 px-4 border-b">Amount</th>
+                <th class="py-2 px-4 border-b">Status</th>
+                <th class="py-2 px-4 border-b">Action</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5289</td>
-                <td class="py-2 px-4 border-b">John Smith</td>
-                <td class="py-2 px-4 border-b">May 15, 2023</td>
-                <td class="py-2 px-4 border-b">$125.00</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Delivered</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5288</td>
-                <td class="py-2 px-4 border-b">Sarah Johnson</td>
-                <td class="py-2 px-4 border-b">May 14, 2023</td>
-                <td class="py-2 px-4 border-b">$89.50</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Processing</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5287</td>
-                <td class="py-2 px-4 border-b">Michael Brown</td>
-                <td class="py-2 px-4 border-b">May 13, 2023</td>
-                <td class="py-2 px-4 border-b">$210.75</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Shipped</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-            </tbody>
+            <tbody id="recent-orders-body"></tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Products Tab -->
-    <div id="products" class="tab-content">
+    <!-- PRODUCTS TAB -->
+    <section id="products" class="tab-content">
       <div class="section-header">
         <h2 class="text-2xl font-bold">Product Management</h2>
-        <div>
-          <button id="add-product-btn" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add New Product
-          </button>
-        </div>
+        <button id="add-product-btn" class="btn btn-primary"><i class="fas fa-plus"></i> Add New Product</button>
       </div>
 
-      <div id="product-form" class="form-section" style="display: none;">
-        <h3 class="text-xl font-bold mb-4">Add New Product</h3>
+      <div id="product-form" class="form-section hidden">
+        <h3 id="product-form-title" class="text-xl font-bold mb-4">Add New Product</h3>
         <form id="new-product-form">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-group">
-              <label for="product-name">Product Name</label>
-              <input type="text" id="product-name" name="product-name" required>
+            <div>
+              <label class="font-semibold text-sm">Title</label>
+              <input id="p-title" class="w-full border rounded-lg p-2" required />
             </div>
-            <div class="form-group">
-              <label for="product-category">Category</label>
-              <select id="product-category" name="product-category" required>
-                <option value="">Select a category</option>
-                <option value="electronics">Electronics</option>
-                <option value="clothing">Clothing</option>
-                <option value="home">Home & Kitchen</option>
-                <option value="books">Books</option>
-                <option value="toys">Toys & Games</option>
+            <div>
+              <label class="font-semibold text-sm">Category</label>
+              <select id="p-category" class="w-full border rounded-lg p-2" required></select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label class="font-semibold text-sm">Price (₹)</label>
+              <input id="p-price" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" required />
+            </div>
+            <div>
+              <label class="font-semibold text-sm">MRP (₹)</label>
+              <input id="p-mrp" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" />
+            </div>
+            <div>
+              <label class="font-semibold text-sm">Stock</label>
+              <input id="p-stock" type="number" step="1" min="0" class="w-full border rounded-lg p-2" required />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="font-semibold text-sm">SKU</label>
+              <input id="p-sku" class="w-full border rounded-lg p-2" />
+            </div>
+            <div>
+              <label class="font-semibold text-sm">GST (%)</label>
+              <input id="p-gst" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="font-semibold text-sm">Tags (comma separated)</label>
+              <input id="p-tags" placeholder="electronics, phone, 5G" class="w-full border rounded-lg p-2" />
+            </div>
+            <div>
+              <label class="font-semibold text-sm">Status</label>
+              <select id="p-active" class="w-full border rounded-lg p-2">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </select>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="form-group">
-              <label for="product-price">Price ($)</label>
-              <input type="number" id="product-price" name="product-price" min="0" step="0.01" required>
-            </div>
-            <div class="form-group">
-              <label for="product-stock">Stock Quantity</label>
-              <input type="number" id="product-stock" name="product-stock" min="0" required>
-            </div>
-            <div class="form-group">
-              <label for="product-sku">SKU</label>
-              <input type="text" id="product-sku" name="product-sku" required>
-            </div>
+          <div class="mt-4">
+            <label class="font-semibold text-sm">Variants (JSON)</label>
+            <input id="p-variants" class="w-full border rounded-lg p-2" placeholder='[{"name":"Size","values":["S","M","L"]}]' />
+            <p class="text-xs text-gray-500 mt-1">Optional. Keep blank if not needed.</p>
           </div>
 
-          <div class="form-group">
-            <label for="product-description">Description</label>
-            <textarea id="product-description" name="product-description" rows="4" required></textarea>
+          <div class="mt-4">
+            <label class="font-semibold text-sm">Description</label>
+            <textarea id="p-description" class="w-full border rounded-lg p-2 min-h-[120px]"></textarea>
           </div>
 
-          <div class="form-group">
-            <label>Product Images</label>
+          <div class="mt-4">
+            <label class="font-semibold text-sm">Images</label>
             <div class="file-upload-area" id="file-upload-area">
               <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
-              <p class="mt-2">Drag & drop images here or click to browse</p>
-              <input type="file" id="product-images" name="product-images" accept="image/*" multiple style="display: none;">
+              <p class="mt-2 text-gray-600">Drag & drop images here or click to browse</p>
+              <input type="file" id="p-images" accept="image/*" multiple class="hidden" />
             </div>
             <div class="image-preview" id="image-preview"></div>
           </div>
 
-          <div class="form-actions">
-            <button type="button" id="cancel-product" class="btn btn-secondary">
-              <i class="fas fa-times"></i> Cancel
-            </button>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> Save Product
-            </button>
+          <div class="flex flex-col md:flex-row gap-3 justify-between mt-6">
+            <button type="button" id="cancel-product" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</button>
+            <div class="flex gap-2">
+              <button type="button" id="reset-form" class="btn btn-secondary"><i class="fas fa-eraser"></i> Reset</button>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="save-btn-text">Save Product</span></button>
+            </div>
           </div>
         </form>
       </div>
 
-      <div class="form-section">
-        <h3 class="text-xl font-bold mb-4">Your Products</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="product-list">
-          <!-- Product cards will be added here dynamically -->
+      <div class="form-section mt-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold">Your Products</h3>
+          <div class="flex items-center gap-2">
+            <input id="product-search" placeholder="Search products..." class="border rounded-lg p-2 w-56" />
+            <span class="badge"><i class="fa-solid fa-box"></i> <span id="product-count">0</span></span>
+          </div>
         </div>
+        <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- Orders Tab -->
-    <div id="orders" class="tab-content">
+    <!-- ORDERS TAB -->
+    <section id="orders" class="tab-content">
       <div class="section-header">
         <h2 class="text-2xl font-bold">Order Management</h2>
-        <div>
-          <button class="btn btn-primary">
-            <i class="fas fa-filter"></i> Filter Orders
-          </button>
-        </div>
+        <button id="refresh-orders" class="btn btn-primary"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
 
       <div class="form-section">
         <div class="overflow-x-auto">
           <table class="min-w-full bg-white">
             <thead>
-              <tr>
-                <th class="py-2 px-4 border-b text-left">Order ID</th>
-                <th class="py-2 px-4 border-b text-left">Customer</th>
-                <th class="py-2 px-4 border-b text-left">Date</th>
-                <th class="py-2 px-4 border-b text-left">Amount</th>
-                <th class="py-2 px-4 border-b text-left">Status</th>
-                <th class="py-2 px-4 border-b text-left">Action</th>
+              <tr class="text-left">
+                <th class="py-2 px-4 border-b">Order #</th>
+                <th class="py-2 px-4 border-b">Customer</th>
+                <th class="py-2 px-4 border-b">Date</th>
+                <th class="py-2 px-4 border-b">Amount</th>
+                <th class="py-2 px-4 border-b">Status</th>
+                <th class="py-2 px-4 border-b">Action</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5289</td>
-                <td class="py-2 px-4 border-b">John Smith</td>
-                <td class="py-2 px-4 border-b">May 15, 2023</td>
-                <td class="py-2 px-4 border-b">$125.00</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Delivered</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5288</td>
-                <td class="py-2 px-4 border-b">Sarah Johnson</td>
-                <td class="py-2 px-4 border-b">May 14, 2023</td>
-                <td class="py-2 px-4 border-b">$89.50</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Processing</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5287</td>
-                <td class="py-2 px-4 border-b">Michael Brown</td>
-                <td class="py-2 px-4 border-b">May 13, 2023</td>
-                <td class="py-2 px-4 border-b">$210.75</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Shipped</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5286</td>
-                <td class="py-2 px-4 border-b">Emily Davis</td>
-                <td class="py-2 px-4 border-b">May 12, 2023</td>
-                <td class="py-2 px-4 border-b">$45.25</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Delivered</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-              <tr>
-                <td class="py-2 px-4 border-b">#ORD-5285</td>
-                <td class="py-2 px-4 border-b">Robert Wilson</td>
-                <td class="py-2 px-4 border-b">May 11, 2023</td>
-                <td class="py-2 px-4 border-b">$178.30</td>
-                <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Cancelled</span></td>
-                <td class="py-2 px-4 border-b"><a href="#" class="text-blue-600 hover:underline">View</a></td>
-              </tr>
-            </tbody>
+            <tbody id="orders-body"></tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Analytics Tab -->
-    <div id="analytics" class="tab-content">
+    <!-- ANALYTICS TAB -->
+    <section id="analytics" class="tab-content">
       <div class="section-header">
         <h2 class="text-2xl font-bold">Analytics</h2>
-        <div>
-          <button class="btn btn-primary">
-            <i class="fas fa-calendar"></i> Change Date Range
-          </button>
-        </div>
+        <button id="refresh-analytics" class="btn btn-primary"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
 
-      <div class="form-section">
-        <h3 class="text-xl font-bold mb-4">Sales Overview</h3>
-        <div class="h-64 bg-gray-100 flex items-center justify-center">
-          <div class="text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <p class="mt-2 text-gray-600">Sales chart visualization</p>
-          </div>
-        </div>
-      </div>
+      <div id="analytics-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="form-section">
-          <h3 class="text-xl font-bold mb-4">Top Products</h3>
-          <div class="space-y-4">
-            <div class="flex items-center">
-              <div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>
-              <div class="flex-1">
-                <h4 class="font-semibold">Wireless Headphones</h4>
-                <p class="text-gray-600">42 units sold</p>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-primary-color">$2,520</p>
-              </div>
-            </div>
-            <div class="flex items-center">
-              <div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>
-              <div class="flex-1">
-                <h4 class="font-semibold">Smart Watch</h4>
-                <p class="text-gray-600">38 units sold</p>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-primary-color">$1,900</p>
-              </div>
-            </div>
-            <div class="flex items-center">
-              <div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>
-              <div class="flex-1">
-                <h4 class="font-semibold">Bluetooth Speaker</h4>
-                <p class="text-gray-600">29 units sold</p>
-              </div>
-              <div class="text-right">
-                <p class="font-bold text-primary-color">$1,450</p>
-              </div>
+          <h3 class="text-lg font-semibold mb-3">Sales Overview</h3>
+          <div class="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div class="text-center text-gray-500">
+              <i class="fa-solid fa-chart-line text-4xl mb-2"></i>
+              <p>Connect your charts here (coming from /analytics)</p>
             </div>
           </div>
         </div>
-
         <div class="form-section">
-          <h3 class="text-xl font-bold mb-4">Customer Demographics</h3>
-          <div class="h-64 bg-gray-100 flex items-center justify-center">
-            <div class="text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-              </svg>
-              <p class="mt-2 text-gray-600">Demographics chart visualization</p>
-            </div>
-          </div>
+          <h3 class="text-lg font-semibold mb-3">Top Products</h3>
+          <div id="top-products" class="space-y-4"></div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Settings Tab -->
-    <div id="settings" class="tab-content">
+    <!-- SETTINGS TAB -->
+    <section id="settings" class="tab-content">
       <div class="section-header">
         <h2 class="text-2xl font-bold">Account Settings</h2>
       </div>
 
-      <div class="form-section">
+      <div class="form-section mb-6">
         <h3 class="text-xl font-bold mb-4">Profile Information</h3>
-        <form>
+        <form id="profile-form">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="form-group">
-              <label for="store-name">Store Name</label>
-              <input type="text" id="store-name" name="store-name" value="TechGadgets Store">
+            <div>
+              <label class="font-semibold text-sm">Store Name</label>
+              <input id="s-store" class="w-full border rounded-lg p-2" />
             </div>
-            <div class="form-group">
-              <label for="owner-name">Owner Name</label>
-              <input type="text" id="owner-name" name="owner-name" value="Alex Johnson">
+            <div>
+              <label class="font-semibold text-sm">Owner Name</label>
+              <input id="s-owner" class="w-full border rounded-lg p-2" />
             </div>
-            <div class="form-group">
-              <label for="email">Email Address</label>
-              <input type="email" id="email" name="email" value="alex@techgadgets.com">
+            <div>
+              <label class="font-semibold text-sm">Email Address</label>
+              <input id="s-email" type="email" class="w-full border rounded-lg p-2" />
             </div>
-            <div class="form-group">
-              <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" value="(555) 123-4567">
+            <div>
+              <label class="font-semibold text-sm">Phone Number</label>
+              <input id="s-phone" class="w-full border rounded-lg p-2" />
             </div>
           </div>
-
-          <div class="form-group">
-            <label for="store-description">Store Description</label>
-            <textarea id="store-description" name="store-description" rows="4">TechGadgets is your one-stop shop for all the latest technology and gadgets. We offer competitive prices and excellent customer service.</textarea>
+          <div class="mt-4">
+            <label class="font-semibold text-sm">Store Description</label>
+            <textarea id="s-desc" class="w-full border rounded-lg p-2 min-h-[100px]"></textarea>
           </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> Save Changes
-            </button>
+          <div class="mt-4">
+            <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save Changes</button>
           </div>
         </form>
       </div>
 
       <div class="form-section">
         <h3 class="text-xl font-bold mb-4">Payment Settings</h3>
-        <form>
-          <div class="form-group">
-            <label for="payment-method">Default Payment Method</label>
-            <select id="payment-method" name="payment-method">
-              <option value="bank">Direct Bank Transfer</option>
-              <option value="paypal" selected>PayPal</option>
-              <option value="stripe">Stripe</option>
-            </select>
+        <form id="payment-form">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="font-semibold text-sm">Default Payment Method</label>
+              <select id="pay-method" class="w-full border rounded-lg p-2">
+                <option value="bank">Direct Bank Transfer</option>
+                <option value="paypal">PayPal</option>
+                <option value="stripe">Stripe</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-sm">PayPal Email</label>
+              <input id="pay-paypal-email" type="email" class="w-full border rounded-lg p-2" />
+            </div>
           </div>
-
-          <div class="form-group">
-            <label for="account-email">PayPal Email</label>
-            <input type="email" id="account-email" name="account-email" value="payments@techgadgets.com">
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> Save Changes
-            </button>
+          <div class="mt-4">
+            <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save Changes</button>
           </div>
         </form>
       </div>
-    </div>
+    </section>
   </main>
 
-  <div id="notification" class="notification">
-    Product saved successfully!
-  </div>
+  <div id="notification" class="notification">Saved</div>
 
   <script>
-    // Sample product data
-    const sampleProducts = [
-      {
-        id: 1,
-        name: "Wireless Headphones",
-        category: "electronics",
-        price: 59.99,
-        stock: 45,
-        sku: "WH-001",
-        description: "High-quality wireless headphones with noise cancellation.",
-        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23CCCCCC'/%3E%3Cpath d='M70,80 C60,80 50,90 50,100 L50,140 C50,150 60,160 70,160 L70,80 Z M130,80 L130,160 C140,160 150,150 150,140 L150,100 C150,90 140,80 130,80 Z M70,70 L130,70 C130,50 115,35 100,35 C85,35 70,50 70,70 Z' fill='%23333333'/%3E%3C/svg%3E"
-      },
-      {
-        id: 2,
-        name: "Smart Watch",
-        category: "electronics",
-        price: 129.99,
-        stock: 28,
-        sku: "SW-002",
-        description: "Feature-rich smart watch with health monitoring capabilities.",
-        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23CCCCCC'/%3E%3Crect x='60' y='40' width='80' height='120' rx='10' fill='%23333333'/%3E%3Crect x='70' y='50' width='60' height='100' rx='5' fill='%234361ee'/%3E%3Cpath d='M60,90 L40,100 L60,110 M140,90 L160,100 L140,110' stroke='%23333333' stroke-width='5' fill='none'/%3E%3C/svg%3E"
-      },
-      {
-        id: 3,
-        name: "Bluetooth Speaker",
-        category: "electronics",
-        price: 49.99,
-        stock: 32,
-        sku: "BS-003",
-        description: "Portable Bluetooth speaker with amazing sound quality.",
-        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23CCCCCC'/%3E%3Crect x='50' y='60' width='100' height='80' rx='10' fill='%23333333'/%3E%3Ccircle cx='80' cy='100' r='20' fill='%23666666'/%3E%3Ccircle cx='80' cy='100' r='10' fill='%23999999'/%3E%3Ccircle cx='130' cy='80' r='5' fill='%234361ee'/%3E%3Ccircle cx='130' cy='100' r='5' fill='%234361ee'/%3E%3Ccircle cx='130' cy='120' r='5' fill='%234361ee'/%3E%3C/svg%3E"
-      }
-    ];
+    // ===== ENV / AUTH =====
+    window.ENV = {
+      API_BASE: "https://quicklocal-backend.onrender.com/api/v1",
+      IK_PUBLIC_KEY: "public_/+DxWFuWSKoxwts4BsW7g1g1dZA=",
+      IK_URL_ENDPOINT: "https://ik.imagekit.io/phea4zmjs",
+      IK_AUTH_ENDPOINT: "https://quicklocal-backend.onrender.com/api/v1/imagekit-auth"
+    };
+    const token = localStorage.getItem('qk_token') || '';
+    const h = (json=false) => json
+      ? { 'Content-Type':'application/json', ...(token?{ Authorization:'Bearer '+token }:{}) }
+      : (token?{ Authorization:'Bearer '+token }:{});
 
-    // DOM Elements
-    const tabLinks = document.querySelectorAll('.sidebar-nav a');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const addProductBtn = document.getElementById('add-product-btn');
-    const productForm = document.getElementById('product-form');
-    const cancelProductBtn = document.getElementById('cancel-product');
-    const newProductForm = document.getElementById('new-product-form');
-    const fileUploadArea = document.getElementById('file-upload-area');
-    const productImagesInput = document.getElementById('product-images');
-    const imagePreview = document.getElementById('image-preview');
-    const productList = document.getElementById('product-list');
-    const notification = document.getElementById('notification');
+    // ===== UTIL =====
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+    const notify = (msg, ok=true) => {
+      const n = $('#notification');
+      n.textContent = msg;
+      n.style.background = ok ? '#111827' : '#b91c1c';
+      n.classList.add('show');
+      setTimeout(()=> n.classList.remove('show'), 2500);
+    };
 
-    // Tab Navigation
-    tabLinks.forEach(link => {
-      link.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Remove active class from all tabs
-        tabLinks.forEach(item => {
-          item.parentElement.classList.remove('active');
-        });
-        
-        // Add active class to clicked tab
-        this.parentElement.classList.add('active');
-        
-        // Hide all tab contents
-        tabContents.forEach(content => {
-          content.classList.remove('active');
-        });
-        
-        // Show the selected tab content
-        const tabId = this.getAttribute('data-tab');
-        document.getElementById(tabId).classList.add('active');
+    // ===== API HELPERS (with graceful fallbacks) =====
+    async function apiGet(path, fallback) {
+      try {
+        const r = await fetch(`${ENV.API_BASE}${path}`, { headers: { ...h() } });
+        if (!r.ok) throw new Error(await r.text());
+        return await r.json();
+      } catch (e) { console.warn('GET fail', path, e); return fallback; }
+    }
+    async function apiPost(path, body) {
+      const r = await fetch(`${ENV.API_BASE}${path}`, { method:'POST', headers:h(true), body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    async function apiPut(path, body) {
+      const r = await fetch(`${ENV.API_BASE}${path}`, { method:'PUT', headers:h(true), body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    async function apiDelete(path) {
+      const r = await fetch(`${ENV.API_BASE}${path}`, { method:'DELETE', headers:h(true) });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    // ===== IMAGEKIT UPLOAD (signed) =====
+    async function getIKSignature(){
+      try {
+        const r = await fetch(ENV.IK_AUTH_ENDPOINT, { headers: { ...h() } });
+        if (!r.ok) return null; return r.json();
+      } catch { return null; }
+    }
+    async function uploadToImageKit(file){
+      const sig = await getIKSignature();
+      if (!ENV.IK_URL_ENDPOINT || !sig || !ENV.IK_PUBLIC_KEY) { notify('Image upload not configured', false); return null; }
+      const form = new FormData();
+      form.append('file', file);
+      form.append('publicKey', ENV.IK_PUBLIC_KEY);
+      form.append('signature', sig.signature);
+      form.append('expire', sig.expire);
+      form.append('token', sig.token);
+      const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:form });
+      if (!res.ok) { console.error('IK fail', await res.text()); notify('Image upload failed', false); return null; }
+      const data = await res.json();
+      const url = ENV.IK_URL_ENDPOINT.replace(/\/$/, '') + '/' + (data.filePath||'').replace(/^\//,'');
+      return url;
+    }
+
+    // ===== STATE =====
+    let productsState = [];
+    let editingProductId = null; // _id when editing
+    let productImages = []; // array of URLs
+
+    // ===== TABS =====
+    $$('.sidebar-nav a').forEach(a => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      $$('.sidebar-nav li').forEach(li=>li.classList.remove('active'));
+      a.parentElement.classList.add('active');
+      $$('.tab-content').forEach(t=>t.classList.remove('active'));
+      $('#'+a.dataset.tab).classList.add('active');
+    }));
+
+    // ===== DASHBOARD =====
+    function statCard(icon, value, label){
+      return `<div class="form-section text-center"><div class="text-3xl mb-2 text-[var(--primary-color)]">${icon}</div><div class="text-3xl font-bold">${value}</div><div class="text-gray-500">${label}</div></div>`
+    }
+    async function loadDashboard(){
+      const analytics = await apiGet('/analytics', { totalProducts:0, ordersThisMonth:0, revenueThisMonth:0, totalCustomers:0, topProducts:[] });
+      $('#stats-grid').innerHTML = [
+        statCard('<i class="fa-solid fa-box"></i>', analytics.totalProducts ?? productsState.length, 'Total Products'),
+        statCard('<i class="fa-solid fa-cart-shopping"></i>', analytics.ordersThisMonth ?? 0, 'Orders This Month'),
+        statCard('<i class="fa-solid fa-indian-rupee-sign"></i>', analytics.revenueThisMonth ?? 0, 'Revenue This Month'),
+        statCard('<i class="fa-solid fa-users"></i>', analytics.totalCustomers ?? 0, 'Total Customers')
+      ].join('');
+
+      const orders = await apiGet('/orders?limit=5', []);
+      const body = $('#recent-orders-body');
+      body.innerHTML = '';
+      orders.forEach(o => {
+        const id = o.orderNumber || o._id || '';
+        const cust = (o.customer && (o.customer.name || o.customer.fullName)) || o.customerName || '—';
+        const dt = o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '—';
+        const amt = (o.amount?.toFixed ? o.amount.toFixed(2) : o.amount) ?? '—';
+        const status = o.status || '—';
+        const badge = statusBadge(status);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-4 border-b">${id}</td>
+          <td class="py-2 px-4 border-b">${cust}</td>
+          <td class="py-2 px-4 border-b">${dt}</td>
+          <td class="py-2 px-4 border-b">₹${amt}</td>
+          <td class="py-2 px-4 border-b">${badge}</td>
+          <td class="py-2 px-4 border-b"><button class="text-blue-600 hover:underline">View</button></td>`;
+        body.appendChild(tr);
       });
-    });
-
-    // Product Form Toggle
-    addProductBtn.addEventListener('click', function() {
-      productForm.style.display = 'block';
-      addProductBtn.style.display = 'none';
-    });
-
-    cancelProductBtn.addEventListener('click', function() {
-      productForm.style.display = 'none';
-      addProductBtn.style.display = 'block';
-      newProductForm.reset();
-      imagePreview.innerHTML = '';
-    });
-
-    // File Upload Handling
-    fileUploadArea.addEventListener('click', function() {
-      productImagesInput.click();
-    });
-
-    productImagesInput.addEventListener('change', function() {
-      handleFileUpload(this.files);
-    });
-
-    fileUploadArea.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      this.style.borderColor = 'var(--primary-color)';
-      this.style.backgroundColor = 'var(--light-color)';
-    });
-
-    fileUploadArea.addEventListener('dragleave', function() {
-      this.style.borderColor = 'var(--border-color)';
-      this.style.backgroundColor = '';
-    });
-
-    fileUploadArea.addEventListener('drop', function(e) {
-      e.preventDefault();
-      this.style.borderColor = 'var(--border-color)';
-      this.style.backgroundColor = '';
-      
-      if (e.dataTransfer.files.length) {
-        handleFileUpload(e.dataTransfer.files);
-      }
-    });
-
-    function handleFileUpload(files) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        if (!file.type.startsWith('image/')) continue;
-        
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-          const imgContainer = document.createElement('div');
-          imgContainer.className = 'image-preview-item';
-          
-          const img = document.createElement('img');
-          img.src = e.target.result;
-          img.alt = 'Product Image';
-          
-          const removeBtn = document.createElement('div');
-          removeBtn.className = 'remove-image';
-          removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-          removeBtn.addEventListener('click', function() {
-            imgContainer.remove();
-          });
-          
-          imgContainer.appendChild(img);
-          imgContainer.appendChild(removeBtn);
-          imagePreview.appendChild(imgContainer);
-        };
-        
-        reader.readAsDataURL(file);
-      }
+    }
+    function statusBadge(status){
+      const map = { delivered:'bg-green-100 text-green-800', shipped:'bg-blue-100 text-blue-800', processing:'bg-yellow-100 text-yellow-800', cancelled:'bg-red-100 text-red-800' };
+      const cls = map[(status||'').toLowerCase()] || 'bg-gray-100 text-gray-800';
+      return `<span class="px-2 py-1 ${cls} rounded-full text-xs">${status}</span>`;
     }
 
-    // Form Submission
-    newProductForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // Get form values
-      const productName = document.getElementById('product-name').value;
-      const productCategory = document.getElementById('product-category').value;
-      const productPrice = document.getElementById('product-price').value;
-      const productStock = document.getElementById('product-stock').value;
-      const productSku = document.getElementById('product-sku').value;
-      const productDescription = document.getElementById('product-description').value;
-      
-      // Create new product object
-      const newProduct = {
-        id: Date.now(),
-        name: productName,
-        category: productCategory,
-        price: parseFloat(productPrice),
-        stock: parseInt(productStock),
-        sku: productSku,
-        description: productDescription,
-        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23CCCCCC'/%3E%3Cpath d='M70,60 L130,60 L150,100 L130,140 L70,140 L50,100 Z' fill='%23333333'/%3E%3Ccircle cx='100' cy='100' r='25' fill='%234361ee'/%3E%3C/svg%3E"
-      };
-      
-      // Add to sample products
-      sampleProducts.unshift(newProduct);
-      
-      // Reset form and hide it
-      newProductForm.reset();
-      productForm.style.display = 'none';
-      addProductBtn.style.display = 'block';
-      imagePreview.innerHTML = '';
-      
-      // Show notification
-      showNotification('Product saved successfully!');
-      
-      // Refresh product list
-      renderProducts();
-    });
-
-    // Show notification
-    function showNotification(message) {
-      notification.textContent = message;
-      notification.classList.add('show');
-      
-      setTimeout(() => {
-        notification.classList.remove('show');
-      }, 3000);
+    // ===== PRODUCTS =====
+    async function loadCategories(){
+      const sel = $('#p-category');
+      const cats = await apiGet('/categories', []);
+      sel.innerHTML = '<option value="">Select a category</option>';
+      cats.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c._id || c.slug || c.name; o.textContent = c.name; sel.appendChild(o);
+      });
     }
-
-    // Render products
-    function renderProducts() {
-      productList.innerHTML = '';
-      
-      sampleProducts.forEach(product => {
-        const productCard = document.createElement('div');
-        productCard.className = 'product-card';
-        
-        productCard.innerHTML = `
-          <img src="${product.image}" alt="${product.name}" class="product-image">
-          <div class="product-details">
-            <h4 class="product-title">${product.name}</h4>
-            <p class="product-price">$${product.price.toFixed(2)}</p>
-            <p class="product-stock">In Stock: ${product.stock}</p>
-            <div class="product-actions">
-              <button class="btn btn-primary btn-sm edit-product" data-id="${product.id}">
-                <i class="fas fa-edit"></i> Edit
-              </button>
-              <button class="btn btn-danger btn-sm delete-product" data-id="${product.id}">
-                <i class="fas fa-trash"></i> Delete
-              </button>
+    async function loadProducts(){
+      productsState = await apiGet('/products', []);
+      renderProducts(productsState);
+    }
+    function renderProducts(list){
+      $('#product-count').textContent = list.length;
+      const grid = $('#product-list');
+      grid.innerHTML = '';
+      list.forEach(p => {
+        const img = (p.images && p.images[0]) || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22140%22%3E%3Crect width=%22200%22 height=%22140%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2214%22%3ENo Image%3C/text%3E%3C/svg%3E';
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <img src="${img}" class="product-image" alt="${p.title||p.name}" />
+          <div class="p-4">
+            <h4 class="font-semibold text-lg mb-1 line-clamp-1">${p.title || p.name}</h4>
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[var(--primary-color)] font-bold">₹${Number(p.price||0).toFixed(2)}</div>
+              <div class="text-sm text-gray-500">Stock: ${p.stock ?? 0}</div>
             </div>
+            <div class="flex items-center gap-2 mb-3">
+              <span class="badge">${p.category?.name || p.category || 'General'}</span>
+              ${p.active===false?'<span class="badge">Inactive</span>':''}
+            </div>
+            <div class="flex gap-2">
+              <button class="btn btn-primary btn-sm" data-act="edit" data-id="${p._id||p.id}"><i class="fa-solid fa-pen"></i> Edit</button>
+              <button class="btn btn-danger btn-sm" data-act="delete" data-id="${p._id||p.id}"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      });
+      // bind actions
+      $$('#product-list [data-act="edit"]').forEach(b=> b.addEventListener('click', ()=> startEditProduct(b.dataset.id)));
+      $$('#product-list [data-act="delete"]').forEach(b=> b.addEventListener('click', ()=> deleteProduct(b.dataset.id)));
+    }
+
+    function parseVariants(str){ try { return JSON.parse(str||'[]'); } catch { return []; } }
+
+    function collectProductForm(){
+      return {
+        title: $('#p-title').value.trim(),
+        description: $('#p-description').value.trim(),
+        category: $('#p-category').value,
+        tags: $('#p-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+        price: Number($('#p-price').value||0),
+        mrp: Number($('#p-mrp').value||0),
+        stock: Number($('#p-stock').value||0),
+        sku: $('#p-sku').value.trim(),
+        gst: Number($('#p-gst').value||0),
+        active: $('#p-active').value === 'true',
+        variants: parseVariants($('#p-variants').value),
+        images: productImages.slice()
+      };
+    }
+
+    function fillProductForm(p){
+      $('#p-title').value = p.title || '';
+      $('#p-description').value = p.description || '';
+      $('#p-category').value = (p.category? (p.category._id||p.category.slug||p.category.name) : p.category) || '';
+      $('#p-tags').value = (p.tags||[]).join(', ');
+      $('#p-price').value = p.price ?? '';
+      $('#p-mrp').value = p.mrp ?? '';
+      $('#p-stock').value = p.stock ?? '';
+      $('#p-sku').value = p.sku || '';
+      $('#p-gst').value = p.gst ?? '';
+      $('#p-active').value = (p.active===false ? 'false' : 'true');
+      $('#p-variants').value = JSON.stringify(p.variants||[], null, 0);
+      productImages = (p.images||[]).slice();
+      renderImagePreview();
+    }
+
+    async function startEditProduct(id){
+      const p = productsState.find(x => (x._id||x.id) === id);
+      if (!p) return;
+      editingProductId = id;
+      $('#product-form-title').textContent = 'Edit Product';
+      $('#save-btn-text').textContent = 'Update Product';
+      $('#product-form').classList.remove('hidden');
+      $('#add-product-btn').classList.add('hidden');
+      fillProductForm(p);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deleteProduct(id){
+      if (!confirm('Delete this product?')) return;
+      try { await apiDelete(`/products/${id}`); notify('Product deleted'); await loadProducts(); }
+      catch(e){ notify(parseErr(e, 'Delete failed'), false); }
+    }
+
+    function clearForm(){
+      editingProductId = null;
+      $('#product-form-title').textContent = 'Add New Product';
+      $('#save-btn-text').textContent = 'Save Product';
+      $('#new-product-form').reset();
+      productImages = []; renderImagePreview();
+    }
+
+    function parseErr(e, fallback){ return (e && e.message) ? e.message : (''+e || fallback); }
+
+    // ===== IMAGE UI (drag & drop + preview) =====
+    const fileArea = $('#file-upload-area');
+    const fileInput = $('#p-images');
+    const imgPreview = $('#image-preview');
+
+    function renderImagePreview(){
+      imgPreview.innerHTML = '';
+      productImages.forEach((url, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'image-preview-item';
+        wrap.innerHTML = `<img src="${url}" alt="img"><div class="remove-image" data-i="${idx}"><i class="fa-solid fa-xmark"></i></div>`;
+        imgPreview.appendChild(wrap);
+      });
+    }
+
+    imgPreview.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.remove-image');
+      if (!btn) return; const i = +btn.dataset.i; productImages.splice(i,1); renderImagePreview();
+    });
+
+    fileArea.addEventListener('click', ()=> fileInput.click());
+    fileArea.addEventListener('dragover', (e)=>{ e.preventDefault(); fileArea.classList.add('ring-2','ring-indigo-400'); });
+    fileArea.addEventListener('dragleave', ()=> fileArea.classList.remove('ring-2','ring-indigo-400'));
+    fileArea.addEventListener('drop', async (e)=>{
+      e.preventDefault(); fileArea.classList.remove('ring-2','ring-indigo-400');
+      const files = Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
+      for (const f of files){ const url = await uploadToImageKit(f); if (url) productImages.push(url); }
+      renderImagePreview();
+    });
+    fileInput.addEventListener('change', async (e)=>{
+      const files = Array.from(e.target.files||[]);
+      for (const f of files){ const url = await uploadToImageKit(f); if (url) productImages.push(url); }
+      renderImagePreview(); fileInput.value='';
+    });
+
+    // ===== PRODUCT FORM SUBMIT =====
+    $('#new-product-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const body = collectProductForm();
+      if (!body.title || !body.category) { notify('Title & Category are required', false); return; }
+      try {
+        if (editingProductId) { await apiPut(`/products/${editingProductId}`, body); notify('Product updated'); }
+        else { await apiPost('/products', body); notify('Product created'); }
+        await loadProducts(); clearForm();
+        $('#product-form').classList.add('hidden');
+        $('#add-product-btn').classList.remove('hidden');
+      } catch(e){ notify(parseErr(e, 'Save failed'), false); }
+    });
+    $('#cancel-product').addEventListener('click', ()=>{ $('#product-form').classList.add('hidden'); $('#add-product-btn').classList.remove('hidden'); clearForm(); });
+    $('#reset-form').addEventListener('click', ()=> clearForm());
+    $('#add-product-btn').addEventListener('click', ()=>{ $('#product-form').classList.remove('hidden'); $('#add-product-btn').classList.add('hidden'); clearForm(); });
+
+    // search
+    $('#product-search').addEventListener('input', (e)=>{
+      const q = e.target.value.toLowerCase();
+      const filtered = productsState.filter(p => `${p.title||''} ${p.sku||''} ${(p.tags||[]).join(' ')}`.toLowerCase().includes(q));
+      renderProducts(filtered);
+    });
+
+    // ===== ORDERS TAB =====
+    async function loadOrders(){
+      const orders = await apiGet('/orders', []);
+      const body = $('#orders-body'); body.innerHTML = '';
+      orders.forEach(o => {
+        const id = o.orderNumber || o._id || '';
+        const cust = (o.customer && (o.customer.name || o.customer.fullName)) || o.customerName || '—';
+        const dt = o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '—';
+        const amt = (o.amount?.toFixed ? o.amount.toFixed(2) : o.amount) ?? '—';
+        const status = o.status || '—';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-4 border-b">${id}</td>
+          <td class="py-2 px-4 border-b">${cust}</td>
+          <td class="py-2 px-4 border-b">${dt}</td>
+          <td class="py-2 px-4 border-b">₹${amt}</td>
+          <td class="py-2 px-4 border-b">${statusBadge(status)}</td>
+          <td class="py-2 px-4 border-b"><button class="text-blue-600 hover:underline">View</button></td>`;
+        body.appendChild(tr);
+      });
+    }
+    $('#refresh-orders').addEventListener('click', loadOrders);
+
+    // ===== ANALYTICS TAB =====
+    function renderAnalyticsCards(a){
+      $('#analytics-cards').innerHTML = [
+        statCard('<i class="fa-solid fa-box"></i>', a.totalProducts ?? productsState.length, 'Total Products'),
+        statCard('<i class="fa-solid fa-cart-shopping"></i>', a.ordersThisMonth ?? 0, 'Orders This Month'),
+        statCard('<i class="fa-solid fa-indian-rupee-sign"></i>', a.revenueThisMonth ?? 0, 'Revenue This Month'),
+        statCard('<i class="fa-solid fa-users"></i>', a.totalCustomers ?? 0, 'Total Customers')
+      ].join('');
+    }
+    function renderTopProducts(list){
+      const c = $('#top-products'); c.innerHTML = '';
+      (list||[]).forEach(tp => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center';
+        row.innerHTML = `
+          <div class="w-16 h-16 bg-gray-200 rounded-md mr-4 overflow-hidden">
+            <img src="${(tp.images && tp.images[0]) || ''}" class="w-full h-full object-cover" alt="" />
           </div>
-        `;
-        
-        productList.appendChild(productCard);
-      });
-      
-      // Add event listeners to edit and delete buttons
-      document.querySelectorAll('.edit-product').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const productId = parseInt(this.getAttribute('data-id'));
-          editProduct(productId);
-        });
-      });
-      
-      document.querySelectorAll('.delete-product').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const productId = parseInt(this.getAttribute('data-id'));
-          deleteProduct(productId);
-        });
+          <div class="flex-1">
+            <h4 class="font-semibold">${tp.title || tp.name || 'Product'}</h4>
+            <p class="text-gray-600">${tp.unitsSold ?? 0} units sold</p>
+          </div>
+          <div class="text-right font-bold">₹${Number(tp.revenue||0).toFixed(2)}</div>`;
+        c.appendChild(row);
       });
     }
-
-    // Edit product
-    function editProduct(productId) {
-      const product = sampleProducts.find(p => p.id === productId);
-      
-      if (product) {
-        // Fill form with product data
-        document.getElementById('product-name').value = product.name;
-        document.getElementById('product-category').value = product.category;
-        document.getElementById('product-price').value = product.price;
-        document.getElementById('product-stock').value = product.stock;
-        document.getElementById('product-sku').value = product.sku;
-        document.getElementById('product-description').value = product.description;
-        
-        // Show form
-        productForm.style.display = 'block';
-        addProductBtn.style.display = 'none';
-        
-        // Add image preview
-        const imgContainer = document.createElement('div');
-        imgContainer.className = 'image-preview-item';
-        
-        const img = document.createElement('img');
-        img.src = product.image;
-        img.alt = 'Product Image';
-        
-        const removeBtn = document.createElement('div');
-        removeBtn.className = 'remove-image';
-        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        removeBtn.addEventListener('click', function() {
-          imgContainer.remove();
-        });
-        
-        imgContainer.appendChild(img);
-        imgContainer.appendChild(removeBtn);
-        imagePreview.appendChild(imgContainer);
-      }
+    async function loadAnalytics(){
+      const a = await apiGet('/analytics', { totalProducts:0, ordersThisMonth:0, revenueThisMonth:0, totalCustomers:0, topProducts:[] });
+      renderAnalyticsCards(a);
+      renderTopProducts(a.topProducts);
     }
+    $('#refresh-analytics').addEventListener('click', loadAnalytics);
 
-    // Delete product
-    function deleteProduct(productId) {
-      if (confirm('Are you sure you want to delete this product?')) {
-        const index = sampleProducts.findIndex(p => p.id === productId);
-        
-        if (index !== -1) {
-          sampleProducts.splice(index, 1);
-          renderProducts();
-          showNotification('Product deleted successfully!');
-        }
-      }
+    // ===== SETTINGS =====
+    async function loadSettings(){
+      const s = await apiGet('/settings', { profile:{}, payments:{} });
+      $('#s-store').value = s.profile?.storeName || '';
+      $('#s-owner').value = s.profile?.ownerName || '';
+      $('#s-email').value = s.profile?.email || '';
+      $('#s-phone').value = s.profile?.phone || '';
+      $('#s-desc').value = s.profile?.description || '';
+      $('#pay-method').value = s.payments?.method || 'paypal';
+      $('#pay-paypal-email').value = s.payments?.paypalEmail || '';
     }
+    $('#profile-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const payload = { profile: { storeName:$('#s-store').value, ownerName:$('#s-owner').value, email:$('#s-email').value, phone:$('#s-phone').value, description:$('#s-desc').value } };
+      try { await apiPut('/settings', payload); notify('Profile saved'); }
+      catch(e){ notify(parseErr(e, 'Save failed'), false); }
+    });
+    $('#payment-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const payload = { payments: { method:$('#pay-method').value, paypalEmail:$('#pay-paypal-email').value } };
+      try { await apiPut('/settings', payload); notify('Payment settings saved'); }
+      catch(e){ notify(parseErr(e, 'Save failed'), false); }
+    });
 
-    // Initialize product list
-    renderProducts();
+    // ===== INIT =====
+    (async function init(){
+      await loadCategories();
+      await loadProducts();
+      await loadDashboard();
+      await loadOrders();
+      await loadAnalytics();
+      await loadSettings();
+    })();
+
+    // ===== EXPORT (simple JSON export of products) =====
+    $('#export-report').addEventListener('click', async ()=>{
+      try {
+        const blob = new Blob([JSON.stringify(productsState, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'products-report.json'; a.click(); URL.revokeObjectURL(url);
+      } catch { notify('Export failed', false); }
+    });
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'95bf2bb8c7061c5b',t:'MTc1MTk3MzQwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
