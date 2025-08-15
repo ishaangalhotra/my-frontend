@@ -471,3 +471,168 @@ window.checkoutUtils = {
   removeFromCart,
   loadSavedAddress
 };
+// js/checkout.js
+import { checkoutService } from "./api/checkout-service.js";
+import { cartService } from "./api/cart-service.js";
+import { showError, showSuccess } from "./ui/notifications.js";
+
+const checkoutForm = document.querySelector("#checkout-form");
+const orderSummary = document.querySelector("#order-summary");
+
+async function renderOrderSummary() {
+  try {
+    const cart = await cartService.getCart();
+    if (!cart.items?.length) {
+      orderSummary.innerHTML = "<p>Your cart is empty.</p>";
+      checkoutForm.style.display = "none";
+      return;
+    }
+
+    orderSummary.innerHTML = cart.items
+      .map(
+        (item) => `
+        <div>
+          <strong>${item.product.name}</strong> × ${item.quantity}  
+          <span>₹${item.product.price * item.quantity}</span>
+        </div>
+      `
+      )
+      .join("");
+
+    const total = cart.items.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0
+    );
+    orderSummary.innerHTML += `<hr><div><strong>Total:</strong> ₹${total}</div>`;
+  } catch (err) {
+    showError(err.message || "Failed to load order summary");
+  }
+}
+
+checkoutForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formData = Object.fromEntries(new FormData(checkoutForm).entries());
+
+  try {
+    // 1. Create the order
+    const order = await checkoutService.createOrder(formData);
+    showSuccess("Order created. Redirecting to payment...");
+
+    // 2. Get payment token
+    const { token } = await checkoutService.getPaymentToken(order._id);
+
+    // 3. Initiate payment (example: Razorpay integration)
+    const options = {
+      key: "YOUR_RAZORPAY_KEY",
+      amount: order.totalAmount * 100, // in paise
+      currency: "INR",
+      name: "QuickLocal Store",
+      description: "Order Payment",
+      order_id: token,
+      handler: async (response) => {
+        try {
+          await checkoutService.verifyPayment(response);
+          showSuccess("Payment successful! Your order is confirmed.");
+          window.location.href = "/order-success.html";
+        } catch (err) {
+          showError("Payment verification failed");
+        }
+      }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+
+  } catch (err) {
+    showError(err.message || "Checkout failed");
+  }
+});
+
+document.addEventListener("DOMContentLoaded", renderOrderSummary);
+// js/checkout.js
+import { api } from "./api/api-client.js";
+import { showError, showSuccess } from "./ui/notifications.js";
+
+document.querySelector("#place-order-btn").addEventListener("click", async () => {
+  const address = {
+    name: document.querySelector("#name").value,
+    phone: document.querySelector("#phone").value,
+    addressLine1: document.querySelector("#address1").value,
+    addressLine2: document.querySelector("#address2").value,
+    city: document.querySelector("#city").value,
+    state: document.querySelector("#state").value,
+    pincode: document.querySelector("#pincode").value
+  };
+
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  if (!cart.length) {
+    return showError("Your cart is empty!");
+  }
+
+  try {
+    const res = await api.post("/api/v1/orders", {
+      items: cart,
+      shippingAddress: address,
+      paymentMethod: "COD",
+      totalAmount: total
+    });
+
+    showSuccess("Order placed successfully!");
+    localStorage.removeItem("cart");
+    window.location.href = `/order-success.html?orderId=${res.order._id}`;
+  } catch (err) {
+    console.error(err);
+    showError("Failed to place order");
+  }
+});
+// js/checkout.js
+import { api } from "./api/api-client.js";
+import { showError, showSuccess } from "./ui/notifications.js";
+
+document.querySelector("#place-order-btn").addEventListener("click", async () => {
+  const name = document.querySelector("#name").value.trim();
+  const phone = document.querySelector("#phone").value.trim();
+  const address1 = document.querySelector("#address1").value.trim();
+  const city = document.querySelector("#city").value.trim();
+  const state = document.querySelector("#state").value.trim();
+  const pincode = document.querySelector("#pincode").value.trim();
+
+  if (!name || !phone || !address1 || !city || !state || !pincode) {
+    return showError("Please fill all required fields.");
+  }
+
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+  if (!cart.length) {
+    return showError("Your cart is empty!");
+  }
+
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  try {
+    const res = await api.post("/api/v1/orders", {
+      items: cart,
+      shippingAddress: {
+        name,
+        phone,
+        addressLine1: address1,
+        addressLine2: document.querySelector("#address2").value.trim(),
+        city,
+        state,
+        pincode
+      },
+      paymentMethod: "COD",
+      totalAmount: total
+    });
+
+    showSuccess("Order placed successfully!");
+    localStorage.removeItem("cart");
+
+    // Redirect to success page with order ID
+    window.location.href = `/order-success.html?orderId=${res.order._id}`;
+  } catch (err) {
+    console.error(err);
+    showError(err.response?.data?.message || "Failed to place order");
+  }
+});
+

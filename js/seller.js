@@ -998,3 +998,49 @@
     width: 100%;
   }
 }
+// js/seller.js
+import { sellerService } from "./api/seller-service.js";
+import { showError, showSuccess } from "./ui/notifications.js";
+
+const productsContainer = document.querySelector("#seller-products-container");
+
+async function loadSellerProducts() {
+  try {
+    const { products } = await sellerService.getMyProducts();
+
+    if (!products.length) {
+      productsContainer.innerHTML = `<p>No products found. Add your first one!</p>`;
+      return;
+    }
+
+    productsContainer.innerHTML = products.map(p => `
+      <div class="product-card">
+        <h4>${p.name}</h4>
+        <p>Price: ₹${p.price}</p>
+        <p>Stock: ${p.stock}</p>
+        <button onclick="editProduct('${p._id}')">Edit</button>
+        <button onclick="deleteProduct('${p._id}')">Delete</button>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error(err);
+    showError("Failed to load seller products");
+  }
+}
+
+async function deleteProduct(productId) {
+  if (!confirm("Are you sure you want to delete this product?")) return;
+
+  try {
+    await sellerService.deleteProduct(productId);
+    showSuccess("Product deleted successfully");
+    loadSellerProducts();
+  } catch (err) {
+    console.error(err);
+    showError("Failed to delete product");
+  }
+}
+
+window.deleteProduct = deleteProduct;
+
+document.addEventListener("DOMContentLoaded", loadSellerProducts);

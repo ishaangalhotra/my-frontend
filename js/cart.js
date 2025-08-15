@@ -395,3 +395,69 @@ window.cartUtils = {
 if (typeof updateCartBadge === 'function') {
   updateCartBadge();
 }
+// js/cart.js
+import { cartService } from "./api/cart-service.js";
+import { showError, showSuccess } from "./ui/notifications.js";
+
+const cartContainer = document.querySelector("#cart-container");
+
+async function renderCart() {
+  try {
+    const cart = await cartService.getCart();
+    if (!cart.items?.length) {
+      cartContainer.innerHTML = `<p>Your cart is empty</p>`;
+      return;
+    }
+
+    cartContainer.innerHTML = cart.items
+      .map(
+        (item) => `
+        <div class="cart-item" data-id="${item.product._id}">
+          <img src="${item.product.image}" alt="${item.product.name}">
+          <div class="details">
+            <h4>${item.product.name}</h4>
+            <p>Price: ₹${item.product.price}</p>
+            <input type="number" min="1" value="${item.quantity}" class="qty-input">
+            <button class="remove-btn">Remove</button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+
+    attachCartEvents();
+  } catch (err) {
+    showError(err.message || "Failed to load cart");
+  }
+}
+
+function attachCartEvents() {
+  document.querySelectorAll(".qty-input").forEach((input) => {
+    input.addEventListener("change", async (e) => {
+      const productId = e.target.closest(".cart-item").dataset.id;
+      const quantity = parseInt(e.target.value, 10);
+      try {
+        await cartService.updateItem(productId, quantity);
+        showSuccess("Quantity updated");
+        renderCart();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+  });
+
+  document.querySelectorAll(".remove-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      const productId = e.target.closest(".cart-item").dataset.id;
+      try {
+        await cartService.removeItem(productId);
+        showSuccess("Item removed");
+        renderCart();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", renderCart);
