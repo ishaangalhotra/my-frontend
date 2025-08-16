@@ -425,23 +425,48 @@ const ApiClient = (function () {
             const res = await makeApiCall(config.API.ENDPOINTS.PRODUCTS, { method: "GET" });
             const response = await res.json();
             
-            // ✅ Handle your backend's response format
+            // ✅ Fixed: Handle your backend's response format properly
             let products = [];
-            if (response.success && response.data && response.data.products) {
+            
+            if (response.success && response.data && Array.isArray(response.data.products)) {
+              // Backend returns: { success: true, data: { products: [...] } }
               products = response.data.products;
+            } else if (response.success && Array.isArray(response.data)) {
+              // Backend returns: { success: true, data: [...] }
+              products = response.data;
             } else if (Array.isArray(response)) {
+              // Backend returns: [...]
               products = response;
+            } else {
+              // If we can't find an array, log the structure and return empty array
+              console.warn('Unexpected response format:', response);
+              products = [];
             }
             
+            // Cache the products
             storage.set("products", products);
-            return category ? products.filter((p) => p.category?.name === category || p.category === category) : products;
+            
+            // Filter by category if requested
+            const filtered = category 
+              ? products.filter((p) => p.category?.name === category || p.category === category) 
+              : products;
+            
+            console.log(`✅ Successfully fetched ${products.length} products from backend`);
+            return filtered; // ✅ Always return array
           }
         } catch (e) {
           console.warn("products.list backend failed → fallback:", e?.message || e);
           emit("fallback-mode", { operation: "products.list", error: String(e?.message || e) });
         }
+        
+        // Fallback to cached/demo data
         const cached = storage.get("products") || [];
-        return category ? cached.filter((p) => p.category?.name === category || p.category === category) : cached;
+        const filtered = category 
+          ? cached.filter((p) => p.category?.name === category || p.category === category) 
+          : cached;
+        
+        console.log(`📦 Using cached data: ${cached.length} products`);
+        return filtered; // ✅ Always return array
       },
 
       get: async (id) => {
