@@ -425,20 +425,19 @@ const ApiClient = (function () {
             const res = await makeApiCall(config.API.ENDPOINTS.PRODUCTS, { method: "GET" });
             const response = await res.json();
             
-            // ✅ Fixed: Handle your backend's response format properly
+            // ✅ FIXED: Properly unwrap your backend response
             let products = [];
             
             if (response.success && response.data && Array.isArray(response.data.products)) {
-              // Backend returns: { success: true, data: { products: [...] } }
+              // Your backend format: { success: true, data: { products: [...] } }
               products = response.data.products;
             } else if (response.success && Array.isArray(response.data)) {
-              // Backend returns: { success: true, data: [...] }
+              // Alternative format: { success: true, data: [...] }
               products = response.data;
             } else if (Array.isArray(response)) {
-              // Backend returns: [...]
+              // Direct array format: [...]
               products = response;
             } else {
-              // If we can't find an array, log the structure and return empty array
               console.warn('Unexpected response format:', response);
               products = [];
             }
@@ -452,7 +451,7 @@ const ApiClient = (function () {
               : products;
             
             console.log(`✅ Successfully fetched ${products.length} products from backend`);
-            return filtered; // ✅ Always return array
+            return filtered; // ✅ ALWAYS return array, never the wrapped response
           }
         } catch (e) {
           console.warn("products.list backend failed → fallback:", e?.message || e);
@@ -466,7 +465,7 @@ const ApiClient = (function () {
           : cached;
         
         console.log(`📦 Using cached data: ${cached.length} products`);
-        return filtered; // ✅ Always return array
+        return filtered; // ✅ ALWAYS return array
       },
 
       get: async (id) => {
@@ -479,6 +478,8 @@ const ApiClient = (function () {
             // ✅ Handle your backend's response format
             if (response.success && response.data && response.data.product) {
               return response.data.product;
+            } else if (response.success && response.data) {
+              return response.data;
             }
             return response;
           }
