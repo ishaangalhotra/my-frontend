@@ -1,4 +1,5 @@
 // Fixed marketplace.js with proper error handling and API response parsing
+import api from "./simple-api.js";
 
 // Global variables
 let products = []; // Initialize as empty array
@@ -9,17 +10,24 @@ let productsPerPage = 12;
 let isLoading = false;
 let isInitialized = false; // Prevent duplicate initialization
 
-// API Configuration
-const API_BASE = "http://localhost:10000/api/v1";
-const PRODUCTS_API = `${API_BASE}/products`;
-
 // Initialize marketplace - prevent duplicate calls
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
     if (isInitialized) {
         console.log("⚠️ App already initialized, skipping...");
         return;
     }
     console.log("🚀 Marketplace initializing...");
+    
+    // Initialize API first
+    try {
+        await api.init();
+        console.log("✅ API initialized");
+    } catch (error) {
+        console.error("❌ API initialization failed:", error);
+        showNotification("API initialization failed", "error");
+    }
+    
+    // Then initialize the app
     initializeApp();
     
     // Enhanced initialization with additional features
@@ -69,21 +77,9 @@ async function loadProducts() {
     try {
         console.log("📦 Loading products from API...");
         
-        const response = await fetch(PRODUCTS_API, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = await api.getProducts();
         console.log("📊 API Response:", data);
         
-        // FIXED: Enhanced API response structure detection
         let extractedProducts = [];
         
         // Handle the specific API response structure from your logs
@@ -979,6 +975,29 @@ function addToCart(productId) {
     }
 }
 
+// Handle Buy Now functionality using API
+async function handleBuyNow(productId) {
+    try {
+        const product = products.find(p => p._id === productId);
+        if (!product) {
+            showNotification("Product not found", "error");
+            return;
+        }
+        
+        const result = await api.buyNow(productId);
+        
+        if (result.success) {
+            showNotification(`Order placed for ${product.name}!`, "success");
+            // Handle successful purchase - maybe redirect to order confirmation
+        } else {
+            showNotification("Purchase failed. Please try again.", "error");
+        }
+    } catch (error) {
+        console.error("Purchase error:", error);
+        showNotification("Purchase failed. Please try again.", "error");
+    }
+}
+
 // Search functionality
 function performSearch() {
     const searchInput = document.getElementById('search-input');
@@ -1215,11 +1234,11 @@ function generateSearchSuggestions(query) {
     
     // Search in categories
     categories.forEach(category => {
-        if (category.name && category.name.toLowerCase().includes(queryLower)) {
+        if (category.toLowerCase().includes(queryLower)) {
             suggestions.push({
-                text: category.name,
+                text: category,
                 type: 'category',
-                id: category._id
+                id: category
             });
         }
     });
@@ -1428,37 +1447,38 @@ function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-        // Enhanced Logout Function
-        async function logout() {
-            try {
-                await authService.logout();
-                
-                // Update UI
-                const guestActions = document.getElementById('guestActions');
-                const userActions = document.getElementById('userActions');
-                
-                if (guestActions && userActions) {
-                    guestActions.style.display = 'flex';
-                    userActions.style.display = 'none';
-                }
-                
-                showToast('Successfully logged out!', 'success');
-                
-                // Redirect to home page
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1000);
-            } catch (error) {
-                console.error('Logout error:', error);
-                showToast('Logout failed. Please try again.', 'error');
-            }
+// Enhanced Logout Function
+async function logout() {
+    try {
+        await api.logout();
+        
+        // Update UI
+        const guestActions = document.getElementById('guestActions');
+        const userActions = document.getElementById('userActions');
+        
+        if (guestActions && userActions) {
+            guestActions.style.display = 'flex';
+            userActions.style.display = 'none';
         }
+        
+        showToast('Successfully logged out!', 'success');
+        
+        // Redirect to home page
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('Logout failed. Please try again.', 'error');
+    }
+}
 
 // Export functions for global access
 window.quickLocalMarketplace = {
     loadProducts,
     renderProducts,
     addToCart,
+    handleBuyNow,
     performSearch,
     filterByCategory,
     filterByPrice,
