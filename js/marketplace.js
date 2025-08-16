@@ -1,64 +1,46 @@
-// Fixed marketplace.js with proper error handling and API response parsing
-import api from "./simple-api.js";
+// Fixed marketplace.js with proper API integration
+import api from "./js/simple-api.js";
 
 // Global variables
-let products = []; // Initialize as empty array
+let products = [];
 let filteredProducts = [];
 let categories = [];
 let currentPage = 1;
 let productsPerPage = 12;
 let isLoading = false;
-let isInitialized = false; // Prevent duplicate initialization
+let isInitialized = false;
 
-// Initialize marketplace - prevent duplicate calls
+// Initialize marketplace
 document.addEventListener("DOMContentLoaded", async function() {
     if (isInitialized) {
         console.log("⚠️ App already initialized, skipping...");
         return;
     }
     console.log("🚀 Marketplace initializing...");
-    
-    // Initialize API first
-    try {
-        await api.init();
-        console.log("✅ API initialized");
-    } catch (error) {
-        console.error("❌ API initialization failed:", error);
-        showNotification("API initialization failed", "error");
-    }
-    
-    // Then initialize the app
-    initializeApp();
-    
-    // Enhanced initialization with additional features
-    setupMobileMenu();
-    setupUserDropdown();
-    setupSearchSuggestions();
-    setupPriceRangeSlider();
-    setupViewToggle();
-    setupNewsletter();
-    setupToastNotifications();
+    await initializeApp();
 });
 
 async function initializeApp() {
-    if (isInitialized) {
-        console.log("⚠️ App already initialized, skipping...");
-        return;
-    }
-    
+    if (isInitialized) return;
     isInitialized = true;
     
     try {
         showLoadingState();
         
-        // Load products first
+        // Initialize API first
+        await api.init();
+        console.log("✅ API initialized");
+        
+        // Load products from backend
         await loadProducts();
         
-        // Then initialize other components
+        // Initialize UI components
         setupEventListeners();
         setupSearch();
         setupFilters();
         updateCartBadge();
+        setupMobileMenu();
+        setupUserDropdown();
         
         console.log("✅ Marketplace initialized successfully!");
         
@@ -70,207 +52,85 @@ async function initializeApp() {
     }
 }
 
-// Enhanced loadProducts with proper API response structure handling
+// ✅ FIXED loadProducts with proper API integration
 async function loadProducts() {
     isLoading = true;
     
     try {
-        console.log("📦 Loading products from API...");
+        console.log("📦 Loading products from backend API...");
         
-        const data = await api.getProducts();
-        console.log("📊 API Response:", data);
+        // Get products from your backend
+        const data = await api.products.list();
+        console.log("📊 Backend API Response:", data);
         
-        let extractedProducts = [];
-        
-        // Handle the specific API response structure from your logs
-        if (data.success && data.data) {
-            console.log("🔍 API Response structure analysis:");
-            console.log("- data.success:", data.success);
-            console.log("- data.data type:", typeof data.data);
-            console.log("- data.data keys:", data.data ? Object.keys(data.data) : 'null');
-            
-            // Check if data.data has nested structure
-            if (data.data.products && Array.isArray(data.data.products)) {
-                extractedProducts = data.data.products;
-                console.log("✅ Found products in data.data.products");
-            } else if (data.data.items && Array.isArray(data.data.items)) {
-                extractedProducts = data.data.items;
-                console.log("✅ Found products in data.data.items");
-            } else if (Array.isArray(data.data)) {
-                extractedProducts = data.data;
-                console.log("✅ Found products in data.data array");
-            } else {
-                // Search for any array in data.data
-                const nestedArrays = Object.entries(data.data)
-                    .filter(([key, value]) => Array.isArray(value))
-                    .map(([key, value]) => ({ key, value, length: value.length }));
-                
-                console.log("🔍 Found arrays in data.data:", nestedArrays);
-                
-                if (nestedArrays.length > 0) {
-                    // Use the largest array found
-                    const bestMatch = nestedArrays.reduce((max, current) => 
-                        current.length > max.length ? current : max
-                    );
-                    extractedProducts = bestMatch.value;
-                    console.log(`✅ Using array from data.data.${bestMatch.key} (${bestMatch.length} items)`);
-                }
-            }
-        } 
-        // Fallback patterns
-        else if (Array.isArray(data)) {
-            extractedProducts = data;
-            console.log("✅ Found products as root array");
-        } else if (data.products && Array.isArray(data.products)) {
-            extractedProducts = data.products;
-            console.log("✅ Found products in root.products");
-        } else if (data.result && Array.isArray(data.result)) {
-            extractedProducts = data.result;
-            console.log("✅ Found products in root.result");
-        } else if (data.items && Array.isArray(data.items)) {
-            extractedProducts = data.items;
-            console.log("✅ Found products in root.items");
-        }
-        
-        // If still no products found, try to find any array in the response
-        if (extractedProducts.length === 0) {
-            console.log("🔍 Searching for any arrays in the entire response...");
-            const allArrays = findArraysInObject(data);
-            console.log("Found arrays:", allArrays);
-            
-            if (allArrays.length > 0) {
-                extractedProducts = allArrays[0].value;
-                console.log(`✅ Using first array found at path: ${allArrays[0].path}`);
-            }
-        }
-
-        if (extractedProducts.length === 0) {
-            console.error("❌ No valid products array found in API response");
-            console.error("Full API response structure:", JSON.stringify(data, null, 2));
-            throw new Error("No valid products array found in API response");
-        }
-
-        // Validate and clean products data
-        products = extractedProducts
-            .filter(product => product && typeof product === 'object')
-            .map(product => ({
-                _id: product._id || product.id || `temp_${Date.now()}_${Math.random()}`,
-                name: product.name || product.title || 'Unnamed Product',
-                price: parseFloat(product.price) || 0,
-                category: product.category || product.type || 'Uncategorized',
-                image: product.image || product.imageUrl || product.photo || 'https://via.placeholder.com/300x200?text=No+Image',
-                description: product.description || product.desc || 'No description available',
-                rating: parseFloat(product.rating) || 0,
-                inStock: product.inStock !== false && product.stock !== 0,
-                ...product // Keep all original properties
+        // Handle the response properly
+        if (data && Array.isArray(data) && data.length > 0) {
+            products = data.map(product => ({
+                _id: product.id || product._id,
+                name: product.name,
+                price: parseFloat(product.finalPrice || product.price),
+                originalPrice: parseFloat(product.price),
+                category: product.category?.name || product.category || 'Uncategorized',
+                image: product.images?.[0]?.url || 'https://via.placeholder.com/300x200?text=No+Image',
+                description: product.description,
+                rating: parseFloat(product.rating) || 4.0,
+                inStock: product.inStock !== false,
+                stock: product.stock || 10,
+                brand: product.brand || ''
             }));
-        
-        if (products.length === 0) {
-            throw new Error("No valid products found after processing API response");
+            
+            filteredProducts = [...products];
+            extractCategories();
+            renderProducts();
+            
+            console.log(`✅ Loaded ${products.length} products from backend`);
+            showNotification(`Loaded ${products.length} products`, "success");
+            
+        } else {
+            throw new Error("No products received from backend");
         }
-
-        // Initialize filtered products
-        filteredProducts = [...products];
-        
-        // Extract categories
-        extractCategories();
-        
-        // Cache products for offline use
-        cacheProducts();
-        
-        // Render products
-        renderProducts();
-        
-        console.log(`✅ Loaded ${products.length} products successfully`);
         
     } catch (error) {
-        console.error("❌ Failed to load products:", error);
+        console.error("❌ Failed to load products from backend:", error);
+        showNotification("Backend unavailable, loading demo products...", "warning");
         
-        // Try to load fallback data
+        // Fallback to demo products
         await loadFallbackProducts();
-        
     } finally {
         isLoading = false;
     }
 }
 
-// Helper function to recursively find arrays in an object
-function findArraysInObject(obj, path = 'root', maxDepth = 3, currentDepth = 0) {
-    const arrays = [];
-    
-    if (currentDepth >= maxDepth) return arrays;
-    
-    if (Array.isArray(obj)) {
-        arrays.push({ path, value: obj, length: obj.length });
-        return arrays;
-    }
-    
-    if (obj && typeof obj === 'object') {
-        for (const [key, value] of Object.entries(obj)) {
-            const newPath = path === 'root' ? key : `${path}.${key}`;
-            arrays.push(...findArraysInObject(value, newPath, maxDepth, currentDepth + 1));
-        }
-    }
-    
-    return arrays.sort((a, b) => b.length - a.length); // Sort by length descending
-}
-
-// Fallback products for offline/error scenarios
+// Fallback products when backend is down
 async function loadFallbackProducts() {
     console.log("🔄 Loading fallback products...");
     
-    try {
-        // Check if we have cached products
-        const cachedProducts = localStorage.getItem('quicklocal_cached_products');
-        if (cachedProducts && isCacheValid()) {
-            const parsed = JSON.parse(cachedProducts);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                products = parsed;
-                filteredProducts = [...products];
-                extractCategories();
-                renderProducts();
-                showNotification("Loaded cached products (offline mode)", "info");
-                console.log("✅ Loaded cached products");
-                return;
-            }
-        }
-        
-        // Use demo products as last resort
-        products = getDemoProducts();
-        filteredProducts = [...products];
-        extractCategories();
-        renderProducts();
-        showNotification("Loaded demo products", "warning");
-        console.log("WARNING: Loaded demo products");
-        
-    } catch (error) {
-        console.error("❌ Failed to load fallback products:", error);
-        showErrorState("Unable to load products. Please check your connection and refresh.");
-    }
-}
-
-// Demo products for fallback
-function getDemoProducts() {
-    return [
+    products = [
         {
             _id: "demo1",
             name: "Fresh Apples",
             price: 120,
+            originalPrice: 150,
             category: "Fruits",
             image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400",
             description: "Fresh red apples, perfect for snacking",
             rating: 4.5,
-            inStock: true
+            inStock: true,
+            stock: 50,
+            brand: "FarmFresh"
         },
         {
             _id: "demo2", 
             name: "Organic Bananas",
             price: 60,
+            originalPrice: 75,
             category: "Fruits",
             image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400",
             description: "Organic bananas, rich in potassium",
             rating: 4.3,
-            inStock: true
+            inStock: true,
+            stock: 30,
+            brand: "Organic Plus"
         },
         {
             _id: "demo3",
@@ -280,14 +140,44 @@ function getDemoProducts() {
             image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400", 
             description: "Fresh cow milk, 1 liter pack",
             rating: 4.8,
-            inStock: true
+            inStock: true,
+            stock: 25,
+            brand: "Pure Dairy"
+        },
+        {
+            _id: "demo4",
+            name: "Whole Wheat Bread",
+            price: 35,
+            category: "Bakery",
+            image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400",
+            description: "Fresh whole wheat bread, baked daily",
+            rating: 4.2,
+            inStock: true,
+            stock: 15,
+            brand: "Golden Bakery"
+        },
+        {
+            _id: "demo5",
+            name: "Farm Eggs",
+            price: 80,
+            category: "Dairy",
+            image: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400",
+            description: "Fresh farm eggs, dozen pack",
+            rating: 4.6,
+            inStock: true,
+            stock: 40,
+            brand: "Happy Farm"
         }
     ];
+    
+    filteredProducts = [...products];
+    extractCategories();
+    renderProducts();
+    showNotification("Loaded demo products (offline mode)", "info");
 }
 
 // Enhanced renderProducts with better container detection
 function renderProducts(productsToRender = null) {
-    // Try multiple possible container IDs/classes
     const possibleContainers = [
         'products-container',
         'products-grid', 
@@ -303,17 +193,8 @@ function renderProducts(productsToRender = null) {
         if (container) break;
     }
     
-    // If no container found, try to find any container with product-related class
-    if (!container) {
-        container = document.querySelector('[class*="product"]') || 
-                   document.querySelector('[id*="product"]') ||
-                   document.querySelector('.grid') ||
-                   document.querySelector('.container');
-    }
-    
     if (!container) {
         console.error("No suitable products container found. Creating one...");
-        // Create a container if none exists
         const mainContent = document.querySelector('main') || 
                            document.querySelector('.main-content') || 
                            document.body;
@@ -334,15 +215,12 @@ function renderProducts(productsToRender = null) {
         console.log("✅ Created products container");
     }
 
-    // Use provided products or fall back to global products/filteredProducts
     let targetProducts = productsToRender || filteredProducts;
     
-    // If filteredProducts is empty/undefined, use products
     if (!targetProducts || !Array.isArray(targetProducts) || targetProducts.length === 0) {
         targetProducts = products || [];
     }
 
-    // Show loading state if products are still loading
     if (isLoading) {
         container.innerHTML = `
             <div class="loading-state" style="
@@ -366,7 +244,6 @@ function renderProducts(productsToRender = null) {
         return;
     }
 
-    // Handle empty state
     if (!Array.isArray(targetProducts) || targetProducts.length === 0) {
         container.innerHTML = `
             <div class="empty-state" style="
@@ -394,19 +271,14 @@ function renderProducts(productsToRender = null) {
         return;
     }
 
-    // Calculate pagination
     const startIndex = (currentPage - 1) * productsPerPage;
     const endIndex = startIndex + productsPerPage;
     const paginatedProducts = targetProducts.slice(startIndex, endIndex);
 
-    // Render products
     try {
         container.innerHTML = paginatedProducts.map(product => createProductCard(product)).join('');
         
-        // Update pagination
         updatePagination(targetProducts.length);
-        
-        // Update results count
         updateResultsCount(targetProducts.length);
         
         console.log(`✅ Rendered ${paginatedProducts.length} products`);
@@ -454,12 +326,10 @@ function extractCategories() {
     });
     
     categories = Array.from(categorySet).sort();
-    
-    // Update category filter UI
     updateCategoryFilter();
 }
 
-// Create product card with error handling and inline styles
+// ✅ Enhanced product card with better styling
 function createProductCard(product) {
     if (!product || typeof product !== 'object') {
         return '<div class="product-card error">Invalid product data</div>';
@@ -469,15 +339,21 @@ function createProductCard(product) {
         _id = 'unknown',
         name = 'Unnamed Product',
         price = 0,
+        originalPrice = 0,
         image = 'https://via.placeholder.com/300x200?text=No+Image',
         description = 'No description available',
         rating = 0,
         category = 'Uncategorized',
-        inStock = true
+        inStock = true,
+        stock = 0,
+        brand = ''
     } = product;
 
     const safePrice = typeof price === 'number' ? price : parseFloat(price) || 0;
+    const safeOriginalPrice = typeof originalPrice === 'number' ? originalPrice : parseFloat(originalPrice) || 0;
     const safeRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
+    const hasDiscount = safeOriginalPrice > 0 && safeOriginalPrice > safePrice;
+    const discountPercent = hasDiscount ? Math.round(((safeOriginalPrice - safePrice) / safeOriginalPrice) * 100) : 0;
     
     return `
         <div class="product-card" data-product-id="${_id}" style="
@@ -509,20 +385,50 @@ function createProductCard(product) {
                      onmouseover="this.style.transform='scale(1.05)'"
                      onmouseout="this.style.transform='scale(1)'"
                      loading="lazy">
-                ${!inStock ? `<div style="
+                
+                ${hasDiscount ? `<div style="
                     position: absolute;
                     top: 10px;
-                    right: 10px;
+                    left: 10px;
                     background: #e74c3c;
                     color: white;
                     padding: 4px 8px;
                     border-radius: 4px;
                     font-size: 12px;
                     font-weight: 600;
-                ">Out of Stock</div>` : ''}
+                ">${discountPercent}% OFF</div>` : ''}
+                
+                ${!inStock ? `<div style="
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 600;
+                ">Out of Stock</div>` : stock < 10 && stock > 0 ? `<div style="
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: #f39c12;
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 600;
+                ">Only ${stock} left</div>` : ''}
             </div>
             
             <div class="product-info" style="padding: 16px;">
+                ${brand ? `<div class="product-brand" style="
+                    color: #666;
+                    font-size: 0.8rem;
+                    margin-bottom: 4px;
+                    font-weight: 500;
+                ">${escapeHtml(brand)}</div>` : ''}
+                
                 <h3 class="product-name" style="
                     font-size: 1.1rem;
                     font-weight: 600;
@@ -581,11 +487,18 @@ function createProductCard(product) {
                     justify-content: space-between;
                     align-items: center;
                 ">
-                    <span class="product-price" style="
-                        font-size: 1.3rem;
-                        font-weight: 700;
-                        color: #2e7d32;
-                    ">₹${safePrice.toFixed(2)}</span>
+                    <div class="product-price" style="display: flex; flex-direction: column; align-items: flex-start;">
+                        <span style="
+                            font-size: 1.3rem;
+                            font-weight: 700;
+                            color: #2e7d32;
+                        ">₹${safePrice.toFixed(2)}</span>
+                        ${hasDiscount ? `<span style="
+                            font-size: 0.9rem;
+                            color: #999;
+                            text-decoration: line-through;
+                        ">₹${safeOriginalPrice.toFixed(2)}</span>` : ''}
+                    </div>
                     
                     <button onclick="addToCart('${_id}')" 
                             style="
@@ -622,7 +535,6 @@ function escapeHtml(text) {
 
 // Show loading state with CSS animation
 function showLoadingState() {
-    // Try to find container with multiple fallbacks
     const possibleContainers = [
         'products-container', 'products-grid', 'product-grid', 
         'marketplace-products', 'products', 'product-list'
@@ -634,12 +546,8 @@ function showLoadingState() {
         if (container) break;
     }
     
-    if (!container) {
-        console.warn("No container found for loading state");
-        return;
-    }
+    if (!container) return;
     
-    // Add CSS animation keyframes if not already added
     if (!document.getElementById('spinner-styles')) {
         const style = document.createElement('style');
         style.id = 'spinner-styles';
@@ -725,25 +633,19 @@ function showErrorState(message) {
 }
 
 function clearAllFilters() {
-    // Reset all filters
     filteredProducts = [...products];
     currentPage = 1;
     
-    // Clear search
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     
-    // Clear category filter
     const categorySelect = document.getElementById('category-filter');
     if (categorySelect) categorySelect.value = '';
     
-    // Clear price filter
     const priceSelect = document.getElementById('price-filter');
     if (priceSelect) priceSelect.value = '';
     
-    // Re-render
     renderProducts();
-    
     showNotification("Filters cleared", "info");
 }
 
@@ -772,7 +674,6 @@ function updatePagination(totalProducts) {
     
     let paginationHTML = '';
     
-    // Previous button
     paginationHTML += `
         <button onclick="changePage(${currentPage - 1})" 
                 ${currentPage === 1 ? 'disabled' : ''} 
@@ -781,7 +682,6 @@ function updatePagination(totalProducts) {
         </button>
     `;
     
-    // Page numbers
     for (let i = 1; i <= totalPages; i++) {
         if (i === currentPage) {
             paginationHTML += `<button class="pagination-btn active">${i}</button>`;
@@ -790,7 +690,6 @@ function updatePagination(totalProducts) {
         }
     }
     
-    // Next button
     paginationHTML += `
         <button onclick="changePage(${currentPage + 1})" 
                 ${currentPage === totalPages ? 'disabled' : ''} 
@@ -810,7 +709,6 @@ function changePage(page) {
     currentPage = page;
     renderProducts();
     
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -818,7 +716,6 @@ function changePage(page) {
 function showNotification(message, type = 'info') {
     console.log(`${type.toUpperCase()}: ${message}`);
     
-    // Create notification element if it doesn't exist
     let notification = document.getElementById('notification');
     if (!notification) {
         notification = document.createElement('div');
@@ -839,7 +736,6 @@ function showNotification(message, type = 'info') {
         document.body.appendChild(notification);
     }
     
-    // Set notification style based on type
     const colors = {
         success: '#2ecc71',
         error: '#e74c3c', 
@@ -851,7 +747,6 @@ function showNotification(message, type = 'info') {
     notification.textContent = message;
     notification.style.transform = 'translateX(0)';
     
-    // Auto hide after 4 seconds
     setTimeout(() => {
         notification.style.transform = 'translateX(400px)';
     }, 4000);
@@ -861,7 +756,6 @@ function showNotification(message, type = 'info') {
 function setupEventListeners() {
     console.log("Setting up event listeners...");
     
-    // Search functionality
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         searchInput.addEventListener('input', debounce(performSearch, 300));
@@ -872,19 +766,16 @@ function setupEventListeners() {
         });
     }
     
-    // Category filter
     const categorySelect = document.getElementById('category-filter');
     if (categorySelect) {
         categorySelect.addEventListener('change', filterByCategory);
     }
     
-    // Price filter
     const priceSelect = document.getElementById('price-filter');
     if (priceSelect) {
         priceSelect.addEventListener('change', filterByPrice);
     }
     
-    // Sort functionality
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) {
         sortSelect.addEventListener('change', applySorting);
@@ -907,7 +798,6 @@ function setupFilters() {
 }
 
 function updateCartBadge() {
-    // Update cart badge count
     const cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
     const badge = document.querySelector('.cart-badge');
     if (badge) {
@@ -938,18 +828,35 @@ function updatePriceFilter() {
     }
 }
 
-function addToCart(productId) {
-    // Find the product
+// ✅ Enhanced addToCart with API integration
+async function addToCart(productId) {
     const product = products.find(p => p._id === productId);
     if (!product) {
         showNotification("Product not found", "error");
         return;
     }
     
-    // Get current cart
+    if (!product.inStock || product.stock === 0) {
+        showNotification("Product is out of stock", "error");
+        return;
+    }
+    
+    try {
+        // Try to add to cart via API first
+        const apiResult = await api.cart.add(productId, 1);
+        
+        if (apiResult && apiResult.success) {
+            showNotification(`${product.name} added to cart via API!`, "success");
+            updateCartBadge();
+            return;
+        }
+    } catch (error) {
+        console.warn("API cart add failed, falling back to localStorage:", error);
+    }
+    
+    // Fallback to localStorage
     let cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
     
-    // Check if product already in cart
     const existingItem = cart.find(item => item._id === productId);
     
     if (existingItem) {
@@ -958,24 +865,21 @@ function addToCart(productId) {
     } else {
         cart.push({
             ...product,
-            quantity: 1
+            quantity: 1,
+            addedAt: new Date().toISOString()
         });
         showNotification(`${product.name} added to cart!`, "success");
     }
     
-    // Save cart
     localStorage.setItem("quicklocal_cart", JSON.stringify(cart));
-    
-    // Update UI
     updateCartBadge();
     
-    // Update quickLocal global cart if it exists
     if (typeof window.quickLocal !== 'undefined') {
         window.quickLocal.cart = cart;
     }
 }
 
-// Handle Buy Now functionality using API
+// ✅ Enhanced Buy Now functionality using API
 async function handleBuyNow(productId) {
     try {
         const product = products.find(p => p._id === productId);
@@ -984,23 +888,38 @@ async function handleBuyNow(productId) {
             return;
         }
         
-        const result = await api.buyNow(productId);
+        if (!product.inStock || product.stock === 0) {
+            showNotification("Product is out of stock", "error");
+            return;
+        }
         
-        if (result.success) {
+        showNotification("Processing your order...", "info");
+        
+        const result = await api.orders.create({
+            products: [{
+                productId: productId,
+                quantity: 1
+            }]
+        });
+        
+        if (result && result.success) {
             showNotification(`Order placed for ${product.name}!`, "success");
-            // Handle successful purchase - maybe redirect to order confirmation
+            
+            setTimeout(() => {
+                window.location.href = `/orders/${result.orderId}`;
+            }, 2000);
         } else {
-            showNotification("Purchase failed. Please try again.", "error");
+            showNotification("Order failed. Please try again.", "error");
         }
     } catch (error) {
         console.error("Purchase error:", error);
-        showNotification("Purchase failed. Please try again.", "error");
+        showNotification("Order failed. Please try again.", "error");
     }
 }
 
 // Search functionality
 function performSearch() {
-    const searchInput = document.getElementById('search-input');
+    const searchInput = document.getElementById('search-input') || document.getElementById('searchInput');
     const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
     
     if (!query) {
@@ -1010,10 +929,12 @@ function performSearch() {
             const name = (product.name || '').toLowerCase();
             const description = (product.description || '').toLowerCase();
             const category = (product.category || '').toLowerCase();
+            const brand = (product.brand || '').toLowerCase();
             
             return name.includes(query) || 
                    description.includes(query) || 
-                   category.includes(query);
+                   category.includes(query) ||
+                   brand.includes(query);
         });
     }
     
@@ -1093,8 +1014,10 @@ function applySorting() {
         case 'rating':
             filteredProducts.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0));
             break;
+        case 'newest':
+            filteredProducts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            break;
         default:
-            // Default order (as loaded from API)
             break;
     }
     
@@ -1113,30 +1036,6 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
-}
-
-// Cache products for offline use
-function cacheProducts() {
-    if (Array.isArray(products) && products.length > 0) {
-        try {
-            localStorage.setItem('quicklocal_cached_products', JSON.stringify(products));
-            localStorage.setItem('quicklocal_cache_timestamp', Date.now().toString());
-            console.log(`✅ Cached ${products.length} products for offline use`);
-        } catch (error) {
-            console.warn("Failed to cache products:", error);
-        }
-    }
-}
-
-// Check if cached products are still valid (24 hours)
-function isCacheValid() {
-    const timestamp = localStorage.getItem('quicklocal_cache_timestamp');
-    if (!timestamp) return false;
-    
-    const cacheAge = Date.now() - parseInt(timestamp);
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-    
-    return cacheAge < maxAge;
 }
 
 // Enhanced Mobile Menu Setup
@@ -1158,7 +1057,6 @@ function setupMobileMenu() {
             });
         }
         
-        // Close menu when clicking outside
         mobileMenu.addEventListener('click', (e) => {
             if (e.target === mobileMenu) {
                 mobileMenu.classList.remove('active');
@@ -1174,7 +1072,21 @@ function setupUserDropdown() {
     const userDropdown = document.getElementById('userDropdown');
     
     if (profileBtn && userDropdown) {
-        // Close dropdown when clicking outside
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = userDropdown.style.opacity === '1';
+            
+            if (isVisible) {
+                userDropdown.style.opacity = '0';
+                userDropdown.style.visibility = 'hidden';
+                userDropdown.style.transform = 'translateY(-10px)';
+            } else {
+                userDropdown.style.opacity = '1';
+                userDropdown.style.visibility = 'visible';
+                userDropdown.style.transform = 'translateY(0)';
+            }
+        });
+        
         document.addEventListener('click', (e) => {
             if (!profileBtn.contains(e.target) && !userDropdown.contains(e.target)) {
                 userDropdown.style.opacity = '0';
@@ -1185,233 +1097,11 @@ function setupUserDropdown() {
     }
 }
 
-// Enhanced Search Suggestions
-function setupSearchSuggestions() {
-    const searchInput = document.getElementById('searchInput');
-    const searchSuggestions = document.getElementById('searchSuggestions');
-    
-    if (searchInput && searchSuggestions) {
-        const debouncedSearch = debounce(async (query) => {
-            if (query.length < 2) {
-                searchSuggestions.classList.remove('active');
-                return;
-            }
-            
-            // Generate suggestions based on products
-            const suggestions = generateSearchSuggestions(query);
-            displaySearchSuggestions(suggestions);
-        }, 300);
-        
-        searchInput.addEventListener('input', (e) => {
-            debouncedSearch(e.target.value);
-        });
-        
-        // Hide suggestions when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
-                searchSuggestions.classList.remove('active');
-            }
-        });
-    }
-}
-
-function generateSearchSuggestions(query) {
-    if (!Array.isArray(products)) return [];
-    
-    const suggestions = [];
-    const queryLower = query.toLowerCase();
-    
-    // Search in product names
-    products.forEach(product => {
-        if (product.name && product.name.toLowerCase().includes(queryLower)) {
-            suggestions.push({
-                text: product.name,
-                type: 'product',
-                id: product._id
-            });
-        }
-    });
-    
-    // Search in categories
-    categories.forEach(category => {
-        if (category.toLowerCase().includes(queryLower)) {
-            suggestions.push({
-                text: category,
-                type: 'category',
-                id: category
-            });
-        }
-    });
-    
-    // Remove duplicates
-    return suggestions.filter((suggestion, index, self) => 
-        index === self.findIndex(s => s.text === suggestion.text)
-    ).slice(0, 5);
-}
-
-function displaySearchSuggestions(suggestions) {
-    const searchSuggestions = document.getElementById('searchSuggestions');
-    if (!searchSuggestions) return;
-    
-    if (suggestions.length === 0) {
-        searchSuggestions.classList.remove('active');
-        return;
-    }
-    
-    searchSuggestions.innerHTML = suggestions.map(suggestion => `
-        <div class="suggestion-item" onclick="selectSuggestion('${suggestion.text}', '${suggestion.type}')">
-            <i class="fas fa-${suggestion.type === 'product' ? 'box' : 'tag'}"></i>
-            <span>${escapeHtml(suggestion.text)}</span>
-        </div>
-    `).join('');
-    
-    searchSuggestions.classList.add('active');
-}
-
-function selectSuggestion(text, type) {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.value = text;
-        performSearch();
-    }
-    
-    const searchSuggestions = document.getElementById('searchSuggestions');
-    if (searchSuggestions) {
-        searchSuggestions.classList.remove('active');
-    }
-}
-
-// Enhanced Price Range Slider
-function setupPriceRangeSlider() {
-    const priceRange = document.getElementById('priceRange');
-    const priceRangeValue = document.getElementById('priceRangeValue');
-    
-    if (priceRange && priceRangeValue) {
-        priceRange.addEventListener('input', (e) => {
-            const value = e.target.value;
-            priceRangeValue.textContent = `₹${parseInt(value).toLocaleString()}`;
-        });
-        
-        // Apply price filter when slider changes
-        priceRange.addEventListener('change', () => {
-            filterByPrice();
-        });
-    }
-}
-
-// Enhanced View Toggle
-function setupViewToggle() {
-    const gridView = document.getElementById('gridView');
-    const listView = document.getElementById('listView');
-    const productsGrid = document.getElementById('productsGrid');
-    
-    if (gridView && listView && productsGrid) {
-        gridView.addEventListener('click', () => {
-            productsGrid.className = 'products-grid';
-            gridView.classList.add('active');
-            listView.classList.remove('active');
-        });
-        
-        listView.addEventListener('click', () => {
-            productsGrid.className = 'products-list';
-            listView.classList.add('active');
-            gridView.classList.remove('active');
-        });
-    }
-}
-
-// Enhanced Newsletter Setup
-function setupNewsletter() {
-    const newsletterForm = document.querySelector('.newsletter-form');
-    const newsletterInput = document.querySelector('.newsletter-input');
-    const newsletterBtn = document.querySelector('.newsletter-btn');
-    
-    if (newsletterForm && newsletterInput && newsletterBtn) {
-        newsletterForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = newsletterInput.value.trim();
-            
-            if (email && isValidEmail(email)) {
-                subscribeToNewsletter(email);
-                newsletterInput.value = '';
-                showToast('Successfully subscribed to newsletter!', 'success');
-            } else {
-                showToast('Please enter a valid email address.', 'error');
-            }
-        });
-    }
-}
-
-function isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-async function subscribeToNewsletter(email) {
-    try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('Newsletter subscription:', email);
-    } catch (error) {
-        console.error('Newsletter subscription failed:', error);
-    }
-}
-
-// Enhanced Toast Notifications
-function setupToastNotifications() {
-    // Create toast container if it doesn't exist
-    if (!document.getElementById('toastContainer')) {
-        const toastContainer = document.createElement('div');
-        toastContainer.id = 'toastContainer';
-        document.body.appendChild(toastContainer);
-    }
-}
-
-function showToast(message, type = 'info', duration = 3000) {
-    const toastContainer = document.getElementById('toastContainer');
-    if (!toastContainer) return;
-    
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <i class="fas fa-${getToastIcon(type)}"></i>
-            <span>${escapeHtml(message)}</span>
-        </div>
-    `;
-    
-    toastContainer.appendChild(toast);
-    
-    // Show toast
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 100);
-    
-    // Hide and remove toast
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 300);
-    }, duration);
-}
-
-function getToastIcon(type) {
-    switch (type) {
-        case 'success': return 'check-circle';
-        case 'error': return 'exclamation-circle';
-        case 'warning': return 'exclamation-triangle';
-        default: return 'info-circle';
-    }
-}
-
-// Enhanced Hero Search
+// Hero Search Functions
 function searchFromHero() {
     const heroSearch = document.getElementById('heroSearch');
     if (heroSearch && heroSearch.value.trim()) {
-        const searchInput = document.getElementById('searchInput');
+        const searchInput = document.getElementById('searchInput') || document.getElementById('search-input');
         if (searchInput) {
             searchInput.value = heroSearch.value;
             performSearch();
@@ -1421,7 +1111,7 @@ function searchFromHero() {
 }
 
 function searchProduct(query) {
-    const searchInput = document.getElementById('searchInput');
+    const searchInput = document.getElementById('searchInput') || document.getElementById('search-input');
     if (searchInput) {
         searchInput.value = query;
         performSearch();
@@ -1430,7 +1120,9 @@ function searchProduct(query) {
 }
 
 function scrollToProducts() {
-    const productsSection = document.getElementById('products');
+    const productsSection = document.getElementById('products') || 
+                           document.getElementById('products-container') ||
+                           document.querySelector('.products-grid');
     if (productsSection) {
         productsSection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -1450,9 +1142,18 @@ function scrollToTop() {
 // Enhanced Logout Function
 async function logout() {
     try {
-        await api.logout();
+        showNotification('Logging out...', 'info');
         
-        // Update UI
+        try {
+            await api.auth.logout();
+        } catch (error) {
+            console.warn('API logout failed:', error);
+        }
+        
+        localStorage.removeItem('quicklocal_auth_token');
+        localStorage.removeItem('quicklocal_user');
+        localStorage.removeItem('quicklocal_cart');
+        
         const guestActions = document.getElementById('guestActions');
         const userActions = document.getElementById('userActions');
         
@@ -1461,16 +1162,27 @@ async function logout() {
             userActions.style.display = 'none';
         }
         
-        showToast('Successfully logged out!', 'success');
+        showNotification('Successfully logged out!', 'success');
         
-        // Redirect to home page
         setTimeout(() => {
             window.location.href = '/';
-        }, 1000);
+        }, 1500);
     } catch (error) {
         console.error('Logout error:', error);
-        showToast('Logout failed. Please try again.', 'error');
+        showNotification('Logout failed. Please try again.', 'error');
     }
+}
+
+// Enhanced refresh products function
+async function refreshProducts() {
+    showNotification('Refreshing products...', 'info');
+    
+    products = [];
+    filteredProducts = [];
+    categories = [];
+    currentPage = 1;
+    
+    await loadProducts();
 }
 
 // Export functions for global access
@@ -1490,14 +1202,18 @@ window.quickLocalMarketplace = {
     scrollToFeatures,
     scrollToTop,
     logout,
-    showToast,
+    showNotification,
+    refreshProducts,
     // Debug functions
     getProducts: () => products,
     getFilteredProducts: () => filteredProducts,
+    getCategories: () => categories,
     forceReload: () => {
         isInitialized = false;
         products = [];
         filteredProducts = [];
         initializeApp();
-    }
+    },
+    // API access for debugging
+    api: api
 };

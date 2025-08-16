@@ -10,7 +10,7 @@
  * Configuration precedence:
  *   1) process.env.NEXT_PUBLIC_API_BASE (Vercel / bundlers)
  *   2) window.APP_CONFIG.API.BASE_URL (runtime override)
- *   3) 'http://localhost:5000' (dev default)
+ *   3) 'https://quicklocal-backend.onrender.com' (production default)
  *
  * Usage:
  *   import api from "./simple-api.js";
@@ -28,7 +28,9 @@ const resolveBaseUrl = () => {
     null;
   const winBase = (typeof window !== "undefined" &&
     window.APP_CONFIG?.API?.BASE_URL) || null;
-  return envBase || winBase || "http://localhost:5000";
+  
+  // Updated default to use your production backend
+  return envBase || winBase || "https://quicklocal-backend.onrender.com";
 };
 
 const getConfig = () => {
@@ -38,14 +40,15 @@ const getConfig = () => {
     API: {
       BASE_URL: base,
       ENDPOINTS: {
-        LOGIN: "/api/auth/login",
-        REGISTER: "/api/auth/register",
-        PROFILE: "/api/auth/profile",
-        PRODUCTS: "/api/products",
-        ORDERS: "/api/orders",
-        DELIVERY_ORDERS: "/api/delivery/orders",
-        PAYMENT_CREATE_SESSION: "/api/payment/create-session",
-        HEALTH: "/healthcheck",
+        // Updated to use /api/v1 prefix to match your backend
+        LOGIN: "/api/v1/auth/login",
+        REGISTER: "/api/v1/auth/register",
+        PROFILE: "/api/v1/auth/profile",
+        PRODUCTS: "/api/v1/products", // ✅ Fixed: was /api/products
+        ORDERS: "/api/v1/orders",
+        DELIVERY_ORDERS: "/api/v1/delivery/orders",
+        PAYMENT_CREATE_SESSION: "/api/v1/payment/create-session",
+        HEALTH: "/health", // ✅ Fixed: your backend uses /health not /healthcheck
         ...(typeof window !== "undefined"
           ? window.APP_CONFIG?.API?.ENDPOINTS
           : {}),
@@ -418,18 +421,27 @@ const ApiClient = (function () {
         const { forceRefresh = false, category = null } = opts;
         try {
           const backend = await healthChecker.isBackendAvailable();
-          if (backend && !forceRefresh) {
+          if (backend || forceRefresh) {
             const res = await makeApiCall(config.API.ENDPOINTS.PRODUCTS, { method: "GET" });
-            const products = await res.json();
+            const response = await res.json();
+            
+            // ✅ Handle your backend's response format
+            let products = [];
+            if (response.success && response.data && response.data.products) {
+              products = response.data.products;
+            } else if (Array.isArray(response)) {
+              products = response;
+            }
+            
             storage.set("products", products);
-            return category ? products.filter((p) => p.category === category) : products;
+            return category ? products.filter((p) => p.category?.name === category || p.category === category) : products;
           }
         } catch (e) {
           console.warn("products.list backend failed → fallback:", e?.message || e);
           emit("fallback-mode", { operation: "products.list", error: String(e?.message || e) });
         }
         const cached = storage.get("products") || [];
-        return category ? cached.filter((p) => p.category === category) : cached;
+        return category ? cached.filter((p) => p.category?.name === category || p.category === category) : cached;
       },
 
       get: async (id) => {
@@ -437,7 +449,13 @@ const ApiClient = (function () {
           const backend = await healthChecker.isBackendAvailable();
           if (backend) {
             const res = await makeApiCall(`${config.API.ENDPOINTS.PRODUCTS}/${id}`, { method: "GET" });
-            return await res.json();
+            const response = await res.json();
+            
+            // ✅ Handle your backend's response format
+            if (response.success && response.data && response.data.product) {
+              return response.data.product;
+            }
+            return response;
           }
         } catch (e) {
           console.warn("products.get backend failed → fallback:", e?.message || e);
@@ -456,7 +474,8 @@ const ApiClient = (function () {
               method: "POST",
               body: JSON.stringify(product),
             });
-            const created = await res.json();
+            const response = await res.json();
+            const created = response.success && response.data ? response.data : response;
             const list = storage.get("products") || [];
             list.push(created);
             storage.set("products", list);
@@ -481,7 +500,8 @@ const ApiClient = (function () {
               method: "PUT",
               body: JSON.stringify(updates),
             });
-            const updated = await res.json();
+            const response = await res.json();
+            const updated = response.success && response.data ? response.data : response;
             const list = storage.get("products") || [];
             const idx = list.findIndex((p) => `${p.id}` === `${id}`);
             if (idx > -1) list[idx] = updated;
@@ -519,6 +539,40 @@ const ApiClient = (function () {
         storage.set("products", list.filter((p) => `${p.id}` !== `${id}`));
         return { success: true, offline: true };
       },
+
+      // ✅ Add search functionality to match your backend
+      search: async (query, options = {}) => {
+        const { page = 1, limit = 20 } = options;
+        try {
+          const backend = await healthChecker.isBackendAvailable();
+          if (backend) {
+            const searchParams = new URLSearchParams({
+              q: query,
+              page: page.toString(),
+              limit: limit.toString()
+            });
+            const res = await makeApiCall(`${config.API.ENDPOINTS.PRODUCTS}/search?${searchParams}`, { 
+              method: "GET" 
+            });
+            const response = await res.json();
+            if (response.success && response.data) {
+              return response.data;
+            }
+            return response;
+          }
+        } catch (e) {
+          console.warn("products.search backend failed → fallback:", e?.message || e);
+          emit("fallback-mode", { operation: "products.search", error: String(e?.message || e) });
+        }
+        // Fallback: search in cached products
+        const cached = storage.get("products") || [];
+        const filtered = cached.filter(p => 
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.description.toLowerCase().includes(query.toLowerCase()) ||
+          (p.tags && p.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())))
+        );
+        return { products: filtered, query };
+      }
     },
 
     // -------- ORDERS --------
@@ -528,7 +582,8 @@ const ApiClient = (function () {
           const backend = await healthChecker.isBackendAvailable();
           if (backend) {
             const res = await makeApiCall(config.API.ENDPOINTS.ORDERS, { method: "GET" });
-            const orders = await res.json();
+            const response = await res.json();
+            const orders = response.success && response.data ? response.data : response;
             storage.set("orders", orders);
             return orders;
           }
@@ -544,7 +599,8 @@ const ApiClient = (function () {
           const backend = await healthChecker.isBackendAvailable();
           if (backend) {
             const res = await makeApiCall(`${config.API.ENDPOINTS.ORDERS}/${id}`, { method: "GET" });
-            return await res.json();
+            const response = await res.json();
+            return response.success && response.data ? response.data : response;
           }
         } catch (e) {
           console.warn("orders.get backend failed → fallback:", e?.message || e);
@@ -570,7 +626,8 @@ const ApiClient = (function () {
               method: "POST",
               body: JSON.stringify(localOrder),
             });
-            const created = await res.json();
+            const response = await res.json();
+            const created = response.success && response.data ? response.data : response;
             const list = storage.get("orders") || [];
             list.push(created);
             storage.set("orders", list);
@@ -594,7 +651,8 @@ const ApiClient = (function () {
               method: "PUT",
               body: JSON.stringify(updates),
             });
-            const updated = await res.json();
+            const response = await res.json();
+            const updated = response.success && response.data ? response.data : response;
             const list = storage.get("orders") || [];
             const idx = list.findIndex((o) => `${o.id}` === `${id}`);
             if (idx > -1) list[idx] = updated;
