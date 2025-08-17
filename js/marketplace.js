@@ -12,6 +12,39 @@ let productsPerPage = 12;
 let isLoading = false;
 let isInitialized = false;
 
+// ===============================
+// CART API HELPERS
+// ===============================
+const CART_API_URL = "https://quicklocal-backend.onrender.com/api/v1/cart";
+async function addToCart(productId, quantity = 1) {
+  try {
+    const res = await fetch(CART_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ productId, quantity })
+    });
+
+    if (!res.ok) throw new Error("Failed to add item to cart");
+    const cart = await res.json();
+
+    // Update cart count in header
+    const cartBadge = document.getElementById("cart-count") || document.querySelector('.cart-badge');
+    if (cartBadge) {
+        cartBadge.textContent = cart.items.length;
+    }
+    
+    alert("✅ Product added to cart!");
+    console.log("Cart updated:", cart);
+  } catch (err) {
+    console.error("❌ Error adding to cart:", err);
+    alert("⚠️ Please login to add items to your cart.");
+  }
+}
+
+
 // Initialize marketplace
 document.addEventListener("DOMContentLoaded", async function() {
     if (isInitialized) {
@@ -502,7 +535,8 @@ function createProductCard(product) {
                         ">₹${safeOriginalPrice.toFixed(2)}</span>` : ''}
                     </div>
                     
-                    <button onclick="addToCart('${_id}')" 
+                    <button class="add-to-cart" 
+                            data-id="${_id}"
                             style="
                                 background: ${!inStock ? '#bdc3c7' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
                                 color: white;
@@ -827,57 +861,6 @@ function updatePriceFilter() {
             <option value="100-200">₹100 - ₹200</option>
             <option value="over-200">Over ₹200</option>
         `;
-    }
-}
-
-// ✅ Enhanced addToCart with API integration
-async function addToCart(productId) {
-    const product = products.find(p => p._id === productId);
-    if (!product) {
-        showNotification("Product not found", "error");
-        return;
-    }
-    
-    if (!product.inStock || product.stock === 0) {
-        showNotification("Product is out of stock", "error");
-        return;
-    }
-    
-    try {
-        // Try to add to cart via API first
-        const apiResult = await api.cart.add(productId, 1);
-        
-        if (apiResult && apiResult.success) {
-            showNotification(`${product.name} added to cart via API!`, "success");
-            updateCartBadge();
-            return;
-        }
-    } catch (error) {
-        console.warn("API cart add failed, falling back to localStorage:", error);
-    }
-    
-    // Fallback to localStorage
-    let cart = JSON.parse(localStorage.getItem("quicklocal_cart")) || [];
-    
-    const existingItem = cart.find(item => item._id === productId);
-    
-    if (existingItem) {
-        existingItem.quantity = (existingItem.quantity || 1) + 1;
-        showNotification(`${product.name} quantity updated in cart!`, "success");
-    } else {
-        cart.push({
-            ...product,
-            quantity: 1,
-            addedAt: new Date().toISOString()
-        });
-        showNotification(`${product.name} added to cart!`, "success");
-    }
-    
-    localStorage.setItem("quicklocal_cart", JSON.stringify(cart));
-    updateCartBadge();
-    
-    if (typeof window.quickLocal !== 'undefined') {
-        window.quickLocal.cart = cart;
     }
 }
 
@@ -1219,3 +1202,13 @@ window.quickLocalMarketplace = {
     // API access for debugging
     api: api
 };
+
+// ===============================
+// CART BUTTON HANDLER
+// ===============================
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("add-to-cart")) {
+    const productId = e.target.dataset.id;
+    addToCart(productId);
+  }
+});
