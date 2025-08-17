@@ -1,5 +1,6 @@
 // Fixed marketplace.js with proper API integration
-import api from "./js/simple-api.js";
+import './simple-api.js';
+
 
 // Global variables
 let products = [];
