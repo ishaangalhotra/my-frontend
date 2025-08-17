@@ -1419,7 +1419,7 @@
             products: [],
             filteredProducts: [],
             categories: new Set(),
-            cart: JSON.parse(localStorage.getItem('quicklocal_cart')) || [],
+            cart: [],
             apiBaseUrl: 'https://quicklocal-backend.onrender.com/api/v1',
             isLoading: false,
             currentFilters: {
@@ -1511,8 +1511,24 @@
                 
                 const data = await response.json();
                 
+                // Handle different response formats from your backend
+                let products = [];
+                if (data.success && data.data && Array.isArray(data.data.products)) {
+                    // Your backend format: { success: true, data: { products: [...] } }
+                    products = data.data.products;
+                } else if (data.success && Array.isArray(data.data)) {
+                    // Alternative format: { success: true, data: [...] }
+                    products = data.data;
+                } else if (Array.isArray(data)) {
+                    // Direct array format: [...]
+                    products = data;
+                } else {
+                    console.warn('Unexpected API response format:', data);
+                    products = [];
+                }
+                
                 // Enhanced product processing
-                appState.products = data.map(product => ({
+                appState.products = products.map(product => ({
                     ...product,
                     id: product._id || product.id,
                     rating: product.rating || (3.5 + Math.random() * 1.5), // Mock rating if not provided
@@ -1809,7 +1825,6 @@
                 showToast(`${product.name} added to cart!`, 'success');
             }
             
-            saveCartData();
             updateCartUI();
         }
 
@@ -1973,14 +1988,6 @@
                 cartBadge.style.display = 'flex';
             } else {
                 cartBadge.style.display = 'none';
-            }
-        }
-
-        function saveCartData() {
-            try {
-                localStorage.setItem('quicklocal_cart', JSON.stringify(appState.cart));
-            } catch (error) {
-                console.warn('Could not save cart data to localStorage:', error);
             }
         }
 
