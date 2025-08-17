@@ -1,5 +1,6 @@
 // Fixed marketplace.js with proper API integration
 import './simple-api.js';
+import api from "./simple-api.js";
 
 
 // Global variables
