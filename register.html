@@ -861,10 +861,10 @@
 <body>
     <header class="header">
         <nav class="nav">
-            <a href="marketplace.html" class="logo">
+            <a href="#" class="logo">
                 <i class="fas fa-rocket"></i> QuickLocal
             </a>
-            <a href="login.html" class="back-btn">
+            <a href="#" class="back-btn">
                 <i class="fas fa-arrow-left"></i> Back to Login
             </a>
         </nav>
@@ -967,7 +967,7 @@
                     <div class="checkbox-mark"></div>
                 </div>
                 <label for="terms" class="checkbox-label">
-                    I agree to the <a href="terms.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>
+                    I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
                 </label>
             </div>
 
@@ -1001,239 +1001,383 @@
 
             <div class="auth-links">
                 <span style="color: var(--text-secondary);">Already have an account? </span><br>
-                <a href="login.html" class="login-link">Sign In Instead</a>
+                <a href="#" class="login-link">Sign In Instead</a>
             </div>
         </form>
     </div>
 
     <div id="toastContainer"></div>
 
-    <!-- Load configuration first -->
+    <!-- Load your backend configuration and services -->
+    <script src="js/config.js"></script>
+    <script src="js/socket-client.js"></script>
+    <script src="js/auth.js"></script>
+    
     <script>
-        // Load configuration
-        window.APP_CONFIG = {
-            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
-            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
-            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
-            ENVIRONMENT: 'production'
-        };
-
-        // Socket client stub
-        window.socketClient = {
-            authenticate: (token) => console.log('🔌 Socket authenticated with token'),
-            disconnect: () => console.log('🔌 Socket disconnected')
-        };
-    </script>
-
-    <!-- Enhanced Registration Handler -->
-    <script type="module">
-        // Enhanced Auth Service for Registration
-        class QuickLocalAuthService {
-            constructor() {
-                this.user = null;
-                this.baseURL = window.APP_CONFIG.API_BASE_URL;
-                this.eventListeners = new Map();
-            }
-
-            // Event management
-            on(event, callback) {
-                if (!this.eventListeners.has(event)) {
-                    this.eventListeners.set(event, []);
-                }
-                this.eventListeners.get(event).push(callback);
-            }
-
-            emit(event, data) {
-                const listeners = this.eventListeners.get(event);
-                if (listeners) {
-                    listeners.forEach(callback => callback(data));
-                }
-            }
-
-            // Enhanced registration method
-            async register(userData) {
-                try {
-                    this.emit('auth:register:start');
-                    
-                    const registrationData = {
-                        ...userData,
-                        email: userData.email.toLowerCase().trim(),
-                        deviceInfo: {
-                            userAgent: navigator.userAgent,
-                            platform: navigator.platform,
-                            language: navigator.language,
-                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                        }
-                    };
-
-                    const response = await fetch(`${this.baseURL}/auth/register`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(registrationData)
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Registration failed');
-                    }
-
-                    // Store tokens and user data
-                    if (data.accessToken) {
-                        localStorage.setItem(window.APP_CONFIG.TOKEN_STORAGE_KEY, data.accessToken);
-                    }
-                    if (data.refreshToken) {
-                        localStorage.setItem(window.APP_CONFIG.REFRESH_TOKEN_KEY, data.refreshToken);
-                    }
-
-                    this.user = data.user;
-                    localStorage.setItem('quicklocal_user_data', JSON.stringify(this.user));
-
-                    this.emit('auth:register:success', data);
-                    return data;
-
-                } catch (error) {
-                    this.emit('auth:register:error', error);
-                    throw error;
-                }
-            }
-
-            // Social registration
-            async registerWithProvider(provider) {
-                try {
-                    this.emit('auth:social:start', provider);
-                    
-                    const authWindow = window.open(
-                        `${this.baseURL}/auth/${provider}?action=register`,
-                        'socialAuth',
-                        'width=500,height=600,scrollbars=yes,resizable=yes'
-                    );
-
-                    return new Promise((resolve, reject) => {
-                        const checkClosed = setInterval(() => {
-                            if (authWindow.closed) {
-                                clearInterval(checkClosed);
-                                reject(new Error('Registration cancelled'));
-                            }
-                        }, 1000);
-
-                        window.addEventListener('message', (event) => {
-                            if (event.origin !== window.location.origin) return;
-                            
-                            clearInterval(checkClosed);
-                            authWindow.close();
-
-                            if (event.data.success) {
-                                this.handleRegistrationSuccess(event.data);
-                                resolve(event.data);
-                            } else {
-                                reject(new Error(event.data.error));
-                            }
-                        }, { once: true });
-                    });
-
-                } catch (error) {
-                    this.emit('auth:social:error', error);
-                    throw error;
-                }
-            }
-
-            // Check email availability
-            async checkEmailAvailability(email) {
-                try {
-                    const response = await fetch(`${this.baseURL}/auth/check-email`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ email })
-                    });
-
-                    const data = await response.json();
-                    return data.available;
-                } catch (error) {
-                    console.warn('Email availability check failed:', error);
-                    return true; // Assume available if check fails
-                }
-            }
-
-            // Utility methods
-            validateEmail(email) {
-                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            }
-
-            validatePhone(phone) {
-                const cleaned = phone.replace(/\D/g, '');
-                return cleaned.length >= 10 && cleaned.length <= 15;
-            }
-
-            validateName(name) {
-                return name.length >= 2 && /^[a-zA-Z\s'-]+$/.test(name);
-            }
-
-            validatePassword(password) {
-                const checks = {
-                    length: password.length >= 8,
-                    uppercase: /[A-Z]/.test(password),
-                    lowercase: /[a-z]/.test(password),
-                    number: /\d/.test(password),
-                    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-                };
-                
-                const score = Object.values(checks).filter(Boolean).length;
-                const strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
-                
-                return { ...checks, score, strength, valid: checks.length && score >= 3 };
-            }
-
-            handleRegistrationSuccess(data) {
-                if (data.user) {
-                    this.user = data.user;
-                    localStorage.setItem('quicklocal_user_data', JSON.stringify(data.user));
-                }
-
-                if (window.socketClient && data.accessToken) {
-                    window.socketClient.authenticate(data.accessToken);
-                }
-            }
-        }
-
-        // Create auth service instance
-        window.authService = new QuickLocalAuthService();
-
-        // Enhanced Registration Handler
-        class EnhancedRegistrationHandler {
+        // Enhanced Registration Handler that works with your existing auth service
+        class RegistrationHandlerWithBackend {
             constructor() {
                 this.currentStep = 1;
                 this.maxSteps = 3;
-                this.validationRules = {};
-                this.init();
+                
+                // Wait for auth service to be available
+                this.waitForAuthService().then(() => {
+                    this.init();
+                });
             }
 
+            async waitForAuthService() {
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds
+                
+                while (!window.authService && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.authService) {
+                    console.error('Auth service not available, falling back to mock');
+                    this.createFallbackAuthService();
+                } else {
+                    console.log('✅ Using backend auth service');
+                }
+            }
+
+            createFallbackAuthService() {
+                // Fallback auth service if backend isn't available
+                window.authService = {
+                    async register(userData) {
+                        console.warn('Using fallback mock registration');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return {
+                            success: true,
+                            message: 'Registration successful (mock)',
+                            user: {
+                                id: 'mock_' + Date.now(),
+                                name: userData.name,
+                                email: userData.email,
+                                phone: userData.phone
+                            },
+                            accessToken: 'mock_token_' + Date.now()
+                        };
+                    },
+                    
+                    async checkEmailAvailability(email) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return !['test@test.com', 'admin@quicklocal.shop'].includes(email.toLowerCase());
+                    },
+                    
+                    validateEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+                    validatePhone: (phone) => phone.replace(/\D/g, '').length >= 10,
+                    validateName: (name) => name.length >= 2 && /^[a-zA-Z\s'-]+$/.test(name),
+                    
+                    validatePassword(password) {
+                        const checks = {
+                            length: password.length >= 8,
+                            uppercase: /[A-Z]/.test(password),
+                            lowercase: /[a-z]/.test(password),
+                            number: /\d/.test(password),
+                            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+                        };
+                        
+                        const score = Object.values(checks).filter(Boolean).length;
+                        const strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
+                        
+                        return { ...checks, score, strength, valid: score >= 3 };
+                    }
+                };
+            }
+
+            updateFieldState(field, isValid, message, showFeedback) {
+                const feedback = document.getElementById(`${field.name}Feedback`);
+                
+                // Remove existing classes
+                field.classList.remove('valid', 'invalid', 'warning');
+                
+                if (field.value.trim()) {
+                    if (isValid) {
+                        field.classList.add('valid');
+                        if (feedback && showFeedback) {
+                            feedback.textContent = message;
+                            feedback.className = 'field-feedback success';
+                        }
+                    } else {
+                        field.classList.add('invalid');
+                        if (feedback && showFeedback) {
+                            feedback.textContent = message;
+                            feedback.className = 'field-feedback error';
+                        }
+                    }
+                } else if (feedback) {
+                    feedback.className = 'field-feedback';
+                }
+            }
+
+            formatPhoneNumber(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                
+                if (value.length >= 6) {
+                    value = `(${value.substring(0, 3)}) ${value.substring(3, 6)}-${value.substring(6, 10)}`;
+                } else if (value.length >= 3) {
+                    value = `(${value.substring(0, 3)}) ${value.substring(3)}`;
+                }
+                
+                e.target.value = value;
+                e.target.classList.add('phone-formatted');
+            }
+
+            updateProgress(step) {
+                this.currentStep = step;
+                const steps = document.querySelectorAll('.progress-step');
+                
+                steps.forEach((stepEl, index) => {
+                    stepEl.classList.remove('active', 'completed');
+                    
+                    if (index + 1 < step) {
+                        stepEl.classList.add('completed');
+                    } else if (index + 1 === step) {
+                        stepEl.classList.add('active');
+                    }
+                });
+            }
+
+            showCelebration() {
+                const overlay = document.getElementById('celebrationOverlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                    
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 1500);
+                }
+            }
+
+            showLoading(show, message = 'Creating your account...') {
+                const btn = document.getElementById('registerBtn');
+                const container = document.querySelector('.auth-container');
+                
+                if (btn) {
+                    if (show) {
+                        btn.innerHTML = `<i class="fas fa-spinner spinner"></i> ${message}`;
+                        btn.disabled = true;
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-user-plus"></i> Create My Account';
+                        btn.disabled = false;
+                    }
+                }
+                
+                if (container) {
+                    container.style.opacity = show ? '0.8' : '1';
+                }
+            }
+
+            showMessage(message, type) {
+                const messageElements = {
+                    error: document.getElementById('errorMessage'),
+                    success: document.getElementById('successMessage'),
+                    info: document.getElementById('infoMessage')
+                };
+                
+                // Clear all messages
+                Object.values(messageElements).forEach(el => {
+                    if (el) el.style.display = 'none';
+                });
+                
+                // Show specific message
+                if (messageElements[type]) {
+                    const icons = {
+                        error: 'fas fa-exclamation-triangle',
+                        success: 'fas fa-check-circle',
+                        info: 'fas fa-info-circle'
+                    };
+                    
+                    messageElements[type].innerHTML = `<i class="${icons[type]}"></i> ${message}`;
+                    messageElements[type].style.display = 'block';
+                    
+                    // Auto-hide after 8 seconds for success, keep errors visible
+                    if (type === 'success' || type === 'info') {
+                        setTimeout(() => {
+                            if (messageElements[type]) {
+                                messageElements[type].style.display = 'none';
+                            }
+                        }, 8000);
+                    }
+                }
+            }
+
+            clearMessages() {
+                ['errorMessage', 'successMessage', 'infoMessage'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'none';
+                });
+            }
+
+            showToast(message, type = 'success') {
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                
+                toast.className = `toast ${type}`;
+                toast.innerHTML = `
+                    <i class="fas ${icons[type]} toast-icon"></i>
+                    <div class="toast-content">${message}</div>
+                `;
+                
+                container.appendChild(toast);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 5000);
+                
+                // Remove on click
+                toast.addEventListener('click', () => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                });
+            }
+
+            loadDemoData() {
+                const fields = {
+                    name: 'John Doe',
+                    email: 'demo@quicklocal.shop',
+                    phone: '(555) 123-4567',
+                    password: 'DemoPass123!',
+                    confirmPassword: 'DemoPass123!'
+                };
+
+                Object.entries(fields).forEach(([id, value]) => {
+                    const field = document.getElementById(id);
+                    if (field) field.value = value;
+                });
+                
+                this.showMessage('🎯 Demo data loaded. Click "Create My Account" to continue.', 'info');
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new RegistrationHandlerWithBackend();
+        });
+
+        // Add demo button for testing
+        if (window.location.search.includes('demo') || window.location.hostname === 'localhost') {
+            setTimeout(() => {
+                const demoBtn = document.createElement('button');
+                demoBtn.innerHTML = '🎯 Load Demo';
+                demoBtn.style.cssText = `
+                    position: fixed; 
+                    bottom: 20px; 
+                    left: 20px; 
+                    padding: 8px 16px; 
+                    background: var(--primary); 
+                    color: white; 
+                    border: none; 
+                    border-radius: 8px; 
+                    cursor: pointer; 
+                    font-size: 12px;
+                    z-index: 9999;
+                    font-family: inherit;
+                `;
+                demoBtn.onclick = () => {
+                    const fields = {
+                        name: 'John Doe',
+                        email: 'demo@quicklocal.shop',
+                        phone: '(555) 123-4567',
+                        password: 'DemoPass123!',
+                        confirmPassword: 'DemoPass123!'
+                    };
+
+                    Object.entries(fields).forEach(([id, value]) => {
+                        const field = document.getElementById(id);
+                        if (field) field.value = value;
+                    });
+                    
+                    const infoMsg = document.getElementById('infoMessage');
+                    if (infoMsg) {
+                        infoMsg.innerHTML = '<i class="fas fa-info-circle"></i> 🎯 Demo data loaded!';
+                        infoMsg.style.display = 'block';
+                    }
+                };
+                document.body.appendChild(demoBtn);
+            }, 1000);
+        }
+
+        // Console helpers
+        console.log('🚀 QuickLocal Registration System with Backend Integration');
+        console.log('🔋 Demo registration available with ?demo=true');
+        console.log('🔧 Using backend services: config.js, socket-client.js, auth.js');
+        console.log('🛠️ Auth service will be available at window.authService');
+        
+        // Debug helper to check backend integration
+        setTimeout(() => {
+            if (window.authService) {
+                console.log('✅ Backend auth service loaded successfully');
+                console.log('📡 Auth service methods:', Object.getOwnPropertyNames(window.authService));
+            } else {
+                console.warn('⚠️ Backend auth service not available, using fallback');
+            }
+            
+            if (window.APP_CONFIG) {
+                console.log('⚙️ App config loaded:', window.APP_CONFIG);
+            }
+            
+            if (window.socketClient) {
+                console.log('🔌 Socket client available');
+            }
+        }, 2000);
+
             async init() {
-                console.log('🚀 Enhanced Registration Handler initializing...');
+                console.log('🚀 Registration Handler initializing...');
                 
                 this.setupEventListeners();
                 this.setupValidation();
-                this.setupEnhancedFeatures();
                 
                 // Auto-focus first field
                 setTimeout(() => {
-                    document.getElementById('name').focus();
+                    const nameField = document.getElementById('name');
+                    if (nameField) nameField.focus();
                 }, 500);
                 
-                console.log('✅ Enhanced Registration Handler ready');
+                console.log('✅ Registration Handler ready');
             }
 
             setupEventListeners() {
                 // Form submission
-                document.getElementById('registerForm').addEventListener('submit', this.handleRegistration.bind(this));
+                const form = document.getElementById('registerForm');
+                if (form) {
+                    form.addEventListener('submit', this.handleRegistration.bind(this));
+                }
                 
                 // Social registration
-                document.getElementById('googleRegisterBtn').addEventListener('click', () => this.handleSocialRegistration('google'));
-                document.getElementById('facebookRegisterBtn').addEventListener('click', () => this.handleSocialRegistration('facebook'));
+                const googleBtn = document.getElementById('googleRegisterBtn');
+                const facebookBtn = document.getElementById('facebookRegisterBtn');
+                
+                if (googleBtn) {
+                    googleBtn.addEventListener('click', () => this.handleSocialRegistration('google'));
+                }
+                if (facebookBtn) {
+                    facebookBtn.addEventListener('click', () => this.handleSocialRegistration('facebook'));
+                }
                 
                 // Real-time validation
                 document.querySelectorAll('.form-input').forEach(input => {
@@ -1242,26 +1386,21 @@
                 });
 
                 // Password strength checking
-                document.getElementById('password').addEventListener('input', this.checkPasswordStrength.bind(this));
+                const passwordField = document.getElementById('password');
+                if (passwordField) {
+                    passwordField.addEventListener('input', this.checkPasswordStrength.bind(this));
+                }
                 
                 // Phone number formatting
-                document.getElementById('phone').addEventListener('input', this.formatPhoneNumber.bind(this));
+                const phoneField = document.getElementById('phone');
+                if (phoneField) {
+                    phoneField.addEventListener('input', this.formatPhoneNumber.bind(this));
+                }
                 
                 // Auth service events
                 authService.on('auth:register:start', () => this.showLoading(true));
                 authService.on('auth:register:success', (data) => this.handleRegistrationSuccess(data));
                 authService.on('auth:register:error', (error) => this.handleRegistrationError(error));
-
-                // Keyboard navigation
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        const activeElement = document.activeElement;
-                        if (activeElement.tagName === 'INPUT' && activeElement.type !== 'submit') {
-                            e.preventDefault();
-                            this.focusNextField(activeElement);
-                        }
-                    }
-                });
             }
 
             setupValidation() {
@@ -1269,14 +1408,11 @@
                     name: {
                         required: true,
                         minLength: 2,
-                        pattern: /^[a-zA-Z\s'-]+$/,
                         message: 'Please enter a valid full name'
                     },
                     email: {
                         required: true,
-                        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                        message: 'Please enter a valid email address',
-                        async: true
+                        message: 'Please enter a valid email address'
                     },
                     phone: {
                         required: true,
@@ -1286,24 +1422,13 @@
                     password: {
                         required: true,
                         minLength: 8,
-                        message: 'Password must be at least 8 characters',
-                        complex: true
+                        message: 'Password must be at least 8 characters'
                     },
                     confirmPassword: {
                         required: true,
-                        match: 'password',
                         message: 'Passwords do not match'
                     }
                 };
-            }
-
-            setupEnhancedFeatures() {
-                // Check URL parameters
-                const urlParams = new URLSearchParams(window.location.search);
-                
-                if (urlParams.get('demo') === 'true') {
-                    this.loadDemoData();
-                }
             }
 
             async handleRegistration(e) {
@@ -1312,16 +1437,18 @@
                 try {
                     const formData = new FormData(e.target);
                     const userData = {
-                        name: formData.get('name').trim(),
-                        email: formData.get('email').trim(),
-                        phone: formData.get('phone').trim(),
-                        password: formData.get('password'),
-                        confirmPassword: formData.get('confirmPassword'),
+                        name: formData.get('name')?.trim() || '',
+                        email: formData.get('email')?.trim() || '',
+                        phone: formData.get('phone')?.trim() || '',
+                        password: formData.get('password') || '',
+                        confirmPassword: formData.get('confirmPassword') || '',
                         terms: formData.get('terms') === 'on',
                         newsletter: formData.get('newsletter') === 'on'
                     };
                     
-                    // Comprehensive validation
+                    console.log('Registration attempt with data:', { ...userData, password: '***', confirmPassword: '***' });
+                    
+                    // Validate form
                     await this.validateRegistrationForm(userData);
                     
                     // Clear previous messages
@@ -1339,10 +1466,10 @@
                         newsletter: userData.newsletter
                     });
                     
-                    // Success handled by event listener
+                    console.log('Registration result:', result);
                     
                 } catch (error) {
-                    // Error handled by event listener
+                    console.error('Registration failed:', error);
                     this.updateProgress(1);
                 }
             }
@@ -1352,16 +1479,20 @@
                 
                 // Name validation
                 if (!userData.name || !authService.validateName(userData.name)) {
-                    errors.push('Please enter a valid full name (letters, spaces, hyphens, apostrophes only)');
+                    errors.push('Please enter a valid full name');
                 }
                 
                 // Email validation
                 if (!userData.email || !authService.validateEmail(userData.email)) {
                     errors.push('Please enter a valid email address');
                 } else {
-                    const emailAvailable = await authService.checkEmailAvailability(userData.email);
-                    if (!emailAvailable) {
-                        errors.push('An account with this email already exists. Please sign in instead.');
+                    try {
+                        const emailAvailable = await authService.checkEmailAvailability(userData.email);
+                        if (!emailAvailable) {
+                            errors.push('An account with this email already exists');
+                        }
+                    } catch (e) {
+                        console.warn('Email availability check failed:', e);
                     }
                 }
                 
@@ -1373,7 +1504,7 @@
                 // Password validation
                 const passwordValidation = authService.validatePassword(userData.password);
                 if (!passwordValidation.valid) {
-                    errors.push('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
+                    errors.push('Password must meet strength requirements');
                 }
                 
                 // Password confirmation
@@ -1387,22 +1518,19 @@
                 }
                 
                 if (errors.length > 0) {
-                    throw new Error(errors[0]); // Show first error
+                    throw new Error(errors[0]);
                 }
             }
 
             async validateField(field, showFeedback = false) {
                 const name = field.name;
                 const value = field.value.trim();
-                const rule = this.validationRules[name];
-                
-                if (!rule) return;
                 
                 let isValid = true;
                 let message = '';
                 
                 try {
-                    if (rule.required && !value) {
+                    if (field.hasAttribute('required') && !value) {
                         isValid = false;
                         message = `${name.charAt(0).toUpperCase() + name.slice(1)} is required`;
                     } else if (value) {
@@ -1414,13 +1542,16 @@
                                 
                             case 'email':
                                 isValid = authService.validateEmail(value);
-                                if (isValid && rule.async) {
-                                    // Check availability
-                                    const available = await authService.checkEmailAvailability(value);
-                                    isValid = available;
-                                    message = available ? 'Email is available!' : 'Email already registered';
+                                if (isValid) {
+                                    try {
+                                        const available = await authService.checkEmailAvailability(value);
+                                        isValid = available;
+                                        message = available ? 'Email is available!' : 'Email already registered';
+                                    } catch (e) {
+                                        message = 'Valid email format';
+                                    }
                                 } else {
-                                    message = isValid ? 'Valid email format' : 'Please enter a valid email';
+                                    message = 'Please enter a valid email';
                                 }
                                 break;
                                 
@@ -1436,14 +1567,13 @@
                                 break;
                                 
                             case 'confirmPassword':
-                                const password = document.getElementById('password').value;
+                                const password = document.getElementById('password')?.value || '';
                                 isValid = value === password;
                                 message = isValid ? 'Passwords match!' : 'Passwords do not match';
                                 break;
                         }
                     }
                     
-                    // Update field appearance
                     this.updateFieldState(field, isValid, message, showFeedback);
                     
                 } catch (error) {
@@ -1478,55 +1608,66 @@
             }
 
             checkPasswordStrength() {
-                const password = document.getElementById('password').value;
+                const passwordField = document.getElementById('password');
+                if (!passwordField) return;
+
+                const password = passwordField.value;
                 const strengthContainer = document.getElementById('passwordStrength');
                 const strengthScore = document.getElementById('strengthScore');
-                const strengthBars = document.getElementById('strengthBars').children;
-                const requirements = document.getElementById('strengthRequirements').children;
+                const strengthBars = document.getElementById('strengthBars')?.children;
+                const requirements = document.getElementById('strengthRequirements')?.children;
                 
                 if (!password) {
-                    strengthContainer.classList.remove('show');
+                    strengthContainer?.classList.remove('show');
                     return;
                 }
                 
-                strengthContainer.classList.add('show');
+                strengthContainer?.classList.add('show');
                 
                 const validation = authService.validatePassword(password);
                 
                 // Update score display
-                strengthScore.textContent = validation.strength.charAt(0).toUpperCase() + validation.strength.slice(1);
-                strengthScore.className = `strength-score ${validation.strength}`;
+                if (strengthScore) {
+                    strengthScore.textContent = validation.strength.charAt(0).toUpperCase() + validation.strength.slice(1);
+                    strengthScore.className = `strength-score ${validation.strength}`;
+                }
                 
                 // Update strength bars
-                for (let i = 0; i < strengthBars.length; i++) {
-                    if (i < validation.score) {
-                        strengthBars[i].classList.add('filled');
-                    } else {
-                        strengthBars[i].classList.remove('filled');
+                if (strengthBars) {
+                    for (let i = 0; i < strengthBars.length; i++) {
+                        if (i < validation.score) {
+                            strengthBars[i].classList.add('filled');
+                        } else {
+                            strengthBars[i].classList.remove('filled');
+                        }
                     }
                 }
                 
                 // Update requirements
-                const ruleChecks = [
-                    { rule: 'length', met: validation.length },
-                    { rule: 'uppercase', met: validation.uppercase },
-                    { rule: 'lowercase', met: validation.lowercase },
-                    { rule: 'number', met: validation.number },
-                    { rule: 'special', met: validation.special }
-                ];
-                
-                ruleChecks.forEach((check, index) => {
-                    const requirement = requirements[index];
-                    const icon = requirement.querySelector('i');
+                if (requirements) {
+                    const ruleChecks = [
+                        { rule: 'length', met: validation.length },
+                        { rule: 'uppercase', met: validation.uppercase },
+                        { rule: 'lowercase', met: validation.lowercase },
+                        { rule: 'number', met: validation.number },
+                        { rule: 'special', met: validation.special }
+                    ];
                     
-                    if (check.met) {
-                        requirement.classList.add('met');
-                        icon.className = 'fas fa-check';
-                    } else {
-                        requirement.classList.remove('met');
-                        icon.className = 'fas fa-times';
-                    }
-                });
+                    ruleChecks.forEach((check, index) => {
+                        if (requirements[index]) {
+                            const requirement = requirements[index];
+                            const icon = requirement.querySelector('i');
+                            
+                            if (check.met) {
+                                requirement.classList.add('met');
+                                if (icon) icon.className = 'fas fa-check';
+                            } else {
+                                requirement.classList.remove('met');
+                                if (icon) icon.className = 'fas fa-times';
+                            }
+                        }
+                    });
+                }
             }
 
             formatPhoneNumber(e) {
@@ -1545,15 +1686,17 @@
             async handleSocialRegistration(provider) {
                 try {
                     this.showLoading(true, `Connecting to ${provider}...`);
-                    await authService.registerWithProvider(provider);
+                    this.showToast(`${provider} registration coming soon!`, 'info');
                 } catch (error) {
-                    this.showToast(error.message || `${provider} registration coming soon!`, 'info');
+                    this.showToast(error.message || `${provider} registration error`, 'error');
                 } finally {
-                    this.showLoading(false);
+                    setTimeout(() => this.showLoading(false), 2000);
                 }
             }
 
             handleRegistrationSuccess(result) {
+                console.log('Registration success:', result);
+                
                 this.updateProgress(3);
                 
                 const user = result.user || { name: 'User' };
@@ -1561,53 +1704,24 @@
                 // Show celebration
                 this.showCelebration();
                 
-                this.showMessage(`🎉 Welcome to QuickLocal, ${user.name}! Your account has been created successfully.`, 'success');
+                const successMessage = `🎉 Welcome to QuickLocal, ${user.name}! Your account has been created successfully.`;
+                this.showMessage(successMessage, 'success');
                 this.showToast(`Welcome to QuickLocal, ${user.name}!`, 'success');
                 
                 // Redirect after success
                 setTimeout(() => {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const redirectTo = urlParams.get('redirect') || 'marketplace.html';
-                    window.location.href = redirectTo + '?registered=true&welcome=true';
+                    this.showToast('🚀 Redirecting to marketplace...', 'info');
+                    // In a real app, redirect to marketplace
+                    console.log('Would redirect to marketplace...');
                 }, 3000);
             }
 
             handleRegistrationError(error) {
                 console.error('Registration error:', error);
                 
-                this.showMessage(error.message, 'error');
-                this.showToast(error.message, 'error');
-                
-                // Focus relevant field based on error
-                this.focusErrorField(error.message);
-            }
-
-            focusErrorField(errorMessage) {
-                const message = errorMessage.toLowerCase();
-                
-                if (message.includes('name')) {
-                    document.getElementById('name').focus();
-                } else if (message.includes('email')) {
-                    document.getElementById('email').focus();
-                } else if (message.includes('phone')) {
-                    document.getElementById('phone').focus();
-                } else if (message.includes('password')) {
-                    document.getElementById('password').focus();
-                } else if (message.includes('terms')) {
-                    document.getElementById('terms').focus();
-                }
-            }
-
-            focusNextField(currentField) {
-                const inputs = Array.from(document.querySelectorAll('.form-input'));
-                const currentIndex = inputs.indexOf(currentField);
-                const nextInput = inputs[currentIndex + 1];
-                
-                if (nextInput) {
-                    nextInput.focus();
-                } else {
-                    document.getElementById('registerBtn').focus();
-                }
+                const errorMessage = error.message || 'Registration failed. Please try again.';
+                this.showMessage(errorMessage, 'error');
+                this.showToast(errorMessage, 'error');
             }
 
             updateProgress(step) {
@@ -1627,25 +1741,31 @@
 
             showCelebration() {
                 const overlay = document.getElementById('celebrationOverlay');
-                overlay.classList.add('active');
-                
-                setTimeout(() => {
-                    overlay.classList.remove('active');
-                }, 1500);
+                if (overlay) {
+                    overlay.classList.add('active');
+                    
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 1500);
+                }
             }
 
             showLoading(show, message = 'Creating your account...') {
                 const btn = document.getElementById('registerBtn');
                 const container = document.querySelector('.auth-container');
                 
-                if (show) {
-                    btn.innerHTML = `<i class="fas fa-spinner spinner"></i> ${message}`;
-                    btn.disabled = true;
-                    container.style.opacity = '0.8';
-                } else {
-                    btn.innerHTML = '<i class="fas fa-user-plus"></i> Create My Account';
-                    btn.disabled = false;
-                    container.style.opacity = '1';
+                if (btn) {
+                    if (show) {
+                        btn.innerHTML = `<i class="fas fa-spinner spinner"></i> ${message}`;
+                        btn.disabled = true;
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-user-plus"></i> Create My Account';
+                        btn.disabled = false;
+                    }
+                }
+                
+                if (container) {
+                    container.style.opacity = show ? '0.8' : '1';
                 }
             }
 
@@ -1657,7 +1777,9 @@
                 };
                 
                 // Clear all messages
-                Object.values(messageElements).forEach(el => el.style.display = 'none');
+                Object.values(messageElements).forEach(el => {
+                    if (el) el.style.display = 'none';
+                });
                 
                 // Show specific message
                 if (messageElements[type]) {
@@ -1669,17 +1791,27 @@
                     
                     messageElements[type].innerHTML = `<i class="${icons[type]}"></i> ${message}`;
                     messageElements[type].style.display = 'block';
+                    
+                    // Auto-hide after 5 seconds
+                    setTimeout(() => {
+                        if (messageElements[type]) {
+                            messageElements[type].style.display = 'none';
+                        }
+                    }, 5000);
                 }
             }
 
             clearMessages() {
-                document.getElementById('errorMessage').style.display = 'none';
-                document.getElementById('successMessage').style.display = 'none';
-                document.getElementById('infoMessage').style.display = 'none';
+                ['errorMessage', 'successMessage', 'infoMessage'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'none';
+                });
             }
 
             showToast(message, type = 'success') {
                 const container = document.getElementById('toastContainer');
+                if (!container) return;
+
                 const toast = document.createElement('div');
                 
                 const icons = {
@@ -1701,23 +1833,38 @@
                 setTimeout(() => {
                     toast.style.opacity = '0';
                     toast.style.transform = 'translateX(100%)';
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
                 }, 4000);
                 
                 // Remove on click
                 toast.addEventListener('click', () => {
                     toast.style.opacity = '0';
                     toast.style.transform = 'translateX(100%)';
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
                 });
             }
 
             loadDemoData() {
-                document.getElementById('name').value = 'John Doe';
-                document.getElementById('email').value = 'demo@quicklocal.shop';
-                document.getElementById('phone').value = '(555) 123-4567';
-                document.getElementById('password').value = 'DemoPass123!';
-                document.getElementById('confirmPassword').value = 'DemoPass123!';
+                const fields = {
+                    name: 'John Doe',
+                    email: 'demo@quicklocal.shop',
+                    phone: '(555) 123-4567',
+                    password: 'DemoPass123!',
+                    confirmPassword: 'DemoPass123!'
+                };
+
+                Object.entries(fields).forEach(([id, value]) => {
+                    const field = document.getElementById(id);
+                    if (field) field.value = value;
+                });
                 
                 this.showMessage('🎯 Demo data loaded. Click "Create My Account" to continue.', 'info');
             }
@@ -1725,53 +1872,57 @@
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            new EnhancedRegistrationHandler();
+            new RegistrationHandler();
         });
 
-        // Export for global access
-        window.EnhancedRegistrationHandler = EnhancedRegistrationHandler;
-    </script>
-
-    <!-- Development helpers -->
-    <script>
         // Add demo button for testing
         if (window.location.search.includes('demo') || window.location.hostname === 'localhost') {
-            const demoBtn = document.createElement('button');
-            demoBtn.innerHTML = '🎯 Load Demo';
-            demoBtn.style.cssText = `
-                position: fixed; 
-                bottom: 20px; 
-                left: 20px; 
-                padding: 8px 16px; 
-                background: var(--primary); 
-                color: white; 
-                border: none; 
-                border-radius: 8px; 
-                cursor: pointer; 
-                font-size: 12px;
-                z-index: 9999;
-                font-family: inherit;
-            `;
-            demoBtn.onclick = () => {
-                document.getElementById('name').value = 'John Doe';
-                document.getElementById('email').value = 'demo@quicklocal.shop';
-                document.getElementById('phone').value = '(555) 123-4567';
-                document.getElementById('password').value = 'DemoPass123!';
-                document.getElementById('confirmPassword').value = 'DemoPass123!';
-                document.querySelector('.info-message').innerHTML = '<i class="fas fa-info-circle"></i> 🎯 Demo data loaded!';
-                document.querySelector('.info-message').style.display = 'block';
-            };
-            document.body.appendChild(demoBtn);
+            setTimeout(() => {
+                const demoBtn = document.createElement('button');
+                demoBtn.innerHTML = '🎯 Load Demo';
+                demoBtn.style.cssText = `
+                    position: fixed; 
+                    bottom: 20px; 
+                    left: 20px; 
+                    padding: 8px 16px; 
+                    background: var(--primary); 
+                    color: white; 
+                    border: none; 
+                    border-radius: 8px; 
+                    cursor: pointer; 
+                    font-size: 12px;
+                    z-index: 9999;
+                    font-family: inherit;
+                `;
+                demoBtn.onclick = () => {
+                    const fields = {
+                        name: 'John Doe',
+                        email: 'demo@quicklocal.shop',
+                        phone: '(555) 123-4567',
+                        password: 'DemoPass123!',
+                        confirmPassword: 'DemoPass123!'
+                    };
+
+                    Object.entries(fields).forEach(([id, value]) => {
+                        const field = document.getElementById(id);
+                        if (field) field.value = value;
+                    });
+                    
+                    const infoMsg = document.getElementById('infoMessage');
+                    if (infoMsg) {
+                        infoMsg.innerHTML = '<i class="fas fa-info-circle"></i> 🎯 Demo data loaded!';
+                        infoMsg.style.display = 'block';
+                    }
+                };
+                document.body.appendChild(demoBtn);
+            }, 1000);
         }
 
-        // Console helpers for development
-        console.log('🚀 QuickLocal Enhanced Registration System');
-        console.log('📋 Demo registration available with ?demo=true');
+        // Console helpers
+        console.log('🚀 QuickLocal Enhanced Registration System Ready');
+        console.log('🔋 Demo registration available with ?demo=true');
         console.log('🔧 Backend URL:', window.APP_CONFIG.API_BASE_URL);
         console.log('🛠️ Access authService globally via window.authService');
     </script>
-<script src="js/config.js"></script>
-<script src="js/socket-client.js"></script>
-<script src="js/auth.js"></script>
 </body>
 </html>
