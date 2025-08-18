@@ -29,11 +29,12 @@
 
     .form-section { background:#fff; padding:1.25rem; border-radius: var(--border-radius); box-shadow: var(--shadow); }
     .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
-    .btn { display:inline-flex; align-items:center; gap:.5rem; padding:.625rem 1rem; border-radius:.75rem; font-weight:600; border:1px solid transparent; }
+    .btn { display:inline-flex; align-items:center; gap:.5rem; padding:.625rem 1rem; border-radius:.75rem; font-weight:600; border:1px solid transparent; cursor:pointer; }
     .btn-primary { background:var(--primary-color); color:#fff; }
     .btn-primary:hover { background:var(--primary-dark); }
     .btn-secondary { background:#fff; border-color:var(--border-color); }
     .btn-danger { background: var(--danger-color); color:#fff; }
+    .btn-sm { padding:.375rem .75rem; font-size:.875rem; }
 
     .file-upload-area { border:2px dashed var(--border-color); border-radius:var(--border-radius); padding:1.5rem; text-align:center; cursor:pointer; transition:.2s; }
     .file-upload-area:hover { border-color:var(--primary-color); background:#f1f5ff; }
@@ -50,6 +51,11 @@
     .notification.show { opacity:1; transform: translateY(0); }
 
     .badge { display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--border-color); background:#f8fafc; }
+
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    .validation-error { color:var(--danger-color); font-size:.875rem; margin-top:.25rem; }
 
     @media (max-width:768px){ .sidebar-nav ul{ flex-direction:column; } .header-container{ flex-direction:column; align-items:flex-start; } }
   </style>
@@ -116,27 +122,33 @@
         <form id="new-product-form">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="font-semibold text-sm">Title</label>
+              <label class="font-semibold text-sm">Title <span class="text-red-500">*</span></label>
               <input id="p-title" class="w-full border rounded-lg p-2" required />
+              <div id="title-error" class="validation-error hidden">Title is required</div>
             </div>
             <div>
-              <label class="font-semibold text-sm">Category</label>
-              <select id="p-category" class="w-full border rounded-lg p-2" required></select>
+              <label class="font-semibold text-sm">Category <span class="text-red-500">*</span></label>
+              <select id="p-category" class="w-full border rounded-lg p-2" required>
+                <option value="">Loading categories...</option>
+              </select>
+              <div id="category-error" class="validation-error hidden">Please select a category</div>
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
-              <label class="font-semibold text-sm">Price (₹)</label>
+              <label class="font-semibold text-sm">Price (₹) <span class="text-red-500">*</span></label>
               <input id="p-price" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" required />
+              <div id="price-error" class="validation-error hidden">Valid price is required</div>
             </div>
             <div>
               <label class="font-semibold text-sm">MRP (₹)</label>
               <input id="p-mrp" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" />
             </div>
             <div>
-              <label class="font-semibold text-sm">Stock</label>
+              <label class="font-semibold text-sm">Stock <span class="text-red-500">*</span></label>
               <input id="p-stock" type="number" step="1" min="0" class="w-full border rounded-lg p-2" required />
+              <div id="stock-error" class="validation-error hidden">Stock quantity is required</div>
             </div>
           </div>
 
@@ -148,6 +160,17 @@
             <div>
               <label class="font-semibold text-sm">GST (%)</label>
               <input id="p-gst" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="font-semibold text-sm">Brand</label>
+              <input id="p-brand" class="w-full border rounded-lg p-2" placeholder="Enter brand name" />
+            </div>
+            <div>
+              <label class="font-semibold text-sm">Discount (%)</label>
+              <input id="p-discount" type="number" step="0.01" min="0" max="100" class="w-full border rounded-lg p-2" />
             </div>
           </div>
 
@@ -243,13 +266,13 @@
 
       <div id="analytics-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-2 gap-6">
         <div class="form-section">
           <h3 class="text-lg font-semibold mb-3">Sales Overview</h3>
           <div class="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
             <div class="text-center text-gray-500">
               <i class="fa-solid fa-chart-line text-4xl mb-2"></i>
-              <p>Connect your charts here (coming from /analytics)</p>
+              <p>Connect your charts here</p>
             </div>
           </div>
         </div>
@@ -332,10 +355,24 @@
       IK_URL_ENDPOINT: "https://ik.imagekit.io/phea4zmjs",
       IK_AUTH_ENDPOINT: "https://quicklocal-backend.onrender.com/api/v1/imagekit-auth"
     };
-    const token = localStorage.getItem('qk_token') || '';
+    const token = getToken();
     const h = (json=false) => json
       ? { 'Content-Type':'application/json', ...(token?{ Authorization:'Bearer '+token }:{}) }
       : (token?{ Authorization:'Bearer '+token }:{});
+
+    // ===== AUTH HELPERS =====
+    function getToken() {
+      return localStorage.getItem('qk_token') || localStorage.getItem('authToken') || '';
+    }
+
+    function getUserInfo() {
+      try {
+        const userData = localStorage.getItem('qk_user') || localStorage.getItem('userData');
+        return userData ? JSON.parse(userData) : null;
+      } catch {
+        return null;
+      }
+    }
 
     // ===== UTIL =====
     const $ = (s, r=document) => r.querySelector(s);
@@ -348,24 +385,85 @@
       setTimeout(()=> n.classList.remove('show'), 2500);
     };
 
+    // ===== VALIDATION HELPERS =====
+    function showValidationError(fieldId, message) {
+      const errorEl = $(`#${fieldId}-error`);
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function hideValidationError(fieldId) {
+      const errorEl = $(`#${fieldId}-error`);
+      if (errorEl) {
+        errorEl.classList.add('hidden');
+      }
+    }
+
+    function clearAllValidationErrors() {
+      $$('.validation-error').forEach(el => el.classList.add('hidden'));
+    }
+
+    function validateProductForm() {
+      clearAllValidationErrors();
+      let isValid = true;
+
+      // Title validation
+      const title = $('#p-title').value.trim();
+      if (!title) {
+        showValidationError('title', 'Product title is required');
+        isValid = false;
+      }
+
+      // Category validation
+      const category = $('#p-category').value;
+      if (!category) {
+        showValidationError('category', 'Please select a category');
+        isValid = false;
+      }
+
+      // Price validation
+      const price = parseFloat($('#p-price').value);
+      if (!price || price <= 0) {
+        showValidationError('price', 'Please enter a valid price');
+        isValid = false;
+      }
+
+      // Stock validation
+      const stock = parseInt($('#p-stock').value);
+      if (stock < 0 || isNaN(stock)) {
+        showValidationError('stock', 'Please enter a valid stock quantity');
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
     // ===== API HELPERS (with graceful fallbacks) =====
     async function apiGet(path, fallback) {
       try {
         const r = await fetch(`${ENV.API_BASE}${path}`, { headers: { ...h() } });
         if (!r.ok) throw new Error(await r.text());
         return await r.json();
-      } catch (e) { console.warn('GET fail', path, e); return fallback; }
+      } catch (e) { 
+        console.warn('GET fail', path, e); 
+        return fallback; 
+      }
     }
+    
     async function apiPost(path, body) {
       const r = await fetch(`${ENV.API_BASE}${path}`, { method:'POST', headers:h(true), body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     }
+    
     async function apiPut(path, body) {
       const r = await fetch(`${ENV.API_BASE}${path}`, { method:'PUT', headers:h(true), body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     }
+    
     async function apiDelete(path) {
       const r = await fetch(`${ENV.API_BASE}${path}`, { method:'DELETE', headers:h(true) });
       if (!r.ok) throw new Error(await r.text());
@@ -376,29 +474,47 @@
     async function getIKSignature(){
       try {
         const r = await fetch(ENV.IK_AUTH_ENDPOINT, { headers: { ...h() } });
-        if (!r.ok) return null; return r.json();
-      } catch { return null; }
+        if (!r.ok) return null; 
+        return r.json();
+      } catch { 
+        return null; 
+      }
     }
+    
     async function uploadToImageKit(file){
       const sig = await getIKSignature();
-      if (!ENV.IK_URL_ENDPOINT || !sig || !ENV.IK_PUBLIC_KEY) { notify('Image upload not configured', false); return null; }
+      if (!ENV.IK_URL_ENDPOINT || !sig || !ENV.IK_PUBLIC_KEY) { 
+        notify('Image upload not configured', false); 
+        return null; 
+      }
       const form = new FormData();
       form.append('file', file);
       form.append('publicKey', ENV.IK_PUBLIC_KEY);
       form.append('signature', sig.signature);
       form.append('expire', sig.expire);
       form.append('token', sig.token);
-      const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:form });
-      if (!res.ok) { console.error('IK fail', await res.text()); notify('Image upload failed', false); return null; }
-      const data = await res.json();
-      const url = ENV.IK_URL_ENDPOINT.replace(/\/$/, '') + '/' + (data.filePath||'').replace(/^\//,'');
-      return url;
+      
+      try {
+        const res = await fetch('https://upload.imagekit.io/api/v1/files/upload', { method:'POST', body:form });
+        if (!res.ok) { 
+          console.error('IK fail', await res.text()); 
+          notify('Image upload failed', false); 
+          return null; 
+        }
+        const data = await res.json();
+        const url = ENV.IK_URL_ENDPOINT.replace(/\/$/, '') + '/' + (data.filePath||'').replace(/^\//,'');
+        return url;
+      } catch (error) {
+        console.error('Upload error:', error);
+        notify('Image upload failed', false);
+        return null;
+      }
     }
 
     // ===== STATE =====
     let productsState = [];
-    let editingProductId = null; // _id when editing
-    let productImages = []; // array of URLs
+    let editingProductId = null;
+    let productImages = [];
 
     // ===== TABS =====
     $$('.sidebar-nav a').forEach(a => a.addEventListener('click', (e) => {
@@ -413,6 +529,7 @@
     function statCard(icon, value, label){
       return `<div class="form-section text-center"><div class="text-3xl mb-2 text-[var(--primary-color)]">${icon}</div><div class="text-3xl font-bold">${value}</div><div class="text-gray-500">${label}</div></div>`
     }
+    
     async function loadDashboard(){
       const analytics = await apiGet('/analytics', { totalProducts:0, ordersThisMonth:0, revenueThisMonth:0, totalCustomers:0, topProducts:[] });
       $('#stats-grid').innerHTML = [
@@ -443,32 +560,99 @@
         body.appendChild(tr);
       });
     }
+    
     function statusBadge(status){
-      const map = { delivered:'bg-green-100 text-green-800', shipped:'bg-blue-100 text-blue-800', processing:'bg-yellow-100 text-yellow-800', cancelled:'bg-red-100 text-red-800' };
+      const map = { 
+        delivered:'bg-green-100 text-green-800', 
+        shipped:'bg-blue-100 text-blue-800', 
+        processing:'bg-yellow-100 text-yellow-800', 
+        cancelled:'bg-red-100 text-red-800' 
+      };
       const cls = map[(status||'').toLowerCase()] || 'bg-gray-100 text-gray-800';
       return `<span class="px-2 py-1 ${cls} rounded-full text-xs">${status}</span>`;
     }
 
-    // ===== PRODUCTS =====
+    // ===== ENHANCED CATEGORIES LOADING (FIXED) =====
     async function loadCategories(){
       const sel = $('#p-category');
-      const cats = await apiGet('/categories', []);
-      sel.innerHTML = '<option value="">Select a category</option>';
-      cats.forEach(c => {
-        const o = document.createElement('option');
-        o.value = c._id || c.slug || c.name; o.textContent = c.name; sel.appendChild(o);
-      });
+      sel.innerHTML = '<option value="">Loading categories...</option>';
+
+      try {
+        // Call API
+        const res = await apiGet('/categories', null);
+
+        // Adjust to backend response format - handle both direct array and nested response
+        const cats = res?.data?.categories || res?.categories || res || [];
+
+        // Reset dropdown
+        sel.innerHTML = '<option value="">Select a category</option>';
+
+        // Fill with categories
+        cats.forEach(c => {
+          const o = document.createElement('option');
+          o.value = c._id || c.slug || c.name;
+          o.textContent = c.name;
+          sel.appendChild(o);
+        });
+
+        if (cats.length === 0) {
+          const o = document.createElement('option');
+          o.value = "";
+          o.textContent = "No categories available";
+          o.disabled = true;
+          sel.appendChild(o);
+          notify('No categories found. Please add some categories first.', false);
+        } else {
+          console.log(`Loaded ${cats.length} categories`);
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        sel.innerHTML = '<option value="">Failed to load categories</option>';
+        notify('Failed to load categories', false);
+      }
     }
+
+    // ===== ENHANCED PRODUCTS MANAGEMENT =====
     async function loadProducts(){
-      productsState = await apiGet('/products', []);
-      renderProducts(productsState);
+      try {
+        // Add seller filter if user info available
+        const userInfo = getUserInfo();
+        const endpoint = userInfo && userInfo.id ? `/products?seller=${userInfo.id}` : '/products';
+        
+        productsState = await apiGet(endpoint, []);
+        renderProducts(productsState);
+        console.log(`Loaded ${productsState.length} products`);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+        productsState = [];
+        renderProducts([]);
+        notify('Failed to load products', false);
+      }
     }
+    
     function renderProducts(list){
       $('#product-count').textContent = list.length;
       const grid = $('#product-list');
+      
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-12 text-gray-500">
+            <i class="fa-solid fa-box-open text-6xl mb-4"></i>
+            <h3 class="text-xl font-semibold mb-2">No Products Found</h3>
+            <p>Start by adding your first product!</p>
+          </div>`;
+        return;
+      }
+      
       grid.innerHTML = '';
       list.forEach(p => {
         const img = (p.images && p.images[0]) || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22140%22%3E%3Crect width=%22200%22 height=%22140%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2214%22%3ENo Image%3C/text%3E%3C/svg%3E';
+        
+        // Calculate discounted price if discount exists
+        const originalPrice = Number(p.price || 0);
+        const discount = Number(p.discount || 0);
+        const discountedPrice = discount > 0 ? originalPrice * (1 - discount/100) : originalPrice;
+        
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
@@ -476,41 +660,96 @@
           <div class="p-4">
             <h4 class="font-semibold text-lg mb-1 line-clamp-1">${p.title || p.name}</h4>
             <div class="flex items-center justify-between mb-2">
-              <div class="text-[var(--primary-color)] font-bold">₹${Number(p.price||0).toFixed(2)}</div>
-              <div class="text-sm text-gray-500">Stock: ${p.stock ?? 0}</div>
+              <div class="flex items-center gap-2">
+                ${discount > 0 ? `
+                  <div class="text-[var(--primary-color)] font-bold">₹${discountedPrice.toFixed(2)}</div>
+                  <div class="text-sm text-gray-400 line-through">₹${originalPrice.toFixed(2)}</div>
+                  <span class="bg-red-100 text-red-800 text-xs px-1 rounded">${discount}% off</span>
+                ` : `
+                  <div class="text-[var(--primary-color)] font-bold">₹${originalPrice.toFixed(2)}</div>
+                `}
+              </div>
+              <div class="text-sm ${p.stock > 0 ? 'text-gray-500' : 'text-red-500'}">
+                Stock: ${p.stock ?? 0}
+              </div>
             </div>
-            <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
               <span class="badge">${p.category?.name || p.category || 'General'}</span>
-              ${p.active===false?'<span class="badge">Inactive</span>':''}
+              ${p.brand ? `<span class="badge">${p.brand}</span>` : ''}
+              ${p.active===false ? '<span class="badge bg-red-100 text-red-800">Inactive</span>' : ''}
+              ${p.stock <= 0 ? '<span class="badge bg-orange-100 text-orange-800">Out of Stock</span>' : ''}
             </div>
             <div class="flex gap-2">
-              <button class="btn btn-primary btn-sm" data-act="edit" data-id="${p._id||p.id}"><i class="fa-solid fa-pen"></i> Edit</button>
-              <button class="btn btn-danger btn-sm" data-act="delete" data-id="${p._id||p.id}"><i class="fa-solid fa-trash"></i> Delete</button>
+              <button class="btn btn-primary btn-sm flex-1" data-act="edit" data-id="${p._id||p.id}">
+                <i class="fa-solid fa-pen"></i> Edit
+              </button>
+              <button class="btn btn-secondary btn-sm" data-act="stock" data-id="${p._id||p.id}" title="Quick Stock Update">
+                <i class="fa-solid fa-boxes-stacked"></i>
+              </button>
+              <button class="btn btn-danger btn-sm" data-act="delete" data-id="${p._id||p.id}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
             </div>
           </div>`;
         grid.appendChild(card);
       });
-      // bind actions
-      $$('#product-list [data-act="edit"]').forEach(b=> b.addEventListener('click', ()=> startEditProduct(b.dataset.id)));
-      $$('#product-list [data-act="delete"]').forEach(b=> b.addEventListener('click', ()=> deleteProduct(b.dataset.id)));
+      
+      // Bind actions
+      $('#product-list [data-act="edit"]').forEach(b=> b.addEventListener('click', ()=> startEditProduct(b.dataset.id)));
+      $('#product-list [data-act="delete"]').forEach(b=> b.addEventListener('click', ()=> deleteProduct(b.dataset.id)));
+      $('#product-list [data-act="stock"]').forEach(b=> b.addEventListener('click', ()=> quickStockUpdate(b.dataset.id)));
     }
 
-    function parseVariants(str){ try { return JSON.parse(str||'[]'); } catch { return []; } }
+    // ===== QUICK STOCK UPDATE =====
+    async function quickStockUpdate(id) {
+      const product = productsState.find(p => (p._id || p.id) === id);
+      if (!product) return;
+      
+      const newStock = prompt(`Update stock for "${product.title || product.name}".\nCurrent stock: ${product.stock || 0}`, product.stock || 0);
+      if (newStock === null) return; // Cancelled
+      
+      const stockNumber = parseInt(newStock);
+      if (isNaN(stockNumber) || stockNumber < 0) {
+        notify('Please enter a valid stock number', false);
+        return;
+      }
+      
+      try {
+        await apiPut(`/products/${id}`, { stock: stockNumber });
+        notify('Stock updated successfully');
+        await loadProducts();
+      } catch (error) {
+        notify(parseErr(error, 'Failed to update stock'), false);
+      }
+    }
+
+    function parseVariants(str){ 
+      try { 
+        return JSON.parse(str||'[]'); 
+      } catch { 
+        return []; 
+      } 
+    }
 
     function collectProductForm(){
+      const userInfo = getUserInfo();
       return {
         title: $('#p-title').value.trim(),
         description: $('#p-description').value.trim(),
         category: $('#p-category').value,
+        brand: $('#p-brand').value.trim(),
         tags: $('#p-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
         price: Number($('#p-price').value||0),
         mrp: Number($('#p-mrp').value||0),
+        discount: Number($('#p-discount').value||0),
         stock: Number($('#p-stock').value||0),
         sku: $('#p-sku').value.trim(),
         gst: Number($('#p-gst').value||0),
         active: $('#p-active').value === 'true',
         variants: parseVariants($('#p-variants').value),
-        images: productImages.slice()
+        images: productImages.slice(),
+        // Add seller info if available
+        ...(userInfo && userInfo.id ? { seller: userInfo.id } : {})
       };
     }
 
@@ -518,9 +757,11 @@
       $('#p-title').value = p.title || '';
       $('#p-description').value = p.description || '';
       $('#p-category').value = (p.category? (p.category._id||p.category.slug||p.category.name) : p.category) || '';
+      $('#p-brand').value = p.brand || '';
       $('#p-tags').value = (p.tags||[]).join(', ');
       $('#p-price').value = p.price ?? '';
       $('#p-mrp').value = p.mrp ?? '';
+      $('#p-discount').value = p.discount ?? '';
       $('#p-stock').value = p.stock ?? '';
       $('#p-sku').value = p.sku || '';
       $('#p-gst').value = p.gst ?? '';
@@ -539,13 +780,23 @@
       $('#product-form').classList.remove('hidden');
       $('#add-product-btn').classList.add('hidden');
       fillProductForm(p);
+      clearAllValidationErrors();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function deleteProduct(id){
-      if (!confirm('Delete this product?')) return;
-      try { await apiDelete(`/products/${id}`); notify('Product deleted'); await loadProducts(); }
-      catch(e){ notify(parseErr(e, 'Delete failed'), false); }
+      const product = productsState.find(p => (p._id || p.id) === id);
+      const productName = product ? (product.title || product.name) : 'this product';
+      
+      if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) return;
+      
+      try { 
+        await apiDelete(`/products/${id}`); 
+        notify('Product deleted successfully'); 
+        await loadProducts(); 
+      } catch(e){ 
+        notify(parseErr(e, 'Delete failed'), false); 
+      }
     }
 
     function clearForm(){
@@ -553,12 +804,16 @@
       $('#product-form-title').textContent = 'Add New Product';
       $('#save-btn-text').textContent = 'Save Product';
       $('#new-product-form').reset();
-      productImages = []; renderImagePreview();
+      productImages = []; 
+      renderImagePreview();
+      clearAllValidationErrors();
     }
 
-    function parseErr(e, fallback){ return (e && e.message) ? e.message : (''+e || fallback); }
+    function parseErr(e, fallback){ 
+      return (e && e.message) ? e.message : (''+e || fallback); 
+    }
 
-    // ===== IMAGE UI (drag & drop + preview) =====
+    // ===== ENHANCED IMAGE UI (with remove functionality) =====
     const fileArea = $('#file-upload-area');
     const fileInput = $('#p-images');
     const imgPreview = $('#image-preview');
@@ -568,76 +823,208 @@
       productImages.forEach((url, idx) => {
         const wrap = document.createElement('div');
         wrap.className = 'image-preview-item';
-        wrap.innerHTML = `<img src="${url}" alt="img"><div class="remove-image" data-i="${idx}"><i class="fa-solid fa-xmark"></i></div>`;
+        wrap.innerHTML = `
+          <img src="${url}" alt="Product image ${idx + 1}">
+          <div class="remove-image" data-i="${idx}" title="Remove image">
+            <i class="fa-solid fa-xmark"></i>
+          </div>`;
         imgPreview.appendChild(wrap);
       });
     }
 
     imgPreview.addEventListener('click', (e)=>{
       const btn = e.target.closest('.remove-image');
-      if (!btn) return; const i = +btn.dataset.i; productImages.splice(i,1); renderImagePreview();
+      if (!btn) return; 
+      const i = +btn.dataset.i; 
+      productImages.splice(i,1); 
+      renderImagePreview();
+      notify('Image removed');
     });
 
     fileArea.addEventListener('click', ()=> fileInput.click());
-    fileArea.addEventListener('dragover', (e)=>{ e.preventDefault(); fileArea.classList.add('ring-2','ring-indigo-400'); });
+    fileArea.addEventListener('dragover', (e)=>{ 
+      e.preventDefault(); 
+      fileArea.classList.add('ring-2','ring-indigo-400'); 
+    });
     fileArea.addEventListener('dragleave', ()=> fileArea.classList.remove('ring-2','ring-indigo-400'));
     fileArea.addEventListener('drop', async (e)=>{
-      e.preventDefault(); fileArea.classList.remove('ring-2','ring-indigo-400');
+      e.preventDefault(); 
+      fileArea.classList.remove('ring-2','ring-indigo-400');
       const files = Array.from(e.dataTransfer.files||[]).filter(f=>f.type.startsWith('image/'));
-      for (const f of files){ const url = await uploadToImageKit(f); if (url) productImages.push(url); }
+      
+      if (files.length === 0) {
+        notify('Please drop image files only', false);
+        return;
+      }
+      
+      notify(`Uploading ${files.length} image(s)...`);
+      let successCount = 0;
+      
+      for (const f of files){ 
+        const url = await uploadToImageKit(f); 
+        if (url) {
+          productImages.push(url);
+          successCount++;
+        }
+      }
+      
       renderImagePreview();
+      if (successCount > 0) {
+        notify(`${successCount} image(s) uploaded successfully`);
+      }
     });
+    
     fileInput.addEventListener('change', async (e)=>{
       const files = Array.from(e.target.files||[]);
-      for (const f of files){ const url = await uploadToImageKit(f); if (url) productImages.push(url); }
-      renderImagePreview(); fileInput.value='';
+      if (files.length === 0) return;
+      
+      notify(`Uploading ${files.length} image(s)...`);
+      let successCount = 0;
+      
+      for (const f of files){ 
+        const url = await uploadToImageKit(f); 
+        if (url) {
+          productImages.push(url);
+          successCount++;
+        }
+      }
+      
+      renderImagePreview(); 
+      fileInput.value='';
+      
+      if (successCount > 0) {
+        notify(`${successCount} image(s) uploaded successfully`);
+      }
     });
 
-    // ===== PRODUCT FORM SUBMIT =====
+    // ===== ENHANCED PRODUCT FORM SUBMIT WITH VALIDATION =====
     $('#new-product-form').addEventListener('submit', async (e)=>{
       e.preventDefault();
+      
+      // Validate form
+      if (!validateProductForm()) {
+        notify('Please fix the errors above', false);
+        return;
+      }
+      
       const body = collectProductForm();
-      if (!body.title || !body.category) { notify('Title & Category are required', false); return; }
+      
+      // Additional business validations
+      if (body.mrp && body.price > body.mrp) {
+        showValidationError('price', 'Price cannot be higher than MRP');
+        notify('Price cannot be higher than MRP', false);
+        return;
+      }
+      
+      if (body.discount && (body.discount < 0 || body.discount > 100)) {
+        showValidationError('discount', 'Discount must be between 0 and 100%');
+        notify('Invalid discount percentage', false);
+        return;
+      }
+      
       try {
-        if (editingProductId) { await apiPut(`/products/${editingProductId}`, body); notify('Product updated'); }
-        else { await apiPost('/products', body); notify('Product created'); }
-        await loadProducts(); clearForm();
+        if (editingProductId) { 
+          await apiPut(`/products/${editingProductId}`, body); 
+          notify('Product updated successfully'); 
+        } else { 
+          await apiPost('/products', body); 
+          notify('Product created successfully'); 
+        }
+        
+        await loadProducts(); 
+        clearForm();
         $('#product-form').classList.add('hidden');
         $('#add-product-btn').classList.remove('hidden');
-      } catch(e){ notify(parseErr(e, 'Save failed'), false); }
+      } catch(e){ 
+        console.error('Save error:', e);
+        notify(parseErr(e, 'Save failed'), false); 
+      }
     });
-    $('#cancel-product').addEventListener('click', ()=>{ $('#product-form').classList.add('hidden'); $('#add-product-btn').classList.remove('hidden'); clearForm(); });
-    $('#reset-form').addEventListener('click', ()=> clearForm());
-    $('#add-product-btn').addEventListener('click', ()=>{ $('#product-form').classList.remove('hidden'); $('#add-product-btn').classList.add('hidden'); clearForm(); });
+    
+    $('#cancel-product').addEventListener('click', ()=>{ 
+      $('#product-form').classList.add('hidden'); 
+      $('#add-product-btn').classList.remove('hidden'); 
+      clearForm(); 
+    });
+    
+    $('#reset-form').addEventListener('click', ()=> {
+      if (confirm('Are you sure you want to reset the form? All unsaved changes will be lost.')) {
+        clearForm();
+      }
+    });
+    
+    $('#add-product-btn').addEventListener('click', ()=>{ 
+      $('#product-form').classList.remove('hidden'); 
+      $('#add-product-btn').classList.add('hidden'); 
+      clearForm(); 
+    });
 
-    // search
+    // ===== ENHANCED PRODUCT SEARCH =====
     $('#product-search').addEventListener('input', (e)=>{
       const q = e.target.value.toLowerCase();
-      const filtered = productsState.filter(p => `${p.title||''} ${p.sku||''} ${(p.tags||[]).join(' ')}`.toLowerCase().includes(q));
+      if (!q) {
+        renderProducts(productsState);
+        return;
+      }
+      
+      const filtered = productsState.filter(p => {
+        const searchText = `${p.title||''} ${p.sku||''} ${p.brand||''} ${(p.tags||[]).join(' ')} ${p.category?.name||p.category||''}`.toLowerCase();
+        return searchText.includes(q);
+      });
+      
       renderProducts(filtered);
     });
 
     // ===== ORDERS TAB =====
     async function loadOrders(){
-      const orders = await apiGet('/orders', []);
-      const body = $('#orders-body'); body.innerHTML = '';
-      orders.forEach(o => {
-        const id = o.orderNumber || o._id || '';
-        const cust = (o.customer && (o.customer.name || o.customer.fullName)) || o.customerName || '—';
-        const dt = o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '—';
-        const amt = (o.amount?.toFixed ? o.amount.toFixed(2) : o.amount) ?? '—';
-        const status = o.status || '—';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="py-2 px-4 border-b">${id}</td>
-          <td class="py-2 px-4 border-b">${cust}</td>
-          <td class="py-2 px-4 border-b">${dt}</td>
-          <td class="py-2 px-4 border-b">₹${amt}</td>
-          <td class="py-2 px-4 border-b">${statusBadge(status)}</td>
-          <td class="py-2 px-4 border-b"><button class="text-blue-600 hover:underline">View</button></td>`;
-        body.appendChild(tr);
-      });
+      try {
+        const userInfo = getUserInfo();
+        const endpoint = userInfo && userInfo.id ? `/orders?seller=${userInfo.id}` : '/orders';
+        
+        const orders = await apiGet(endpoint, []);
+        const body = $('#orders-body'); 
+        body.innerHTML = '';
+        
+        if (orders.length === 0) {
+          body.innerHTML = `
+            <tr>
+              <td colspan="6" class="py-8 px-4 text-center text-gray-500">
+                <i class="fa-solid fa-shopping-cart text-4xl mb-2"></i><br>
+                No orders found
+              </td>
+            </tr>`;
+          return;
+        }
+        
+        orders.forEach(o => {
+          const id = o.orderNumber || o._id || '';
+          const cust = (o.customer && (o.customer.name || o.customer.fullName)) || o.customerName || '—';
+          const dt = o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '—';
+          const amt = (o.amount?.toFixed ? o.amount.toFixed(2) : o.amount) ?? '—';
+          const status = o.status || '—';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-2 px-4 border-b">${id}</td>
+            <td class="py-2 px-4 border-b">${cust}</td>
+            <td class="py-2 px-4 border-b">${dt}</td>
+            <td class="py-2 px-4 border-b">₹${amt}</td>
+            <td class="py-2 px-4 border-b">${statusBadge(status)}</td>
+            <td class="py-2 px-4 border-b">
+              <button class="text-blue-600 hover:underline" onclick="viewOrder('${o._id || o.id}')">View</button>
+            </td>`;
+          body.appendChild(tr);
+        });
+      } catch (error) {
+        console.error('Failed to load orders:', error);
+        notify('Failed to load orders', false);
+      }
     }
+    
+    function viewOrder(orderId) {
+      // Placeholder for order detail view
+      notify('Order detail view - coming soon!');
+    }
+    
     $('#refresh-orders').addEventListener('click', loadOrders);
 
     // ===== ANALYTICS TAB =====
@@ -649,72 +1036,170 @@
         statCard('<i class="fa-solid fa-users"></i>', a.totalCustomers ?? 0, 'Total Customers')
       ].join('');
     }
+    
     function renderTopProducts(list){
-      const c = $('#top-products'); c.innerHTML = '';
-      (list||[]).forEach(tp => {
+      const c = $('#top-products'); 
+      c.innerHTML = '';
+      
+      if (!list || list.length === 0) {
+        c.innerHTML = `
+          <div class="text-center text-gray-500 py-8">
+            <i class="fa-solid fa-chart-bar text-4xl mb-2"></i>
+            <p>No sales data available yet</p>
+          </div>`;
+        return;
+      }
+      
+      list.forEach(tp => {
         const row = document.createElement('div');
-        row.className = 'flex items-center';
+        row.className = 'flex items-center border-b pb-3';
         row.innerHTML = `
-          <div class="w-16 h-16 bg-gray-200 rounded-md mr-4 overflow-hidden">
-            <img src="${(tp.images && tp.images[0]) || ''}" class="w-full h-full object-cover" alt="" />
+          <div class="w-16 h-16 bg-gray-200 rounded-md mr-4 overflow-hidden flex-shrink-0">
+            <img src="${(tp.images && tp.images[0]) || ''}" class="w-full h-full object-cover" alt="" 
+                 onerror="this.src='data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22%3E%3Crect width=%2264%22 height=%2264%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2210%22%3ENo Image%3C/text%3E%3C/svg%3E'" />
           </div>
-          <div class="flex-1">
-            <h4 class="font-semibold">${tp.title || tp.name || 'Product'}</h4>
-            <p class="text-gray-600">${tp.unitsSold ?? 0} units sold</p>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-semibold truncate">${tp.title || tp.name || 'Product'}</h4>
+            <p class="text-sm text-gray-600">${tp.unitsSold ?? 0} units sold</p>
           </div>
           <div class="text-right font-bold">₹${Number(tp.revenue||0).toFixed(2)}</div>`;
         c.appendChild(row);
       });
     }
+    
     async function loadAnalytics(){
-      const a = await apiGet('/analytics', { totalProducts:0, ordersThisMonth:0, revenueThisMonth:0, totalCustomers:0, topProducts:[] });
-      renderAnalyticsCards(a);
-      renderTopProducts(a.topProducts);
+      try {
+        const userInfo = getUserInfo();
+        const endpoint = userInfo && userInfo.id ? `/analytics?seller=${userInfo.id}` : '/analytics';
+        
+        const a = await apiGet(endpoint, { 
+          totalProducts:0, 
+          ordersThisMonth:0, 
+          revenueThisMonth:0, 
+          totalCustomers:0, 
+          topProducts:[] 
+        });
+        
+        renderAnalyticsCards(a);
+        renderTopProducts(a.topProducts);
+      } catch (error) {
+        console.error('Failed to load analytics:', error);
+        notify('Failed to load analytics', false);
+      }
     }
+    
     $('#refresh-analytics').addEventListener('click', loadAnalytics);
 
     // ===== SETTINGS =====
     async function loadSettings(){
-      const s = await apiGet('/settings', { profile:{}, payments:{} });
-      $('#s-store').value = s.profile?.storeName || '';
-      $('#s-owner').value = s.profile?.ownerName || '';
-      $('#s-email').value = s.profile?.email || '';
-      $('#s-phone').value = s.profile?.phone || '';
-      $('#s-desc').value = s.profile?.description || '';
-      $('#pay-method').value = s.payments?.method || 'paypal';
-      $('#pay-paypal-email').value = s.payments?.paypalEmail || '';
+      try {
+        const s = await apiGet('/settings', { profile:{}, payments:{} });
+        $('#s-store').value = s.profile?.storeName || '';
+        $('#s-owner').value = s.profile?.ownerName || '';
+        $('#s-email').value = s.profile?.email || '';
+        $('#s-phone').value = s.profile?.phone || '';
+        $('#s-desc').value = s.profile?.description || '';
+        $('#pay-method').value = s.payments?.method || 'bank';
+        $('#pay-paypal-email').value = s.payments?.paypalEmail || '';
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
     }
+    
     $('#profile-form').addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const payload = { profile: { storeName:$('#s-store').value, ownerName:$('#s-owner').value, email:$('#s-email').value, phone:$('#s-phone').value, description:$('#s-desc').value } };
-      try { await apiPut('/settings', payload); notify('Profile saved'); }
-      catch(e){ notify(parseErr(e, 'Save failed'), false); }
+      const payload = { 
+        profile: { 
+          storeName: $('#s-store').value.trim(), 
+          ownerName: $('#s-owner').value.trim(), 
+          email: $('#s-email').value.trim(), 
+          phone: $('#s-phone').value.trim(), 
+          description: $('#s-desc').value.trim() 
+        } 
+      };
+      
+      try { 
+        await apiPut('/settings', payload); 
+        notify('Profile saved successfully'); 
+      } catch(e){ 
+        notify(parseErr(e, 'Save failed'), false); 
+      }
     });
+    
     $('#payment-form').addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const payload = { payments: { method:$('#pay-method').value, paypalEmail:$('#pay-paypal-email').value } };
-      try { await apiPut('/settings', payload); notify('Payment settings saved'); }
-      catch(e){ notify(parseErr(e, 'Save failed'), false); }
+      const payload = { 
+        payments: { 
+          method: $('#pay-method').value, 
+          paypalEmail: $('#pay-paypal-email').value.trim() 
+        } 
+      };
+      
+      try { 
+        await apiPut('/settings', payload); 
+        notify('Payment settings saved successfully'); 
+      } catch(e){ 
+        notify(parseErr(e, 'Save failed'), false); 
+      }
     });
 
-    // ===== INIT =====
+    // ===== EXPORT FUNCTIONALITY =====
+    $('#export-report').addEventListener('click', async ()=>{
+      try {
+        const reportData = {
+          exportDate: new Date().toISOString(),
+          totalProducts: productsState.length,
+          products: productsState.map(p => ({
+            id: p._id || p.id,
+            title: p.title || p.name,
+            category: p.category?.name || p.category,
+            brand: p.brand,
+            price: p.price,
+            mrp: p.mrp,
+            discount: p.discount,
+            stock: p.stock,
+            sku: p.sku,
+            active: p.active,
+            createdAt: p.createdAt
+          }))
+        };
+        
+        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type:'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); 
+        a.href = url; 
+        a.download = `products-report-${new Date().toISOString().split('T')[0]}.json`; 
+        a.click(); 
+        URL.revokeObjectURL(url);
+        
+        notify('Report exported successfully');
+      } catch (error) { 
+        console.error('Export error:', error);
+        notify('Export failed', false); 
+      }
+    });
+
+    // ===== INITIALIZATION =====
     (async function init(){
+      console.log('Initializing Seller Dashboard...');
+      
+      // Check authentication
+      if (!token) {
+        console.warn('No auth token found');
+        notify('Please log in to access the dashboard', false);
+      }
+      
+      // Load all data
       await loadCategories();
       await loadProducts();
       await loadDashboard();
       await loadOrders();
       await loadAnalytics();
       await loadSettings();
+      
+      console.log('Dashboard initialization complete');
+      notify('Dashboard loaded successfully');
     })();
-
-    // ===== EXPORT (simple JSON export of products) =====
-    $('#export-report').addEventListener('click', async ()=>{
-      try {
-        const blob = new Blob([JSON.stringify(productsState, null, 2)], { type:'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'products-report.json'; a.click(); URL.revokeObjectURL(url);
-      } catch { notify('Export failed', false); }
-    });
   </script>
 </body>
 </html>
