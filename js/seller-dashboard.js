@@ -1,235 +1,466 @@
-// API and State Configuration
-const API_BASE_URL = 'https://quicklocal-backend.onrender.com';
+// Complete seller-dashboard.js - Handles AUTH + DASHBOARD
+
+// ====== Config ======
+const API_BASE = 'https://quicklocal-backend.onrender.com';
+const API_PREFIX = '/api/v1';
+const ROUTES = {
+  login: `${API_PREFIX}/auth/login`,
+  register: `${API_PREFIX}/auth/register`,
+  refresh: `${API_PREFIX}/auth/refresh-token`,
+  meUsers: `${API_PREFIX}/users/me`,
+  meAuth: `${API_PREFIX}/auth/me`,
+  uploadImage: `${API_PREFIX}/upload-image`,
+  products: `${API_PREFIX}/products`,
+  categories: `${API_PREFIX}/categories`,
+};
+
 let products = [];
 let editingProductId = null;
+let currentUser = null;
+let uploadedImageUrl = "";
 
-// DOM Element References
+// ====== DOM Elements ======
+const authSection = document.getElementById('auth-section');
+const dashboardSection = document.getElementById('dashboard-section');
+const loginTab = document.getElementById('login-tab');
+const registerTab = document.getElementById('register-tab');
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
 const productForm = document.getElementById('product-form');
 const productListContainer = document.getElementById('product-list');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const toastContainer = document.getElementById('toast-container');
 const productImageInput = document.getElementById('product-image');
 const imagePreview = document.getElementById('image-preview');
+const addProductBtn = document.getElementById('addProductBtn');
+const productModal = document.getElementById('productModal');
+const cancelBtn = document.getElementById('cancel-btn');
+const logoutBtn = document.getElementById('logout-btn');
 
-// --- Toast Notifications ---
-function showToast(message, isError = false) {
+// ====== Utility Functions ======
+function showToast(message, type = 'success') {
   const toast = document.createElement('div');
-  // Simple toast styling (can be enhanced in CSS)
-  toast.style.position = 'fixed';
-  toast.style.top = '20px';
-  toast.style.right = '20px';
-  toast.style.padding = '15px';
-  toast.style.background = isError ? '#ef4444' : '#10b981';
-  toast.style.color = 'white';
-  toast.style.borderRadius = '8px';
-  toast.style.zIndex = '1000';
+  toast.className = `toast toast-${type}`;
   toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  toastContainer.appendChild(toast);
+  
+  setTimeout(() => toast.classList.add('show'), 50);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
+function showView(view) {
+  authSection.classList.toggle('hidden', view !== 'auth');
+  dashboardSection.classList.toggle('hidden', view !== 'dashboard');
+}
 
-// --- Save Product (Create/Update) ---
+function getSavedToken() {
+  return localStorage.getItem('authToken') || localStorage.getItem('token');
+}
+
+function saveToken(token) {
+  if (token) {
+    localStorage.setItem('authToken', token);
+  }
+}
+
+// ====== Authentication Functions ======
+async function authenticatedFetch(pathOrUrl, options = {}) {
+  const token = getSavedToken();
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
+  
+  const headers = new Headers(options.headers || {});
+  headers.set('Accept', 'application/json');
+  
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  let data = null;
+  try { 
+    data = await res.json(); 
+  } catch { 
+    data = null; 
+  }
+
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+async function verifyToken() {
+  const token = getSavedToken();
+  if (!token) return showView('auth');
+
+  try {
+    let data;
+    try { 
+      data = await authenticatedFetch(ROUTES.meUsers); 
+    } catch { 
+      data = await authenticatedFetch(ROUTES.meAuth); 
+    }
+    
+    currentUser = data.user || data.data || data;
+    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+    localStorage.setItem('sellerId', currentUser._id);
+    
+    showView('dashboard');
+    await initDashboard();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    localStorage.clear();
+    showView('auth');
+  }
+}
+
+// ====== Auth Event Handlers ======
+function toggleAuth(mode) {
+  loginForm.classList.toggle('hidden', mode !== 'login');
+  registerForm.classList.toggle('hidden', mode !== 'register');
+  
+  loginTab.className = mode === 'login' 
+    ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold'
+    : 'flex-1 py-2 text-gray-600';
+    
+  registerTab.className = mode === 'register' 
+    ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold'
+    : 'flex-1 py-2 text-gray-600';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  try {
+    const res = await fetch(`${API_BASE}${ROUTES.login}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: 'include', // <-- important for refresh cookies
+      body: JSON.stringify({ email, password, role: 'seller' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || `Login failed (${res.status})`);
+
+    const token = data.token || data.accessToken;
+    if (!token) throw new Error('No token received');
+
+    saveToken(token);
+    currentUser = data.user;
+    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+    localStorage.setItem('sellerId', currentUser._id);
+
+    showToast('Welcome back!', 'success');
+    showView('dashboard');
+    await initDashboard();
+  } catch (error) {
+    console.error('Login failed:', error);
+    showToast(error.message || 'Login failed', 'error');
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const businessName = document.getElementById('reg-business').value.trim();
+
+  try {
+    const res = await fetch(`${API_BASE}${ROUTES.register}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: 'include', // <-- important for refresh cookies
+      body: JSON.stringify({ name, email, phone, password, businessName, role: 'seller' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || `Registration failed (${res.status})`);
+
+    const token = data.token || data.accessToken;
+    if (!token) throw new Error('No token received');
+
+    saveToken(token);
+    currentUser = data.user;
+    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+    localStorage.setItem('sellerId', currentUser._id);
+
+    showToast('Account created successfully!', 'success');
+    showView('dashboard');
+    await initDashboard();
+  } catch (error) {
+    console.error('Registration failed:', error);
+    showToast(error.message || 'Registration failed', 'error');
+  }
+}
+
+// ====== Dashboard Functions ======
+async function initDashboard() {
+  if (currentUser) {
+    document.getElementById('sellerName').textContent = currentUser.name || 'Seller';
+  }
+  
+  await fetchCategories();
+  await fetchProducts();
+}
+
+async function fetchCategories() {
+  try {
+    const data = await authenticatedFetch(ROUTES.categories);
+    const categorySelect = document.getElementById('product-category');
+    categorySelect.innerHTML = '<option value="">Select Category</option>';
+    
+    const categories = data.data?.categories || data.categories || [];
+    categories.forEach(category => {
+      categorySelect.innerHTML += `<option value="${category._id}">${category.name}</option>`;
+    });
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
+    showToast('Failed to load categories', 'error');
+  }
+}
+
+async function fetchProducts() {
+  const sellerId = localStorage.getItem('sellerId');
+  if (!sellerId) {
+    showToast('Seller ID not found. Please log in again.', 'error');
+    return;
+  }
+  try {
+    const data = await authenticatedFetch(`${ROUTES.products}?seller=${encodeURIComponent(sellerId)}`);
+    products = data?.data?.products || data?.products || data?.data || [];
+    renderProductList();
+  } catch (error) {
+    console.error('Failed to fetch products:', error);
+    showToast('Failed to load products', 'error');
+  }
+}
+
+function renderProductList() {
+  if (!products || products.length === 0) {
+    productListContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">No products yet. Add your first product!</p>';
+    return;
+  }
+
+  productListContainer.innerHTML = '';
+  products.forEach(product => {
+    const productCard = document.createElement('div');
+    productCard.className = 'border rounded-lg p-4 bg-white shadow-md hover:shadow-lg transition-shadow';
+    
+    const imageUrl = product.images?.[0]?.url || 'https://via.placeholder.com/150';
+    productCard.innerHTML = `
+      <img src="${imageUrl}" alt="${product.name}" class="h-32 w-full object-cover rounded mb-3" />
+      <h4 class="font-bold text-lg mb-2">${product.name}</h4>
+      <p class="text-gray-600 text-sm mb-2">${product.description || 'No description'}</p>
+      <p class="text-xl font-semibold text-green-600 mb-3">₹${product.price}</p>
+      <p class="text-sm text-gray-500 mb-3">Stock: ${product.stock}</p>
+      <div class="flex space-x-2">
+        <button onclick="editProduct('${product._id}')" class="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600">
+          Edit
+        </button>
+        <button onclick="confirmDeleteProduct('${product._id}')" class="flex-1 bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600">
+          Delete
+        </button>
+      </div>
+    `;
+    
+    productListContainer.appendChild(productCard);
+  });
+}
+
+// ====== Product Management ======
+async function uploadImageFile(file) {
+  if (!file) throw new Error('No file selected');
+  
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const data = await authenticatedFetch(ROUTES.uploadImage, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const url = data?.image?.url || data?.url;
+  if (!url) throw new Error('Upload failed - no URL returned');
+  
+  return url;
+}
+
 async function saveProduct(e) {
   e.preventDefault();
-  const sellerId = localStorage.getItem("sellerId");
+  
+  const sellerId = localStorage.getItem('sellerId');
   if (!sellerId) {
-    showToast("❌ Cannot save product. Please log in again.", true);
+    showToast('Cannot save product. Please log in again.', 'error');
     return;
   }
 
   const isUpdating = !!editingProductId;
-  let imageUrl;
 
-  // Use the pre-uploaded URL from the HTML's data attribute.
-  const uploadedUrl = productImageInput.dataset.uploadedUrl;
-
-  if (uploadedUrl) {
-    // A new image was uploaded.
-    imageUrl = uploadedUrl;
-  } else if (isUpdating) {
-    // Editing, but no new image was selected. Keep the existing one.
-    const existingProduct = products.find(p => p._id === editingProductId);
-    imageUrl = existingProduct.images?.[0]?.url || "https://via.placeholder.com/400x400";
-  } else {
-    // Creating a new product without an image.
-    imageUrl = "https://via.placeholder.com/400x400";
+  // Handle image upload
+  let imageUrl = uploadedImageUrl;
+  if (productImageInput?.files?.length) {
+    try {
+      imageUrl = await uploadImageFile(productImageInput.files[0]);
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      showToast('Image upload failed', 'error');
+      return;
+    }
   }
 
   const productData = {
     name: document.getElementById('product-name').value.trim(),
     category: document.getElementById('product-category').value.trim(),
     price: parseFloat(document.getElementById('product-price').value),
-    stock: parseInt(document.getElementById('product-stock').value),
-    description: document.getElementById('product-description').value.trim(),
-    // Correctly reference the checkbox for discount.
-    discountPercentage: document.getElementById('product-discount').checked ? 10 : 0, // Example discount
-    images: [{ url: imageUrl }],
-    seller: sellerId
+    stock: parseInt(document.getElementById('product-stock').value, 10),
+    description: document.getElementById('product-description')?.value?.trim() || '',
+    images: imageUrl ? [{ url: imageUrl }] : [],
+    seller: sellerId,
   };
 
-  const url = isUpdating ? `${API_BASE_URL}/api/v1/products/${editingProductId}` : `${API_BASE_URL}/api/v1/products`;
+  const url = `${ROUTES.products}${isUpdating ? `/${editingProductId}` : ''}`;
   const method = isUpdating ? 'PUT' : 'POST';
 
   try {
-    const res = await fetch(url, {
+    await authenticatedFetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(productData)
+      body: JSON.stringify(productData),
     });
-
-    if (!res.ok) throw new Error(`Server returned status ${res.status}`);
-    await res.json();
-
-    showToast(isUpdating ? "✅ Product updated!" : "✅ Product added!");
+    
+    showToast(isUpdating ? 'Product updated!' : 'Product added!', 'success');
     resetForm();
+    closeModal();
     await fetchProducts();
   } catch (error) {
-    console.error("Product save error:", error);
-    showToast("❌ Failed to save product.", true);
+    console.error('Product save error:', error);
+    showToast(`Failed to save product: ${error.message}`, 'error');
   }
 }
 
-
-// --- Fetch Products for Seller ---
-async function fetchProducts() {
-  const sellerId = localStorage.getItem("sellerId");
-  if (!sellerId) {
-    showToast("Seller ID not found. Please log in.", true);
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/products?seller=${sellerId}`);
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const json = await res.json();
-    products = json.data?.products || [];
-    renderProductList();
-  } catch (err) {
-    console.error("Failed to fetch products:", err);
-    showToast("❌ Failed to load products.", true);
-  }
-}
-
-
-// --- Reset Form ---
 function resetForm() {
   productForm.reset();
   editingProductId = null;
-  
-  // Clear the stored image URL and the preview.
-  productImageInput.dataset.uploadedUrl = '';
+  uploadedImageUrl = "";
   imagePreview.innerHTML = '';
-  
-  cancelEditBtn.style.display = 'none';
-  document.getElementById('modalTitle').textContent = 'Add New Product';
+  document.getElementById('modalTitle').textContent = 'Add Product';
+  if (cancelEditBtn) cancelEditBtn.style.display = 'none'; // <-- guard
 }
 
-
-// --- Render Product List ---
-function renderProductList() {
-  productListContainer.innerHTML = '';
-  if (products.length === 0) {
-    productListContainer.innerHTML = '<p class="text-center text-gray-500">You have not added any products yet.</p>';
-    return;
-  }
-  
-  // Using a more robust grid layout for the product cards
-  const productGrid = document.createElement('div');
-  productGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6';
-
-  products.forEach(product => {
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-300';
-    card.innerHTML = `
-      <img src="${product.images?.[0]?.url}?tr=w-400,h-400" alt="${product.name}" class="w-full h-48 object-cover" />
-      <div class="p-4">
-        <h3 class="text-lg font-semibold text-gray-800">${product.name}</h3>
-        <p class="text-xl font-bold text-blue-600 mt-1">₹${product.price}</p>
-        <p class="text-sm text-gray-600 mt-1">Stock: ${product.stock}</p>
-        <div class="flex justify-end space-x-2 mt-4">
-          <button onclick="editProduct('${product._id}')" class="text-blue-500 hover:text-blue-700 font-semibold">Edit</button>
-          <button class="text-red-500 hover:text-red-700 font-semibold" onclick="confirmDeleteProduct('${product._id}')">Delete</button>
-        </div>
-      </div>
-    `;
-    productGrid.appendChild(card);
-  });
-  productListContainer.appendChild(productGrid);
+function openModal() {
+  resetForm();
+  productModal.classList.remove('hidden');
 }
 
+function closeModal() {
+  productModal.classList.add('hidden');
+  resetForm();
+}
 
-// --- Edit Product ---
-window.editProduct = (productId) => {
+function editProduct(productId) {
   const product = products.find(p => p._id === productId);
   if (!product) return;
-  
+
   editingProductId = productId;
-  document.getElementById('product-name').value = product.name;
-  document.getElementById('product-category').value = product.category;
-  document.getElementById('product-price').value = product.price;
-  document.getElementById('product-stock').value = product.stock;
-  document.getElementById('product-discount').checked = (product.discountPercentage || 0) > 0;
-  document.getElementById('product-description').value = product.description;
+  document.getElementById('product-name').value = product.name || '';
+  document.getElementById('product-category').value = (product.category?._id || product.category) || '';
+  document.getElementById('product-price').value = product.price || '';
+  document.getElementById('product-stock').value = product.stock || '';
   
-  // Show existing image in preview
-  imagePreview.innerHTML = `<img src="${product.images?.[0]?.url}" style="max-width: 150px;" alt="Current image" />`;
-  
-  document.getElementById('modalTitle').textContent = 'Edit Product';
-  cancelEditBtn.style.display = 'inline-block';
-
-  // Assuming the form is in a modal, show the modal.
-  document.getElementById('productModal').classList.remove('hidden');
-};
-
-
-// --- Confirm and Delete Product ---
-window.confirmDeleteProduct = (productId) => {
-  if (confirm('Are you sure you want to delete this product?')) {
-    deleteProduct(productId);
+  if (document.getElementById('product-description')) {
+    document.getElementById('product-description').value = product.description || '';
   }
-};
+
+  const existingImage = product.images?.[0]?.url;
+  if (existingImage) {
+    uploadedImageUrl = existingImage;
+    imagePreview.innerHTML = `<img src="${existingImage}" style="max-width: 150px; border-radius: 8px;" alt="Current image" />`;
+  } else {
+    uploadedImageUrl = "";
+    imagePreview.innerHTML = '';
+  }
+
+  document.getElementById('modalTitle').textContent = 'Edit Product';
+  if (cancelEditBtn) cancelEditBtn.style.display = 'inline-block'; // <-- guard
+  productModal.classList.remove('hidden');
+}
 
 async function deleteProduct(productId) {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/products/${productId}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    showToast('✅ Product deleted successfully.');
+    await authenticatedFetch(`${ROUTES.products}/${productId}`, { 
+      method: 'DELETE' 
+    });
+    
+    showToast('Product deleted successfully', 'success');
     await fetchProducts();
-  } catch (err) {
-    console.error('Failed to delete product:', err);
-    showToast('❌ Failed to delete product.', true);
+  } catch (error) {
+    console.error('Failed to delete product:', error);
+    showToast('Failed to delete product', 'error');
   }
 }
 
-
-// --- Modal Controls (assuming you have them in your HTML) ---
-const addProductBtn = document.getElementById('addProductBtn');
-const closeModalBtn = document.getElementById('closeModal');
-const productModal = document.getElementById('productModal');
-
-addProductBtn?.addEventListener('click', () => {
-    resetForm(); // Ensure form is fresh
-    productModal?.classList.remove('hidden');
-});
-
-closeModalBtn?.addEventListener('click', () => {
-    productModal?.classList.add('hidden');
-    resetForm();
-});
-
-
-// --- Event Listeners and Initial Load ---
-productForm.addEventListener("submit", saveProduct);
-cancelEditBtn.addEventListener("click", () => {
-    productModal?.classList.add('hidden');
-    resetForm();
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Demo sellerId. Replace with your actual authentication logic.
-  if (!localStorage.getItem('sellerId')) {
-    localStorage.setItem('sellerId', '668eb03859052b12d7c62c2f'); 
+function confirmDeleteProduct(productId) {
+  if (confirm('Are you sure you want to delete this product?')) {
+    deleteProduct(productId);
   }
-  fetchProducts();
+}
+
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+// ====== Event Listeners ======
+document.addEventListener('DOMContentLoaded', async () => {
+  // Auth event listeners
+  loginTab?.addEventListener('click', () => toggleAuth('login'));
+  registerTab?.addEventListener('click', () => toggleAuth('register'));
+  loginForm?.addEventListener('submit', handleLogin);
+  registerForm?.addEventListener('submit', handleRegister);
+  
+  // Dashboard event listeners
+  logoutBtn?.addEventListener('click', logout);
+  addProductBtn?.addEventListener('click', openModal);
+  cancelBtn?.addEventListener('click', closeModal);
+  cancelEditBtn?.addEventListener('click', closeModal);
+  productForm?.addEventListener('submit', saveProduct);
+  
+  // Image upload preview
+  productImageInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      uploadedImageUrl = await uploadImageFile(file);
+      imagePreview.innerHTML = `<img src="${uploadedImageUrl}" style="max-width: 150px; border-radius: 8px;" alt="Preview" />`;
+      showToast('Image uploaded successfully', 'success');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      showToast('Image upload failed', 'error');
+      uploadedImageUrl = "";
+      imagePreview.innerHTML = '';
+    }
+  });
+
+  // Initialize app
+  await verifyToken();
 });
+
+// Make functions global so they can be called from HTML onclick attributes
+window.editProduct = editProduct;
+window.confirmDeleteProduct = confirmDeleteProduct;
