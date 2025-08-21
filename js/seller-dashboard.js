@@ -1,50 +1,42 @@
 /* =========================================================================
-   SELLER DASHBOARD – Amazon/Flipkart-style flow
-   Works with quicklocal-backend.onrender.com (Express + MongoDB)
+   SELLER DASHBOARD – ID-aligned with seller-dashboard.html
+   Backend: https://quicklocal-backend.onrender.com
    ========================================================================= */
 
 (() => {
-  // ==========================
-  // Config
-  // ==========================
+  // ------------------ Config ------------------
   const API_ORIGIN = 'https://quicklocal-backend.onrender.com';
   const API_BASE = `${API_ORIGIN}/api/v1`;
 
-  // Back-end routes
   const ROUTES = {
     register: '/auth/register',
     login: '/auth/login',
     logout: '/auth/logout',
     me: '/auth/me',
     categories: '/categories',
-    // Seller CRUD should use seller namespace; public list uses /products
     sellerProducts: '/seller/products',
     publicProducts: '/products'
   };
 
-  // ==========================
-  // State
-  // ==========================
+  // ------------------ State -------------------
   let currentUser = null;
   let products = [];
   let categories = [];
   let editingProductId = null;
 
-  // ==========================
-  // DOM
-  // ==========================
+  // ------------------ DOM (MATCHES YOUR HTML) ----------------
   const q = (s) => document.querySelector(s);
   const qa = (s) => Array.from(document.querySelectorAll(s));
 
-  // Auth views
-  const viewAuth = q('#view-auth');
-  const viewDashboard = q('#view-dashboard');
+  // Sections
+  const viewAuth = q('#auth-section');
+  const viewDashboard = q('#dashboard-section');
 
   // Tabs & forms
-  const tabLogin = q('#tab-login');
-  const tabRegister = q('#tab-register');
-  const formLogin = q('#form-login');
-  const formRegister = q('#form-register');
+  const tabLogin = q('#login-tab');
+  const tabRegister = q('#register-tab');
+  const formLogin = q('#login-form');
+  const formRegister = q('#register-form');
 
   // Login fields
   const inLoginEmail = q('#login-email');
@@ -58,15 +50,16 @@
   const inRegBusiness = q('#reg-business');
 
   // Dashboard elements
-  const btnLogout = q('#btn-logout');
-  const btnAddProduct = q('#btn-add-product');
-  const productsWrap = q('#seller-products');
-  const emptyState = q('#empty-products');
+  const btnLogout = q('#logout-btn');
+  const btnAddProduct = q('#addProductBtn');
+  const productsWrap = q('#product-list');
+  const emptyState = null; // not in your HTML; handled safely below
 
-  // Modal + form
-  const productModal = q('#product-modal');
+  // Modal + form (matches your HTML)
+  const productModal = q('#productModal');
   const productForm = q('#product-form');
-  const productTitle = q('#product-modal-title');
+  const productTitle = q('#modalTitle');
+  const btnCloseModal = q('#cancel-btn');
 
   const inProdName = q('#product-name');
   const inProdCategory = q('#product-category');
@@ -75,14 +68,11 @@
   const inProdDescription = q('#product-description');
   const inProdImage = q('#product-image');
   const imagePreview = q('#image-preview');
-  const btnCloseModal = q('#close-product-modal');
 
   // Toast
   const toastContainer = q('#toast-container');
 
-  // ==========================
-  // Utils
-  // ==========================
+  // ------------------ Utils -------------------
   function showView(name) {
     if (name === 'auth') {
       viewAuth?.classList.remove('hidden');
@@ -99,99 +89,64 @@
     el.className = `toast toast-${type}`;
     el.textContent = message;
     toastContainer.appendChild(el);
-    setTimeout(() => {
-      el.classList.add('hide');
-      setTimeout(() => el.remove(), 300);
-    }, timeout);
+    // animate (your CSS toggles .show)
+    setTimeout(() => el.classList.add('show'), 10);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, timeout);
   }
 
   function moneyINR(n) {
-    try {
-      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
-    } catch {
-      return `₹${(n || 0).toLocaleString('en-IN')}`;
-    }
+    try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0); }
+    catch { return `₹${(n || 0).toLocaleString('en-IN')}`; }
   }
 
   // Token helpers
-  function saveToken(token) {
-    try { localStorage.setItem('accessToken', token); } catch {}
-  }
-  function getSavedToken() {
-    try { return localStorage.getItem('accessToken'); } catch { return null; }
-  }
-  function clearToken() {
-    try { localStorage.removeItem('accessToken'); } catch {}
-  }
+  function saveToken(token) { try { localStorage.setItem('accessToken', token); } catch {} }
+  function getSavedToken() { try { return localStorage.getItem('accessToken'); } catch { return null; } }
+  function clearToken() { try { localStorage.removeItem('accessToken'); } catch {} }
 
-  // Fetch wrappers
+  // Fetch helpers
   async function fetchJSON(url, opts = {}) {
-    const res = await fetch(url, {
-      ...opts,
-      headers: {
-        Accept: 'application/json',
-        ...(opts.headers || {})
-      },
-      credentials: 'include'
-    });
+    const res = await fetch(url, { credentials: 'include', headers: { Accept: 'application/json', ...(opts.headers || {}) }, ...opts });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = data.message || data.error || (data.errors && data.errors[0]?.msg) || `Request failed (${res.status})`;
-      const err = new Error(msg);
-      err.status = res.status;
-      err.data = data;
-      throw err;
+      const err = new Error(msg); err.status = res.status; err.data = data; throw err;
     }
     return data;
   }
-
   async function authenticatedFetch(pathOrUrl, opts = {}) {
     const token = getSavedToken();
     const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
-    return fetchJSON(url, {
-      ...opts,
-      headers: {
-        ...(opts.headers || {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    });
+    return fetchJSON(url, { ...opts, headers: { ...(opts.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   }
 
-  // ==========================
-  // Auth
-  // ==========================
+  // ------------------ Auth -------------------
   function toggleAuth(tab = 'login') {
-    if (tab === 'login') {
-      tabLogin?.classList.add('active');
-      tabRegister?.classList.remove('active');
-      formLogin?.classList.remove('hidden');
-      formRegister?.classList.add('hidden');
-    } else {
-      tabRegister?.classList.add('active');
-      tabLogin?.classList.remove('active');
-      formRegister?.classList.remove('hidden');
-      formLogin?.classList.add('hidden');
-    }
+    const onLogin = tab === 'login';
+    formLogin?.classList.toggle('hidden', !onLogin);
+    formRegister?.classList.toggle('hidden', onLogin);
+
+    // visual state
+    if (tabLogin) tabLogin.className = onLogin ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold' : 'flex-1 py-2 text-gray-600';
+    if (tabRegister) tabRegister.className = !onLogin ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold' : 'flex-1 py-2 text-gray-600';
   }
 
   async function handleRegister(e) {
     e.preventDefault();
     const payload = {
       name: inRegName?.value?.trim(),
-      email: inRegEmail?.value?.trim(),
+      email: inRegEmail?.value?.trim().toLowerCase(),
       phone: inRegPhone?.value?.trim(),
       password: inRegPassword?.value || '',
       role: 'seller',
       businessName: inRegBusiness?.value?.trim()
     };
-
     try {
       const data = await fetchJSON(`${API_BASE}${ROUTES.register}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      // Backend asks for email verification first (no token here)
       showToast(data.message || 'Registration successful! Please verify your email, then log in.', 'success');
       toggleAuth('login');
     } catch (err) {
@@ -202,30 +157,30 @@
   async function handleLogin(e) {
     e.preventDefault();
     const payload = {
-      email: inLoginEmail?.value?.trim(),
+      email: inLoginEmail?.value?.trim().toLowerCase(),
       password: inLoginPassword?.value || '',
       remember: true
     };
-
     try {
       const data = await fetchJSON(`${API_BASE}${ROUTES.login}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       const token = data.accessToken || data.token;
       if (!token) throw new Error('Login succeeded but no token received');
 
       saveToken(token);
       currentUser = data.user || data.data?.user || null;
 
-      // Keep for seller-scoped filtering if needed
       const sellerId = currentUser?.id || currentUser?._id;
       if (sellerId) {
         localStorage.setItem('sellerId', sellerId);
         localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
       }
+
+      const nameEl = document.querySelector('#sellerName');
+      if (nameEl && currentUser?.name) nameEl.textContent = currentUser.name;
 
       showToast('Welcome back!', 'success');
       showView('dashboard');
@@ -240,22 +195,17 @@
   }
 
   async function handleLogout() {
-    try {
-      await fetchJSON(`${API_BASE}${ROUTES.logout}`, { method: 'POST' }).catch(() => ({}));
-    } finally {
-      clearToken();
-      localStorage.removeItem('sellerId');
-      localStorage.removeItem('sellerInfo');
-      currentUser = null;
-      showView('auth');
-      toggleAuth('login');
-      showToast('Logged out.', 'success');
-    }
+    try { await fetchJSON(`${API_BASE}${ROUTES.logout}`, { method: 'POST' }); } catch {}
+    clearToken();
+    localStorage.removeItem('sellerId');
+    localStorage.removeItem('sellerInfo');
+    currentUser = null;
+    showView('auth');
+    toggleAuth('login');
+    showToast('Logged out.', 'success');
   }
 
-  // ==========================
-  // Categories
-  // ==========================
+  // ------------------ Categories ----------------
   async function fetchCategories() {
     try {
       const data = await authenticatedFetch(ROUTES.categories);
@@ -267,10 +217,9 @@
       console.warn('Categories failed:', err);
     }
   }
-
   function renderCategoryOptions() {
     if (!inProdCategory) return;
-    inProdCategory.innerHTML = '<option value="">Select category</option>';
+    inProdCategory.innerHTML = '<option value="">Select Category</option>';
     categories.forEach((c) => {
       const opt = document.createElement('option');
       opt.value = c._id || c.id || '';
@@ -279,26 +228,23 @@
     });
   }
 
-  // ==========================
-  // Products (Seller CRUD)
-  // ==========================
+  // ------------------ Products (Seller CRUD) ----
   async function fetchProducts() {
-    // Prefer seller-scoped endpoint; back-end should infer seller from token
     try {
+      // Prefer seller namespace
       const data = await authenticatedFetch(ROUTES.sellerProducts + '?limit=100');
       let list = data?.data?.products || data?.products || data?.data || [];
-      // Fallback to public endpoint if seller endpoint not available
+      // Fallback: public with seller filter
       if (!Array.isArray(list) || !list.length) {
         const sellerId = localStorage.getItem('sellerId');
         const pub = await authenticatedFetch(`${ROUTES.publicProducts}?seller=${encodeURIComponent(sellerId || '')}&limit=100`);
         list = pub?.data?.products || pub?.products || pub?.data || [];
       }
-      // Final safety filter by seller
       const sellerId = localStorage.getItem('sellerId');
       if (sellerId && Array.isArray(list)) {
         list = list.filter((p) => {
-          const s = p.seller?._id || p.seller;
-          return !s || s === sellerId; // if API already scoped, many items may not include seller
+          const sid = p.seller?._id || p.seller;
+          return !sid || sid === sellerId;
         });
       }
       products = list;
@@ -316,47 +262,40 @@
     productsWrap.innerHTML = '';
     const hasItems = Array.isArray(products) && products.length > 0;
     if (emptyState) emptyState.classList.toggle('hidden', hasItems);
-    if (!hasItems) return;
+    if (!hasItems) {
+      productsWrap.innerHTML = '<p class="text-center text-gray-500 col-span-full">No products yet. Add your first product!</p>';
+      return;
+    }
 
     products.forEach((p) => {
-      const el = document.createElement('div');
-      el.className = 'seller-product';
       const img = (p.images?.[0]?.url) || p.image || p.thumbnail || 'https://via.placeholder.com/600x400?text=Product';
       const categoryName = p.category?.name || p.categoryName || '—';
       const price = moneyINR(p.price || 0);
       const stock = p.stock ?? 0;
 
+      const el = document.createElement('div');
+      el.className = 'rounded-xl shadow border p-4 bg-white flex flex-col';
       el.innerHTML = `
-        <div class="sp-card">
-          <div class="sp-left">
-            <img class="sp-img" src="${img}" alt="${p.name || ''}">
-          </div>
-          <div class="sp-mid">
-            <div class="sp-name">${p.name || 'Untitled Product'}</div>
-            <div class="sp-cat">Category: ${categoryName}</div>
-            <div class="sp-desc">${(p.description || '').slice(0, 160)}</div>
-          </div>
-          <div class="sp-right">
-            <div class="sp-price">${price}</div>
-            <div class="sp-stock">Stock: ${stock}</div>
-            <div class="sp-actions">
-              <button class="btn btn-light" data-edit="${p._id || p.id}">Edit</button>
-              <button class="btn btn-danger" data-del="${p._id || p.id}">Delete</button>
-            </div>
-          </div>
+        <img src="${img}" alt="${p.name || ''}" class="h-40 w-full object-cover rounded-lg mb-3">
+        <div class="font-semibold text-gray-800">${p.name || 'Untitled Product'}</div>
+        <div class="text-sm text-gray-500">Category: ${categoryName}</div>
+        <div class="text-sm text-gray-500">Stock: ${stock}</div>
+        <div class="text-lg mt-2">${price}</div>
+        <div class="mt-3 flex gap-2">
+          <button class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200" data-edit="${p._id || p.id}">Edit</button>
+          <button class="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700" data-del="${p._id || p.id}">Delete</button>
         </div>
       `;
       productsWrap.appendChild(el);
     });
 
-    // Wire actions
     qa('[data-edit]').forEach((b) => b.addEventListener('click', () => openEditProduct(b.getAttribute('data-edit'))));
     qa('[data-del]').forEach((b) => b.addEventListener('click', () => deleteProduct(b.getAttribute('data-del'))));
   }
 
   function openCreateProduct() {
     editingProductId = null;
-    productTitle && (productTitle.textContent = 'Add Product');
+    if (productTitle) productTitle.textContent = 'Add Product';
     productForm?.reset();
     if (imagePreview) imagePreview.innerHTML = '';
     productModal?.classList.remove('hidden');
@@ -366,16 +305,17 @@
     const p = products.find((x) => (x._id || x.id) === id);
     if (!p) return;
     editingProductId = id;
-    productTitle && (productTitle.textContent = 'Edit Product');
+    if (productTitle) productTitle.textContent = 'Edit Product';
 
     if (inProdName) inProdName.value = p.name || '';
     if (inProdCategory) inProdCategory.value = p.category?._id || p.category || '';
     if (inProdPrice) inProdPrice.value = p.price ?? '';
     if (inProdStock) inProdStock.value = p.stock ?? '';
     if (inProdDescription) inProdDescription.value = p.description || '';
+
     if (imagePreview) {
       const img = (p.images?.[0]?.url) || p.image || p.thumbnail;
-      imagePreview.innerHTML = img ? `<img src="${img}" alt="preview" style="max-height:140px;border-radius:12px;object-fit:cover">` : '';
+      imagePreview.innerHTML = img ? `<img src="${img}" alt="preview" class="max-h-40 rounded-xl object-cover">` : '';
     }
     productModal?.classList.remove('hidden');
   }
@@ -405,7 +345,6 @@
     if (description) form.append('description', description);
     if (file) form.append('image', file);
 
-    // Optional: ensure seller id available (often inferred server-side)
     const sellerId = localStorage.getItem('sellerId');
     if (sellerId) form.append('seller', sellerId);
 
@@ -417,35 +356,17 @@
         method = 'PATCH';
       }
 
-      await authenticatedFetch(path, {
-        method,
-        body: form // headers set automatically by browser for multipart
-      });
+      await authenticatedFetch(path, { method, body: form });
 
       showToast(editingProductId ? 'Product updated' : 'Product created', 'success');
       closeProductModal();
       await fetchProducts();
     } catch (err) {
-      console.error('Save product error:', err);
       showToast(err.message || 'Failed to save product', 'error');
     }
   }
 
-  async function deleteProduct(id) {
-    if (!id) return;
-    if (!confirm('Delete this product?')) return;
-    try {
-      await authenticatedFetch(`${ROUTES.sellerProducts}/${id}`, { method: 'DELETE' });
-      showToast('Product deleted', 'success');
-      await fetchProducts();
-    } catch (err) {
-      showToast(err.message || 'Failed to delete', 'error');
-    }
-  }
-
-  // ==========================
-  // Wiring
-  // ==========================
+  // ------------------ Wiring -------------------
   function wireAuth() {
     tabLogin?.addEventListener('click', () => toggleAuth('login'));
     tabRegister?.addEventListener('click', () => toggleAuth('register'));
@@ -460,11 +381,9 @@
     productForm?.addEventListener('submit', createOrUpdateProduct);
 
     inProdImage?.addEventListener('change', () => {
-      const file = inProdImage.files && inProdImage.files[0];
+      const f = inProdImage.files && inProdImage.files[0];
       if (!imagePreview) return;
-      imagePreview.innerHTML = file
-        ? `<img src="${URL.createObjectURL(file)}" alt="preview" style="max-height:140px;border-radius:12px;object-fit:cover">`
-        : '';
+      imagePreview.innerHTML = f ? `<img src="${URL.createObjectURL(f)}" alt="preview" class="max-h-40 rounded-xl object-cover">` : '';
     });
   }
 
@@ -489,12 +408,14 @@
             localStorage.setItem('sellerId', sellerId);
             localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
           }
+          const nameEl = document.querySelector('#sellerName');
+          if (nameEl && currentUser?.name) nameEl.textContent = currentUser.name;
+
           showView('dashboard');
           await initDashboard();
           return;
         }
       } catch {
-        // token invalid, fall through to auth view
         clearToken();
       }
     }
