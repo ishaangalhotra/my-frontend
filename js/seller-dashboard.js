@@ -1,5 +1,5 @@
 /* =========================================================================
-   SELLER DASHBOARD – ID-aligned with seller-dashboard.html
+   SELLER DASHBOARD — ID-aligned with seller-dashboard.html
    Backend: https://quicklocal-backend.onrender.com
    ========================================================================= */
 
@@ -13,6 +13,8 @@
     login: '/auth/login',
     logout: '/auth/logout',
     me: '/auth/me',
+    forgotPassword: '/auth/forgot-password',
+    resendVerification: '/auth/resend-verification',
     categories: '/categories',
     sellerProducts: '/seller/products',
     publicProducts: '/products'
@@ -41,6 +43,10 @@
   // Login fields
   const inLoginEmail = q('#login-email');
   const inLoginPassword = q('#login-password');
+
+  // Auth buttons
+  const btnForgotPassword = q('#forgot-password-btn');
+  const btnResendVerification = q('#resend-verification-btn');
 
   // Register fields
   const inRegName = q('#reg-name');
@@ -194,6 +200,44 @@
     }
   }
 
+  async function handleForgotPassword() {
+    const email = inLoginEmail?.value?.trim().toLowerCase();
+    if (!email) {
+      showToast('Please enter your email address first', 'error');
+      return;
+    }
+
+    try {
+      const data = await fetchJSON(`${API_BASE}${ROUTES.forgotPassword}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      showToast(data.message || 'Password reset link sent to your email!', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to send password reset email', 'error');
+    }
+  }
+
+  async function handleResendVerification() {
+    const email = inLoginEmail?.value?.trim().toLowerCase();
+    if (!email) {
+      showToast('Please enter your email address first', 'error');
+      return;
+    }
+
+    try {
+      const data = await fetchJSON(`${API_BASE}${ROUTES.resendVerification}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      showToast(data.message || 'Verification email sent!', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to resend verification email', 'error');
+    }
+  }
+
   async function handleLogout() {
     try { await fetchJSON(`${API_BASE}${ROUTES.logout}`, { method: 'POST' }); } catch {}
     clearToken();
@@ -293,6 +337,17 @@
     qa('[data-del]').forEach((b) => b.addEventListener('click', () => deleteProduct(b.getAttribute('data-del'))));
   }
 
+  async function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    try {
+      await authenticatedFetch(`${ROUTES.sellerProducts}/${id}`, { method: 'DELETE' });
+      showToast('Product deleted', 'success');
+      await fetchProducts();
+    } catch (err) {
+      showToast(err.message || 'Failed to delete product', 'error');
+    }
+  }
+
   function openCreateProduct() {
     editingProductId = null;
     if (productTitle) productTitle.textContent = 'Add Product';
@@ -372,6 +427,10 @@
     tabRegister?.addEventListener('click', () => toggleAuth('register'));
     formLogin?.addEventListener('submit', handleLogin);
     formRegister?.addEventListener('submit', handleRegister);
+    
+    // New auth features
+    btnForgotPassword?.addEventListener('click', handleForgotPassword);
+    btnResendVerification?.addEventListener('click', handleResendVerification);
   }
 
   function wireDashboard() {
