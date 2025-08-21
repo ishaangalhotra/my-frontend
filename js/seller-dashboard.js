@@ -1,466 +1,508 @@
-// Complete seller-dashboard.js - Handles AUTH + DASHBOARD
+/* =========================================================================
+   SELLER DASHBOARD – Amazon/Flipkart-style flow
+   Works with quicklocal-backend.onrender.com (Express + MongoDB)
+   ========================================================================= */
 
-// ====== Config ======
-const API_BASE = 'https://quicklocal-backend.onrender.com';
-const API_PREFIX = '/api/v1';
-const ROUTES = {
-  login: `${API_PREFIX}/auth/login`,
-  register: `${API_PREFIX}/auth/register`,
-  refresh: `${API_PREFIX}/auth/refresh-token`,
-  meUsers: `${API_PREFIX}/users/me`,
-  meAuth: `${API_PREFIX}/auth/me`,
-  uploadImage: `${API_PREFIX}/upload-image`,
-  products: `${API_PREFIX}/products`,
-  categories: `${API_PREFIX}/categories`,
-};
+(() => {
+  // ==========================
+  // Config
+  // ==========================
+  const API_ORIGIN = 'https://quicklocal-backend.onrender.com';
+  const API_BASE = `${API_ORIGIN}/api/v1`;
 
-let products = [];
-let editingProductId = null;
-let currentUser = null;
-let uploadedImageUrl = "";
-
-// ====== DOM Elements ======
-const authSection = document.getElementById('auth-section');
-const dashboardSection = document.getElementById('dashboard-section');
-const loginTab = document.getElementById('login-tab');
-const registerTab = document.getElementById('register-tab');
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const productForm = document.getElementById('product-form');
-const productListContainer = document.getElementById('product-list');
-const cancelEditBtn = document.getElementById('cancel-edit-btn');
-const toastContainer = document.getElementById('toast-container');
-const productImageInput = document.getElementById('product-image');
-const imagePreview = document.getElementById('image-preview');
-const addProductBtn = document.getElementById('addProductBtn');
-const productModal = document.getElementById('productModal');
-const cancelBtn = document.getElementById('cancel-btn');
-const logoutBtn = document.getElementById('logout-btn');
-
-// ====== Utility Functions ======
-function showToast(message, type = 'success') {
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
-  
-  setTimeout(() => toast.classList.add('show'), 50);
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-function showView(view) {
-  authSection.classList.toggle('hidden', view !== 'auth');
-  dashboardSection.classList.toggle('hidden', view !== 'dashboard');
-}
-
-function getSavedToken() {
-  return localStorage.getItem('authToken') || localStorage.getItem('token');
-}
-
-function saveToken(token) {
-  if (token) {
-    localStorage.setItem('authToken', token);
-  }
-}
-
-// ====== Authentication Functions ======
-async function authenticatedFetch(pathOrUrl, options = {}) {
-  const token = getSavedToken();
-  const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
-  
-  const headers = new Headers(options.headers || {});
-  headers.set('Accept', 'application/json');
-  
-  if (!(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-  
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const res = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
-
-  let data = null;
-  try { 
-    data = await res.json(); 
-  } catch { 
-    data = null; 
-  }
-
-  if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
-    throw new Error(msg);
-  }
-
-  return data;
-}
-
-async function verifyToken() {
-  const token = getSavedToken();
-  if (!token) return showView('auth');
-
-  try {
-    let data;
-    try { 
-      data = await authenticatedFetch(ROUTES.meUsers); 
-    } catch { 
-      data = await authenticatedFetch(ROUTES.meAuth); 
-    }
-    
-    currentUser = data.user || data.data || data;
-    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
-    localStorage.setItem('sellerId', currentUser._id);
-    
-    showView('dashboard');
-    await initDashboard();
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    localStorage.clear();
-    showView('auth');
-  }
-}
-
-// ====== Auth Event Handlers ======
-function toggleAuth(mode) {
-  loginForm.classList.toggle('hidden', mode !== 'login');
-  registerForm.classList.toggle('hidden', mode !== 'register');
-  
-  loginTab.className = mode === 'login' 
-    ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold'
-    : 'flex-1 py-2 text-gray-600';
-    
-  registerTab.className = mode === 'register' 
-    ? 'flex-1 py-2 bg-white text-indigo-600 font-semibold'
-    : 'flex-1 py-2 text-gray-600';
-}
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-
-  try {
-    const res = await fetch(`${API_BASE}${ROUTES.login}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      credentials: 'include', // <-- important for refresh cookies
-      body: JSON.stringify({ email, password, role: 'seller' })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || `Login failed (${res.status})`);
-
-    const token = data.token || data.accessToken;
-    if (!token) throw new Error('No token received');
-
-    saveToken(token);
-    currentUser = data.user;
-    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
-    localStorage.setItem('sellerId', currentUser._id);
-
-    showToast('Welcome back!', 'success');
-    showView('dashboard');
-    await initDashboard();
-  } catch (error) {
-    console.error('Login failed:', error);
-    showToast(error.message || 'Login failed', 'error');
-  }
-}
-
-async function handleRegister(e) {
-  e.preventDefault();
-  const name = document.getElementById('reg-name').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const phone = document.getElementById('reg-phone').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const businessName = document.getElementById('reg-business').value.trim();
-
-  try {
-    const res = await fetch(`${API_BASE}${ROUTES.register}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      credentials: 'include', // <-- important for refresh cookies
-      body: JSON.stringify({ name, email, phone, password, businessName, role: 'seller' })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || `Registration failed (${res.status})`);
-
-    const token = data.token || data.accessToken;
-    if (!token) throw new Error('No token received');
-
-    saveToken(token);
-    currentUser = data.user;
-    localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
-    localStorage.setItem('sellerId', currentUser._id);
-
-    showToast('Account created successfully!', 'success');
-    showView('dashboard');
-    await initDashboard();
-  } catch (error) {
-    console.error('Registration failed:', error);
-    showToast(error.message || 'Registration failed', 'error');
-  }
-}
-
-// ====== Dashboard Functions ======
-async function initDashboard() {
-  if (currentUser) {
-    document.getElementById('sellerName').textContent = currentUser.name || 'Seller';
-  }
-  
-  await fetchCategories();
-  await fetchProducts();
-}
-
-async function fetchCategories() {
-  try {
-    const data = await authenticatedFetch(ROUTES.categories);
-    const categorySelect = document.getElementById('product-category');
-    categorySelect.innerHTML = '<option value="">Select Category</option>';
-    
-    const categories = data.data?.categories || data.categories || [];
-    categories.forEach(category => {
-      categorySelect.innerHTML += `<option value="${category._id}">${category.name}</option>`;
-    });
-  } catch (error) {
-    console.error('Failed to fetch categories:', error);
-    showToast('Failed to load categories', 'error');
-  }
-}
-
-async function fetchProducts() {
-  const sellerId = localStorage.getItem('sellerId');
-  if (!sellerId) {
-    showToast('Seller ID not found. Please log in again.', 'error');
-    return;
-  }
-  try {
-    const data = await authenticatedFetch(`${ROUTES.products}?seller=${encodeURIComponent(sellerId)}`);
-    products = data?.data?.products || data?.products || data?.data || [];
-    renderProductList();
-  } catch (error) {
-    console.error('Failed to fetch products:', error);
-    showToast('Failed to load products', 'error');
-  }
-}
-
-function renderProductList() {
-  if (!products || products.length === 0) {
-    productListContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">No products yet. Add your first product!</p>';
-    return;
-  }
-
-  productListContainer.innerHTML = '';
-  products.forEach(product => {
-    const productCard = document.createElement('div');
-    productCard.className = 'border rounded-lg p-4 bg-white shadow-md hover:shadow-lg transition-shadow';
-    
-    const imageUrl = product.images?.[0]?.url || 'https://via.placeholder.com/150';
-    productCard.innerHTML = `
-      <img src="${imageUrl}" alt="${product.name}" class="h-32 w-full object-cover rounded mb-3" />
-      <h4 class="font-bold text-lg mb-2">${product.name}</h4>
-      <p class="text-gray-600 text-sm mb-2">${product.description || 'No description'}</p>
-      <p class="text-xl font-semibold text-green-600 mb-3">₹${product.price}</p>
-      <p class="text-sm text-gray-500 mb-3">Stock: ${product.stock}</p>
-      <div class="flex space-x-2">
-        <button onclick="editProduct('${product._id}')" class="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600">
-          Edit
-        </button>
-        <button onclick="confirmDeleteProduct('${product._id}')" class="flex-1 bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600">
-          Delete
-        </button>
-      </div>
-    `;
-    
-    productListContainer.appendChild(productCard);
-  });
-}
-
-// ====== Product Management ======
-async function uploadImageFile(file) {
-  if (!file) throw new Error('No file selected');
-  
-  const formData = new FormData();
-  formData.append('image', file);
-
-  const data = await authenticatedFetch(ROUTES.uploadImage, {
-    method: 'POST',
-    body: formData,
-  });
-
-  const url = data?.image?.url || data?.url;
-  if (!url) throw new Error('Upload failed - no URL returned');
-  
-  return url;
-}
-
-async function saveProduct(e) {
-  e.preventDefault();
-  
-  const sellerId = localStorage.getItem('sellerId');
-  if (!sellerId) {
-    showToast('Cannot save product. Please log in again.', 'error');
-    return;
-  }
-
-  const isUpdating = !!editingProductId;
-
-  // Handle image upload
-  let imageUrl = uploadedImageUrl;
-  if (productImageInput?.files?.length) {
-    try {
-      imageUrl = await uploadImageFile(productImageInput.files[0]);
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      showToast('Image upload failed', 'error');
-      return;
-    }
-  }
-
-  const productData = {
-    name: document.getElementById('product-name').value.trim(),
-    category: document.getElementById('product-category').value.trim(),
-    price: parseFloat(document.getElementById('product-price').value),
-    stock: parseInt(document.getElementById('product-stock').value, 10),
-    description: document.getElementById('product-description')?.value?.trim() || '',
-    images: imageUrl ? [{ url: imageUrl }] : [],
-    seller: sellerId,
+  // Back-end routes
+  const ROUTES = {
+    register: '/auth/register',
+    login: '/auth/login',
+    logout: '/auth/logout',
+    me: '/auth/me',
+    categories: '/categories',
+    // Seller CRUD should use seller namespace; public list uses /products
+    sellerProducts: '/seller/products',
+    publicProducts: '/products'
   };
 
-  const url = `${ROUTES.products}${isUpdating ? `/${editingProductId}` : ''}`;
-  const method = isUpdating ? 'PUT' : 'POST';
+  // ==========================
+  // State
+  // ==========================
+  let currentUser = null;
+  let products = [];
+  let categories = [];
+  let editingProductId = null;
 
-  try {
-    await authenticatedFetch(url, {
-      method,
-      body: JSON.stringify(productData),
-    });
-    
-    showToast(isUpdating ? 'Product updated!' : 'Product added!', 'success');
-    resetForm();
-    closeModal();
-    await fetchProducts();
-  } catch (error) {
-    console.error('Product save error:', error);
-    showToast(`Failed to save product: ${error.message}`, 'error');
-  }
-}
+  // ==========================
+  // DOM
+  // ==========================
+  const q = (s) => document.querySelector(s);
+  const qa = (s) => Array.from(document.querySelectorAll(s));
 
-function resetForm() {
-  productForm.reset();
-  editingProductId = null;
-  uploadedImageUrl = "";
-  imagePreview.innerHTML = '';
-  document.getElementById('modalTitle').textContent = 'Add Product';
-  if (cancelEditBtn) cancelEditBtn.style.display = 'none'; // <-- guard
-}
+  // Auth views
+  const viewAuth = q('#view-auth');
+  const viewDashboard = q('#view-dashboard');
 
-function openModal() {
-  resetForm();
-  productModal.classList.remove('hidden');
-}
+  // Tabs & forms
+  const tabLogin = q('#tab-login');
+  const tabRegister = q('#tab-register');
+  const formLogin = q('#form-login');
+  const formRegister = q('#form-register');
 
-function closeModal() {
-  productModal.classList.add('hidden');
-  resetForm();
-}
+  // Login fields
+  const inLoginEmail = q('#login-email');
+  const inLoginPassword = q('#login-password');
 
-function editProduct(productId) {
-  const product = products.find(p => p._id === productId);
-  if (!product) return;
+  // Register fields
+  const inRegName = q('#reg-name');
+  const inRegEmail = q('#reg-email');
+  const inRegPhone = q('#reg-phone');
+  const inRegPassword = q('#reg-password');
+  const inRegBusiness = q('#reg-business');
 
-  editingProductId = productId;
-  document.getElementById('product-name').value = product.name || '';
-  document.getElementById('product-category').value = (product.category?._id || product.category) || '';
-  document.getElementById('product-price').value = product.price || '';
-  document.getElementById('product-stock').value = product.stock || '';
-  
-  if (document.getElementById('product-description')) {
-    document.getElementById('product-description').value = product.description || '';
-  }
+  // Dashboard elements
+  const btnLogout = q('#btn-logout');
+  const btnAddProduct = q('#btn-add-product');
+  const productsWrap = q('#seller-products');
+  const emptyState = q('#empty-products');
 
-  const existingImage = product.images?.[0]?.url;
-  if (existingImage) {
-    uploadedImageUrl = existingImage;
-    imagePreview.innerHTML = `<img src="${existingImage}" style="max-width: 150px; border-radius: 8px;" alt="Current image" />`;
-  } else {
-    uploadedImageUrl = "";
-    imagePreview.innerHTML = '';
-  }
+  // Modal + form
+  const productModal = q('#product-modal');
+  const productForm = q('#product-form');
+  const productTitle = q('#product-modal-title');
 
-  document.getElementById('modalTitle').textContent = 'Edit Product';
-  if (cancelEditBtn) cancelEditBtn.style.display = 'inline-block'; // <-- guard
-  productModal.classList.remove('hidden');
-}
+  const inProdName = q('#product-name');
+  const inProdCategory = q('#product-category');
+  const inProdPrice = q('#product-price');
+  const inProdStock = q('#product-stock');
+  const inProdDescription = q('#product-description');
+  const inProdImage = q('#product-image');
+  const imagePreview = q('#image-preview');
+  const btnCloseModal = q('#close-product-modal');
 
-async function deleteProduct(productId) {
-  try {
-    await authenticatedFetch(`${ROUTES.products}/${productId}`, { 
-      method: 'DELETE' 
-    });
-    
-    showToast('Product deleted successfully', 'success');
-    await fetchProducts();
-  } catch (error) {
-    console.error('Failed to delete product:', error);
-    showToast('Failed to delete product', 'error');
-  }
-}
+  // Toast
+  const toastContainer = q('#toast-container');
 
-function confirmDeleteProduct(productId) {
-  if (confirm('Are you sure you want to delete this product?')) {
-    deleteProduct(productId);
-  }
-}
-
-function logout() {
-  localStorage.clear();
-  location.reload();
-}
-
-// ====== Event Listeners ======
-document.addEventListener('DOMContentLoaded', async () => {
-  // Auth event listeners
-  loginTab?.addEventListener('click', () => toggleAuth('login'));
-  registerTab?.addEventListener('click', () => toggleAuth('register'));
-  loginForm?.addEventListener('submit', handleLogin);
-  registerForm?.addEventListener('submit', handleRegister);
-  
-  // Dashboard event listeners
-  logoutBtn?.addEventListener('click', logout);
-  addProductBtn?.addEventListener('click', openModal);
-  cancelBtn?.addEventListener('click', closeModal);
-  cancelEditBtn?.addEventListener('click', closeModal);
-  productForm?.addEventListener('submit', saveProduct);
-  
-  // Image upload preview
-  productImageInput?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    try {
-      uploadedImageUrl = await uploadImageFile(file);
-      imagePreview.innerHTML = `<img src="${uploadedImageUrl}" style="max-width: 150px; border-radius: 8px;" alt="Preview" />`;
-      showToast('Image uploaded successfully', 'success');
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      showToast('Image upload failed', 'error');
-      uploadedImageUrl = "";
-      imagePreview.innerHTML = '';
+  // ==========================
+  // Utils
+  // ==========================
+  function showView(name) {
+    if (name === 'auth') {
+      viewAuth?.classList.remove('hidden');
+      viewDashboard?.classList.add('hidden');
+    } else {
+      viewDashboard?.classList.remove('hidden');
+      viewAuth?.classList.add('hidden');
     }
-  });
+  }
 
-  // Initialize app
-  await verifyToken();
-});
+  function showToast(message, type = 'info', timeout = 3000) {
+    if (!toastContainer) return alert(message);
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = message;
+    toastContainer.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('hide');
+      setTimeout(() => el.remove(), 300);
+    }, timeout);
+  }
 
-// Make functions global so they can be called from HTML onclick attributes
-window.editProduct = editProduct;
-window.confirmDeleteProduct = confirmDeleteProduct;
+  function moneyINR(n) {
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+    } catch {
+      return `₹${(n || 0).toLocaleString('en-IN')}`;
+    }
+  }
+
+  // Token helpers
+  function saveToken(token) {
+    try { localStorage.setItem('accessToken', token); } catch {}
+  }
+  function getSavedToken() {
+    try { return localStorage.getItem('accessToken'); } catch { return null; }
+  }
+  function clearToken() {
+    try { localStorage.removeItem('accessToken'); } catch {}
+  }
+
+  // Fetch wrappers
+  async function fetchJSON(url, opts = {}) {
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        ...(opts.headers || {})
+      },
+      credentials: 'include'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data.message || data.error || (data.errors && data.errors[0]?.msg) || `Request failed (${res.status})`;
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  async function authenticatedFetch(pathOrUrl, opts = {}) {
+    const token = getSavedToken();
+    const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
+    return fetchJSON(url, {
+      ...opts,
+      headers: {
+        ...(opts.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+  }
+
+  // ==========================
+  // Auth
+  // ==========================
+  function toggleAuth(tab = 'login') {
+    if (tab === 'login') {
+      tabLogin?.classList.add('active');
+      tabRegister?.classList.remove('active');
+      formLogin?.classList.remove('hidden');
+      formRegister?.classList.add('hidden');
+    } else {
+      tabRegister?.classList.add('active');
+      tabLogin?.classList.remove('active');
+      formRegister?.classList.remove('hidden');
+      formLogin?.classList.add('hidden');
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    const payload = {
+      name: inRegName?.value?.trim(),
+      email: inRegEmail?.value?.trim(),
+      phone: inRegPhone?.value?.trim(),
+      password: inRegPassword?.value || '',
+      role: 'seller',
+      businessName: inRegBusiness?.value?.trim()
+    };
+
+    try {
+      const data = await fetchJSON(`${API_BASE}${ROUTES.register}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      // Backend asks for email verification first (no token here)
+      showToast(data.message || 'Registration successful! Please verify your email, then log in.', 'success');
+      toggleAuth('login');
+    } catch (err) {
+      showToast(err.message || 'Registration failed', 'error');
+    }
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const payload = {
+      email: inLoginEmail?.value?.trim(),
+      password: inLoginPassword?.value || '',
+      remember: true
+    };
+
+    try {
+      const data = await fetchJSON(`${API_BASE}${ROUTES.login}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const token = data.accessToken || data.token;
+      if (!token) throw new Error('Login succeeded but no token received');
+
+      saveToken(token);
+      currentUser = data.user || data.data?.user || null;
+
+      // Keep for seller-scoped filtering if needed
+      const sellerId = currentUser?.id || currentUser?._id;
+      if (sellerId) {
+        localStorage.setItem('sellerId', sellerId);
+        localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+      }
+
+      showToast('Welcome back!', 'success');
+      showView('dashboard');
+      await initDashboard();
+    } catch (err) {
+      if (err.status === 403 && (err.data?.needsVerification || /verify/i.test(err.message))) {
+        showToast('Please verify your email before logging in.', 'info');
+      } else {
+        showToast(err.message || 'Login failed', 'error');
+      }
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await fetchJSON(`${API_BASE}${ROUTES.logout}`, { method: 'POST' }).catch(() => ({}));
+    } finally {
+      clearToken();
+      localStorage.removeItem('sellerId');
+      localStorage.removeItem('sellerInfo');
+      currentUser = null;
+      showView('auth');
+      toggleAuth('login');
+      showToast('Logged out.', 'success');
+    }
+  }
+
+  // ==========================
+  // Categories
+  // ==========================
+  async function fetchCategories() {
+    try {
+      const data = await authenticatedFetch(ROUTES.categories);
+      categories = data.data?.categories || data.categories || data.data || [];
+      renderCategoryOptions();
+    } catch (err) {
+      categories = [];
+      renderCategoryOptions();
+      console.warn('Categories failed:', err);
+    }
+  }
+
+  function renderCategoryOptions() {
+    if (!inProdCategory) return;
+    inProdCategory.innerHTML = '<option value="">Select category</option>';
+    categories.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c._id || c.id || '';
+      opt.textContent = c.name || 'Category';
+      inProdCategory.appendChild(opt);
+    });
+  }
+
+  // ==========================
+  // Products (Seller CRUD)
+  // ==========================
+  async function fetchProducts() {
+    // Prefer seller-scoped endpoint; back-end should infer seller from token
+    try {
+      const data = await authenticatedFetch(ROUTES.sellerProducts + '?limit=100');
+      let list = data?.data?.products || data?.products || data?.data || [];
+      // Fallback to public endpoint if seller endpoint not available
+      if (!Array.isArray(list) || !list.length) {
+        const sellerId = localStorage.getItem('sellerId');
+        const pub = await authenticatedFetch(`${ROUTES.publicProducts}?seller=${encodeURIComponent(sellerId || '')}&limit=100`);
+        list = pub?.data?.products || pub?.products || pub?.data || [];
+      }
+      // Final safety filter by seller
+      const sellerId = localStorage.getItem('sellerId');
+      if (sellerId && Array.isArray(list)) {
+        list = list.filter((p) => {
+          const s = p.seller?._id || p.seller;
+          return !s || s === sellerId; // if API already scoped, many items may not include seller
+        });
+      }
+      products = list;
+      renderProductList();
+    } catch (err) {
+      products = [];
+      renderProductList();
+      console.error('Fetch products failed:', err);
+      showToast('Failed to load products', 'error');
+    }
+  }
+
+  function renderProductList() {
+    if (!productsWrap) return;
+    productsWrap.innerHTML = '';
+    const hasItems = Array.isArray(products) && products.length > 0;
+    if (emptyState) emptyState.classList.toggle('hidden', hasItems);
+    if (!hasItems) return;
+
+    products.forEach((p) => {
+      const el = document.createElement('div');
+      el.className = 'seller-product';
+      const img = (p.images?.[0]?.url) || p.image || p.thumbnail || 'https://via.placeholder.com/600x400?text=Product';
+      const categoryName = p.category?.name || p.categoryName || '—';
+      const price = moneyINR(p.price || 0);
+      const stock = p.stock ?? 0;
+
+      el.innerHTML = `
+        <div class="sp-card">
+          <div class="sp-left">
+            <img class="sp-img" src="${img}" alt="${p.name || ''}">
+          </div>
+          <div class="sp-mid">
+            <div class="sp-name">${p.name || 'Untitled Product'}</div>
+            <div class="sp-cat">Category: ${categoryName}</div>
+            <div class="sp-desc">${(p.description || '').slice(0, 160)}</div>
+          </div>
+          <div class="sp-right">
+            <div class="sp-price">${price}</div>
+            <div class="sp-stock">Stock: ${stock}</div>
+            <div class="sp-actions">
+              <button class="btn btn-light" data-edit="${p._id || p.id}">Edit</button>
+              <button class="btn btn-danger" data-del="${p._id || p.id}">Delete</button>
+            </div>
+          </div>
+        </div>
+      `;
+      productsWrap.appendChild(el);
+    });
+
+    // Wire actions
+    qa('[data-edit]').forEach((b) => b.addEventListener('click', () => openEditProduct(b.getAttribute('data-edit'))));
+    qa('[data-del]').forEach((b) => b.addEventListener('click', () => deleteProduct(b.getAttribute('data-del'))));
+  }
+
+  function openCreateProduct() {
+    editingProductId = null;
+    productTitle && (productTitle.textContent = 'Add Product');
+    productForm?.reset();
+    if (imagePreview) imagePreview.innerHTML = '';
+    productModal?.classList.remove('hidden');
+  }
+
+  function openEditProduct(id) {
+    const p = products.find((x) => (x._id || x.id) === id);
+    if (!p) return;
+    editingProductId = id;
+    productTitle && (productTitle.textContent = 'Edit Product');
+
+    if (inProdName) inProdName.value = p.name || '';
+    if (inProdCategory) inProdCategory.value = p.category?._id || p.category || '';
+    if (inProdPrice) inProdPrice.value = p.price ?? '';
+    if (inProdStock) inProdStock.value = p.stock ?? '';
+    if (inProdDescription) inProdDescription.value = p.description || '';
+    if (imagePreview) {
+      const img = (p.images?.[0]?.url) || p.image || p.thumbnail;
+      imagePreview.innerHTML = img ? `<img src="${img}" alt="preview" style="max-height:140px;border-radius:12px;object-fit:cover">` : '';
+    }
+    productModal?.classList.remove('hidden');
+  }
+
+  function closeProductModal() {
+    productModal?.classList.add('hidden');
+    productForm?.reset();
+    editingProductId = null;
+    if (imagePreview) imagePreview.innerHTML = '';
+  }
+
+  async function createOrUpdateProduct(e) {
+    e.preventDefault();
+
+    const name = inProdName?.value?.trim();
+    const category = inProdCategory?.value || '';
+    const price = parseFloat(inProdPrice?.value || '0');
+    const stock = parseInt(inProdStock?.value || '0', 10);
+    const description = inProdDescription?.value?.trim();
+    const file = inProdImage?.files?.[0];
+
+    const form = new FormData();
+    if (name) form.append('name', name);
+    if (category) form.append('category', category);
+    if (!Number.isNaN(price)) form.append('price', price);
+    if (!Number.isNaN(stock)) form.append('stock', stock);
+    if (description) form.append('description', description);
+    if (file) form.append('image', file);
+
+    // Optional: ensure seller id available (often inferred server-side)
+    const sellerId = localStorage.getItem('sellerId');
+    if (sellerId) form.append('seller', sellerId);
+
+    try {
+      let path = ROUTES.sellerProducts;
+      let method = 'POST';
+      if (editingProductId) {
+        path = `${ROUTES.sellerProducts}/${editingProductId}`;
+        method = 'PATCH';
+      }
+
+      await authenticatedFetch(path, {
+        method,
+        body: form // headers set automatically by browser for multipart
+      });
+
+      showToast(editingProductId ? 'Product updated' : 'Product created', 'success');
+      closeProductModal();
+      await fetchProducts();
+    } catch (err) {
+      console.error('Save product error:', err);
+      showToast(err.message || 'Failed to save product', 'error');
+    }
+  }
+
+  async function deleteProduct(id) {
+    if (!id) return;
+    if (!confirm('Delete this product?')) return;
+    try {
+      await authenticatedFetch(`${ROUTES.sellerProducts}/${id}`, { method: 'DELETE' });
+      showToast('Product deleted', 'success');
+      await fetchProducts();
+    } catch (err) {
+      showToast(err.message || 'Failed to delete', 'error');
+    }
+  }
+
+  // ==========================
+  // Wiring
+  // ==========================
+  function wireAuth() {
+    tabLogin?.addEventListener('click', () => toggleAuth('login'));
+    tabRegister?.addEventListener('click', () => toggleAuth('register'));
+    formLogin?.addEventListener('submit', handleLogin);
+    formRegister?.addEventListener('submit', handleRegister);
+  }
+
+  function wireDashboard() {
+    btnLogout?.addEventListener('click', handleLogout);
+    btnAddProduct?.addEventListener('click', openCreateProduct);
+    btnCloseModal?.addEventListener('click', closeProductModal);
+    productForm?.addEventListener('submit', createOrUpdateProduct);
+
+    inProdImage?.addEventListener('change', () => {
+      const file = inProdImage.files && inProdImage.files[0];
+      if (!imagePreview) return;
+      imagePreview.innerHTML = file
+        ? `<img src="${URL.createObjectURL(file)}" alt="preview" style="max-height:140px;border-radius:12px;object-fit:cover">`
+        : '';
+    });
+  }
+
+  async function initDashboard() {
+    await fetchCategories();
+    await fetchProducts();
+  }
+
+  async function bootstrap() {
+    wireAuth();
+    wireDashboard();
+
+    // Auto-login if token present and valid
+    const token = getSavedToken();
+    if (token) {
+      try {
+        const me = await authenticatedFetch(ROUTES.me);
+        currentUser = me.user || me.data?.user || null;
+        if (currentUser) {
+          const sellerId = currentUser.id || currentUser._id;
+          if (sellerId) {
+            localStorage.setItem('sellerId', sellerId);
+            localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+          }
+          showView('dashboard');
+          await initDashboard();
+          return;
+        }
+      } catch {
+        // token invalid, fall through to auth view
+        clearToken();
+      }
+    }
+
+    // Default: show auth
+    showView('auth');
+    toggleAuth('login');
+  }
+
+  document.addEventListener('DOMContentLoaded', bootstrap);
+})();
