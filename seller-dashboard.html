@@ -3,119 +3,236 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal â€" Seller Dashboard</title>
-  <!-- Tailwind (CDN) -->
+  <title>QuickLocal – Seller Dashboard</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <style>
-    /* Minimal toast + modal backdrop */
-    .toast{position:fixed;top:1rem;right:1rem;z-index:1050;padding:.75rem 1rem;border-radius:.5rem;color:#fff;opacity:.95;transform:translateX(120%);transition:transform .25s ease}
+    .toast{position:fixed;top:1rem;right:1rem;z-index:1050;padding:.75rem 1rem;border-radius:.5rem;color:#fff;opacity:.95;transform:translateX(120%);transition:transform .25s ease;max-width:400px;word-wrap:break-word}
     .toast.show{transform:translateX(0)}
     .toast-success{background:#16a34a}.toast-error{background:#ef4444}.toast-info{background:#3b82f6}
     .modal-backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
+    .gradient-primary{background:linear-gradient(135deg,#7c3aed,#a855f7)}
+    .focus-ring{transition:all .2s ease}
+    .focus-ring:focus{outline:none;box-shadow:0 0 0 3px rgba(124,58,237,.35)}
+    .product-card{transition:all .3s ease}
+    .product-card:hover{transform:translateY(-4px);box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04)}
+    .imagekit-upload{border:2px dashed #d1d5db;transition:all .3s ease;cursor:pointer}
+    .imagekit-upload:hover{border-color:#7c3aed;background-color:#f8fafc}
+    .imagekit-upload.dragover{border-color:#16a34a;background-color:#f0fdf4}
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body class="bg-slate-50 min-h-screen">
 
   <!-- ===================== AUTH SECTION ===================== -->
-  <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-indigo-600">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8">
-      <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Seller Hub</h1>
+  <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 gradient-primary">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
+      <div class="text-center mb-8">
+        <div class="mx-auto w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+          <i data-lucide="store" class="text-purple-600 w-8 h-8"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800">QuickLocal Seller</h1>
+        <p class="text-gray-600 mt-2">Manage your products and grow your business</p>
+      </div>
 
       <!-- Tabs -->
-      <div class="flex mb-5 bg-gray-100 rounded-lg overflow-hidden">
-        <button id="login-tab" class="flex-1 py-2 bg-white text-indigo-600 font-semibold">Login</button>
-        <button id="register-tab" class="flex-1 py-2 text-gray-600">Register</button>
+      <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
+        <button id="login-tab" class="flex-1 py-2 px-4 rounded-md font-semibold transition-all bg-white text-purple-600 shadow-sm">Login</button>
+        <button id="register-tab" class="flex-1 py-2 px-4 rounded-md font-medium transition-all text-gray-600">Register</button>
       </div>
 
       <!-- Login Form -->
       <form id="login-form" class="space-y-4">
-        <input id="login-email" type="email" placeholder="Email" required class="w-full border rounded-lg p-3">
-        <input id="login-password" type="password" placeholder="Password" required class="w-full border rounded-lg p-3">
-        <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold">Login</button>
-        
-        <div class="flex items-center justify-between text-sm pt-1">
-          <button id="forgot-password-btn" type="button" class="text-indigo-600 hover:underline">
-            Forgot password?
-          </button>
-          <button id="resend-verification-btn" type="button" class="text-gray-600 hover:underline">
-            Resend verification email
-          </button>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+            <input id="login-email" type="email" placeholder="Enter your email" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+            <input id="login-password" type="password" placeholder="Enter your password" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring">
+          </div>
+        </div>
+        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors">Sign In</button>
+        <div class="flex items-center justify-between text-sm pt-2">
+          <button id="forgot-password-btn" type="button" class="text-purple-600 hover:underline">Forgot password?</button>
+          <button id="resend-verification-btn" type="button" class="text-gray-600 hover:underline">Resend verification</button>
         </div>
       </form>
 
       <!-- Register Form -->
       <form id="register-form" class="space-y-4 hidden">
-        <input id="reg-name" type="text" placeholder="Full Name" required class="w-full border rounded-lg p-3">
-        <input id="reg-email" type="email" placeholder="Email" required class="w-full border rounded-lg p-3">
-        <input id="reg-phone" type="tel" placeholder="Phone Number" required class="w-full border rounded-lg p-3">
-        <input id="reg-password" type="password" placeholder="Password" required class="w-full border rounded-lg p-3">
-        <input id="reg-business" type="text" placeholder="Business Name" required class="w-full border rounded-lg p-3">
-        <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold">Create Account</button>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input id="reg-name" type="text" placeholder="John Doe" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input id="reg-phone" type="tel" placeholder="9876543210" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input id="reg-email" type="email" placeholder="john@example.com" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+          <input id="reg-business" type="text" placeholder="Your Business Name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input id="reg-password" type="password" placeholder="Minimum 6 characters" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+          <input id="reg-confirm-password" type="password" placeholder="Confirm your password" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+        </div>
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors">Create Account</button>
       </form>
     </div>
   </section>
 
   <!-- ===================== DASHBOARD SECTION ===================== -->
   <section id="dashboard-section" class="hidden">
-    <!-- Top bar -->
-    <header class="bg-white shadow">
-      <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h2 class="text-xl md:text-2xl font-bold text-gray-800">Welcome, <span id="sellerName">Seller</span></h2>
-        <button id="logout-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg">Logout</button>
+    <header class="bg-white shadow-sm border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center space-x-4">
+            <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+              <i data-lucide="store" class="text-white w-4 h-4"></i>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-gray-900">QuickLocal Seller</h1>
+              <p class="text-sm text-gray-500">Welcome back, <span id="seller-name">Seller</span></p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <div class="hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
+              <span class="text-sm font-medium text-gray-700">Wallet: ₹<span id="wallet-balance">0.00</span></span>
+            </div>
+            <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+              <i data-lucide="log-out" class="w-4 h-4 mr-2 inline"></i>Logout
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
-    <!-- Main -->
-    <main class="max-w-6xl mx-auto px-4 py-6">
-      <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg md:text-xl font-semibold text-gray-800">Your Products</h3>
-        <button id="addProductBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg">+ Add Product</button>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Products</p><p id="stat-products" class="text-2xl font-bold text-gray-900">0</p></div><i data-lucide="package" class="h-8 w-8 text-blue-600"></i></div></div>
+        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Sales</p><p id="stat-sales" class="text-2xl font-bold text-gray-900">₹0</p></div><i data-lucide="dollar-sign" class="h-8 w-8 text-green-600"></i></div></div>
+        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Orders</p><p id="stat-orders" class="text-2xl font-bold text-gray-900">0</p></div><i data-lucide="shopping-cart" class="h-8 w-8 text-amber-600"></i></div></div>
+        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Rating</p><p id="stat-rating" class="text-2xl font-bold text-gray-900">4.8</p></div><i data-lucide="star" class="h-8 w-8 text-purple-600"></i></div></div>
       </div>
 
-      <!-- Product grid -->
-      <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      <!-- Product Management -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Product Management</h2>
+              <p class="text-sm text-gray-500">Manage your product inventory and details</p>
+            </div>
+            <button id="add-product-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+              <i data-lucide="plus" class="w-4 h-4 mr-2 inline"></i>Add Product
+            </button>
+          </div>
+
+          <div id="products-loading" class="text-center py-8 hidden">
+            <div class="text-gray-500">Loading products...</div>
+          </div>
+
+          <div id="products-empty" class="text-center py-8 hidden">
+            <i data-lucide="package" class="mx-auto h-12 w-12 text-gray-400 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No products yet</h3>
+            <p class="text-gray-500 mb-4">Get started by adding your first product!</p>
+            <button id="add-first-product-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+              <i data-lucide="plus" class="w-4 h-4 mr-2 inline"></i>Add Your First Product
+            </button>
+          </div>
+
+          <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
+        </div>
+      </div>
     </main>
   </section>
 
   <!-- ===================== PRODUCT MODAL ===================== -->
-  <div id="productModal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 id="modalTitle" class="text-xl font-bold text-gray-800">Add Product</h3>
-        <button id="cancel-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+  <div id="product-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="modal-title" class="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <i data-lucide="info" class="w-5 h-5 text-purple-600"></i>
+          Add New Product
+        </h3>
+        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
       </div>
 
-      <form id="product-form" class="space-y-4">
-        <input id="product-name" placeholder="Product name" required class="w-full border p-3 rounded">
-
-        <select id="product-category" required class="w-full border p-3 rounded">
-          <option value="">Select Category</option>
-          <!-- Populated by JS -->
-        </select>
-
-        <div class="grid grid-cols-2 gap-4">
-          <input id="product-price" type="number" min="0" step="0.01" placeholder="Price â‚¹" required class="w-full border p-3 rounded">
-          <input id="product-stock" type="number" min="0" step="1" placeholder="Stock" required class="w-full border p-3 rounded">
-        </div>
-
-        <!-- Optional, your JS supports it -->
-        <textarea id="product-description" rows="3" placeholder="Description (optional)" class="w-full border p-3 rounded"></textarea>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
-          <input id="product-image" type="file" accept="image/*" class="w-full border p-3 rounded">
-          <div id="image-preview" class="mt-3"></div>
-        </div>
-
-        <div class="flex items-center justify-between">
-          <!-- Optional cancel-edit button (your JS guards this if missing) -->
-          <button id="cancel-edit-btn" type="button" class="hidden px-3 py-2 rounded bg-gray-200 text-gray-700">
-            Cancel Edit
-          </button>
-
-          <div class="ml-auto">
-            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg">Save</button>
+      <form id="product-form" class="space-y-6">
+        <!-- Basic Information -->
+        <div class="space-y-4">
+          <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <i data-lucide="info" class="w-4 h-4 text-purple-600"></i>Basic Information
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+              <input id="product-name" placeholder="Enter product name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+              <select id="product-category" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+                <option value="">Select Category</option>
+              </select>
+            </div>
           </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+              <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
+              <input id="product-stock" type="number" min="0" step="1" placeholder="0" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea id="product-description" rows="3" placeholder="Enter product description..." class="w-full border border-gray-300 rounded-lg p-3 focus-ring"></textarea>
+          </div>
+        </div>
+
+        <!-- Image Upload Section -->
+        <div class="space-y-4">
+          <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <i data-lucide="image" class="w-4 h-4 text-purple-600"></i>Product Images
+          </h4>
+          <div id="upload-area" class="imagekit-upload rounded-lg p-6 text-center cursor-pointer">
+            <div class="space-y-2">
+              <i data-lucide="cloud-upload" class="mx-auto h-12 w-12 text-gray-400"></i>
+              <div>
+                <p class="text-lg font-medium text-gray-700"><span id="upload-text">Drop images here or click to upload</span></p>
+                <p class="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
+              </div>
+            </div>
+            <input id="file-input" type="file" accept="image/*" multiple class="hidden">
+          </div>
+          <div id="image-preview" class="grid grid-cols-2 md:grid-cols-3 gap-4 hidden"></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+          <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+          <button type="submit" id="save-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+            <i data-lucide="save" class="w-4 h-4 mr-2 inline"></i>Save Product
+          </button>
         </div>
       </form>
     </div>
@@ -124,7 +241,7 @@
   <!-- Toasts -->
   <div id="toast-container"></div>
 
-  <!-- Your dashboard logic (the file you shared) -->
+  <!-- External JS -->
   <script src="js/seller-dashboard.js"></script>
 </body>
 </html>
