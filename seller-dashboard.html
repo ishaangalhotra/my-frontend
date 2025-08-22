@@ -21,6 +21,8 @@
     .imagekit-upload{border:2px dashed #d1d5db;transition:all .3s ease;cursor:pointer}
     .imagekit-upload:hover{border-color:#7c3aed;background-color:#f8fafc}
     .imagekit-upload.dragover{border-color:#16a34a;background-color:#f0fdf4}
+    .category-loading{color:#6b7280;font-style:italic}
+    .line-clamp-2{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -193,8 +195,11 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
               <select id="product-category" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
-                <option value="">Select Category</option>
+                <option value="" class="category-loading">Loading categories...</option>
               </select>
+              <button type="button" id="refresh-categories-btn" class="mt-1 text-xs text-purple-600 hover:underline">
+                <i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i>Refresh categories
+              </button>
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,6 +216,12 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea id="product-description" rows="3" placeholder="Enter product description..." class="w-full border border-gray-300 rounded-lg p-3 focus-ring"></textarea>
           </div>
+        </div>
+
+        <!-- Category Status -->
+        <div id="category-status" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <p class="text-yellow-800 text-sm font-medium">⚠️ Categories Loading Issue</p>
+          <p class="text-yellow-700 text-xs mt-1">If categories don't load, you can still create the product. Categories can be updated later.</p>
         </div>
 
         <!-- Image Upload Section -->
@@ -247,9 +258,11 @@
   <!-- JavaScript -->
   <script>
 /* =========================================================================
-   QUICKLOCAL — SELLER DASHBOARD (Fixed Version)
-   - Fixed event listener attachment issues
-   - Added proper error handling and debugging
+   QUICKLOCAL — SELLER DASHBOARD (Complete Version)
+   - Enhanced category loading with fallbacks
+   - Better error handling for categories
+   - Manual category refresh option
+   - Complete functionality for products and auth
    ========================================================================= */
 
 (() => {
@@ -268,6 +281,22 @@
     publicProducts: '/products'
   };
 
+  // Default categories fallback
+  const DEFAULT_CATEGORIES = [
+    { _id: 'electronics', name: 'Electronics' },
+    { _id: 'clothing', name: 'Clothing & Fashion' },
+    { _id: 'books', name: 'Books & Media' },
+    { _id: 'home-garden', name: 'Home & Garden' },
+    { _id: 'sports', name: 'Sports & Outdoors' },
+    { _id: 'beauty', name: 'Beauty & Personal Care' },
+    { _id: 'automotive', name: 'Automotive' },
+    { _id: 'food-beverage', name: 'Food & Beverages' },
+    { _id: 'toys-games', name: 'Toys & Games' },
+    { _id: 'health', name: 'Health & Wellness' },
+    { _id: 'services', name: 'Services' },
+    { _id: 'other', name: 'Other' }
+  ];
+
   // ------------------ State -------------------
   let currentUser = null;
   let products = [];
@@ -275,6 +304,7 @@
   let editingProduct = null;
   let uploadedFiles = [];
   let existingImageUrls = [];
+  let categoryLoadAttempts = 0;
 
   // ------------------ DOM Helpers -------------------
   const $ = (selector) => document.querySelector(selector);
@@ -560,16 +590,100 @@
     showToast('Logged out successfully', 'success');
   }
 
-  // ------------------ Categories -------------------
-  async function fetchCategories() {
+  // ------------------ Enhanced Categories -------------------
+  async function fetchCategories(showFeedback = false) {
+    categoryLoadAttempts++;
+    const categorySelect = $('#product-category');
+    const categoryStatus = $('#category-status');
+    
     try {
-      const data = await api(ROUTES.categories);
-      categories = data.data?.categories || data.categories || data.data || [];
+      if (showFeedback) {
+        showToast('Loading categories...', 'info', 1000);
+      }
+
+      // Try multiple endpoints for categories
+      let data = null;
+      const endpoints = [
+        ROUTES.categories,
+        '/categories/list',
+        '/admin/categories',
+        '/public/categories'
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying categories endpoint: ${endpoint}`);
+          data = await api(endpoint);
+          break;
+        } catch (err) {
+          console.warn(`Categories endpoint ${endpoint} failed:`, err);
+          continue;
+        }
+      }
+
+      if (!data) {
+        throw new Error('All category endpoints failed');
+      }
+
+      // Parse categories from different possible response structures
+      let categoryList = [];
+      
+      // Try different response structures
+      if (Array.isArray(data)) {
+        categoryList = data;
+      } else if (data.data?.categories) {
+        categoryList = data.data.categories;
+      } else if (data.categories) {
+        categoryList = data.categories;
+      } else if (data.data && Array.isArray(data.data)) {
+        categoryList = data.data;
+      } else if (data.results) {
+        categoryList = data.results;
+      }
+
+      // Validate and clean category data
+      categories = categoryList
+        .filter(cat => cat && (cat.name || cat.title))
+        .map(cat => ({
+          _id: cat._id || cat.id || cat.slug || cat.name?.toLowerCase().replace(/\s+/g, '-'),
+          name: cat.name || cat.title || 'Unknown Category'
+        }));
+
+      // If we got no valid categories, use defaults
+      if (!categories.length) {
+        console.warn('No valid categories from API, using defaults');
+        categories = DEFAULT_CATEGORIES;
+        if (categoryStatus) categoryStatus.classList.remove('hidden');
+      } else {
+        console.log(`Loaded ${categories.length} categories successfully`);
+        if (categoryStatus) categoryStatus.classList.add('hidden');
+        if (showFeedback) {
+          showToast(`Loaded ${categories.length} categories`, 'success');
+        }
+      }
+
       renderCategoryOptions();
+
     } catch (error) {
-      console.warn('Categories fetch failed:', error);
-      categories = [];
+      console.error('Categories fetch failed:', error);
+      
+      // Use default categories as fallback
+      categories = DEFAULT_CATEGORIES;
       renderCategoryOptions();
+      
+      // Show status warning
+      if (categoryStatus) {
+        categoryStatus.classList.remove('hidden');
+      }
+
+      if (showFeedback) {
+        showToast('Using default categories (API unavailable)', 'info');
+      }
+
+      // If this is the first attempt, try once more after a delay
+      if (categoryLoadAttempts === 1) {
+        setTimeout(() => fetchCategories(false), 2000);
+      }
     }
   }
 
@@ -577,13 +691,46 @@
     const categorySelect = $('#product-category');
     if (!categorySelect) return;
 
-    categorySelect.innerHTML = '<option value="">Select Category</option>';
+    // Clear existing options
+    categorySelect.innerHTML = '';
+
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Category';
+    categorySelect.appendChild(defaultOption);
+
+    // Add category options
     categories.forEach(category => {
       const option = document.createElement('option');
-      option.value = category._id || category.id || '';
+      option.value = category._id || '';
       option.textContent = category.name || 'Category';
       categorySelect.appendChild(option);
     });
+
+    // Update the styling to remove loading indication
+    categorySelect.classList.remove('category-loading');
+    
+    console.log(`Rendered ${categories.length} category options`);
+  }
+
+  // Manual category refresh function
+  async function refreshCategories() {
+    categoryLoadAttempts = 0; // Reset attempt counter
+    const refreshBtn = $('#refresh-categories-btn');
+    
+    if (refreshBtn) {
+      refreshBtn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 inline mr-1 animate-spin"></i>Refreshing...';
+      refreshBtn.disabled = true;
+    }
+
+    await fetchCategories(true);
+
+    if (refreshBtn) {
+      refreshBtn.innerHTML = '<i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i>Refresh categories';
+      refreshBtn.disabled = false;
+      if (window.lucide) window.lucide.createIcons();
+    }
   }
 
   // ------------------ Products -------------------
@@ -768,6 +915,11 @@
     const modal = $('#product-modal');
     if (modal) modal.classList.remove('hidden');
 
+    // Ensure categories are loaded when modal opens
+    if (!categories.length || categories === DEFAULT_CATEGORIES) {
+      fetchCategories(false);
+    }
+
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -852,6 +1004,11 @@
     const price = productPrice?.value ?? '';
     const stock = productStock?.value ?? '';
     const description = productDescription?.value?.trim();
+
+    if (!name) {
+      showToast('Product name is required', 'error');
+      return;
+    }
 
     if (name) formData.append('name', name);
     if (category) formData.append('category', category);
@@ -949,6 +1106,7 @@
     const productForm = $('#product-form');
     const uploadArea = $('#upload-area');
     const fileInput = $('#file-input');
+    const refreshCategoriesBtn = $('#refresh-categories-btn');
 
     if (logoutBtn) {
       logoutBtn.addEventListener('click', handleLogout);
@@ -972,6 +1130,10 @@
 
     if (productForm) {
       productForm.addEventListener('submit', saveProduct);
+    }
+
+    if (refreshCategoriesBtn) {
+      refreshCategoriesBtn.addEventListener('click', refreshCategories);
     }
 
     // File upload handlers
