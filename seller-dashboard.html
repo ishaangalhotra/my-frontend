@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal – Seller Dashboard</title>
+  <title>QuickLocal — Seller Dashboard</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -61,7 +61,6 @@
         <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors">Sign In</button>
         <div class="flex items-center justify-between text-sm pt-2">
           <button id="forgot-password-btn" type="button" class="text-purple-600 hover:underline">Forgot password?</button>
-          <button id="resend-verification-btn" type="button" class="text-gray-600 hover:underline">Resend verification</button>
         </div>
       </form>
 
@@ -93,7 +92,11 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
           <input id="reg-confirm-password" type="password" placeholder="Confirm your password" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
         </div>
-        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors">Create Account</button>
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors">Create Account & Start Selling</button>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+          <p class="text-green-700 text-sm font-medium">✨ No email verification required!</p>
+          <p class="text-green-600 text-xs mt-1">Start selling immediately after registration</p>
+        </div>
       </form>
     </div>
   </section>
@@ -241,7 +244,837 @@
   <!-- Toasts -->
   <div id="toast-container"></div>
 
-  <!-- External JS -->
-  <script src="js/seller-dashboard.js"></script>
+  <!-- JavaScript -->
+  <script>
+/* =========================================================================
+   QUICKLOCAL — SELLER DASHBOARD (Fixed Version)
+   - Fixed event listener attachment issues
+   - Added proper error handling and debugging
+   ========================================================================= */
+
+(() => {
+  // ------------------ Config ------------------
+  const API_ORIGIN = 'https://quicklocal-backend.onrender.com';
+  const API_BASE = `${API_ORIGIN}/api/v1`;
+
+  const ROUTES = {
+    register: '/auth/register',
+    login: '/auth/login',
+    logout: '/auth/logout',
+    me: '/auth/me',
+    forgotPassword: '/auth/forgot-password',
+    categories: '/categories',
+    sellerProducts: '/seller/products',
+    publicProducts: '/products'
+  };
+
+  // ------------------ State -------------------
+  let currentUser = null;
+  let products = [];
+  let categories = [];
+  let editingProduct = null;
+  let uploadedFiles = [];
+  let existingImageUrls = [];
+
+  // ------------------ DOM Helpers -------------------
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => document.querySelectorAll(selector);
+
+  // ------------------ Utils -------------------
+  function showView(name) {
+    const authView = $('#auth-section');
+    const dashboardView = $('#dashboard-section');
+    
+    if (name === 'auth') {
+      authView?.classList.remove('hidden');
+      dashboardView?.classList.add('hidden');
+    } else {
+      dashboardView?.classList.remove('hidden');
+      authView?.classList.add('hidden');
+    }
+  }
+
+  function showToast(message, type = 'info', timeout = 3000) {
+    const container = $('#toast-container');
+    if (!container) {
+      alert(message);
+      return;
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 250);
+    }, timeout);
+  }
+
+  function moneyINR(amount) {
+    try {
+      return new Intl.NumberFormat('en-IN', { 
+        style: 'currency', 
+        currency: 'INR', 
+        maximumFractionDigits: 0 
+      }).format(amount || 0);
+    } catch {
+      return `₹${(amount || 0).toLocaleString('en-IN')}`;
+    }
+  }
+
+  // Token management
+  function saveToken(token) {
+    try {
+      localStorage.setItem('accessToken', token);
+    } catch (e) {
+      console.warn('Failed to save token:', e);
+    }
+  }
+
+  function getSavedToken() {
+    try {
+      return localStorage.getItem('accessToken');
+    } catch {
+      return null;
+    }
+  }
+
+  function clearToken() {
+    try {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('sellerId');
+      localStorage.removeItem('sellerInfo');
+    } catch (e) {
+      console.warn('Failed to clear tokens:', e);
+    }
+  }
+
+  // API helpers
+  async function fetchJSON(url, options = {}) {
+    try {
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message = data.message || data.error || 
+                       (data.errors && data.errors[0]?.msg) || 
+                       `Request failed (${response.status})`;
+        const error = new Error(message);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Error:', error);
+      throw error;
+    }
+  }
+
+  async function api(pathOrUrl, options = {}) {
+    const token = getSavedToken();
+    const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
+    
+    return fetchJSON(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+  }
+
+  // ------------------ Auth Functions -------------------
+  function toggleAuth(tab = 'login') {
+    const loginForm = $('#login-form');
+    const registerForm = $('#register-form');
+    const loginTab = $('#login-tab');
+    const registerTab = $('#register-tab');
+
+    const isLogin = tab === 'login';
+
+    // Toggle forms
+    if (loginForm) loginForm.classList.toggle('hidden', !isLogin);
+    if (registerForm) registerForm.classList.toggle('hidden', isLogin);
+
+    // Toggle tab styles
+    if (loginTab) {
+      loginTab.className = isLogin ? 
+        'flex-1 py-2 px-4 rounded-md font-semibold transition-all bg-white text-purple-600 shadow-sm' :
+        'flex-1 py-2 px-4 rounded-md font-medium transition-all text-gray-600';
+    }
+    if (registerTab) {
+      registerTab.className = !isLogin ? 
+        'flex-1 py-2 px-4 rounded-md font-semibold transition-all bg-white text-purple-600 shadow-sm' :
+        'flex-1 py-2 px-4 rounded-md font-medium transition-all text-gray-600';
+    }
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    console.log('Login form submitted');
+
+    const email = $('#login-email')?.value?.trim().toLowerCase();
+    const password = $('#login-password')?.value || '';
+
+    if (!email || !password) {
+      showToast('Please fill in all fields', 'error');
+      return;
+    }
+
+    try {
+      const data = await api(ROUTES.login, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, remember: true })
+      });
+
+      const token = data.accessToken || data.token;
+      if (!token) {
+        throw new Error('Login succeeded but no token received');
+      }
+
+      saveToken(token);
+      currentUser = data.user || data.data?.user || null;
+
+      // Save seller info
+      const sellerId = currentUser?.id || currentUser?._id;
+      if (sellerId) {
+        localStorage.setItem('sellerId', sellerId);
+        localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+      }
+
+      // Update UI
+      const sellerNameEl = $('#seller-name');
+      const walletEl = $('#wallet-balance');
+      if (sellerNameEl && currentUser?.name) sellerNameEl.textContent = currentUser.name;
+      if (walletEl) walletEl.textContent = (currentUser?.walletBalance ?? '0.00');
+
+      showToast('Welcome back!', 'success');
+      showView('dashboard');
+      await initDashboard();
+
+    } catch (error) {
+      console.error('Login error:', error);
+      showToast(error.message || 'Login failed', 'error');
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    console.log('Register form submitted');
+
+    const name = $('#reg-name')?.value?.trim();
+    const email = $('#reg-email')?.value?.trim().toLowerCase();
+    const phone = $('#reg-phone')?.value?.trim();
+    const password = $('#reg-password')?.value || '';
+    const confirmPassword = $('#reg-confirm-password')?.value || '';
+    const businessName = $('#reg-business')?.value?.trim();
+
+    if (!name || !email || !phone || !password || !businessName) {
+      showToast('Please fill in all fields', 'error');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showToast("Passwords don't match", 'error');
+      return;
+    }
+
+    try {
+      const payload = {
+        name,
+        email,
+        phone,
+        password,
+        role: 'seller',
+        businessName
+      };
+
+      await api(ROUTES.register, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      showToast('Registration successful! You can now login immediately.', 'success', 4000);
+      toggleAuth('login');
+
+      // Pre-fill login email
+      const loginEmailField = $('#login-email');
+      if (loginEmailField) loginEmailField.value = email;
+
+      // Focus password field
+      const loginPasswordField = $('#login-password');
+      if (loginPasswordField) loginPasswordField.focus();
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      showToast(error.message || 'Registration failed', 'error');
+    }
+  }
+
+  async function handleForgotPassword() {
+    const email = $('#login-email')?.value?.trim().toLowerCase();
+    if (!email) {
+      showToast('Please enter your email address first', 'error');
+      return;
+    }
+
+    try {
+      const data = await api(ROUTES.forgotPassword, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      showToast(data.message || 'Password reset link sent to your email!', 'success');
+    } catch (error) {
+      showToast(error.message || 'Failed to send password reset email', 'error');
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await api(ROUTES.logout, { method: 'POST' });
+    } catch (e) {
+      console.warn('Logout API failed:', e);
+    }
+
+    clearToken();
+    currentUser = null;
+    showView('auth');
+    toggleAuth('login');
+    showToast('Logged out successfully', 'success');
+  }
+
+  // ------------------ Categories -------------------
+  async function fetchCategories() {
+    try {
+      const data = await api(ROUTES.categories);
+      categories = data.data?.categories || data.categories || data.data || [];
+      renderCategoryOptions();
+    } catch (error) {
+      console.warn('Categories fetch failed:', error);
+      categories = [];
+      renderCategoryOptions();
+    }
+  }
+
+  function renderCategoryOptions() {
+    const categorySelect = $('#product-category');
+    if (!categorySelect) return;
+
+    categorySelect.innerHTML = '<option value="">Select Category</option>';
+    categories.forEach(category => {
+      const option = document.createElement('option');
+      option.value = category._id || category.id || '';
+      option.textContent = category.name || 'Category';
+      categorySelect.appendChild(option);
+    });
+  }
+
+  // ------------------ Products -------------------
+  function getPrimaryImage(product) {
+    const images = Array.isArray(product.images) ? product.images : [];
+    const firstImage = images.length ? 
+      (typeof images[0] === 'string' ? images[0] : (images[0]?.url || images[0]?.secure_url)) : 
+      null;
+    return firstImage || product.image || product.thumbnail || 'https://via.placeholder.com/600x400?text=Product';
+  }
+
+  async function fetchProducts() {
+    const loadingEl = $('#products-loading');
+    
+    try {
+      if (loadingEl) loadingEl.classList.remove('hidden');
+
+      // Try seller-specific endpoint first
+      let data = await api(`${ROUTES.sellerProducts}?limit=100`);
+      let productList = data?.data?.products || data?.products || data?.data || [];
+
+      // Fallback to public products with seller filter
+      if (!Array.isArray(productList) || !productList.length) {
+        const sellerId = localStorage.getItem('sellerId');
+        const publicData = await api(`${ROUTES.publicProducts}?seller=${encodeURIComponent(sellerId || '')}&limit=100`);
+        productList = publicData?.data?.products || publicData?.products || publicData?.data || [];
+      }
+
+      // Filter by seller ID if available
+      const sellerId = localStorage.getItem('sellerId');
+      if (sellerId && Array.isArray(productList)) {
+        productList = productList.filter(product => {
+          const productSellerId = product.seller?._id || product.seller;
+          return !productSellerId || productSellerId === sellerId;
+        });
+      }
+
+      products = productList;
+      renderProductList();
+
+    } catch (error) {
+      console.error('Fetch products failed:', error);
+      products = [];
+      renderProductList();
+      showToast('Failed to load products', 'error');
+    } finally {
+      if (loadingEl) loadingEl.classList.add('hidden');
+    }
+  }
+
+  function renderProductList() {
+    const productsGrid = $('#products-grid');
+    const productsEmpty = $('#products-empty');
+    
+    if (!productsGrid || !productsEmpty) return;
+
+    productsGrid.innerHTML = '';
+    const hasProducts = Array.isArray(products) && products.length > 0;
+
+    productsGrid.classList.toggle('hidden', !hasProducts);
+    productsEmpty.classList.toggle('hidden', hasProducts);
+
+    if (!hasProducts) {
+      const statProducts = $('#stat-products');
+      if (statProducts) statProducts.textContent = '0';
+      return;
+    }
+
+    products.forEach(product => {
+      const image = getPrimaryImage(product);
+      const categoryName = product.category?.name || product.categoryName || 'General';
+      const price = moneyINR(product.price || 0);
+      const stock = product.stock ?? 0;
+      const isActive = product.isActive ? 'bg-green-500' : 'bg-gray-400';
+      const productId = product._id || product.id;
+
+      const card = document.createElement('div');
+      card.className = 'product-card bg-white rounded-lg shadow overflow-hidden';
+      card.innerHTML = `
+        <img src="${image}" alt="${product.name || ''}" class="w-full h-48 object-cover">
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">${categoryName}</span>
+            <div class="w-2 h-2 rounded-full ${isActive}"></div>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-1 truncate">${product.name || 'Untitled Product'}</h3>
+          ${product.description ? `<p class="text-sm text-gray-500 mb-2 line-clamp-2">${product.description}</p>` : ''}
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-lg font-bold text-gray-900">${price}</span>
+            <span class="text-sm text-gray-500">Stock: ${stock}</span>
+          </div>
+          <div class="flex gap-2">
+            <button class="flex-1 border border-gray-300 rounded px-3 py-1 text-sm hover:bg-gray-50 transition-colors edit-product-btn" data-product-id="${productId}">
+              <i data-lucide="edit" class="w-3 h-3 mr-1 inline"></i>Edit
+            </button>
+            <button class="flex-1 bg-red-600 text-white rounded px-3 py-1 text-sm hover:bg-red-700 transition-colors delete-product-btn" data-product-id="${productId}">
+              <i data-lucide="trash-2" class="w-3 h-3 mr-1 inline"></i>Delete
+            </button>
+          </div>
+        </div>
+      `;
+      productsGrid.appendChild(card);
+    });
+
+    // Add event listeners for edit/delete buttons
+    const editButtons = productsGrid.querySelectorAll('.edit-product-btn');
+    const deleteButtons = productsGrid.querySelectorAll('.delete-product-btn');
+
+    editButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const productId = button.getAttribute('data-product-id');
+        const product = products.find(p => (p._id || p.id) === productId);
+        if (product) openProductModal(product);
+      });
+    });
+
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', async () => {
+        const productId = button.getAttribute('data-product-id');
+        if (!confirm('Are you sure you want to delete this product?')) return;
+
+        try {
+          await api(`${ROUTES.sellerProducts}/${productId}`, { method: 'DELETE' });
+          showToast('Product deleted successfully', 'success');
+          await fetchProducts();
+        } catch (error) {
+          showToast(error.message || 'Failed to delete product', 'error');
+        }
+      });
+    });
+
+    // Update stats
+    const statProducts = $('#stat-products');
+    const statOrders = $('#stat-orders');
+    const statSales = $('#stat-sales');
+
+    if (statProducts) statProducts.textContent = products.length;
+    if (statOrders) statOrders.textContent = '0';
+    if (statSales) statSales.textContent = moneyINR(0);
+
+    // Refresh Lucide icons for newly added elements
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // ------------------ Product Modal -------------------
+  function openProductModal(product = null) {
+    editingProduct = product;
+    uploadedFiles = [];
+    existingImageUrls = [];
+
+    const modalTitle = $('#modal-title');
+    const productName = $('#product-name');
+    const productCategory = $('#product-category');
+    const productPrice = $('#product-price');
+    const productStock = $('#product-stock');
+    const productDescription = $('#product-description');
+
+    if (modalTitle) {
+      modalTitle.innerHTML = `
+        <i data-lucide="info" class="w-5 h-5 text-purple-600"></i>
+        ${product ? 'Edit Product' : 'Add New Product'}
+      `;
+    }
+
+    // Fill form with product data if editing
+    if (productName) productName.value = product?.name || '';
+    if (productCategory) productCategory.value = (product?.category?._id || product?.category || '');
+    if (productPrice) productPrice.value = product?.price ?? '';
+    if (productStock) productStock.value = product?.stock ?? '';
+    if (productDescription) productDescription.value = product?.description || '';
+
+    // Handle existing images
+    if (product) {
+      const images = Array.isArray(product.images) ? product.images : [];
+      existingImageUrls = images
+        .map(img => (typeof img === 'string' ? img : (img?.url || img?.secure_url)))
+        .filter(Boolean);
+    }
+
+    updateImagePreview();
+
+    const modal = $('#product-modal');
+    if (modal) modal.classList.remove('hidden');
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeProductModal() {
+    const modal = $('#product-modal');
+    if (modal) modal.classList.add('hidden');
+    
+    editingProduct = null;
+    uploadedFiles = [];
+    existingImageUrls = [];
+    
+    const imagePreview = $('#image-preview');
+    if (imagePreview) {
+      imagePreview.innerHTML = '';
+      imagePreview.classList.add('hidden');
+    }
+  }
+
+  function updateImagePreview() {
+    const imagePreview = $('#image-preview');
+    if (!imagePreview) return;
+
+    const allImages = [
+      ...existingImageUrls.map((url, idx) => ({ type: 'existing', url, idx })),
+      ...uploadedFiles.map((file, idx) => ({ type: 'file', file, idx }))
+    ];
+
+    if (!allImages.length) {
+      imagePreview.classList.add('hidden');
+      imagePreview.innerHTML = '';
+      return;
+    }
+
+    imagePreview.classList.remove('hidden');
+    imagePreview.innerHTML = allImages.map(item => {
+      const src = item.type === 'existing' ? item.url : URL.createObjectURL(item.file);
+      const removeAttr = item.type === 'existing' ? 
+        `data-remove-existing="${item.idx}"` : 
+        `data-remove-file="${item.idx}"`;
+
+      return `
+        <div class="relative group">
+          <img src="${src}" alt="Preview" class="w-full h-24 object-cover rounded">
+          <button type="button" ${removeAttr}
+                  class="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full text-xs hover:bg-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+            ×
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Add event listeners for remove buttons
+    imagePreview.querySelectorAll('[data-remove-existing]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const index = +btn.getAttribute('data-remove-existing');
+        existingImageUrls.splice(index, 1);
+        updateImagePreview();
+      });
+    });
+
+    imagePreview.querySelectorAll('[data-remove-file]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const index = +btn.getAttribute('data-remove-file');
+        uploadedFiles.splice(index, 1);
+        updateImagePreview();
+      });
+    });
+  }
+
+  async function saveProduct(e) {
+    e.preventDefault();
+
+    const productName = $('#product-name');
+    const productCategory = $('#product-category');
+    const productPrice = $('#product-price');
+    const productStock = $('#product-stock');
+    const productDescription = $('#product-description');
+
+    const formData = new FormData();
+    const name = productName?.value?.trim();
+    const category = productCategory?.value || '';
+    const price = productPrice?.value ?? '';
+    const stock = productStock?.value ?? '';
+    const description = productDescription?.value?.trim();
+
+    if (name) formData.append('name', name);
+    if (category) formData.append('category', category);
+    if (price !== '') formData.append('price', price);
+    if (stock !== '') formData.append('stock', stock);
+    if (description) formData.append('description', description);
+
+    // Add existing images
+    existingImageUrls.forEach(url => formData.append('existingImages[]', url));
+
+    // Add new files
+    uploadedFiles.forEach(file => formData.append('images', file));
+    if (uploadedFiles[0]) formData.append('image', uploadedFiles[0]); // backward compatibility
+
+    const sellerId = localStorage.getItem('sellerId');
+    if (sellerId) formData.append('seller', sellerId);
+
+    try {
+      const isEditing = !!editingProduct;
+      const productId = editingProduct?._id || editingProduct?.id;
+      const endpoint = isEditing ? `${ROUTES.sellerProducts}/${productId}` : ROUTES.sellerProducts;
+      const method = isEditing ? 'PATCH' : 'POST';
+
+      await api(endpoint, { method, body: formData });
+
+      showToast(isEditing ? 'Product updated successfully' : 'Product created successfully', 'success');
+      closeProductModal();
+      await fetchProducts();
+
+    } catch (error) {
+      console.error('Save product error:', error);
+      showToast(error.message || 'Failed to save product', 'error');
+    }
+  }
+
+  // ------------------ File Upload -------------------
+  function handleFileSelection(files) {
+    if (!files || !files.length) return;
+
+    const uploadText = $('#upload-text');
+    if (uploadText) uploadText.textContent = 'Adding...';
+
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    uploadedFiles.push(...imageFiles);
+    updateImagePreview();
+
+    if (uploadText) uploadText.textContent = 'Drop images here or click to upload';
+  }
+
+  // ------------------ Event Listeners -------------------
+  function setupAuthEventListeners() {
+    console.log('Setting up auth event listeners');
+
+    const loginTab = $('#login-tab');
+    const registerTab = $('#register-tab');
+    const loginForm = $('#login-form');
+    const registerForm = $('#register-form');
+    const forgotPasswordBtn = $('#forgot-password-btn');
+
+    if (loginTab) {
+      loginTab.addEventListener('click', () => {
+        console.log('Login tab clicked');
+        toggleAuth('login');
+      });
+    }
+
+    if (registerTab) {
+      registerTab.addEventListener('click', () => {
+        console.log('Register tab clicked');
+        toggleAuth('register');
+      });
+    }
+
+    if (loginForm) {
+      loginForm.addEventListener('submit', handleLogin);
+    }
+
+    if (registerForm) {
+      registerForm.addEventListener('submit', handleRegister);
+    }
+
+    if (forgotPasswordBtn) {
+      forgotPasswordBtn.addEventListener('click', handleForgotPassword);
+    }
+  }
+
+  function setupDashboardEventListeners() {
+    console.log('Setting up dashboard event listeners');
+
+    const logoutBtn = $('#logout-btn');
+    const addProductBtn = $('#add-product-btn');
+    const addFirstProductBtn = $('#add-first-product-btn');
+    const closeModalBtn = $('#close-modal-btn');
+    const cancelBtn = $('#cancel-btn');
+    const productForm = $('#product-form');
+    const uploadArea = $('#upload-area');
+    const fileInput = $('#file-input');
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    if (addProductBtn) {
+      addProductBtn.addEventListener('click', () => openProductModal());
+    }
+
+    if (addFirstProductBtn) {
+      addFirstProductBtn.addEventListener('click', () => openProductModal());
+    }
+
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', closeProductModal);
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeProductModal);
+    }
+
+    if (productForm) {
+      productForm.addEventListener('submit', saveProduct);
+    }
+
+    // File upload handlers
+    if (uploadArea && fileInput) {
+      uploadArea.addEventListener('click', () => fileInput.click());
+      
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        handleFileSelection(e.dataTransfer.files);
+      });
+      
+      fileInput.addEventListener('change', (e) => {
+        handleFileSelection(e.target.files);
+      });
+    }
+  }
+
+  // ------------------ Dashboard Initialization -------------------
+  async function initDashboard() {
+    console.log('Initializing dashboard');
+    await fetchCategories();
+    await fetchProducts();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // ------------------ Auto-login Check -------------------
+  async function checkAutoLogin() {
+    console.log('Checking for auto-login');
+    const token = getSavedToken();
+    
+    if (!token) {
+      showView('auth');
+      toggleAuth('login');
+      return;
+    }
+
+    try {
+      const userData = await api(ROUTES.me);
+      currentUser = userData.user || userData.data?.user || null;
+      
+      if (currentUser?.role === 'seller') {
+        const sellerId = currentUser.id || currentUser._id;
+        if (sellerId) {
+          localStorage.setItem('sellerId', sellerId);
+          localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+        }
+        
+        // Update UI elements
+        const sellerNameEl = $('#seller-name');
+        const walletEl = $('#wallet-balance');
+        if (sellerNameEl && currentUser?.name) sellerNameEl.textContent = currentUser.name;
+        if (walletEl) walletEl.textContent = (currentUser?.walletBalance ?? '0.00');
+
+        showView('dashboard');
+        await initDashboard();
+        return;
+      } else {
+        clearToken();
+      }
+    } catch (error) {
+      console.error('Auto-login failed:', error);
+      clearToken();
+    }
+
+    // Default: show auth
+    showView('auth');
+    toggleAuth('login');
+  }
+
+  // ------------------ Main Bootstrap Function -------------------
+  async function bootstrap() {
+    console.log('Bootstrapping application');
+    
+    setupAuthEventListeners();
+    setupDashboardEventListeners();
+    
+    // Initialize Lucide icons
+    if (window.lucide) window.lucide.createIcons();
+    
+    // Check for auto-login
+    await checkAutoLogin();
+    
+    console.log('Application ready');
+  }
+
+  // ------------------ Initialize on DOM Ready -------------------
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+
+})();
+  </script>
 </body>
 </html>
