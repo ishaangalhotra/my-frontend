@@ -23,6 +23,8 @@
     .imagekit-upload.dragover{border-color:#16a34a;background-color:#f0fdf4}
     .category-loading{color:#6b7280;font-style:italic}
     .line-clamp-2{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .loading-spinner{border:2px solid #f3f3f3;border-top:2px solid #3498db;border-radius:50%;width:16px;height:16px;animation:spin 1s linear infinite;display:inline-block}
+    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -218,6 +220,14 @@
           </div>
         </div>
 
+        <!-- Debug Info -->
+        <div id="debug-info" class="bg-gray-100 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 hidden">
+          <p><strong>Debug Info:</strong></p>
+          <p>Seller ID: <span id="debug-seller-id">-</span></p>
+          <p>Token: <span id="debug-token">-</span></p>
+          <p>API Base: <span id="debug-api-base">-</span></p>
+        </div>
+
         <!-- Category Status -->
         <div id="category-status" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <p class="text-yellow-800 text-sm font-medium">⚠️ Categories Loading Issue</p>
@@ -243,9 +253,11 @@
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+          <button type="button" id="toggle-debug-btn" class="px-3 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition-colors">Debug</button>
           <button type="button" id="cancel-btn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-          <button type="submit" id="save-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
-            <i data-lucide="save" class="w-4 h-4 mr-2 inline"></i>Save Product
+          <button type="submit" id="save-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+            <i data-lucide="save" class="w-4 h-4 mr-2 inline"></i>
+            <span id="save-btn-text">Save Product</span>
           </button>
         </div>
       </form>
@@ -258,11 +270,11 @@
   <!-- JavaScript -->
   <script>
 /* =========================================================================
-   QUICKLOCAL — SELLER DASHBOARD (Complete Version)
-   - Enhanced category loading with fallbacks
-   - Better error handling for categories
-   - Manual category refresh option
-   - Complete functionality for products and auth
+   QUICKLOCAL — SELLER DASHBOARD (Fixed Product Saving)
+   - Enhanced error handling and debugging
+   - Better API request structure
+   - Improved validation
+   - Debug mode for troubleshooting
    ========================================================================= */
 
 (() => {
@@ -305,6 +317,7 @@
   let uploadedFiles = [];
   let existingImageUrls = [];
   let categoryLoadAttempts = 0;
+  let debugMode = false;
 
   // ------------------ DOM Helpers -------------------
   const $ = (selector) => document.querySelector(selector);
@@ -324,7 +337,7 @@
     }
   }
 
-  function showToast(message, type = 'info', timeout = 3000) {
+  function showToast(message, type = 'info', timeout = 5000) {
     const container = $('#toast-container');
     if (!container) {
       alert(message);
@@ -341,6 +354,9 @@
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 250);
     }, timeout);
+
+    // Also log to console for debugging
+    console.log(`[${type.toUpperCase()}] ${message}`);
   }
 
   function moneyINR(amount) {
@@ -382,8 +398,13 @@
     }
   }
 
-  // API helpers
+  // Enhanced API helpers with better error handling
   async function fetchJSON(url, options = {}) {
+    console.log(`API Request: ${options.method || 'GET'} ${url}`);
+    if (options.body && !(options.body instanceof FormData)) {
+      console.log('Request Body:', options.body);
+    }
+
     try {
       const response = await fetch(url, {
         credentials: 'include',
@@ -394,7 +415,23 @@
         ...options
       });
 
-      const data = await response.json().catch(() => ({}));
+      console.log(`Response Status: ${response.status} ${response.statusText}`);
+      
+      let data = {};
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.warn('Failed to parse JSON response:', e);
+          data = {};
+        }
+      } else {
+        const text = await response.text();
+        console.log('Non-JSON Response:', text);
+        data = { message: text };
+      }
 
       if (!response.ok) {
         const message = data.message || data.error || 
@@ -403,12 +440,21 @@
         const error = new Error(message);
         error.status = response.status;
         error.data = data;
+        
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          message,
+          data
+        });
+        
         throw error;
       }
 
+      console.log('API Success Response:', data);
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Network/API Error:', error);
       throw error;
     }
   }
@@ -417,13 +463,58 @@
     const token = getSavedToken();
     const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API_BASE}${pathOrUrl}`;
     
+    const headers = {
+      ...(options.headers || {}),
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+
+    // Don't add Content-Type for FormData
+    if (options.body && !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
     return fetchJSON(url, {
       ...options,
-      headers: {
-        ...(options.headers || {}),
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      }
+      headers
     });
+  }
+
+  // Debug mode functions
+  function toggleDebugMode() {
+    debugMode = !debugMode;
+    const debugInfo = $('#debug-info');
+    const debugBtn = $('#toggle-debug-btn');
+    
+    if (debugInfo) {
+      debugInfo.classList.toggle('hidden', !debugMode);
+    }
+    
+    if (debugBtn) {
+      debugBtn.textContent = debugMode ? 'Hide Debug' : 'Debug';
+    }
+    
+    if (debugMode) {
+      updateDebugInfo();
+    }
+  }
+
+  function updateDebugInfo() {
+    const debugSellerId = $('#debug-seller-id');
+    const debugToken = $('#debug-token');
+    const debugApiBase = $('#debug-api-base');
+    
+    if (debugSellerId) {
+      debugSellerId.textContent = localStorage.getItem('sellerId') || 'Not set';
+    }
+    
+    if (debugToken) {
+      const token = getSavedToken();
+      debugToken.textContent = token ? `${token.substring(0, 20)}...` : 'Not set';
+    }
+    
+    if (debugApiBase) {
+      debugApiBase.textContent = API_BASE;
+    }
   }
 
   // ------------------ Auth Functions -------------------
@@ -467,7 +558,6 @@
     try {
       const data = await api(ROUTES.login, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, remember: true })
       });
 
@@ -535,7 +625,6 @@
 
       await api(ROUTES.register, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
@@ -566,7 +655,6 @@
     try {
       const data = await api(ROUTES.forgotPassword, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
 
@@ -596,12 +684,19 @@
     const categorySelect = $('#product-category');
     const categoryStatus = $('#category-status');
     
+    // Always start with default categories to ensure UI works
+    categories = DEFAULT_CATEGORIES;
+    renderCategoryOptions();
+    
+    // Hide the status initially
+    if (categoryStatus) categoryStatus.classList.add('hidden');
+    
+    if (showFeedback) {
+      showToast('Loading categories...', 'info', 1000);
+    }
+    
     try {
-      if (showFeedback) {
-        showToast('Loading categories...', 'info', 1000);
-      }
-
-      // Try multiple endpoints for categories
+      // Try multiple endpoints for categories with timeout
       let data = null;
       const endpoints = [
         ROUTES.categories,
@@ -610,19 +705,34 @@
         '/public/categories'
       ];
 
+      const fetchWithTimeout = async (endpoint, timeout = 5000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+          const response = await api(endpoint, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          return response;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          throw error;
+        }
+      };
+
       for (const endpoint of endpoints) {
         try {
           console.log(`Trying categories endpoint: ${endpoint}`);
-          data = await api(endpoint);
+          data = await fetchWithTimeout(endpoint, 3000); // 3 second timeout
+          console.log(`Success with endpoint: ${endpoint}`, data);
           break;
         } catch (err) {
-          console.warn(`Categories endpoint ${endpoint} failed:`, err);
+          console.warn(`Categories endpoint ${endpoint} failed:`, err.message);
           continue;
         }
       }
 
       if (!data) {
-        throw new Error('All category endpoints failed');
+        throw new Error('All category endpoints failed or timed out');
       }
 
       // Parse categories from different possible response structures
@@ -642,47 +752,41 @@
       }
 
       // Validate and clean category data
-      categories = categoryList
+      const apiCategories = categoryList
         .filter(cat => cat && (cat.name || cat.title))
         .map(cat => ({
           _id: cat._id || cat.id || cat.slug || cat.name?.toLowerCase().replace(/\s+/g, '-'),
           name: cat.name || cat.title || 'Unknown Category'
         }));
 
-      // If we got no valid categories, use defaults
-      if (!categories.length) {
-        console.warn('No valid categories from API, using defaults');
-        categories = DEFAULT_CATEGORIES;
-        if (categoryStatus) categoryStatus.classList.remove('hidden');
-      } else {
-        console.log(`Loaded ${categories.length} categories successfully`);
+      // If we got valid categories from API, use them
+      if (apiCategories.length > 0) {
+        console.log(`Loaded ${apiCategories.length} categories from API successfully`);
+        categories = apiCategories;
+        renderCategoryOptions();
+        
         if (categoryStatus) categoryStatus.classList.add('hidden');
         if (showFeedback) {
-          showToast(`Loaded ${categories.length} categories`, 'success');
+          showToast(`Loaded ${apiCategories.length} categories from server`, 'success');
+        }
+      } else {
+        console.warn('No valid categories from API, keeping defaults');
+        if (categoryStatus) categoryStatus.classList.remove('hidden');
+        if (showFeedback) {
+          showToast('Using default categories (API returned no valid data)', 'info');
         }
       }
 
-      renderCategoryOptions();
-
     } catch (error) {
-      console.error('Categories fetch failed:', error);
+      console.error('Categories fetch failed:', error.message);
       
-      // Use default categories as fallback
-      categories = DEFAULT_CATEGORIES;
-      renderCategoryOptions();
-      
-      // Show status warning
+      // We already have default categories loaded, just show status
       if (categoryStatus) {
         categoryStatus.classList.remove('hidden');
       }
 
       if (showFeedback) {
-        showToast('Using default categories (API unavailable)', 'info');
-      }
-
-      // If this is the first attempt, try once more after a delay
-      if (categoryLoadAttempts === 1) {
-        setTimeout(() => fetchCategories(false), 2000);
+        showToast('Using default categories (server unavailable)', 'info');
       }
     }
   }
@@ -723,6 +827,10 @@
       refreshBtn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 inline mr-1 animate-spin"></i>Refreshing...';
       refreshBtn.disabled = true;
     }
+
+    // Force immediate default categories loading
+    categories = DEFAULT_CATEGORIES;
+    renderCategoryOptions();
 
     await fetchCategories(true);
 
@@ -916,8 +1024,16 @@
     if (modal) modal.classList.remove('hidden');
 
     // Ensure categories are loaded when modal opens
-    if (!categories.length || categories === DEFAULT_CATEGORIES) {
+    if (!categories.length) {
+      categories = DEFAULT_CATEGORIES;
+      renderCategoryOptions();
+      // Try to fetch from API in background
       fetchCategories(false);
+    }
+
+    // Update debug info if debug mode is on
+    if (debugMode) {
+      updateDebugInfo();
     }
 
     if (window.lucide) window.lucide.createIcons();
@@ -936,6 +1052,11 @@
       imagePreview.innerHTML = '';
       imagePreview.classList.add('hidden');
     }
+
+    // Hide debug info
+    debugMode = false;
+    const debugInfo = $('#debug-info');
+    if (debugInfo) debugInfo.classList.add('hidden');
   }
 
   function updateImagePreview() {
@@ -989,58 +1110,171 @@
     });
   }
 
+  // Enhanced product save function with better error handling
   async function saveProduct(e) {
     e.preventDefault();
+    console.log('Saving product...');
 
-    const productName = $('#product-name');
-    const productCategory = $('#product-category');
-    const productPrice = $('#product-price');
-    const productStock = $('#product-stock');
-    const productDescription = $('#product-description');
+    const saveBtn = $('#save-btn');
+    const saveBtnText = $('#save-btn-text');
+    const originalText = saveBtnText?.textContent || 'Save Product';
 
-    const formData = new FormData();
-    const name = productName?.value?.trim();
-    const category = productCategory?.value || '';
-    const price = productPrice?.value ?? '';
-    const stock = productStock?.value ?? '';
-    const description = productDescription?.value?.trim();
-
-    if (!name) {
-      showToast('Product name is required', 'error');
-      return;
+    // Show loading state
+    if (saveBtn) saveBtn.disabled = true;
+    if (saveBtnText) {
+      saveBtnText.innerHTML = '<div class="loading-spinner mr-2"></div>Saving...';
     }
 
-    if (name) formData.append('name', name);
-    if (category) formData.append('category', category);
-    if (price !== '') formData.append('price', price);
-    if (stock !== '') formData.append('stock', stock);
-    if (description) formData.append('description', description);
-
-    // Add existing images
-    existingImageUrls.forEach(url => formData.append('existingImages[]', url));
-
-    // Add new files
-    uploadedFiles.forEach(file => formData.append('images', file));
-    if (uploadedFiles[0]) formData.append('image', uploadedFiles[0]); // backward compatibility
-
-    const sellerId = localStorage.getItem('sellerId');
-    if (sellerId) formData.append('seller', sellerId);
-
     try {
+      const productName = $('#product-name');
+      const productCategory = $('#product-category');
+      const productPrice = $('#product-price');
+      const productStock = $('#product-stock');
+      const productDescription = $('#product-description');
+
+      const name = productName?.value?.trim();
+      const category = productCategory?.value || '';
+      const price = parseFloat(productPrice?.value) || 0;
+      const stock = parseInt(productStock?.value) || 0;
+      const description = productDescription?.value?.trim() || '';
+
+      // Enhanced validation
+      if (!name) {
+        throw new Error('Product name is required');
+      }
+
+      if (name.length < 2) {
+        throw new Error('Product name must be at least 2 characters long');
+      }
+
+      if (price < 0) {
+        throw new Error('Price cannot be negative');
+      }
+
+      if (stock < 0) {
+        throw new Error('Stock cannot be negative');
+      }
+
+      // Get seller ID
+      const sellerId = localStorage.getItem('sellerId');
+      if (!sellerId) {
+        throw new Error('Seller ID not found. Please login again.');
+      }
+
+      console.log('Product data:', {
+        name,
+        category,
+        price,
+        stock,
+        description,
+        sellerId,
+        uploadedFiles: uploadedFiles.length,
+        existingImages: existingImageUrls.length
+      });
+
+      // Create FormData for file uploads
+      const formData = new FormData();
+      
+      // Add basic product data
+      formData.append('name', name);
+      formData.append('price', price.toString());
+      formData.append('stock', stock.toString());
+      formData.append('seller', sellerId);
+      
+      if (category) {
+        formData.append('category', category);
+      }
+      
+      if (description) {
+        formData.append('description', description);
+      }
+
+      // Add existing images (for edit mode)
+      existingImageUrls.forEach((url, index) => {
+        formData.append(`existingImages[${index}]`, url);
+      });
+
+      // Add new image files
+      uploadedFiles.forEach((file, index) => {
+        formData.append('images', file);
+        console.log(`Added image file ${index}:`, file.name, file.size);
+      });
+
+      // For backward compatibility, also add first image as 'image'
+      if (uploadedFiles.length > 0) {
+        formData.append('image', uploadedFiles[0]);
+      }
+
+      // Log FormData contents (for debugging)
+      console.log('FormData contents:');
+      for (let pair of formData.entries()) {
+        if (pair[1] instanceof File) {
+          console.log(`${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
+        } else {
+          console.log(`${pair[0]}: ${pair[1]}`);
+        }
+      }
+
+      // Determine API endpoint and method
       const isEditing = !!editingProduct;
       const productId = editingProduct?._id || editingProduct?.id;
-      const endpoint = isEditing ? `${ROUTES.sellerProducts}/${productId}` : ROUTES.sellerProducts;
-      const method = isEditing ? 'PATCH' : 'POST';
+      
+      let endpoint = ROUTES.sellerProducts;
+      let method = 'POST';
+      
+      if (isEditing && productId) {
+        endpoint = `${ROUTES.sellerProducts}/${productId}`;
+        method = 'PATCH';
+      }
 
-      await api(endpoint, { method, body: formData });
+      console.log(`API Call: ${method} ${endpoint}`);
 
-      showToast(isEditing ? 'Product updated successfully' : 'Product created successfully', 'success');
+      // Make the API request
+      const response = await api(endpoint, {
+        method,
+        body: formData
+      });
+
+      console.log('Product save response:', response);
+
+      showToast(
+        isEditing ? 'Product updated successfully!' : 'Product created successfully!', 
+        'success'
+      );
+
       closeProductModal();
+      
+      // Refresh the product list
       await fetchProducts();
 
     } catch (error) {
       console.error('Save product error:', error);
-      showToast(error.message || 'Failed to save product', 'error');
+      
+      let errorMessage = error.message || 'Failed to save product';
+      
+      // Handle specific error cases
+      if (error.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+        // Optionally redirect to login
+        setTimeout(() => {
+          handleLogout();
+        }, 2000);
+      } else if (error.status === 400) {
+        errorMessage = error.message || 'Invalid product data. Please check all fields.';
+      } else if (error.status === 413) {
+        errorMessage = 'Files are too large. Please use smaller images.';
+      } else if (error.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+      
+      showToast(errorMessage, 'error');
+      
+    } finally {
+      // Reset button state
+      if (saveBtn) saveBtn.disabled = false;
+      if (saveBtnText) {
+        saveBtnText.textContent = originalText;
+      }
     }
   }
 
@@ -1049,13 +1283,39 @@
     if (!files || !files.length) return;
 
     const uploadText = $('#upload-text');
-    if (uploadText) uploadText.textContent = 'Adding...';
+    if (uploadText) uploadText.textContent = 'Processing files...';
 
-    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    // Filter for image files only
+    const imageFiles = Array.from(files).filter(file => {
+      const isImage = file.type.startsWith('image/');
+      const isSizeOk = file.size <= 10 * 1024 * 1024; // 10MB limit
+      
+      if (!isImage) {
+        console.warn(`Skipping non-image file: ${file.name}`);
+      }
+      if (!isSizeOk) {
+        console.warn(`Skipping large file: ${file.name} (${file.size} bytes)`);
+        showToast(`File ${file.name} is too large (max 10MB)`, 'error');
+      }
+      
+      return isImage && isSizeOk;
+    });
+
+    if (imageFiles.length === 0) {
+      if (uploadText) uploadText.textContent = 'Drop images here or click to upload';
+      showToast('No valid image files selected', 'error');
+      return;
+    }
+
+    console.log(`Adding ${imageFiles.length} image files:`, imageFiles.map(f => f.name));
     uploadedFiles.push(...imageFiles);
     updateImagePreview();
 
-    if (uploadText) uploadText.textContent = 'Drop images here or click to upload';
+    if (uploadText) {
+      uploadText.textContent = 'Drop images here or click to upload';
+    }
+
+    showToast(`Added ${imageFiles.length} image(s)`, 'success', 2000);
   }
 
   // ------------------ Event Listeners -------------------
@@ -1107,6 +1367,7 @@
     const uploadArea = $('#upload-area');
     const fileInput = $('#file-input');
     const refreshCategoriesBtn = $('#refresh-categories-btn');
+    const toggleDebugBtn = $('#toggle-debug-btn');
 
     if (logoutBtn) {
       logoutBtn.addEventListener('click', handleLogout);
@@ -1136,6 +1397,10 @@
       refreshCategoriesBtn.addEventListener('click', refreshCategories);
     }
 
+    if (toggleDebugBtn) {
+      toggleDebugBtn.addEventListener('click', toggleDebugMode);
+    }
+
     // File upload handlers
     if (uploadArea && fileInput) {
       uploadArea.addEventListener('click', () => fileInput.click());
@@ -1157,6 +1422,8 @@
       
       fileInput.addEventListener('change', (e) => {
         handleFileSelection(e.target.files);
+        // Clear the input so same file can be selected again
+        e.target.value = '';
       });
     }
   }
@@ -1164,8 +1431,15 @@
   // ------------------ Dashboard Initialization -------------------
   async function initDashboard() {
     console.log('Initializing dashboard');
-    await fetchCategories();
+    
+    // Load default categories immediately for better UX
+    categories = DEFAULT_CATEGORIES;
+    renderCategoryOptions();
+    
+    // Then try to fetch from API in background
+    fetchCategories();
     await fetchProducts();
+    
     if (window.lucide) window.lucide.createIcons();
   }
 
