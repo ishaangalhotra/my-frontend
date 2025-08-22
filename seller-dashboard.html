@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+a<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal — Seller Dashboard</title>
+  <title>QuickLocal – Seller Dashboard</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -270,11 +270,10 @@
   <!-- JavaScript -->
   <script>
 /* =========================================================================
-   QUICKLOCAL — SELLER DASHBOARD (Fixed Product Saving)
-   - Enhanced error handling and debugging
-   - Better API request structure
-   - Improved validation
-   - Debug mode for troubleshooting
+   QUICKLOCAL – SELLER DASHBOARD (FIXED AUTO-LOGIN)
+   - Fixed token persistence issue
+   - Better error handling for token validation
+   - Improved localStorage management
    ========================================================================= */
 
 (() => {
@@ -371,30 +370,101 @@
     }
   }
 
-  // Token management
+  // Enhanced token management with better error handling
   function saveToken(token) {
+    if (!token) {
+      console.warn('Attempting to save empty token');
+      return false;
+    }
+    
     try {
-      localStorage.setItem('accessToken', token);
+      localStorage.setItem('quicklocal_access_token', token);
+      // Also save timestamp for token age tracking
+      localStorage.setItem('quicklocal_token_timestamp', Date.now().toString());
+      console.log('Token saved successfully');
+      return true;
     } catch (e) {
-      console.warn('Failed to save token:', e);
+      console.error('Failed to save token:', e);
+      return false;
     }
   }
 
   function getSavedToken() {
     try {
-      return localStorage.getItem('accessToken');
-    } catch {
+      const token = localStorage.getItem('quicklocal_access_token');
+      if (!token) {
+        console.log('No token found in localStorage');
+        return null;
+      }
+      
+      // Check token age (optional - remove if not needed)
+      const timestamp = localStorage.getItem('quicklocal_token_timestamp');
+      if (timestamp) {
+        const tokenAge = Date.now() - parseInt(timestamp);
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        
+        if (tokenAge > maxAge) {
+          console.log('Token is too old, clearing');
+          clearToken();
+          return null;
+        }
+      }
+      
+      console.log('Token retrieved from localStorage');
+      return token;
+    } catch (e) {
+      console.error('Failed to retrieve token:', e);
       return null;
     }
   }
 
   function clearToken() {
     try {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('sellerId');
-      localStorage.removeItem('sellerInfo');
+      localStorage.removeItem('quicklocal_access_token');
+      localStorage.removeItem('quicklocal_token_timestamp');
+      localStorage.removeItem('quicklocal_seller_id');
+      localStorage.removeItem('quicklocal_seller_info');
+      console.log('All tokens and user data cleared');
     } catch (e) {
       console.warn('Failed to clear tokens:', e);
+    }
+  }
+
+  // Enhanced user info management
+  function saveUserInfo(user) {
+    if (!user) return false;
+    
+    try {
+      const sellerId = user.id || user._id;
+      if (sellerId) {
+        localStorage.setItem('quicklocal_seller_id', sellerId);
+        localStorage.setItem('quicklocal_seller_info', JSON.stringify(user));
+        console.log('User info saved successfully');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Failed to save user info:', e);
+      return false;
+    }
+  }
+
+  function getSavedUserInfo() {
+    try {
+      const userInfo = localStorage.getItem('quicklocal_seller_info');
+      const sellerId = localStorage.getItem('quicklocal_seller_id');
+      
+      if (userInfo && sellerId) {
+        const parsed = JSON.parse(userInfo);
+        console.log('User info retrieved from localStorage');
+        return { user: parsed, sellerId };
+      }
+      
+      console.log('No user info found in localStorage');
+      return null;
+    } catch (e) {
+      console.error('Failed to retrieve user info:', e);
+      return null;
     }
   }
 
@@ -504,7 +574,7 @@
     const debugApiBase = $('#debug-api-base');
     
     if (debugSellerId) {
-      debugSellerId.textContent = localStorage.getItem('sellerId') || 'Not set';
+      debugSellerId.textContent = localStorage.getItem('quicklocal_seller_id') || 'Not set';
     }
     
     if (debugToken) {
@@ -566,21 +636,16 @@
         throw new Error('Login succeeded but no token received');
       }
 
+      // Save token and user info
       saveToken(token);
       currentUser = data.user || data.data?.user || null;
-
-      // Save seller info
-      const sellerId = currentUser?.id || currentUser?._id;
-      if (sellerId) {
-        localStorage.setItem('sellerId', sellerId);
-        localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
+      
+      if (currentUser) {
+        saveUserInfo(currentUser);
       }
 
       // Update UI
-      const sellerNameEl = $('#seller-name');
-      const walletEl = $('#wallet-balance');
-      if (sellerNameEl && currentUser?.name) sellerNameEl.textContent = currentUser.name;
-      if (walletEl) walletEl.textContent = (currentUser?.walletBalance ?? '0.00');
+      updateUserUI(currentUser);
 
       showToast('Welcome back!', 'success');
       showView('dashboard');
@@ -676,6 +741,22 @@
     showView('auth');
     toggleAuth('login');
     showToast('Logged out successfully', 'success');
+  }
+
+  // Helper function to update user UI elements
+  function updateUserUI(user) {
+    if (!user) return;
+    
+    const sellerNameEl = $('#seller-name');
+    const walletEl = $('#wallet-balance');
+    
+    if (sellerNameEl && user.name) {
+      sellerNameEl.textContent = user.name;
+    }
+    
+    if (walletEl) {
+      walletEl.textContent = (user.walletBalance ?? '0.00');
+    }
   }
 
   // ------------------ Enhanced Categories -------------------
@@ -862,13 +943,13 @@
 
       // Fallback to public products with seller filter
       if (!Array.isArray(productList) || !productList.length) {
-        const sellerId = localStorage.getItem('sellerId');
+        const sellerId = localStorage.getItem('quicklocal_seller_id');
         const publicData = await api(`${ROUTES.publicProducts}?seller=${encodeURIComponent(sellerId || '')}&limit=100`);
         productList = publicData?.data?.products || publicData?.products || publicData?.data || [];
       }
 
       // Filter by seller ID if available
-      const sellerId = localStorage.getItem('sellerId');
+      const sellerId = localStorage.getItem('quicklocal_seller_id');
       if (sellerId && Array.isArray(productList)) {
         productList = productList.filter(product => {
           const productSellerId = product.seller?._id || product.seller;
@@ -1156,7 +1237,7 @@
       }
 
       // Get seller ID
-      const sellerId = localStorage.getItem('sellerId');
+      const sellerId = localStorage.getItem('quicklocal_seller_id');
       if (!sellerId) {
         throw new Error('Seller ID not found. Please login again.');
       }
@@ -1443,64 +1524,122 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
-  // ------------------ Auto-login Check -------------------
+  // ------------------ Enhanced Auto-login Check (FIXED) -------------------
   async function checkAutoLogin() {
-    console.log('Checking for auto-login');
-    const token = getSavedToken();
+    console.log('Checking for auto-login...');
     
+    const token = getSavedToken();
     if (!token) {
+      console.log('No token found, showing auth view');
       showView('auth');
       toggleAuth('login');
       return;
     }
 
-    try {
-      const userData = await api(ROUTES.me);
-      currentUser = userData.user || userData.data?.user || null;
-      
-      if (currentUser?.role === 'seller') {
-        const sellerId = currentUser.id || currentUser._id;
-        if (sellerId) {
-          localStorage.setItem('sellerId', sellerId);
-          localStorage.setItem('sellerInfo', JSON.stringify(currentUser));
-        }
-        
-        // Update UI elements
-        const sellerNameEl = $('#seller-name');
-        const walletEl = $('#wallet-balance');
-        if (sellerNameEl && currentUser?.name) sellerNameEl.textContent = currentUser.name;
-        if (walletEl) walletEl.textContent = (currentUser?.walletBalance ?? '0.00');
+    console.log('Token found, attempting auto-login');
 
+    // First check if we have cached user info
+    const cachedInfo = getSavedUserInfo();
+    if (cachedInfo && cachedInfo.user && cachedInfo.user.role === 'seller') {
+      console.log('Using cached user info for auto-login');
+      currentUser = cachedInfo.user;
+      updateUserUI(currentUser);
+      
+      // Try to validate token in background
+      try {
+        const userData = await api(ROUTES.me);
+        const serverUser = userData.user || userData.data?.user;
+        
+        if (serverUser && serverUser.role === 'seller') {
+          // Update with fresh data from server
+          console.log('Token validated, updating with fresh user data');
+          currentUser = serverUser;
+          saveUserInfo(serverUser);
+          updateUserUI(serverUser);
+        } else {
+          console.log('Server returned non-seller user, clearing tokens');
+          throw new Error('Invalid user role');
+        }
+      } catch (error) {
+        console.error('Token validation failed:', error);
+        
+        // If token validation fails but we have cached user info,
+        // still allow access but show a warning
+        if (error.status === 401 || error.status === 403) {
+          console.log('Token expired, clearing and redirecting to auth');
+          clearToken();
+          currentUser = null;
+          showView('auth');
+          toggleAuth('login');
+          showToast('Session expired. Please login again.', 'error');
+          return;
+        } else {
+          // Network error or server error - allow offline access with cached data
+          console.log('Network/server error, using cached data');
+          showToast('Using offline mode (server unavailable)', 'info');
+        }
+      }
+      
+      // Show dashboard with cached or validated user data
+      showView('dashboard');
+      await initDashboard();
+      return;
+    }
+
+    // No cached user info, try to fetch from server
+    try {
+      console.log('No cached user info, fetching from server');
+      const userData = await api(ROUTES.me);
+      const serverUser = userData.user || userData.data?.user;
+      
+      if (serverUser && serverUser.role === 'seller') {
+        console.log('Successfully fetched user data from server');
+        currentUser = serverUser;
+        saveUserInfo(serverUser);
+        updateUserUI(serverUser);
+        
         showView('dashboard');
         await initDashboard();
         return;
       } else {
-        clearToken();
+        console.log('Server returned non-seller user');
+        throw new Error('Invalid user role or no user data');
       }
     } catch (error) {
       console.error('Auto-login failed:', error);
+      
+      // Clear invalid tokens and show auth
       clearToken();
+      currentUser = null;
+      showView('auth');
+      toggleAuth('login');
+      
+      // Only show error message for auth errors, not network errors
+      if (error.status === 401 || error.status === 403) {
+        showToast('Please login to continue', 'info');
+      } else {
+        console.log('Network error during auto-login, user needs to login manually');
+      }
     }
-
-    // Default: show auth
-    showView('auth');
-    toggleAuth('login');
   }
 
   // ------------------ Main Bootstrap Function -------------------
   async function bootstrap() {
-    console.log('Bootstrapping application');
+    console.log('Bootstrapping QuickLocal Seller Dashboard...');
     
     setupAuthEventListeners();
     setupDashboardEventListeners();
     
     // Initialize Lucide icons
-    if (window.lucide) window.lucide.createIcons();
+    if (window.lucide) {
+      window.lucide.createIcons();
+      console.log('Lucide icons initialized');
+    }
     
-    // Check for auto-login
+    // Check for auto-login with enhanced persistence
     await checkAutoLogin();
     
-    console.log('Application ready');
+    console.log('Application fully initialized and ready');
   }
 
   // ------------------ Initialize on DOM Ready -------------------
