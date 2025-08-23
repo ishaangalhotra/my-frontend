@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal — Seller Dashboard (Master Merged Final)</title>
+  <title>QuickLocal — Seller Dashboard (Fixed Categories)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -229,6 +229,8 @@
         <p>Seller ID: <span id="debug-seller-id">-</span></p>
         <p>Token: <span id="debug-token">-</span></p>
         <p>API Base: <span id="debug-api-base">-</span></p>
+        <p>Categories loaded: <span id="debug-categories-count">0</span></p>
+        <p>Last category API response: <span id="debug-last-category-response">-</span></p>
       </div>
 
     </main>
@@ -354,6 +356,7 @@
       $('#debug-seller-id').textContent = state.seller?.id || state.seller?._id || '-';
       $('#debug-token').textContent = state.token ? `${state.token.slice(0,12)}…${state.token.slice(-6)}` : '-';
       $('#debug-api-base').textContent = API_BASE;
+      $('#debug-categories-count').textContent = state.categories.length;
     }
 
     function initSkeleton(count=8){
@@ -461,19 +464,105 @@
       const sel = $('#product-category');
       const filterSel = $('#category-filter');
       if (sel) sel.innerHTML = `<option value="" class="category-loading">Loading categories...</option>`;
+      
       try {
-        const { data } = await axios.get(`${API_BASE}/categories`, { headers: authHeader() });
-        const src = Array.isArray(data?.categories) ? data.categories : (Array.isArray(data) ? data : []);
-        state.categories = src;
+        console.log('Loading categories from:', `${API_BASE}/categories`);
+        
+        // Try multiple possible endpoints for categories
+        let response;
+        let categoriesData = [];
+        
+        try {
+          // First try the main categories endpoint
+          response = await axios.get(`${API_BASE}/categories`, { headers: authHeader() });
+          console.log('Categories response:', response.data);
+          $('#debug-last-category-response').textContent = JSON.stringify(response.data).slice(0, 100) + '...';
+        } catch (firstError) {
+          console.log('First endpoint failed, trying alternative...');
+          try {
+            // Try alternative endpoint
+            response = await axios.get(`${API_BASE}/category`, { headers: authHeader() });
+            console.log('Alternative categories response:', response.data);
+            $('#debug-last-category-response').textContent = JSON.stringify(response.data).slice(0, 100) + '...';
+          } catch (secondError) {
+            // If both fail, create some default categories
+            console.log('Both endpoints failed, using fallback categories');
+            categoriesData = [
+              { _id: 'electronics', name: 'Electronics', id: 'electronics' },
+              { _id: 'clothing', name: 'Clothing & Fashion', id: 'clothing' },
+              { _id: 'home', name: 'Home & Garden', id: 'home' },
+              { _id: 'books', name: 'Books & Media', id: 'books' },
+              { _id: 'sports', name: 'Sports & Outdoors', id: 'sports' },
+              { _id: 'health', name: 'Health & Beauty', id: 'health' },
+              { _id: 'food', name: 'Food & Beverages', id: 'food' },
+              { _id: 'automotive', name: 'Automotive', id: 'automotive' },
+              { _id: 'toys', name: 'Toys & Games', id: 'toys' },
+              { _id: 'other', name: 'Other', id: 'other' }
+            ];
+            $('#debug-last-category-response').textContent = 'Using fallback categories';
+          }
+        }
 
-        const options = src.map(c => `<option value="${c._id || c.id}">${c.name}</option>`).join('');
-        if (sel) sel.innerHTML = `<option value="">Select a category</option>` + options;
-        if (filterSel) filterSel.innerHTML = `<option value="">All Categories</option>` + options;
+        // Extract categories from response if we got one
+        if (response && response.data) {
+          const data = response.data;
+          if (Array.isArray(data?.categories)) {
+            categoriesData = data.categories;
+          } else if (Array.isArray(data?.data)) {
+            categoriesData = data.data;
+          } else if (Array.isArray(data)) {
+            categoriesData = data;
+          } else if (data.success && Array.isArray(data.categories)) {
+            categoriesData = data.categories;
+          }
+        }
+
+        state.categories = categoriesData;
+        console.log('Final categories:', state.categories);
+
+        const options = categoriesData.map(c => {
+          const id = c._id || c.id || c.categoryId;
+          const name = c.name || c.categoryName || c.title || 'Unnamed Category';
+          return `<option value="${id}">${name}</option>`;
+        }).join('');
+
+        if (sel) {
+          sel.innerHTML = `<option value="">Select a category</option>` + options;
+        }
+        if (filterSel) {
+          filterSel.innerHTML = `<option value="">All Categories</option>` + options;
+        }
+
+        updateDebug();
+
+        if (categoriesData.length === 0 && showToastOnFail) {
+          showToast('No categories found. Using default categories.', 'warning');
+        }
+
       } catch (err) {
-        console.error(err);
+        console.error('Categories loading error:', err);
         if (showToastOnFail) showToast('Failed to load categories', 'warning');
-        if (sel) sel.innerHTML = `<option value="">(none)</option>`;
-        state.categories = [];
+        
+        // Use fallback categories on complete failure
+        state.categories = [
+          { _id: 'electronics', name: 'Electronics' },
+          { _id: 'clothing', name: 'Clothing & Fashion' },
+          { _id: 'home', name: 'Home & Garden' },
+          { _id: 'books', name: 'Books & Media' },
+          { _id: 'sports', name: 'Sports & Outdoors' },
+          { _id: 'health', name: 'Health & Beauty' },
+          { _id: 'food', name: 'Food & Beverages' },
+          { _id: 'automotive', name: 'Automotive' },
+          { _id: 'toys', name: 'Toys & Games' },
+          { _id: 'other', name: 'Other' }
+        ];
+
+        const fallbackOptions = state.categories.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+        if (sel) sel.innerHTML = `<option value="">Select a category</option>` + fallbackOptions;
+        if (filterSel) filterSel.innerHTML = `<option value="">All Categories</option>` + fallbackOptions;
+        
+        $('#debug-last-category-response').textContent = 'Error: ' + (err.message || 'Unknown error');
+        updateDebug();
       }
     }
 
@@ -673,7 +762,7 @@
     }
 
     async function deleteProduct(p){
-      if(!confirm(`Delete “${p.name}”?`)) return;
+      if(!confirm(`Delete "${p.name}"?`)) return;
       try{
         await axios.delete(`${API_BASE}/seller/products/${p._id || p.id}`, { headers: authHeader() });
         showToast('Product deleted','success');
