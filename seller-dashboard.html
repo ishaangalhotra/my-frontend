@@ -4,11 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QuickLocal — Seller Dashboard (Master Merged Final)</title>
-  <!-- Tailwind CSS (dev only; for production build Tailwind locally) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <!-- Axios -->
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
     /* ===== Shared UI Polish (from v3) ===== */
@@ -42,7 +39,6 @@
 </head>
 <body class="bg-slate-50 min-h-screen">
 
-  <!-- ===================== AUTH SECTION ===================== -->
   <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 gradient-primary">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
       <div class="text-center mb-8">
@@ -53,13 +49,11 @@
         <p class="text-gray-600 mt-2">Manage your products and grow your business</p>
       </div>
 
-      <!-- Tabs -->
       <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
         <button id="login-tab" class="flex-1 py-2 px-4 rounded-md font-semibold transition-all bg-white text-purple-600 shadow-sm">Login</button>
         <button id="register-tab" class="flex-1 py-2 px-4 rounded-md font-medium transition-all text-gray-600">Register</button>
       </div>
 
-      <!-- Login Form -->
       <form id="login-form" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -84,7 +78,6 @@
         </div>
       </form>
 
-      <!-- Register Form -->
       <form id="register-form" class="space-y-4 hidden">
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -116,7 +109,6 @@
           <span id="register-btn-text">Create Account & Start Selling</span>
           <div id="register-spinner" class="loading-spinner ml-2 hidden"></div>
         </button>
-        <!-- v1 quick-start info -->
         <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
           <p class="text-green-700 text-sm font-medium">✨ No email verification required!</p>
           <p class="text-green-600 text-xs mt-1">Start selling immediately after registration</p>
@@ -125,7 +117,6 @@
     </div>
   </section>
 
-  <!-- ===================== DASHBOARD SECTION ===================== -->
   <section id="dashboard-section" class="hidden">
     <header class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -155,7 +146,6 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Products</p><p id="stat-products" class="text-2xl font-bold text-gray-900">0</p></div><i data-lucide="package" class="h-8 w-8 text-blue-600"></i></div></div>
         <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Sales</p><p id="stat-sales" class="text-2xl font-bold text-gray-900">₹0</p></div><i data-lucide="dollar-sign" class="h-8 w-8 text-green-600"></i></div></div>
@@ -163,7 +153,6 @@
         <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Rating</p><p id="stat-rating" class="text-2xl font-bold text-gray-900">4.8</p></div><i data-lucide="star" class="h-8 w-8 text-purple-600"></i></div></div>
       </div>
 
-      <!-- Product Management -->
       <div class="bg-white rounded-lg shadow">
         <div class="p-6">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
@@ -185,7 +174,6 @@
             </div>
           </div>
 
-          <!-- Loading State -->
           <div id="products-loading" class="text-center py-8 hidden">
             <div class="flex justify-center items-center">
               <div class="loading-spinner mr-2"></div>
@@ -193,7 +181,6 @@
             </div>
           </div>
 
-          <!-- Empty State -->
           <div id="products-empty" class="text-center py-8 hidden">
             <i data-lucide="package" class="mx-auto h-12 w-12 text-gray-400 mb-4"></i>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No products yet</h3>
@@ -203,22 +190,11 @@
             </button>
           </div>
 
-          <!-- Skeleton Grid while fetching -->
           <div id="products-skeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-            <template id="skeleton-card-template">
-              <div class="bg-white rounded-lg shadow p-4 space-y-3">
-                <div class="h-40 rounded-md skeleton"></div>
-                <div class="h-5 w-3/4 rounded-md skeleton"></div>
-                <div class="h-4 w-1/2 rounded-md skeleton"></div>
-                <div class="h-9 w-full rounded-md skeleton"></div>
-              </div>
-            </template>
           </div>
 
-          <!-- Products Grid -->
           <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
 
-          <!-- Pagination -->
           <div id="pagination" class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6 hidden">
             <div class="flex-1 flex justify-between sm:hidden">
               <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
@@ -248,7 +224,6 @@
         </div>
       </div>
 
-      <!-- ===== Debug Info (from v1) ===== -->
       <div id="debug-info" class="bg-gray-100 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 mt-6 hidden">
         <p class="font-semibold">Debug Info</p>
         <p>Seller ID: <span id="debug-seller-id">-</span></p>
@@ -259,7 +234,6 @@
     </main>
   </section>
 
-  <!-- ===================== PRODUCT MODAL ===================== -->
   <div id="product-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
     <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-6">
@@ -271,14 +245,13 @@
       </div>
 
       <form id="product-form" class="space-y-6">
-        <!-- Basic Information -->
         <div class="space-y-4">
           <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <i data-lucide="info" class="w-4 h-4 text-purple-600"></i>Basic Information
           </h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</n></label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
               <input id="product-name" placeholder="Enter product name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
               <p class="text-xs text-gray-500 mt-1">Minimum 2 characters, no special characters</p>
             </div>
@@ -309,7 +282,6 @@
           </div>
         </div>
 
-        <!-- Image Upload -->
         <div class="space-y-4">
           <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <i data-lucide="image" class="w-4 h-4 text-purple-600"></i>Images
@@ -333,7 +305,6 @@
     </div>
   </div>
 
-  <!-- ===================== TOAST CONTAINER ===================== -->
   <div id="toast" class="toast hidden"></div>
 
   <script>
@@ -386,11 +357,21 @@
     }
 
     function initSkeleton(count=8){
-      const grid = $('#products-skeleton');
-      grid.innerHTML = '';
-      const tpl = $('#skeleton-card-template').content;
-      for(let i=0;i<count;i++){ grid.appendChild(tpl.cloneNode(true)); }
-      grid.classList.remove('hidden');
+        const grid = $('#products-skeleton');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const cardHTML = `
+            <div class="bg-white rounded-lg shadow p-4 space-y-3">
+                <div class="h-40 rounded-md skeleton"></div>
+                <div class="h-5 w-3/4 rounded-md skeleton"></div>
+                <div class="h-4 w-1/2 rounded-md skeleton"></div>
+                <div class="h-9 w-full rounded-md skeleton"></div>
+            </div>
+        `;
+        for (let i = 0; i < count; i++) {
+            grid.insertAdjacentHTML('beforeend', cardHTML);
+        }
+        grid.classList.remove('hidden');
     }
 
     // ===================== AUTH =====================
@@ -476,51 +457,60 @@
     }
 
     // ===================== CATEGORIES =====================
-    async function loadCategories(showToastOnFail=true){
+    async function loadCategories(showToastOnFail = true) {
       const sel = $('#product-category');
       const filterSel = $('#category-filter');
-      sel.innerHTML = `<option value="" class="category-loading">Loading categories...</option>`;
-      try{
+      if (sel) sel.innerHTML = `<option value="" class="category-loading">Loading categories...</option>`;
+      try {
         const { data } = await axios.get(`${API_BASE}/categories`, { headers: authHeader() });
-        state.categories = data?.categories || data || [];
-        const options = state.categories.map(c=>`<option value="${c._id || c.id}">${c.name}</option>`).join('');
-        sel.innerHTML = `<option value="">Select a category</option>` + options;
-        // Fill filter select
-        filterSel.innerHTML = `<option value="">All Categories</option>` + options;
-      }catch(err){
+        const src = Array.isArray(data?.categories) ? data.categories : (Array.isArray(data) ? data : []);
+        state.categories = src;
+
+        const options = src.map(c => `<option value="${c._id || c.id}">${c.name}</option>`).join('');
+        if (sel) sel.innerHTML = `<option value="">Select a category</option>` + options;
+        if (filterSel) filterSel.innerHTML = `<option value="">All Categories</option>` + options;
+      } catch (err) {
         console.error(err);
-        if(showToastOnFail) showToast('Failed to load categories','warning');
-        // Keep minimal options
-        sel.innerHTML = `<option value="">(none)</option>`;
+        if (showToastOnFail) showToast('Failed to load categories', 'warning');
+        if (sel) sel.innerHTML = `<option value="">(none)</option>`;
+        state.categories = [];
       }
     }
 
     // ===================== PRODUCTS =====================
-    async function fetchProducts(){
+    async function fetchProducts() {
       const q = $('#product-search').value.trim();
       const cat = $('#category-filter').value;
       const page = state.page;
       const params = { page, limit: PAGE_SIZE };
-      if(q) params.search = q;
-      if(cat) params.category = cat;
+      if (q) params.search = q;
+      if (cat) params.category = cat;
 
       $('#products-grid').classList.add('hidden');
       $('#products-empty').classList.add('hidden');
       initSkeleton(8);
       setLoading('#products-loading', true);
 
-      try{
+      try {
         const { data } = await axios.get(`${API_BASE}/seller/products`, { params, headers: authHeader() });
-        const items = data?.products || data?.items || data || [];
-        state.total = data?.total || data?.count || items.length;
+
+        let items = [];
+        if (Array.isArray(data?.products)) items = data.products;
+        else if (Array.isArray(data?.items)) items = data.items;
+        else if (Array.isArray(data)) items = data;
+
+        state.total = Number.isFinite(data?.total) ? data.total
+                     : Number.isFinite(data?.count) ? data.count
+                     : items.length;
+
         state.products = items;
         renderProducts();
-      }catch(err){
+      } catch (err) {
         console.error(err);
-        showToast('Failed to fetch products','error');
+        showToast('Failed to fetch products', 'error');
         state.products = [];
         renderProducts();
-      }finally{
+      } finally {
         setLoading('#products-loading', false);
         $('#products-skeleton').classList.add('hidden');
       }
