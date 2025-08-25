@@ -3,50 +3,223 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal — Seller Dashboard (Fixed Categories)</title>
+  <title>QuickLocal — Seller Dashboard Enhanced</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* ===== Shared UI Polish (from v3) ===== */
-    .toast{position:fixed;top:1rem;right:1rem;z-index:1050;padding:.75rem 1rem;border-radius:.5rem;color:#fff;opacity:.95;transform:translateX(120%);transition:transform .25s ease;max-width:400px;word-wrap:break-word}
-    .toast.show{transform:translateX(0)}
-    .toast-success{background:#16a34a}.toast-error{background:#ef4444}.toast-info{background:#3b82f6}.toast-warning{background:#f59e0b}
-    .modal-backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
-    .gradient-primary{background:linear-gradient(135deg,#7c3aed,#a855f7)}
-    .focus-ring{transition:all .2s ease}
-    .focus-ring:focus{outline:none;box-shadow:0 0 0 3px rgba(124,58,237,.35)}
-    .product-card{transition:all .3s ease}
-    .product-card:hover{transform:translateY(-4px);box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04)}
-    .imagekit-upload{border:2px dashed #d1d5db;transition:all .3s ease;cursor:pointer}
-    .imagekit-upload:hover{border-color:#7c3aed;background-color:#f8fafc}
-    .imagekit-upload.dragover{border-color:#16a34a;background-color:#f0fdf4}
-    .line-clamp-2{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-    .loading-spinner{border:2px solid #f3f3f3;border-top:2px solid #3498db;border-radius:50%;width:16px;height:16px;animation:spin 1s linear infinite;display:inline-block}
-    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-    .progress-bar{height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden}
-    .progress-bar-fill{height:100%;background:#7c3aed;transition:width .3s ease}
-    /* ===== Extras from v1 ===== */
-    .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:loading 1.5s infinite}
-    @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    .price-input{position:relative}
-    .price-input::before{content:'₹';position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:500}
-    .price-input input{padding-left:30px!important}
-    /* ===== Status dots from v4 ===== */
-    .status-indicator{width:8px;height:8px;border-radius:50%;display:inline-block}
-    .status-active{background-color:#10b981}.status-inactive{background-color:#ef4444}
+    /* ===== Enhanced UI Polish ===== */
+    :root {
+      --brand-primary: #7c3aed;
+      --brand-secondary: #a855f7;
+      --brand-gradient: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+      --focus-ring-color: rgba(124, 58, 237, 0.35);
+      --toast-success: #16a34a;
+      --toast-error: #ef4444;
+      --toast-info: #3b82f6;
+      --toast-warning: #f59e0b;
+      --sidebar-width: 280px;
+      --header-height: 80px;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Toast notifications */
+    .toast {
+      position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1050; padding: .75rem 1.25rem; border-radius: .5rem; color: #fff;
+      opacity: 0; transform: translateX(120%); transition: all .35s ease-in-out; max-width: 400px; word-wrap: break-word;
+      display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .toast.show { opacity: 1; transform: translateX(0); }
+    .toast-success { background: var(--toast-success); } .toast-error { background: var(--toast-error); }
+    .toast-info { background: var(--toast-info); } .toast-warning { background: var(--toast-warning); }
+
+    /* Modal styles */
+    .modal-backdrop {
+      background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+      opacity: 0; transition: opacity .2s ease-in-out; z-index: 1040;
+    }
+    .modal-backdrop.show { opacity: 1; }
+    .modal-content {
+      transform: scale(0.95); opacity: 0; transition: all .2s ease-in-out;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    .modal-backdrop.show .modal-content { transform: scale(1); opacity: 1; }
+
+    /* UI enhancements */
+    .gradient-primary { background: var(--brand-gradient); }
+    .text-gradient { background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .focus-ring { transition: all .2s ease; }
+    .focus-ring:focus { outline: none; box-shadow: 0 0 0 3px var(--focus-ring-color); }
+    
+    .product-card { 
+      transition: all .3s ease; 
+      border: 1px solid transparent; 
+      overflow: hidden;
+    }
+    .product-card:hover { 
+      transform: translateY(-5px); 
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04); 
+      border-color: #e5e7eb; 
+    }
+    
+    .image-uploader { 
+      border: 2px dashed #d1d5db; 
+      transition: all .3s ease; 
+      cursor: pointer; 
+    }
+    .image-uploader:hover { 
+      border-color: var(--brand-primary); 
+      background-color: #f8fafc; 
+    }
+    .image-uploader.dragover { 
+      border-color: var(--toast-success); 
+      background-color: #f0fdf4; 
+      transform: scale(1.02); 
+    }
+
+    /* Skeleton loading */
+    .skeleton { 
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); 
+      background-size: 200% 100%; 
+      animation: loading 1.5s infinite; 
+      border-radius: 0.5rem;
+    }
+    @keyframes loading { 
+      0%{ background-position: 200% 0; } 
+      100%{ background-position: -200% 0; } 
+    }
+    
+    /* Price input styling */
+    .price-input { position: relative; }
+    .price-input::before { 
+      content: '₹'; 
+      position: absolute; 
+      left: 12px; 
+      top: 50%; 
+      transform: translateY(-50%); 
+      color: #6b7280; 
+      font-weight: 500; 
+      z-index: 10;
+    }
+    .price-input input { padding-left: 30px!important; }
+
+    /* Status indicators */
+    .status-indicator { 
+      width: 10px; 
+      height: 10px; 
+      border-radius: 50%; 
+      display: inline-block; 
+      border: 2px solid white; 
+      box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    .status-active { background-color: #10b981; } 
+    .status-inactive { background-color: #ef4444; }
+    
+    /* Sidebar animation */
+    .sidebar { 
+      transform: translateX(-100%); 
+      transition: transform 0.3s ease-in-out; 
+      width: var(--sidebar-width);
+    }
+    .sidebar.open { transform: translateX(0); }
+    
+    @media (min-width: 1024px) {
+      .sidebar { transform: translateX(0); }
+    }
+    
+    /* Mobile menu button */
+    #mobile-menu-btn { display: block; }
+    @media (min-width: 1024px) {
+      #mobile-menu-btn { display: none; }
+    }
+    
+    /* Dashboard stats cards */
+    .stat-card {
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Pulse animation for notifications */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    
+    /* Line clamp utility */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    /* Animation for page transitions */
+    .page-transition {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Badge styling */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* Enhanced button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: var(--brand-gradient);
+      color: white;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    /* Chart container */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
   </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 min-h-screen font-sans antialiased">
 
-  <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 gradient-primary">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
+  <!-- Auth Section -->
+  <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-indigo-50">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 transform transition-all hover:shadow-2xl page-transition">
       <div class="text-center mb-8">
-        <div class="mx-auto w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+        <div class="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4 ring-4 ring-purple-50">
           <i data-lucide="store" class="text-purple-600 w-8 h-8"></i>
         </div>
         <h1 class="text-3xl font-bold text-gray-800">QuickLocal Seller</h1>
-        <p class="text-gray-600 mt-2">Manage your products and grow your business</p>
+        <p class="text-gray-600 mt-2">Manage your products and grow your business.</p>
       </div>
 
       <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
@@ -56,786 +229,1110 @@
 
       <form id="login-form" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
           <div class="relative">
-            <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
-            <input id="login-email" type="email" placeholder="Enter your email" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring">
+            <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+            <input id="login-email" type="email" placeholder="you@example.com" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring focus:border-purple-500 transition-colors">
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
           <div class="relative">
-            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
-            <input id="login-password" type="password" placeholder="Enter your password" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring">
+            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+            <input id="login-password" type="password" placeholder="••••••••" required class="w-full border border-gray-300 rounded-lg p-3 pl-10 focus-ring focus:border-purple-500 transition-colors">
+          </div>
+          <div class="mt-1 text-right">
+            <a href="#" class="text-sm text-purple-600 hover:underline">Forgot password?</a>
           </div>
         </div>
-        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center">
+        <button type="submit" class="w-full gradient-primary text-white py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-2 btn btn-primary">
           <span id="login-btn-text">Sign In</span>
-          <div id="login-spinner" class="loading-spinner ml-2 hidden"></div>
+          <i data-lucide="loader" id="login-spinner" class="animate-spin hidden w-5 h-5"></i>
         </button>
-        <div class="flex items-center justify-between text-sm pt-2">
-          <button id="forgot-password-btn" type="button" class="text-purple-600 hover:underline">Forgot password?</button>
+        
+        <div class="relative my-4">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" class="w-full bg-white border border-gray-300 rounded-lg p-3 font-medium text-gray-700 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
+            <i class="fab fa-google text-red-500"></i>
+            <span>Google</span>
+          </button>
+          <button type="button" class="w-full bg-white border border-gray-300 rounded-lg p-3 font-medium text-gray-700 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
+            <i class="fab fa-facebook text-blue-600"></i>
+            <span>Facebook</span>
+          </button>
         </div>
       </form>
 
       <form id="register-form" class="space-y-4 hidden">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input id="reg-name" type="text" placeholder="John Doe" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-            <input id="reg-phone" type="tel" placeholder="9876543210" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
-          </div>
+        <div>
+          <label for="reg-name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <input id="reg-name" type="text" placeholder="John Doe" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input id="reg-email" type="email" placeholder="john@example.com" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          <label for="reg-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <input id="reg-email" type="email" placeholder="john@example.com" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-          <input id="reg-business" type="text" placeholder="Your Business Name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          <label for="reg-business" class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+          <input id="reg-business" type="text" placeholder="Your Business Name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input id="reg-password" type="password" placeholder="Minimum 6 characters" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          <label for="reg-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input id="reg-password" type="password" placeholder="Minimum 6 characters" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-          <input id="reg-confirm-password" type="password" placeholder="Confirm your password" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+          <label for="reg-confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+          <input id="reg-confirm-password" type="password" placeholder="Confirm your password" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
         </div>
-        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center">
-          <span id="register-btn-text">Create Account & Start Selling</span>
-          <div id="register-spinner" class="loading-spinner ml-2 hidden"></div>
+        <div class="flex items-center">
+          <input id="reg-terms" type="checkbox" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+          <label for="reg-terms" class="ml-2 block text-sm text-gray-700">
+            I agree to the <a href="#" class="text-purple-600 hover:text-purple-500">Terms of Service</a> and <a href="#" class="text-purple-600 hover:text-purple-500">Privacy Policy</a>
+          </label>
+        </div>
+        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-2">
+          <span id="register-btn-text">Create Account</span>
+          <i data-lucide="loader" id="register-spinner" class="animate-spin hidden w-5 h-5"></i>
         </button>
-        <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-          <p class="text-green-700 text-sm font-medium">✨ No email verification required!</p>
-          <p class="text-green-600 text-xs mt-1">Start selling immediately after registration</p>
-        </div>
       </form>
     </div>
   </section>
 
+  <!-- Dashboard Section -->
   <section id="dashboard-section" class="hidden">
-    <header class="bg-white shadow-sm border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center space-x-4">
-            <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-              <i data-lucide="store" class="text-white w-4 h-4"></i>
-            </div>
-            <div>
-              <h1 class="text-xl font-bold text-gray-900">QuickLocal Seller</h1>
-              <p class="text-sm text-gray-500">Welcome back, <span id="seller-name">Seller</span></p>
-            </div>
+    <!-- Mobile sidebar backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden hidden"></div>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar fixed inset-y-0 left-0 z-50 bg-white shadow-lg flex flex-col lg:static lg:translate-x-0">
+      <div class="flex items-center justify-between h-20 border-b px-6">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
+            <i data-lucide="store" class="text-white"></i>
           </div>
-          <div class="flex items-center space-x-4">
-            <div class="hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
-              <span class="text-sm font-medium text-gray-700">Wallet: ₹<span id="wallet-balance">0.00</span></span>
-            </div>
-            <button id="toggle-debug" title="Toggle debug" class="hidden md:inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600">
-              <i data-lucide="bug" class="w-4 h-4"></i>Debug
-            </button>
-            <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
-              <i data-lucide="log-out" class="w-4 h-4 mr-2 inline"></i>Logout
-            </button>
+          <h1 class="text-xl font-bold text-gray-800">QuickLocal</h1>
+        </div>
+        <button id="close-sidebar" class="lg:hidden text-gray-500 hover:text-gray-700">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+      
+      <div class="flex-1 px-4 py-6 overflow-y-auto">
+        <nav class="space-y-1">
+          <a href="#" class="flex items-center px-4 py-3 text-gray-700 bg-purple-50 rounded-lg font-medium border border-purple-100">
+            <i data-lucide="package" class="w-5 h-5 text-purple-600"></i>
+            <span class="ml-3">Products</span>
+          </a>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+            <span class="ml-3">Orders</span>
+            <span class="ml-auto bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">3</span>
+          </a>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+            <span class="ml-3">Analytics</span>
+          </a>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="ml-3">Customers</span>
+          </a>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+            <span class="ml-3">Reviews</span>
+            <span class="ml-auto bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">12</span>
+          </a>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="ml-3">Settings</span>
+          </a>
+        </nav>
+        
+        <div class="mt-8 px-4">
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Business Tools</h3>
+          <div class="space-y-2">
+            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <i data-lucide="trending-up" class="w-4 h-4 mr-3"></i>
+              <span>Marketing</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <i data-lucide="dollar-sign" class="w-4 h-4 mr-3"></i>
+              <span>Discounts</span>
+            </a>
+            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <i data-lucide="file-text" class="w-4 h-4 mr-3"></i>
+              <span>Reports</span>
+            </a>
           </div>
         </div>
       </div>
-    </header>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Products</p><p id="stat-products" class="text-2xl font-bold text-gray-900">0</p></div><i data-lucide="package" class="h-8 w-8 text-blue-600"></i></div></div>
-        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Total Sales</p><p id="stat-sales" class="text-2xl font-bold text-gray-900">₹0</p></div><i data-lucide="dollar-sign" class="h-8 w-8 text-green-600"></i></div></div>
-        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Orders</p><p id="stat-orders" class="text-2xl font-bold text-gray-900">0</p></div><i data-lucide="shopping-cart" class="h-8 w-8 text-amber-600"></i></div></div>
-        <div class="bg-white rounded-lg shadow p-6"><div class="flex items-center justify-between"><div><p class="text-sm font-medium text-gray-500">Rating</p><p id="stat-rating" class="text-2xl font-bold text-gray-900">4.8</p></div><i data-lucide="star" class="h-8 w-8 text-purple-600"></i></div></div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow">
-        <div class="p-6">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-            <div>
-              <h2 class="text-lg font-semibold text-gray-900">Product Management</h2>
-              <p class="text-sm text-gray-500">Manage your product inventory and details</p>
+      
+      <div class="px-4 py-6 border-t">
+        <div class="flex items-center mb-4 px-4 py-3 bg-gray-50 rounded-lg">
+          <div class="flex-shrink-0">
+            <div class="w-10 h-10 gradient-primary rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              <span id="seller-initials">JD</span>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <div class="relative">
-                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
-                <input id="product-search" type="text" placeholder="Search products..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus-ring w-full sm:w-auto">
-              </div>
-              <select id="category-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus-ring w-full sm:w-auto">
-                <option value="">All Categories</option>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-900" id="sidebar-seller-name">John Doe</p>
+            <p class="text-xs text-gray-500" id="sidebar-business-name">John's Store</p>
+          </div>
+        </div>
+        
+        <button id="logout-btn" class="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
+          <span class="ml-3">Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="lg:pl-64 flex flex-col flex-1">
+      <!-- Header -->
+      <header class="bg-white border-b sticky top-0 z-30">
+        <div class="flex items-center justify-between px-6 py-4">
+          <div class="flex items-center">
+            <button id="mobile-menu-btn" class="mr-4 text-gray-500 hover:text-gray-700 lg:hidden">
+              <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            <div>
+              <h2 class="text-2xl font-semibold text-gray-800">Welcome back, <span id="seller-name" class="text-gradient">Seller</span>!</h2>
+              <p class="text-sm text-gray-500">Here's what's happening with your store today.</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-4">
+            <div class="hidden md:flex items-center gap-4">
+              <button class="p-2 rounded-full hover:bg-gray-100 text-gray-500 relative">
+                <i data-lucide="bell" class="w-5 h-5"></i>
+                <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+              </button>
+              <button class="p-2 rounded-full hover:bg-gray-100 text-gray-500">
+                <i data-lucide="help-circle" class="w-5 h-5"></i>
+              </button>
+            </div>
+            
+            <div class="text-right hidden md:block">
+              <p class="text-sm font-medium text-gray-700">Wallet Balance</p>
+              <p class="text-lg font-bold text-purple-600">₹<span id="wallet-balance">0.00</span></p>
+            </div>
+            
+            <button id="toggle-debug" title="Toggle Debug Info" class="p-2 rounded-full hover:bg-gray-100 text-gray-500">
+              <i data-lucide="bug" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main content area -->
+      <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+        <!-- Stats overview -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
+            <div class="space-y-1">
+              <p class="text-sm font-medium text-gray-500">Total Products</p>
+              <p id="stat-products" class="text-3xl font-bold text-gray-800">0</p>
+              <p class="text-xs text-green-600 flex items-center"><i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> 12% from last month</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center bg-blue-100 rounded-full">
+              <i data-lucide="package" class="w-6 h-6 text-blue-600"></i>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
+            <div class="space-y-1">
+              <p class="text-sm font-medium text-gray-500">Total Sales</p>
+              <p id="stat-sales" class="text-3xl font-bold text-gray-800">₹0</p>
+              <p class="text-xs text-green-600 flex items-center"><i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> 8% from last week</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center bg-green-100 rounded-full">
+              <i data-lucide="dollar-sign" class="w-6 h-6 text-green-600"></i>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
+            <div class="space-y-1">
+              <p class="text-sm font-medium text-gray-500">Active Orders</p>
+              <p id="stat-orders" class="text-3xl font-bold text-gray-800">0</p>
+              <p class="text-xs text-red-600 flex items-center"><i data-lucide="trending-down" class="w-4 h-4 mr-1"></i> 3 need attention</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center bg-amber-100 rounded-full">
+              <i data-lucide="shopping-cart" class="w-6 h-6 text-amber-600"></i>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
+            <div class="space-y-1">
+              <p class="text-sm font-medium text-gray-500">Average Rating</p>
+              <p id="stat-rating" class="text-3xl font-bold text-gray-800">N/A</p>
+              <p class="text-xs text-gray-600 flex items-center">Based on 0 reviews</p>
+            </div>
+            <div class="w-12 h-12 flex items-center justify-center bg-purple-100 rounded-full">
+              <i data-lucide="star" class="w-6 h-6 text-purple-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions & chart area -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold text-gray-800">Sales Overview</h3>
+              <select class="text-sm border border-gray-300 rounded-lg px-3 py-1 focus-ring">
+                <option>Last 7 days</option>
+                <option>Last 30 days</option>
+                <option>Last 90 days</option>
               </select>
-              <button id="add-product-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
-                <i data-lucide="plus" class="w-4 h-4 mr-2 inline"></i>Add Product
+            </div>
+            <div class="chart-container">
+              <canvas id="sales-chart"></canvas>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">Quick Actions</h3>
+            <div class="space-y-4">
+              <button class="w-full flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200 transition-colors">
+                    <i data-lucide="plus" class="text-purple-600 w-5 h-5"></i>
+                  </div>
+                  <span class="font-medium text-gray-800">Add New Product</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
+              </button>
+              
+              <button class="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200 transition-colors">
+                    <i data-lucide="tag" class="text-blue-600 w-5 h-5"></i>
+                  </div>
+                  <span class="font-medium text-gray-800">Create Discount</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
+              </button>
+              
+              <button class="w-full flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 transition-colors">
+                    <i data-lucide="bar-chart-2" class="text-green-600 w-5 h-5"></i>
+                  </div>
+                  <span class="font-medium text-gray-800">View Reports</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
+              </button>
+              
+              <button class="w-full flex items-center justify-between p-4 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors group">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-amber-200 transition-colors">
+                    <i data-lucide="settings" class="text-amber-600 w-5 h-5"></i>
+                  </div>
+                  <span class="font-medium text-gray-800">Store Settings</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
               </button>
             </div>
           </div>
+        </div>
 
-          <div id="products-loading" class="text-center py-8 hidden">
-            <div class="flex justify-center items-center">
-              <div class="loading-spinner mr-2"></div>
-              <div class="text-gray-500">Loading products...</div>
-            </div>
-          </div>
-
-          <div id="products-empty" class="text-center py-8 hidden">
-            <i data-lucide="package" class="mx-auto h-12 w-12 text-gray-400 mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No products yet</h3>
-            <p class="text-gray-500 mb-4">Get started by adding your first product!</p>
-            <button id="add-first-product-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
-              <i data-lucide="plus" class="w-4 h-4 mr-2 inline"></i>Add Your First Product
-            </button>
-          </div>
-
-          <div id="products-skeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-          </div>
-
-          <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
-
-          <div id="pagination" class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6 hidden">
-            <div class="flex-1 flex justify-between sm:hidden">
-              <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
-              <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <!-- Product inventory -->
+        <div class="bg-white rounded-xl shadow">
+          <div class="p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <p class="text-sm text-gray-700">
-                  Showing <span id="pagination-start" class="font-medium">1</span> to <span id="pagination-end" class="font-medium">10</span> of <span id="pagination-total" class="font-medium">0</span> results
-                </p>
+                <h3 class="text-xl font-semibold text-gray-800">Product Inventory</h3>
+                <p class="text-sm text-gray-500">Manage your product details, stock, and status.</p>
               </div>
-              <div>
-                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button id="prev-page" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                    <span class="sr-only">Previous</span>
-                    <i data-lucide="chevron-left" class="h-5 w-5"></i>
-                  </button>
-                  <span id="pagination-pages" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"></span>
-                  <button id="next-page" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                    <span class="sr-only">Next</span>
-                    <i data-lucide="chevron-right" class="h-5 w-5"></i>
-                  </button>
-                </nav>
+              <div class="flex items-center gap-3 flex-wrap">
+                <div class="relative flex-grow max-w-xs">
+                  <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+                  <input id="product-search" type="text" placeholder="Search products..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus-ring w-full">
+                </div>
+                <select id="category-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus-ring">
+                  <option value="">All Categories</option>
+                </select>
+                <select id="status-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus-ring">
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <button id="add-product-btn" class="gradient-primary text-white px-4 py-2 rounded-lg transition-all hover:shadow-lg whitespace-nowrap flex items-center gap-2 btn btn-primary">
+                  <i data-lucide="plus" class="w-5 h-5"></i>Add Product
+                </button>
+              </div>
+            </div>
+
+            <div id="products-loading" class="text-center py-12 hidden">
+              <div class="flex justify-center items-center gap-2 text-gray-500">
+                <i data-lucide="loader" class="animate-spin w-5 h-5"></i>
+                <span>Loading products...</span>
+              </div>
+            </div>
+            
+            <div id="products-empty" class="text-center py-12 hidden">
+              <i data-lucide="package-x" class="mx-auto h-12 w-12 text-gray-400 mb-4"></i>
+              <h3 class="text-lg font-medium text-gray-800 mb-2">No Products Found</h3>
+              <p class="text-gray-500 mb-4">Add your first product to get started!</p>
+              <button id="add-first-product-btn" class="gradient-primary text-white px-4 py-2 rounded-lg transition-all hover:shadow-lg flex items-center gap-2 mx-auto btn btn-primary">
+                <i data-lucide="plus" class="w-4 h-4"></i>Add Your First Product
+              </button>
+            </div>
+
+            <div id="products-skeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
+            
+            <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
+
+            <div id="pagination" class="flex items-center justify-between border-t pt-4 mt-6 hidden">
+              <p class="text-sm text-gray-700">Showing <b id="pagination-start">1</b> to <b id="pagination-end">10</b> of <b id="pagination-total">0</b> results</p>
+              <div class="flex items-center gap-2">
+                <button id="prev-page" class="p-2 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  <i data-lucide="chevron-left" class="h-5 w-5"></i>
+                </button>
+                <span id="pagination-pages" class="text-sm font-medium text-gray-700"></span>
+                <button id="next-page" class="p-2 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  <i data-lucide="chevron-right" class="h-5 w-5"></i>
+                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div id="debug-info" class="bg-gray-100 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 mt-6 hidden">
-        <p class="font-semibold">Debug Info</p>
-        <p>Seller ID: <span id="debug-seller-id">-</span></p>
-        <p>Token: <span id="debug-token">-</span></p>
-        <p>API Base: <span id="debug-api-base">-</span></p>
-        <p>Categories loaded: <span id="debug-categories-count">0</span></p>
-        <p>Last category API response: <span id="debug-last-category-response">-</span></p>
-      </div>
-
-    </main>
+      </main>
+    </div>
   </section>
 
+  <!-- Product Modal -->
   <div id="product-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-6">
-        <h3 id="modal-title" class="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <i data-lucide="info" class="w-5 h-5 text-purple-600"></i>
-          <span>Add New Product</span>
-        </h3>
-        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+    <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl max-h-[90vh] flex flex-col modal-content">
+      <div class="flex items-center justify-between p-6 border-b">
+        <h3 id="modal-title" class="text-xl font-bold text-gray-800">Add New Product</h3>
+        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
       </div>
-
-      <form id="product-form" class="space-y-6">
-        <div class="space-y-4">
-          <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <i data-lucide="info" class="w-4 h-4 text-purple-600"></i>Basic Information
-          </h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="product-form" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <div>
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h4>
+          <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-              <input id="product-name" placeholder="Enter product name" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
-              <p class="text-xs text-gray-500 mt-1">Minimum 2 characters, no special characters</p>
+              <label for="product-name" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+              <input id="product-name" placeholder="e.g., Premium Wireless Headphones" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-              <select id="product-category" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
-                <option value="" class="category-loading">Loading categories...</option>
-              </select>
-              <button type="button" id="refresh-categories-btn" class="mt-1 text-xs text-purple-600 hover:underline">
-                <i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i>Refresh categories
-              </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="product-category" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <select id="product-category" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring bg-white">
+                  <option value="" disabled selected>Loading categories...</option>
+                </select>
+              </div>
+              <div>
+                <label for="product-stock" class="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
+                <input id="product-stock" type="number" min="0" step="1" placeholder="0" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
+              </div>
             </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="price-input">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
-              <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+              <label for="product-price" class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+              <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
-              <input id="product-stock" type="number" min="0" step="1" placeholder="0" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring">
+              <label for="product-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea id="product-description" rows="4" placeholder="Describe your product..." class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors" maxlength="500"></textarea>
+              <p class="text-xs text-gray-500 mt-1"><span id="char-count">0</span>/500 characters</p>
+            </div>
+            <div class="flex items-center">
+              <input id="product-active" type="checkbox" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" checked>
+              <label for="product-active" class="ml-2 block text-sm text-gray-700">
+                Product is active and visible to customers
+              </label>
             </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea id="product-description" rows="3" placeholder="Enter product description..." class="w-full border border-gray-300 rounded-lg p-3 focus-ring" maxlength="500"></textarea>
-            <p class="text-xs text-gray-500 mt-1">Maximum 500 characters</p>
-          </div>
         </div>
-
-        <div class="space-y-4">
-          <h4 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <i data-lucide="image" class="w-4 h-4 text-purple-600"></i>Images
-          </h4>
-          <div id="upload-drop" class="imagekit-upload rounded-lg p-6 text-center">
-            <input id="product-images" type="file" multiple accept="image/*" class="hidden">
-            <p class="text-gray-600">Drag & drop images here or <button type="button" id="pick-images" class="text-purple-600 underline">browse</button></p>
-            <p class="text-xs text-gray-500 mt-1">You can upload up to 6 images. First image is used as cover.</p>
+        <div>
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">Product Images</h4>
+          <div id="upload-drop" class="image-uploader rounded-lg p-6 text-center">
+            <input id="product-images-input" type="file" multiple accept="image/*" class="hidden">
+            <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto text-gray-400 mb-2"></i>
+            <p class="text-gray-600">Drag & drop images here or <button type="button" id="pick-images-btn" class="text-purple-600 font-semibold underline">browse</button></p>
+            <p class="text-xs text-gray-500 mt-1">Upload up to 6 images (PNG, JPG). First image is the cover.</p>
           </div>
-          <div id="upload-previews" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
-          <div class="progress-bar hidden" id="upload-progress">
-            <div class="progress-bar-fill" id="upload-progress-fill" style="width:0%"></div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-3">
-          <button type="button" id="cancel-product" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700">Cancel</button>
-          <button type="submit" id="save-product" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold">Save Product</button>
+          <div id="upload-previews" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4"></div>
         </div>
       </form>
+      <div class="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 rounded-b-2xl">
+        <button type="button" id="cancel-product-btn" class="px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition-colors">Cancel</button>
+        <button type="submit" form="product-form" id="save-product-btn" class="px-6 py-2 rounded-lg gradient-primary text-white font-semibold transition-all hover:shadow-lg flex items-center gap-2 btn btn-primary">
+          <span id="save-product-text">Save Product</span>
+          <i data-lucide="loader" id="save-spinner" class="animate-spin hidden w-5 h-5"></i>
+        </button>
+      </div>
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+      <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 text-center modal-content">
+          <i id="confirm-modal-icon" data-lucide="alert-triangle" class="w-16 h-16 mx-auto text-red-500 mb-4"></i>
+          <h3 id="confirm-modal-title" class="text-xl font-bold text-gray-800 mb-2">Are you sure?</h3>
+          <p id="confirm-modal-text" class="text-gray-600 mb-6">You won't be able to revert this!</p>
+          <div class="flex justify-center gap-4">
+              <button id="confirm-modal-cancel-btn" class="px-6 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition-colors">Cancel</button>
+              <button id="confirm-modal-confirm-btn" class="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors">Yes, delete it!</button>
+          </div>
+      </div>
+  </div>
 
+  <!-- Debug Modal -->
+  <div id="debug-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 modal-content">
+          <div class="flex items-center justify-between mb-4">
+              <h3 class="text-xl font-bold text-gray-800">Debug Information</h3>
+              <button id="close-debug-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+          </div>
+          <div class="bg-gray-100 border rounded-lg p-4 text-xs text-gray-700 space-y-2 font-mono break-all max-h-96 overflow-y-auto">
+              <p><strong>Seller ID:</strong> <span id="debug-seller-id">-</span></p>
+              <p><strong>Access Token:</strong> <span id="debug-token">-</span></p>
+              <p><strong>API Base URL:</strong> <span id="debug-api-base">-</span></p>
+              <p><strong>Categories Loaded:</strong> <span id="debug-categories-count">0</span></p>
+              <p><strong>Last API Response (Categories):</strong> <span id="debug-last-category-response">-</span></p>
+              <p><strong>Products Count:</strong> <span id="debug-products-count">0</span></p>
+              <p><strong>Last API Error:</strong> <span id="debug-last-error">None</span></p>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button id="copy-debug-btn" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors text-sm flex items-center gap-2">
+              <i data-lucide="copy" class="w-4 h-4"></i> Copy Debug Info
+            </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5"></i>
+    <span id="toast-message"></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // ===================== CONFIG =====================
-    const API_BASE = localStorage.getItem('API_BASE') || 'https://quicklocal-backend.onrender.com/api/v1';
-    const PAGE_SIZE = 12;
+    // ===================== CONFIG & INITIALIZATION =====================
+    const API_BASE = 'https://quicklocal-backend.onrender.com/api/v1';
+    const PAGE_SIZE = 8;
 
-    // ===================== STATE =====================
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      App.init();
+      
+      // Initialize sales chart
+      if (typeof Chart !== 'undefined') {
+        Chart.defaults.font.family = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif';
+        Chart.defaults.color = '#6b7280';
+        App.initSalesChart();
+      }
+    });
+
+    // ===================== GLOBAL STATE =====================
     const state = {
-      token: localStorage.getItem('accessToken') || '',
+      token: localStorage.getItem('accessToken') || null,
       seller: JSON.parse(localStorage.getItem('seller') || 'null'),
       categories: [],
       products: [],
-      page: 1,
-      total: 0,
-      editing: null,
-      uploads: [] // {file, url}
+      currentPage: 1,
+      totalProducts: 0,
+      isEditing: null,
+      imageUploads: [],
+      salesChart: null
     };
 
-    // ===================== UTILITIES =====================
+    // ===================== UTILITY FUNCTIONS =====================
     const $ = sel => document.querySelector(sel);
     const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-    function showToast(msg, type='success'){
-      const el = $('#toast');
-      el.textContent = msg;
-      el.className = `toast toast-${type} show`;
-      setTimeout(()=>{ el.classList.remove('show'); }, 2500);
-    }
+    const UI = {
+      showToast(message, type = 'success') {
+        const toast = $('#toast');
+        const icon = $('#toast-icon');
+        const icons = { success: 'check-circle', error: 'x-circle', warning: 'alert-triangle', info: 'info' };
+        
+        $('#toast-message').textContent = message;
+        icon.setAttribute('data-lucide', icons[type] || 'info');
+        lucide.createIcons();
+        
+        toast.className = `toast toast-${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3000);
+      },
 
-    function setLoading(id, show){
-      const el = $(id);
-      if(!el) return;
-      el.classList.toggle('hidden', !show);
-    }
+      setLoading(selector, isLoading) {
+        const el = $(selector);
+        if (el) el.classList.toggle('hidden', !isLoading);
+      },
 
-    function formatINR(n){
-      if(n === null || n === undefined || isNaN(n)) return '0';
-      return new Intl.NumberFormat('en-IN').format(Number(n));
-    }
+      showView(view) {
+        $('#auth-section').classList.toggle('hidden', view !== 'auth');
+        $('#dashboard-section').classList.toggle('hidden', view !== 'dashboard');
+      },
 
-    function authHeader(){
-      return state.token ? { Authorization: `Bearer ${state.token}` } : {};
-    }
-
-    function updateDebug(){
-      $('#debug-seller-id').textContent = state.seller?.id || state.seller?._id || '-';
-      $('#debug-token').textContent = state.token ? `${state.token.slice(0,12)}…${state.token.slice(-6)}` : '-';
-      $('#debug-api-base').textContent = API_BASE;
-      $('#debug-categories-count').textContent = state.categories.length;
-    }
-
-    function initSkeleton(count=8){
-        const grid = $('#products-skeleton');
-        if (!grid) return;
-        grid.innerHTML = '';
-        const cardHTML = `
-            <div class="bg-white rounded-lg shadow p-4 space-y-3">
-                <div class="h-40 rounded-md skeleton"></div>
-                <div class="h-5 w-3/4 rounded-md skeleton"></div>
-                <div class="h-4 w-1/2 rounded-md skeleton"></div>
-                <div class="h-9 w-full rounded-md skeleton"></div>
-            </div>
-        `;
-        for (let i = 0; i < count; i++) {
-            grid.insertAdjacentHTML('beforeend', cardHTML);
+      toggleModal(modalId, show) {
+        const modal = $(`#${modalId}`);
+        if(modal) {
+          if (show) {
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('show'), 10);
+            document.body.style.overflow = 'hidden';
+          } else {
+            modal.classList.remove('show');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+            document.body.style.overflow = 'auto';
+          }
         }
-        grid.classList.remove('hidden');
-    }
+      },
 
-    // ===================== AUTH =====================
-    function switchTab(to){
-      const isLogin = to === 'login';
-      $('#login-tab').classList.toggle('bg-white', isLogin);
-      $('#login-tab').classList.toggle('text-purple-600', isLogin);
-      $('#register-tab').classList.toggle('bg-white', !isLogin);
-      $('#register-tab').classList.toggle('text-purple-600', !isLogin);
-      $('#login-form').classList.toggle('hidden', !isLogin);
-      $('#register-form').classList.toggle('hidden', isLogin);
-    }
+      confirm(title, text, icon = 'alert-triangle') {
+        return new Promise(resolve => {
+            $('#confirm-modal-title').textContent = title;
+            $('#confirm-modal-text').textContent = text;
+            $('#confirm-modal-icon').setAttribute('data-lucide', icon);
+            lucide.createIcons();
+            UI.toggleModal('confirm-modal', true);
+            
+            $('#confirm-modal-confirm-btn').onclick = () => { UI.toggleModal('confirm-modal', false); resolve(true); };
+            $('#confirm-modal-cancel-btn').onclick = () => { UI.toggleModal('confirm-modal', false); resolve(false); };
+        });
+      },
 
-    function showDashboard(){
-      $('#auth-section').classList.add('hidden');
-      $('#dashboard-section').classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    function showAuth(){
-      $('#dashboard-section').classList.add('hidden');
-      $('#auth-section').classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    async function handleLogin(e){
-      e.preventDefault();
-      $('#login-spinner').classList.remove('hidden');
-      $('#login-btn-text').textContent = 'Signing in…';
-      try{
-        const email = $('#login-email').value.trim();
-        const password = $('#login-password').value;
-        const { data } = await axios.post(`${API_BASE}/auth/login`, { email, password });
-        state.token = data?.accessToken || data?.token || '';
-        state.seller = data?.user || data?.seller || null;
-        localStorage.setItem('accessToken', state.token);
-        localStorage.setItem('seller', JSON.stringify(state.seller||{}));
-        showToast('Logged in successfully');
-        $('#seller-name').textContent = state.seller?.name || state.seller?.fullName || 'Seller';
-        updateDebug();
-        showDashboard();
-        await bootstrapAfterAuth();
-      }catch(err){
-        console.error(err);
-        showToast(err?.response?.data?.message || 'Login failed', 'error');
-      }finally{
-        $('#login-spinner').classList.add('hidden');
-        $('#login-btn-text').textContent = 'Sign In';
-      }
-    }
-
-    async function handleRegister(e){
-      e.preventDefault();
-      $('#register-spinner').classList.remove('hidden');
-      $('#register-btn-text').textContent = 'Creating…';
-      try{
-        const payload = {
-          name: $('#reg-name').value.trim(),
-          phone: $('#reg-phone').value.trim(),
-          email: $('#reg-email').value.trim(),
-          businessName: $('#reg-business').value.trim(),
-          password: $('#reg-password').value,
-          confirmPassword: $('#reg-confirm-password').value,
-          role: 'seller'
-        };
-        const { data } = await axios.post(`${API_BASE}/auth/register`, payload);
-        showToast('Account created! Please login.','success');
-        switchTab('login');
-      }catch(err){
-        console.error(err);
-        showToast(err?.response?.data?.message || 'Registration failed','error');
-      }finally{
-        $('#register-spinner').classList.add('hidden');
-        $('#register-btn-text').textContent = 'Create Account & Start Selling';
-      }
-    }
-
-    function logout(){
-      state.token=''; state.seller=null;
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('seller');
-      showAuth();
-    }
-
-    // ===================== CATEGORIES =====================
-    async function loadCategories(showToastOnFail = true) {
-      const sel = $('#product-category');
-      const filterSel = $('#category-filter');
-      if (sel) sel.innerHTML = `<option value="" class="category-loading">Loading categories...</option>`;
+      formatCurrency(num) {
+        return new Intl.NumberFormat('en-IN').format(Number(num) || 0);
+      },
       
-      try {
-        console.log('Loading categories from:', `${API_BASE}/categories`);
+      toggleSidebar(show) {
+        const sidebar = $('.sidebar');
+        const backdrop = $('#sidebar-backdrop');
         
-        // Try multiple possible endpoints for categories
-        let response;
-        let categoriesData = [];
+        if (show) {
+          sidebar.classList.add('open');
+          backdrop.classList.remove('hidden');
+        } else {
+          sidebar.classList.remove('open');
+          backdrop.classList.add('hidden');
+        }
+      }
+    };
+    
+    // ===================== API HELPERS =====================
+    const API = {
+        getHeaders() {
+            return state.token ? { Authorization: `Bearer ${state.token}` } : {};
+        },
+
+        async get(endpoint, params = {}) {
+            return axios.get(`${API_BASE}${endpoint}`, { params, headers: this.getHeaders() });
+        },
+
+        async post(endpoint, data) {
+            return axios.post(`${API_BASE}${endpoint}`, data, { headers: { ...this.getHeaders(), 'Content-Type': 'application/json' }});
+        },
         
+        async postForm(endpoint, formData) {
+            return axios.post(`${API_BASE}${endpoint}`, formData, { headers: { ...this.getHeaders(), 'Content-Type': 'multipart/form-data' }});
+        },
+
+        async putForm(endpoint, formData) {
+            return axios.put(`${API_BASE}${endpoint}`, formData, { headers: { ...this.getHeaders(), 'Content-Type': 'multipart/form-data' }});
+        },
+
+        async delete(endpoint) {
+            return axios.delete(`${API_BASE}${endpoint}`, { headers: this.getHeaders() });
+        },
+
+        async patch(endpoint, data) {
+            return axios.patch(`${API_BASE}${endpoint}`, data, { headers: this.getHeaders() });
+        }
+    };
+
+    // ===================== APPLICATION LOGIC (App) =====================
+    const App = {
+      init() {
+        this.bindAuthEvents();
+        this.bindDashboardEvents();
+        this.bindModalEvents();
+        this.setupImageUploader();
+
+        if (state.token && state.seller) {
+          this.bootstrapDashboard();
+        } else {
+          UI.showView('auth');
+        }
+      },
+      
+      initSalesChart() {
+        const ctx = document.getElementById('sales-chart');
+        if (!ctx) return;
+        
+        // Sample data for the chart
+        const data = {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [
+            {
+              label: 'Sales (₹)',
+              data: [12000, 19000, 15000, 25000, 22000, 30000, 28000],
+              borderColor: '#7c3aed',
+              backgroundColor: 'rgba(124, 58, 237, 0.1)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        };
+        
+        const config = {
+          type: 'line',
+          data: data,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  drawBorder: false
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        };
+        
+        state.salesChart = new Chart(ctx, config);
+      },
+
+      // ---------- AUTHENTICATION ----------
+      bindAuthEvents() {
+        $('#login-tab').onclick = () => this.switchAuthTab('login');
+        $('#register-tab').onclick = () => this.switchAuthTab('register');
+        $('#login-form').addEventListener('submit', this.handleLogin.bind(this));
+        $('#register-form').addEventListener('submit', this.handleRegister.bind(this));
+        
+        // Password visibility toggle (would need implementation)
+      },
+
+      switchAuthTab(tab) {
+        const isLogin = tab === 'login';
+        $('#login-tab').classList.toggle('bg-white', isLogin);
+        $('#login-tab').classList.toggle('text-purple-600', isLogin);
+        $('#login-tab').classList.toggle('font-semibold', isLogin);
+        $('#register-tab').classList.toggle('bg-white', !isLogin);
+        $('#register-tab').classList.toggle('text-purple-600', !isLogin);
+        $('#register-tab').classList.toggle('font-semibold', !isLogin);
+        $('#login-form').classList.toggle('hidden', !isLogin);
+        $('#register-form').classList.toggle('hidden', isLogin);
+      },
+
+      async handleLogin(e) {
+        e.preventDefault();
+        UI.setLoading('#login-spinner', true);
+        $('#login-btn-text').textContent = 'Signing in...';
         try {
-          // First try the main categories endpoint
-          response = await axios.get(`${API_BASE}/categories`, { headers: authHeader() });
-          console.log('Categories response:', response.data);
-          $('#debug-last-category-response').textContent = JSON.stringify(response.data).slice(0, 100) + '...';
-        } catch (firstError) {
-          console.log('First endpoint failed, trying alternative...');
+          const { data } = await API.post('/auth/login', {
+            email: $('#login-email').value,
+            password: $('#login-password').value
+          });
+          state.token = data.accessToken || data.token;
+          state.seller = data.user || data.seller;
+          localStorage.setItem('accessToken', state.token);
+          localStorage.setItem('seller', JSON.stringify(state.seller));
+          UI.showToast('Login successful!');
+          this.bootstrapDashboard();
+        } catch (err) {
+          UI.showToast(err.response?.data?.message || 'Login failed', 'error');
+        } finally {
+          UI.setLoading('#login-spinner', false);
+          $('#login-btn-text').textContent = 'Sign In';
+        }
+      },
+
+      async handleRegister(e) {
+          e.preventDefault();
+          // Validate passwords match
+          if ($('#reg-password').value !== $('#reg-confirm-password').value) {
+            UI.showToast('Passwords do not match', 'error');
+            return;
+          }
+          
+          // Validate terms accepted
+          if (!$('#reg-terms').checked) {
+            UI.showToast('Please accept the terms and conditions', 'error');
+            return;
+          }
+          
+          UI.setLoading('#register-spinner', true);
+          $('#register-btn-text').textContent = 'Creating account...';
           try {
-            // Try alternative endpoint
-            response = await axios.get(`${API_BASE}/category`, { headers: authHeader() });
-            console.log('Alternative categories response:', response.data);
-            $('#debug-last-category-response').textContent = JSON.stringify(response.data).slice(0, 100) + '...';
-          } catch (secondError) {
-            // If both fail, create some default categories
-            console.log('Both endpoints failed, using fallback categories');
-            categoriesData = [
-              { _id: 'electronics', name: 'Electronics', id: 'electronics' },
-              { _id: 'clothing', name: 'Clothing & Fashion', id: 'clothing' },
-              { _id: 'home', name: 'Home & Garden', id: 'home' },
-              { _id: 'books', name: 'Books & Media', id: 'books' },
-              { _id: 'sports', name: 'Sports & Outdoors', id: 'sports' },
-              { _id: 'health', name: 'Health & Beauty', id: 'health' },
-              { _id: 'food', name: 'Food & Beverages', id: 'food' },
-              { _id: 'automotive', name: 'Automotive', id: 'automotive' },
-              { _id: 'toys', name: 'Toys & Games', id: 'toys' },
-              { _id: 'other', name: 'Other', id: 'other' }
-            ];
-            $('#debug-last-category-response').textContent = 'Using fallback categories';
+              await API.post('/auth/register', {
+                  name: $('#reg-name').value,
+                  email: $('#reg-email').value,
+                  businessName: $('#reg-business').value,
+                  password: $('#reg-password').value,
+                  role: 'seller'
+              });
+              UI.showToast('Registration successful! Please login.', 'success');
+              this.switchAuthTab('login');
+              $('#login-email').value = $('#reg-email').value; // Pre-fill email
+              $('#register-form').reset();
+          } catch (err) {
+              UI.showToast(err.response?.data?.message || 'Registration failed', 'error');
+          } finally {
+              UI.setLoading('#register-spinner', false);
+              $('#register-btn-text').textContent = 'Create Account';
           }
-        }
+      },
 
-        // Extract categories from response if we got one
-        if (response && response.data) {
-          const data = response.data;
-          if (Array.isArray(data?.categories)) {
-            categoriesData = data.categories;
-          } else if (Array.isArray(data?.data)) {
-            categoriesData = data.data;
-          } else if (Array.isArray(data)) {
-            categoriesData = data;
-          } else if (data.success && Array.isArray(data.categories)) {
-            categoriesData = data.categories;
-          }
-        }
+      logout() {
+        state.token = null;
+        state.seller = null;
+        localStorage.clear();
+        UI.showView('auth');
+        UI.showToast('You have been logged out.', 'info');
+      },
+      
+      // ---------- DASHBOARD ----------
+      async bootstrapDashboard() {
+        UI.showView('dashboard');
+        const sellerName = state.seller.name || 'Seller';
+        $('#seller-name').textContent = sellerName;
+        $('#sidebar-seller-name').textContent = sellerName;
+        $('#sidebar-business-name').textContent = state.seller.businessName || 'Business';
+        $('#seller-initials').textContent = sellerName.split(' ').map(n => n[0]).join('').toUpperCase();
+        $('#wallet-balance').textContent = UI.formatCurrency(state.seller.walletBalance || 0);
+        this.updateDebugInfo();
+        await this.loadCategories();
+        await this.fetchProducts();
+      },
 
-        state.categories = categoriesData;
-        console.log('Final categories:', state.categories);
-
-        const options = categoriesData.map(c => {
-          const id = c._id || c.id || c.categoryId;
-          const name = c.name || c.categoryName || c.title || 'Unnamed Category';
-          return `<option value="${id}">${name}</option>`;
-        }).join('');
-
-        if (sel) {
-          sel.innerHTML = `<option value="">Select a category</option>` + options;
-        }
-        if (filterSel) {
-          filterSel.innerHTML = `<option value="">All Categories</option>` + options;
-        }
-
-        updateDebug();
-
-        if (categoriesData.length === 0 && showToastOnFail) {
-          showToast('No categories found. Using default categories.', 'warning');
-        }
-
-      } catch (err) {
-        console.error('Categories loading error:', err);
-        if (showToastOnFail) showToast('Failed to load categories', 'warning');
+      bindDashboardEvents() {
+        $('#logout-btn').onclick = this.logout;
+        $('#add-product-btn').onclick = () => this.openProductModal('add');
+        $('#add-first-product-btn').onclick = () => this.openProductModal('add');
+        $('#product-search').addEventListener('input', this.debounce(() => { 
+          state.currentPage = 1; 
+          this.fetchProducts(); 
+        }, 500));
+        $('#category-filter').addEventListener('change', () => { state.currentPage = 1; this.fetchProducts(); });
+        $('#status-filter').addEventListener('change', () => { state.currentPage = 1; this.fetchProducts(); });
+        $('#prev-page').onclick = () => { if (state.currentPage > 1) { state.currentPage--; this.fetchProducts(); } };
+        $('#next-page').onclick = () => { if (state.currentPage < Math.ceil(state.totalProducts / PAGE_SIZE)) { state.currentPage++; this.fetchProducts(); } };
+        $('#toggle-debug').onclick = () => UI.toggleModal('debug-modal', true);
+        $('#close-debug-btn').onclick = () => UI.toggleModal('debug-modal', false);
+        $('#copy-debug-btn').onclick = this.copyDebugInfo;
         
-        // Use fallback categories on complete failure
-        state.categories = [
-          { _id: 'electronics', name: 'Electronics' },
-          { _id: 'clothing', name: 'Clothing & Fashion' },
-          { _id: 'home', name: 'Home & Garden' },
-          { _id: 'books', name: 'Books & Media' },
-          { _id: 'sports', name: 'Sports & Outdoors' },
-          { _id: 'health', name: 'Health & Beauty' },
-          { _id: 'food', name: 'Food & Beverages' },
-          { _id: 'automotive', name: 'Automotive' },
-          { _id: 'toys', name: 'Toys & Games' },
-          { _id: 'other', name: 'Other' }
-        ];
-
-        const fallbackOptions = state.categories.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
-        if (sel) sel.innerHTML = `<option value="">Select a category</option>` + fallbackOptions;
-        if (filterSel) filterSel.innerHTML = `<option value="">All Categories</option>` + fallbackOptions;
+        // Mobile sidebar
+        $('#mobile-menu-btn').onclick = () => UI.toggleSidebar(true);
+        $('#close-sidebar').onclick = () => UI.toggleSidebar(false);
+        $('#sidebar-backdrop').onclick = () => UI.toggleSidebar(false);
+      },
+      
+      debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      },
+      
+      copyDebugInfo() {
+        const debugInfo = `Seller ID: ${$('#debug-seller-id').textContent}
+Access Token: ${$('#debug-token').textContent}
+API Base URL: ${$('#debug-api-base').textContent}
+Categories Loaded: ${$('#debug-categories-count').textContent}
+Last Category Response: ${$('#debug-last-category-response').textContent}
+Products Count: ${$('#debug-products-count').textContent}
+Last Error: ${$('#debug-last-error').textContent}`;
         
-        $('#debug-last-category-response').textContent = 'Error: ' + (err.message || 'Unknown error');
-        updateDebug();
-      }
-    }
+        navigator.clipboard.writeText(debugInfo).then(() => {
+          UI.showToast('Debug info copied to clipboard', 'success');
+        });
+      },
 
-    // ===================== PRODUCTS =====================
-    async function fetchProducts() {
-      const q = $('#product-search').value.trim();
-      const cat = $('#category-filter').value;
-      const page = state.page;
-      const params = { page, limit: PAGE_SIZE };
-      if (q) params.search = q;
-      if (cat) params.category = cat;
+      updateDebugInfo() {
+        $('#debug-seller-id').textContent = state.seller?.id || state.seller?._id || '-';
+        $('#debug-token').textContent = state.token ? `${state.token.slice(0, 12)}...` : '-';
+        $('#debug-api-base').textContent = API_BASE;
+        $('#debug-categories-count').textContent = state.categories.length;
+        $('#debug-products-count').textContent = state.products.length;
+      },
+      
+      // ---------- CATEGORIES ----------
+      async loadCategories() {
+        try {
+          const { data } = await API.get('/categories');
+          const categories = data?.categories || data?.data || data || [];
+          state.categories = categories;
 
-      $('#products-grid').classList.add('hidden');
-      $('#products-empty').classList.add('hidden');
-      initSkeleton(8);
-      setLoading('#products-loading', true);
+          const optionsHtml = categories.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+          $('#product-category').innerHTML = `<option value="" disabled selected>Select a category</option>${optionsHtml}`;
+          $('#category-filter').innerHTML = `<option value="">All Categories</option>${optionsHtml}`;
+          $('#debug-last-category-response').textContent = `Success: Loaded ${categories.length} items.`;
+        } catch (err) {
+          UI.showToast('Could not load categories.', 'warning');
+          $('#debug-last-category-response').textContent = `Error: ${err.message}`;
+          $('#debug-last-error').textContent = err.message;
+        }
+        this.updateDebugInfo();
+      },
 
-      try {
-        const { data } = await axios.get(`${API_BASE}/seller/products`, { params, headers: authHeader() });
-
-        let items = [];
-        if (Array.isArray(data?.products)) items = data.products;
-        else if (Array.isArray(data?.items)) items = data.items;
-        else if (Array.isArray(data)) items = data;
-
-        state.total = Number.isFinite(data?.total) ? data.total
-                     : Number.isFinite(data?.count) ? data.count
-                     : items.length;
-
-        state.products = items;
-        renderProducts();
-      } catch (err) {
-        console.error(err);
-        showToast('Failed to fetch products', 'error');
-        state.products = [];
-        renderProducts();
-      } finally {
-        setLoading('#products-loading', false);
-        $('#products-skeleton').classList.add('hidden');
-      }
-    }
-
-    function renderProducts(){
-      const grid = $('#products-grid');
-      grid.innerHTML = '';
-      if(!state.products.length){
-        $('#products-empty').classList.remove('hidden');
+      // ---------- PRODUCTS ----------
+      async fetchProducts() {
+        UI.setLoading('#products-loading', true);
         $('#products-grid').classList.add('hidden');
-        updatePagination(0,0,0);
-        return;
-      }
-      state.products.forEach(p=>{
-        const active = p.active !== false; // default true if missing
-        const img = (p.images && p.images[0]) || p.image || 'https://via.placeholder.com/400x300?text=Product';
-        const card = document.createElement('div');
-        card.className = 'bg-white rounded-lg shadow product-card overflow-hidden flex flex-col';
-        card.innerHTML = `
-          <div class="relative">
-            <img src="${img}" alt="${p.name||'Product'}" class="w-full h-40 object-cover">
-            <span class="absolute top-2 left-2 status-indicator ${active?'status-active':'status-inactive'}" title="${active?'Active':'Inactive'}"></span>
-          </div>
-          <div class="p-4 flex-1 flex flex-col">
-            <h3 class="font-semibold text-gray-900 line-clamp-2">${p.name||'Unnamed'}</h3>
-            <p class="text-sm text-gray-500 mt-1">Stock: ${p.stock ?? 0}</p>
-            <p class="text-lg font-bold text-gray-900 mt-2">₹${formatINR(p.price || 0)}</p>
-            <div class="mt-auto pt-4 grid grid-cols-3 gap-2">
-              <button class="px-2 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200" data-action="edit">Edit</button>
-              <button class="px-2 py-2 text-sm rounded-lg bg-red-100 hover:bg-red-200 text-red-700" data-action="delete">Delete</button>
-              <button class="px-2 py-2 text-sm rounded-lg ${active?'bg-amber-100 text-amber-700 hover:bg-amber-200':'bg-green-100 text-green-700 hover:bg-green-200'}" data-action="toggle">${active?'Disable':'Enable'}</button>
-            </div>
-          </div>`;
-        card.querySelector('[data-action="edit"]').addEventListener('click', ()=> openProductModal('edit', p));
-        card.querySelector('[data-action="delete"]').addEventListener('click', ()=> deleteProduct(p));
-        card.querySelector('[data-action="toggle"]').addEventListener('click', ()=> toggleProductStatus(p));
-        grid.appendChild(card);
-      });
-      grid.classList.remove('hidden');
-      // Pagination calc
-      const total = state.total;
-      const start = (state.page-1)*PAGE_SIZE + 1;
-      const end = Math.min(state.page*PAGE_SIZE, total);
-      updatePagination(start, end, total);
-    }
+        $('#products-empty').classList.add('hidden');
 
-    function updatePagination(start, end, total){
-      $('#pagination-start').textContent = start || 0;
-      $('#pagination-end').textContent = end || 0;
-      $('#pagination-total').textContent = total || 0;
-      const pages = Math.max(1, Math.ceil((total||0)/PAGE_SIZE));
-      const container = $('#pagination');
-      container.classList.toggle('hidden', pages<=1);
-      const span = $('#pagination-pages');
-      span.textContent = `Page ${state.page} / ${pages}`;
-      $('#prev-page').onclick = ()=>{ if(state.page>1){ state.page--; fetchProducts(); } };
-      $('#next-page').onclick = ()=>{ if(state.page<pages){ state.page++; fetchProducts(); } };
-      $('#prev-page-mobile').onclick = $('#prev-page').onclick;
-      $('#next-page-mobile').onclick = $('#next-page').onclick;
-    }
+        try {
+          const params = { page: state.currentPage, limit: PAGE_SIZE };
+          const query = $('#product-search').value.trim();
+          const category = $('#category-filter').value;
+          const status = $('#status-filter').value;
+          
+          if (query) params.search = query;
+          if (category) params.category = category;
+          if (status) params.active = status === 'active';
 
-    // ===================== MODAL / PRODUCT CRUD =====================
-    function resetProductForm(){
-      $('#product-form').reset();
-      $('#upload-previews').innerHTML = '';
-      $('#upload-progress').classList.add('hidden');
-      state.uploads = [];
-    }
+          const { data } = await API.get('/seller/products', params);
+          state.products = data.products || data.items || [];
+          state.totalProducts = data.total || data.count || state.products.length;
 
-    function openProductModal(mode='add', product=null){
-      resetProductForm();
-      state.editing = mode==='edit' ? (product?._id || product?.id || product) : null;
-      $('#modal-title span').textContent = mode==='edit' ? 'Edit Product' : 'Add New Product';
-      if(mode==='edit' && product){
-        $('#product-name').value = product.name || '';
-        $('#product-price').value = product.price || 0;
-        $('#product-stock').value = product.stock || 0;
-        $('#product-description').value = product.description || '';
-        const catId = product.category?._id || product.category?.id || product.category || '';
-        if(catId) $('#product-category').value = catId;
-        // Previews
-        (product.images||[]).slice(0,6).forEach(url=> addPreview(null, url));
-      }
-      $('#product-modal').classList.remove('hidden');
-      lucide.createIcons();
-    }
-
-    function closeProductModal(){
-      $('#product-modal').classList.add('hidden');
-    }
-
-    function addPreview(file, url){
-      const wrap = document.createElement('div');
-      wrap.className = 'relative group';
-      const imgUrl = url || URL.createObjectURL(file);
-      wrap.innerHTML = `
-        <img src="${imgUrl}" class="w-full h-28 object-cover rounded-lg border"/>
-        <button type="button" class="absolute top-1 right-1 bg-white/90 hover:bg-white text-gray-700 rounded-full p-1 shadow" title="Remove">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>`;
-      wrap.querySelector('button').onclick = ()=>{ wrap.remove(); state.uploads = state.uploads.filter(u=>u.url!==imgUrl); };
-      $('#upload-previews').appendChild(wrap);
-      state.uploads.push({ file, url: imgUrl });
-      lucide.createIcons();
-    }
-
-    function bindUploadArea(){
-      const drop = $('#upload-drop');
-      const input = $('#product-images');
-      $('#pick-images').onclick = ()=> input.click();
-      input.onchange = (e)=> Array.from(e.target.files).slice(0,6 - state.uploads.length).forEach(f=> addPreview(f));
-      ;['dragenter','dragover'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
-      ;['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
-      drop.addEventListener('drop', e=>{
-        const files = Array.from(e.dataTransfer.files).filter(f=>/image\//.test(f.type));
-        files.slice(0,6 - state.uploads.length).forEach(f=> addPreview(f));
-      });
-    }
-
-    async function saveProduct(e){
-      e.preventDefault();
-      const name = $('#product-name').value.trim();
-      const category = $('#product-category').value;
-      const price = parseFloat($('#product-price').value || '0');
-      const stock = parseInt($('#product-stock').value || '0',10);
-      const description = $('#product-description').value.trim();
-      if(!name || !category){ showToast('Name and category are required','warning'); return; }
-
-      // Prepare form-data for images + fields
-      const fd = new FormData();
-      fd.append('name', name);
-      fd.append('category', category);
-      fd.append('price', price);
-      fd.append('stock', stock);
-      if(description) fd.append('description', description);
-      state.uploads.forEach((u,idx)=>{ if(u.file) fd.append('images', u.file, u.file.name || `img_${idx}.jpg`); });
-
-      const isEdit = !!state.editing;
-      const url = isEdit ? `${API_BASE}/seller/products/${state.editing}` : `${API_BASE}/seller/products`;
-      const method = isEdit ? 'put' : 'post';
-
-      const bar = $('#upload-progress');
-      const fill = $('#upload-progress-fill');
-      bar.classList.remove('hidden'); fill.style.width = '0%';
-
-      try{
-        await axios({ method, url, data: fd, headers:{...authHeader(), 'Content-Type':'multipart/form-data'}, onUploadProgress: (e)=>{
-          if(e.total){ const pct = Math.round( (e.loaded/e.total)*100 ); fill.style.width = pct+'%'; }
-        }});
-        showToast(isEdit?'Product updated':'Product created','success');
-        closeProductModal();
-        await fetchProducts();
-      }catch(err){
-        console.error(err);
-        showToast(err?.response?.data?.message || 'Save failed','error');
-      }finally{
-        bar.classList.add('hidden');
-      }
-    }
-
-    async function deleteProduct(p){
-      if(!confirm(`Delete "${p.name}"?`)) return;
-      try{
-        await axios.delete(`${API_BASE}/seller/products/${p._id || p.id}`, { headers: authHeader() });
-        showToast('Product deleted','success');
-        await fetchProducts();
-      }catch(err){
-        console.error(err);
-        showToast('Delete failed','error');
-      }
-    }
-
-    async function toggleProductStatus(p){
-      try{
-        const active = !(p.active !== false); // invert
-        await axios.patch(`${API_BASE}/seller/products/${p._id || p.id}`, { active: !active }, { headers: authHeader() });
-        showToast(active? 'Disabled' : 'Enabled', 'info');
-        await fetchProducts();
-      }catch(err){
-        console.error(err);
-        showToast('Status update failed','error');
-      }
-    }
-
-    // ===================== BOOTSTRAP =====================
-    function bindAuthUI(){
-      $('#login-tab').onclick = ()=> switchTab('login');
-      $('#register-tab').onclick = ()=> switchTab('register');
-      $('#login-form').addEventListener('submit', handleLogin);
-      $('#register-form').addEventListener('submit', handleRegister);
-      $('#forgot-password-btn').onclick = ()=> showToast('Password reset flow coming soon','info');
-    }
-
-    function bindDashboardUI(){
-      $('#logout-btn').onclick = logout;
-      $('#add-product-btn').onclick = ()=> openProductModal('add');
-      $('#add-first-product-btn').onclick = ()=> openProductModal('add');
-      $('#product-search').addEventListener('input', ()=> { state.page=1; fetchProducts(); });
-      $('#category-filter').addEventListener('change', ()=> { state.page=1; fetchProducts(); });
-      $('#refresh-categories-btn').onclick = ()=> loadCategories(false);
-      $('#toggle-debug').onclick = ()=> $('#debug-info').classList.toggle('hidden');
-
-      // Modal
-      $('#close-modal-btn').onclick = closeProductModal;
-      $('#cancel-product').onclick = closeProductModal;
-      $('#product-form').addEventListener('submit', saveProduct);
-      bindUploadArea();
-    }
-
-    async function bootstrapAfterAuth(){
-      $('#seller-name').textContent = state.seller?.name || state.seller?.fullName || 'Seller';
-      $('#wallet-balance').textContent = (state.seller?.walletBalance!=null) ? formatINR(state.seller.walletBalance) : '0.00';
-      updateDebug();
-      await loadCategories();
-      await fetchProducts();
-    }
-
-    async function init(){
-      bindAuthUI();
-      bindDashboardUI();
-      if(state.token){
-        try{
-          showDashboard();
-          await bootstrapAfterAuth();
-        }catch(err){
-          console.warn('Auto-login failed, clearing.', err);
-          logout();
+          this.renderProducts();
+          this.updatePagination();
+          $('#stat-products').textContent = state.totalProducts;
+          
+          // Update sales stat (mock data for demo)
+          $('#stat-sales').textContent = `₹${UI.formatCurrency(125000)}`;
+          $('#stat-orders').textContent = '5';
+          $('#stat-rating').textContent = '4.8';
+        } catch (err) {
+          UI.showToast('Failed to fetch products', 'error');
+          $('#debug-last-error').textContent = err.message;
+          state.products = [];
+          this.renderProducts();
+        } finally {
+          UI.setLoading('#products-loading', false);
+          this.updateDebugInfo();
         }
-      }else{
-        showAuth();
-      }
-      lucide.createIcons();
-    }
+      },
 
-    document.addEventListener('DOMContentLoaded', init);
+      renderProducts() {
+          const grid = $('#products-grid');
+          grid.innerHTML = '';
+
+          if (state.products.length === 0) {
+              $('#products-empty').classList.remove('hidden');
+              grid.classList.add('hidden');
+              $('#pagination').classList.add('hidden');
+              return;
+          }
+
+          $('#products-empty').classList.add('hidden');
+          grid.classList.remove('hidden');
+
+          state.products.forEach(p => {
+              const isActive = p.active !== false;
+              const imageUrl = p.images?.[0] || 'https://via.placeholder.com/400x300?text=No+Image';
+              const card = document.createElement('div');
+              card.className = 'bg-white rounded-lg shadow product-card overflow-hidden flex flex-col';
+              card.innerHTML = `
+                  <div class="relative">
+                      <img src="${imageUrl}" alt="${p.name}" class="w-full h-48 object-cover">
+                      <span class="absolute top-2 left-2 status-indicator ${isActive ? 'status-active' : 'status-inactive'}" title="${isActive ? 'Active' : 'Inactive'}"></span>
+                      ${p.stock <= 5 ? `<span class="absolute top-2 right-2 badge bg-amber-100 text-amber-800">Low Stock</span>` : ''}
+                  </div>
+                  <div class="p-4 flex-1 flex flex-col">
+                      <h3 class="font-semibold text-gray-800 line-clamp-2 h-12">${p.name || 'Unnamed Product'}</h3>
+                      <p class="text-sm text-gray-500 mt-1">${p.category?.name || 'Uncategorized'}</p>
+                      <p class="text-sm text-gray-500 mt-1">Stock: ${p.stock ?? 0}</p>
+                      <p class="text-xl font-bold text-gray-900 mt-2">₹${UI.formatCurrency(p.price)}</p>
+                      <div class="mt-auto pt-4 grid grid-cols-2 gap-2">
+                          <button class="edit-btn w-full px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 font-semibold flex items-center justify-center gap-1 transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i>Edit</button>
+                          <button class="delete-btn w-full px-3 py-2 text-sm rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold flex items-center justify-center gap-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i>Delete</button>
+                      </div>
+                  </div>`;
+              card.querySelector('.edit-btn').onclick = () => this.openProductModal('edit', p);
+              card.querySelector('.delete-btn').onclick = () => this.deleteProduct(p);
+              grid.appendChild(card);
+          });
+          lucide.createIcons();
+      },
+
+      updatePagination() {
+          const totalPages = Math.ceil(state.totalProducts / PAGE_SIZE);
+          const container = $('#pagination');
+          container.classList.toggle('hidden', totalPages <= 1);
+          
+          $('#pagination-pages').textContent = `Page ${state.currentPage} of ${totalPages}`;
+          $('#pagination-total').textContent = state.totalProducts;
+          $('#pagination-start').textContent = (state.currentPage - 1) * PAGE_SIZE + 1;
+          $('#pagination-end').textContent = Math.min(state.currentPage * PAGE_SIZE, state.totalProducts);
+          
+          $('#prev-page').disabled = state.currentPage === 1;
+          $('#next-page').disabled = state.currentPage === totalPages;
+      },
+      
+      async deleteProduct(product) {
+          const confirmed = await UI.confirm('Delete Product', `Are you sure you want to delete "${product.name}"? This action cannot be undone.`, 'trash-2');
+          if (!confirmed) return;
+
+          try {
+              await API.delete(`/seller/products/${product._id}`);
+              UI.showToast('Product deleted successfully.', 'success');
+              this.fetchProducts();
+          } catch (err) {
+              UI.showToast('Failed to delete product.', 'error');
+              $('#debug-last-error').textContent = err.message;
+          }
+      },
+
+      // ---------- MODAL & FORM HANDLING ----------
+      bindModalEvents() {
+        $('#close-modal-btn').onclick = () => UI.toggleModal('product-modal', false);
+        $('#cancel-product-btn').onclick = () => UI.toggleModal('product-modal', false);
+        $('#close-debug-btn').onclick = () => UI.toggleModal('debug-modal', false);
+        $('#product-form').addEventListener('submit', this.handleSaveProduct.bind(this));
+        
+        // Character count for description
+        $('#product-description').addEventListener('input', (e) => {
+          $('#char-count').textContent = e.target.value.length;
+        });
+      },
+
+      openProductModal(mode, product = null) {
+          $('#product-form').reset();
+          state.imageUploads = [];
+          this.renderImagePreviews();
+          $('#char-count').textContent = '0';
+
+          state.isEditing = (mode === 'edit' && product) ? product._id : null;
+          $('#modal-title').textContent = mode === 'edit' ? 'Edit Product' : 'Add New Product';
+
+          if (state.isEditing) {
+              $('#product-name').value = product.name || '';
+              $('#product-price').value = product.price || '';
+              $('#product-stock').value = product.stock || '';
+              $('#product-description').value = product.description || '';
+              $('#product-category').value = product.category?._id || product.category;
+              $('#product-active').checked = product.active !== false;
+              $('#char-count').textContent = product.description?.length || 0;
+              
+              (product.images || []).forEach(url => state.imageUploads.push({ file: null, url }));
+              this.renderImagePreviews();
+          }
+          
+          UI.toggleModal('product-modal', true);
+      },
+      
+      async handleSaveProduct(e) {
+          e.preventDefault();
+          UI.setLoading('#save-spinner', true);
+          $('#save-product-text').textContent = 'Saving...';
+          
+          const formData = new FormData();
+          formData.append('name', $('#product-name').value);
+          formData.append('category', $('#product-category').value);
+          formData.append('price', $('#product-price').value);
+          formData.append('stock', $('#product-stock').value);
+          formData.append('description', $('#product-description').value);
+          formData.append('active', $('#product-active').checked);
+          
+          state.imageUploads.forEach(upload => {
+              if (upload.file) formData.append('images', upload.file);
+          });
+          
+          try {
+              if (state.isEditing) {
+                  await API.putForm(`/seller/products/${state.isEditing}`, formData);
+                  UI.showToast('Product updated successfully!');
+              } else {
+                  await API.postForm('/seller/products', formData);
+                  UI.showToast('Product created successfully!');
+              }
+              UI.toggleModal('product-modal', false);
+              this.fetchProducts();
+          } catch (err) {
+              UI.showToast(err.response?.data?.message || 'Failed to save product.', 'error');
+              $('#debug-last-error').textContent = err.message;
+          } finally {
+              UI.setLoading('#save-spinner', false);
+              $('#save-product-text').textContent = 'Save Product';
+          }
+      },
+
+      // ---------- IMAGE UPLOADER ----------
+      setupImageUploader() {
+          const dropArea = $('#upload-drop');
+          const input = $('#product-images-input');
+          
+          $('#pick-images-btn').onclick = () => input.click();
+          input.onchange = (e) => this.handleFiles(e.target.files);
+          
+          ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+              dropArea.addEventListener(eventName, e => e.preventDefault(), false);
+          });
+          
+          ['dragenter', 'dragover'].forEach(eventName => {
+              dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+          });
+          
+          ['dragleave', 'drop'].forEach(eventName => {
+              dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+          });
+          
+          dropArea.addEventListener('drop', e => this.handleFiles(e.dataTransfer.files), false);
+      },
+
+      handleFiles(files) {
+        const newFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        for(const file of newFiles) {
+          if (state.imageUploads.length < 6) {
+            state.imageUploads.push({ file, url: URL.createObjectURL(file) });
+          } else {
+            UI.showToast('Maximum 6 images allowed', 'warning');
+            break;
+          }
+        }
+        this.renderImagePreviews();
+      },
+
+      renderImagePreviews() {
+          const container = $('#upload-previews');
+          container.innerHTML = '';
+          state.imageUploads.forEach((upload, index) => {
+              const preview = document.createElement('div');
+              preview.className = 'relative group';
+              preview.innerHTML = `
+                  <img src="${upload.url}" class="w-full h-24 object-cover rounded-lg border"/>
+                  <button type="button" class="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-600 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                      <i data-lucide="x" class="w-4 h-4"></i>
+                  </button>`;
+              preview.querySelector('button').onclick = () => {
+                  state.imageUploads.splice(index, 1);
+                  this.renderImagePreviews();
+              };
+              container.appendChild(preview);
+          });
+          lucide.createIcons();
+      }
+    };
   </script>
 </body>
 </html>
