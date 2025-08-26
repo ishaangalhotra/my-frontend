@@ -3,544 +3,167 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuickLocal — Seller Dashboard Enhanced</title>
+  <title>QuickLocal — Seller Dashboard (Merged)</title>
+  <!-- Icons & libs -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* ===== CUSTOM TAILWIND-LIKE CSS ===== */
-    /* Reset and base styles */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.5;
-    }
-    
-    /* Utility classes */
-    .min-h-screen { min-height: 100vh; }
-    .h-screen { height: 100vh; }
-    .h-12 { height: 3rem; }
-    .h-16 { height: 4rem; }
-    .h-20 { height: 5rem; }
-    .h-48 { height: 12rem; }
-    .h-5 { height: 1.25rem; }
-    .h-6 { height: 1.5rem; }
-    .h-8 { height: 2rem; }
-    .h-10 { height: 2.5rem; }
-    .h-4 { height: 1rem; }
-    
-    .w-5 { width: 1.25rem; }
-    .w-6 { width: 1.5rem; }
-    .w-8 { width: 2rem; }
-    .w-10 { width: 2.5rem; }
-    .w-12 { width: 3rem; }
-    .w-16 { width: 4rem; }
-    .w-64 { width: 16rem; }
-    .w-full { width: 100%; }
-    .w-auto { width: auto; }
-    
-    .flex { display: flex; }
-    .hidden { display: none; }
-    .grid { display: grid; }
-    .inline-flex { display: inline-flex; }
-    
-    .flex-1 { flex: 1 1 0%; }
-    .flex-col { flex-direction: column; }
-    .flex-row { flex-direction: row; }
-    .flex-wrap { flex-wrap: wrap; }
-    
-    .items-center { align-items: center; }
-    .items-start { align-items: flex-start; }
-    .items-end { align-items: flex-end; }
-    .items-stretch { align-items: stretch; }
-    
-    .justify-center { justify-content: center; }
-    .justify-between { justify-content: space-between; }
-    .justify-end { justify-content: flex-end; }
-    .justify-start { justify-content: flex-start; }
-    
-    .flex-shrink-0 { flex-shrink: 0; }
-    
-    .overflow-hidden { overflow: hidden; }
-    .overflow-auto { overflow: auto; }
-    .overflow-x-auto { overflow-x: auto; }
-    .overflow-y-auto { overflow-y: auto; }
-    .overflow-x-hidden { overflow-x: hidden; }
-    .overflow-y-hidden { overflow-y: hidden; }
-    
-    .relative { position: relative; }
-    .absolute { position: absolute; }
-    .fixed { position: fixed; }
-    .sticky { position: sticky; }
-    .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-    
-    .p-1 { padding: 0.25rem; }
-    .p-2 { padding: 0.5rem; }
-    .p-3 { padding: 0.75rem; }
-    .p-4 { padding: 1rem; }
-    .p-6 { padding: 1.5rem; }
-    .p-8 { padding: 2rem; }
-    
-    .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-    .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
-    .px-4 { padding-left: 1rem; padding-right: 1rem; }
-    .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-    
-    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-    .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-    .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-    .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
-    
-    .pt-4 { padding-top: 1rem; }
-    
-    .pb-4 { padding-bottom: 1rem; }
-    .pb-6 { padding-bottom: 1.5rem; }
-    
-    .pl-3 { padding-left: 0.75rem; }
-    .pl-10 { padding-left: 2.5rem; }
-    
-    .pr-4 { padding-right: 1rem; }
-    
-    .m-4 { margin: 1rem; }
-    
-    .mx-auto { margin-left: auto; margin-right: auto; }
-    
-    .my-4 { margin-top: 1rem; margin-bottom: 1rem; }
-    .my-6 { margin-top: 1.5rem; margin-bottom: 1.5rem; }
-    
-    .mb-1 { margin-bottom: 0.25rem; }
-    .mb-2 { margin-bottom: 0.5rem; }
-    .mb-3 { margin-bottom: 0.75rem; }
-    .mb-4 { margin-bottom: 1rem; }
-    .mb-6 { margin-bottom: 1.5rem; }
-    .mb-8 { margin-bottom: 2rem; }
-    
-    .mt-1 { margin-top: 0.25rem; }
-    .mt-2 { margin-top: 0.5rem; }
-    .mt-4 { margin-top: 1rem; }
-    .mt-6 { margin-top: 1.5rem; }
-    
-    .mr-2 { margin-right: 0.5rem; }
-    .mr-3 { margin-right: 0.75rem; }
-    .mr-4 { margin-right: 1rem; }
-    
-    .ml-2 { margin-left: 0.5rem; }
-    .ml-3 { margin-left: 0.75rem; }
-    .ml-auto { margin-left: auto; }
-    
-    .gap-2 { gap: 0.5rem; }
-    .gap-3 { gap: 0.75rem; }
-    .gap-4 { gap: 1rem; }
-    .gap-6 { gap: 1.5rem; }
-    
-    .space-y-1 > * + * { margin-top: 0.25rem; }
-    .space-y-2 > * + * { margin-top: 0.5rem; }
-    .space-y-3 > * + * { margin-top: 0.75rem; }
-    .space-y-4 > * + * { margin-top: 1rem; }
-    .space-y-6 > * + * { margin-top: 1.5rem; }
-    
-    .bg-white { background-color: #fff; }
-    .bg-gray-50 { background-color: #f9fafb; }
-    .bg-gray-100 { background-color: #f3f4f6; }
-    .bg-gray-200 { background-color: #e5e7eb; }
-    .bg-gray-300 { background-color: #d1d5db; }
-    .bg-gray-400 { background-color: #9ca3af; }
-    .bg-gray-500 { background-color: #6b7280; }
-    .bg-gray-600 { background-color: #4b5563; }
-    .bg-gray-700 { background-color: #374151; }
-    .bg-gray-800 { background-color: #1f2937; }
-    .bg-gray-900 { background-color: #111827; }
-    
-    .bg-purple-50 { background-color: #faf5ff; }
-    .bg-purple-100 { background-color: #f3e8ff; }
-    .bg-purple-200 { background-color: #e9d5ff; }
-    .bg-purple-300 { background-color: #d8b4fe; }
-    .bg-purple-400 { background-color: #c084fc; }
-    .bg-purple-500 { background-color: #a855f7; }
-    .bg-purple-600 { background-color: #9333ea; }
-    .bg-purple-700 { background-color: #7e22ce; }
-    .bg-purple-800 { background-color: #6b21a8; }
-    .bg-purple-900 { background-color: #581c87; }
-    
-    .bg-blue-100 { background-color: #dbeafe; }
-    .bg-blue-600 { background-color: #2563eb; }
-    
-    .bg-green-100 { background-color: #dcfce7; }
-    .bg-green-600 { background-color: #16a34a; }
-    
-    .bg-amber-100 { background-color: #fef3c7; }
-    .bg-amber-600 { background-color: #d97706; }
-    
-    .bg-red-50 { background-color: #fef2f2; }
-    .bg-red-100 { background-color: #fee2e2; }
-    .bg-red-500 { background-color: #ef4444; }
-    .bg-red-600 { background-color: #dc2626; }
-    
-    .bg-slate-100 { background-color: #f1f5f9; }
-    
-    .bg-indigo-50 { background-color: #eef2ff; }
-    
-    .text-white { color: #fff; }
-    .text-gray-400 { color: #9ca3af; }
-    .text-gray-500 { color: #6b7280; }
-    .text-gray-600 { color: #4b5563; }
-    .text-gray-700 { color: #374151; }
-    .text-gray-800 { color: #1f2937; }
-    .text-gray-900 { color: #111827; }
-    
-    .text-purple-600 { color: #9333ea; }
-    
-    .text-blue-600 { color: #2563eb; }
-    
-    .text-green-600 { color: #16a34a; }
-    
-    .text-amber-600 { color: #d97706; }
-    
-    .text-red-500 { color: #ef4444; }
-    .text-red-600 { color: #dc2626; }
-    .text-red-700 { color: #b91c1c; }
-    .text-red-800 { color: #991b1b; }
-    
-    .text-xs { font-size: 0.75rem; line-height: 1rem; }
-    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-    .text-base { font-size: 1rem; line-height: 1.5rem; }
-    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
-    .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
-    .text-2xl { font-size: 1.5rem; line-height: 2rem; }
-    .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
-    
-    .font-medium { font-weight: 500; }
-    .font-semibold { font-weight: 600; }
-    .font-bold { font-weight: 700; }
-    
-    .rounded { border-radius: 0.25rem; }
-    .rounded-md { border-radius: 0.375rem; }
-    .rounded-lg { border-radius: 0.5rem; }
-    .rounded-xl { border-radius: 0.75rem; }
-    .rounded-2xl { border-radius: 1rem; }
-    .rounded-full { border-radius: 9999px; }
-    
-    .rounded-l-lg { border-top-left-radius: 0.5rem; border-bottom-left-radius: 0.5rem; }
-    .rounded-r-lg { border-top-right-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
-    
-    .border { border-width: 1px; border-style: solid; }
-    .border-0 { border-width: 0; }
-    .border-2 { border-width: 2px; }
-    
-    .border-gray-200 { border-color: #e5e7eb; }
-    .border-gray-300 { border-color: #d1d5db; }
-    .border-purple-100 { border-color: #f3e8ff; }
-    
-    .border-t { border-top-width: 1px; border-top-style: solid; border-top-color: #e5e7eb; }
-    .border-b { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #e5e7eb; }
-    
-    .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); }
-    .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-    .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-    .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-    .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-    
-    .cursor-pointer { cursor: pointer; }
-    .cursor-not-allowed { cursor: not-allowed; }
-    
-    .object-cover { object-fit: cover; }
-    
-    .z-30 { z-index: 30; }
-    .z-40 { z-index: 40; }
-    .z-50 { z-index: 50; }
-    
-    .transition { transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-    .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-    .transition-colors { transition-property: background-color, border-color, color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-    .transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-    .transition-transform { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
-    
-    .duration-200 { transition-duration: 200ms; }
-    .duration-300 { transition-duration: 300ms; }
-    
-    .ease-in-out { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
-    
-    .transform { transform: translateX(var(--tw-translate-x)) translateY(var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)); }
-    .translate-y-1 { --tw-translate-y: 0.25rem; }
-    .translate-y-2 { --tw-translate-y: 0.5rem; }
-    .translate-x-0 { --tw-translate-x: 0px; }
-    .translate-x-full { --tw-translate-x: 100%; }
-    .-translate-y-1\/2 { --tw-translate-y: -50%; }
-    
-    .hover\:scale-105:hover { --tw-scale-x: 1.05; --tw-scale-y: 1.05; }
-    .hover\:bg-gray-50:hover { background-color: #f9fafb; }
-    .hover\:bg-gray-100:hover { background-color: #f3f4f6; }
-    .hover\:bg-purple-100:hover { background-color: #f3e8ff; }
-    .hover\:bg-red-50:hover { background-color: #fef2f2; }
-    .hover\:bg-green-700:hover { background-color: #15803d; }
-    .hover\:bg-red-700:hover { background-color: #b91c1c; }
-    .hover\:text-gray-700:hover { color: #374151; }
-    .hover\:text-gray-800:hover { color: #1f2937; }
-    .hover\:text-purple-500:hover { color: #a855f7; }
-    .hover\:shadow-lg:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-    
-    .focus\:ring:focus { outline: 2px solid transparent; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(118, 69, 217, 0.35); }
-    .focus\:border-purple-500:focus { border-color: #a855f7; }
-    
-    .disabled\:opacity-50:disabled { opacity: 0.5; }
-    .disabled\:cursor-not-allowed:disabled { cursor: not-allowed; }
-    
-    .line-clamp-2 {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    
-    .whitespace-nowrap { white-space: nowrap; }
-    .break-all { word-break: break-all; }
-    
-    /* Grid system */
-    .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-    
-    .col-span-2 { grid-column: span 2 / span 2; }
-    
-    /* Custom styles */
-    @media (min-width: 640px) {
-      .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    
-    @media (min-width: 768px) {
-      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .md\:flex-row { flex-direction: row; }
-      .md\:items-center { align-items: center; }
-      .md\:justify-between { justify-content: space-between; }
-    }
-    
-    @media (min-width: 1024px) {
-      .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-      .lg\:col-span-2 { grid-column: span 2 / span 2; }
-      .lg\:flex { display: flex; }
-      .lg\:hidden { display: none; }
-      .lg\:pl-64 { padding-left: 16rem; }
-      .lg\:static { position: static; }
-    }
-    
-    @media (min-width: 1280px) {
-      .xl\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    }
-    
-    /* ===== Enhanced UI Polish ===== */
-    :root {
-      --brand-primary: #7c3aed;
-      --brand-secondary: #a855f7;
-      --focus-ring-color: rgba(124, 58, 237, 0.35);
-      --toast-success: #16a34a;
-      --toast-error: #ef4444;
-      --toast-info: #3b82f6;
-      --toast-warning: #f59e0b;
-    }
-    
-    .gradient-primary { 
-      background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary)); 
-    }
-    
-    .toast {
-      position: fixed; 
-      top: 1.5rem; 
-      right: 1.5rem; 
-      z-index: 1050; 
-      padding: .75rem 1.25rem; 
-      border-radius: .5rem; 
-      color: #fff;
-      opacity: 0; 
-      transform: translateX(120%); 
-      transition: all .35s ease-in-out; 
-      max-width: 400px; 
-      word-wrap: break-word;
-      display: flex; 
-      align-items: center; 
-      gap: 0.5rem;
-    }
-    
-    .toast.show { 
-      opacity: 1; 
-      transform: translateX(0); 
-    }
-    
-    .toast-success { background: var(--toast-success); } 
-    .toast-error { background: var(--toast-error); }
-    .toast-info { background: var(--toast-info); } 
-    .toast-warning { background: var(--toast-warning); }
+    /* ===== CUSTOM TAILWIND-LIKE CSS (union of all three files, deduped) ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.5; color: #374151; }
 
-    .modal-backdrop {
-      background: rgba(0,0,0,.55); 
-      backdrop-filter: blur(4px);
-      opacity: 0; 
-      transition: opacity .2s ease-in-out;
-    }
-    
-    .modal-backdrop.show { 
-      opacity: 1; 
-    }
-    
-    .modal-content {
-      transform: scale(0.95); 
-      opacity: 0; 
-      transition: all .2s ease-in-out;
-    }
-    
-    .modal-backdrop.show .modal-content { 
-      transform: scale(1); 
-      opacity: 1; 
-    }
+    /* Sizing */
+    .min-h-screen{min-height:100vh}.h-screen{height:100vh}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.h-10{height:2.5rem}.h-12{height:3rem}.h-16{height:4rem}.h-20{height:5rem}.h-48{height:12rem}
+    .w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-10{width:2.5rem}.w-12{width:3rem}.w-16{width:4rem}.w-64{width:16rem}.w-full{width:100%}.w-auto{width:auto}
 
-    .product-card { 
-      transition: all .3s ease; 
-      border: 1px solid transparent; 
-    }
-    
-    .product-card:hover { 
-      transform: translateY(-5px); 
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04); 
-      border-color: #e5e7eb; 
-    }
+    /* Layout */
+    .flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}
+    .flex-col{flex-direction:column}.flex-row{flex-direction:row}.flex-wrap{flex-wrap:wrap}
+    .flex-1{flex:1 1 0%}.flex-shrink-0{flex-shrink:0}
+    .items-center{align-items:center}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-stretch{align-items:stretch}
+    .justify-between{justify-content:space-between}.justify-center{justify-content:center}.justify-end{justify-content:flex-end}.justify-start{justify-content:flex-start}
 
-    .image-uploader { 
-      border: 2px dashed #d1d5db; 
-      transition: all .3s ease; 
-      cursor: pointer; 
-    }
-    
-    .image-uploader:hover { 
-      border-color: var(--brand-primary); 
-      background-color: #f8fafc; 
-    }
-    
-    .image-uploader.dragover { 
-      border-color: var(--toast-success); 
-      background-color: #f0fdf4; 
-      transform: scale(1.02); 
-    }
+    /* Overflow & position */
+    .overflow-hidden{overflow:hidden}.overflow-auto{overflow:auto}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}
+    .relative{position:relative}.absolute{position:absolute}.fixed{position:fixed}.sticky{position:sticky}.inset-0{top:0;right:0;bottom:0;left:0}
 
-    .skeleton { 
-      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); 
-      background-size: 200% 100%; 
-      animation: loading 1.5s infinite; 
-    }
-    
-    @keyframes loading { 
-      0%{ background-position: 200% 0; } 
-      100%{ background-position: -200% 0; } 
-    }
+    /* Spacing */
+    .p-1{padding:.25rem}.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}
+    .px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}
+    .py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}
+    .pt-4{padding-top:1rem}.pt-6{padding-top:1.5rem}
+    .pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}
+    .pl-3{padding-left:.75rem}.pl-10{padding-left:2.5rem}
+    .pr-4{padding-right:1rem}
 
-    .price-input { position: relative; }
-    
-    .price-input::before { 
-      content: '₹'; 
-      position: absolute; 
-      left: 12px; 
-      top: 50%; 
-      transform: translateY(-50%); 
-      color: #6b7280; 
-      font-weight: 500; 
-    }
-    
-    .price-input input { padding-left: 30px !important; }
+    .m-4{margin:1rem}
+    .mx-auto{margin-left:auto;margin-right:auto}
+    .my-1{margin-top:.25rem;margin-bottom:.25rem}.my-4{margin-top:1rem;margin-bottom:1rem}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}
+    .mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}
+    .mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.mt-8{margin-top:2rem}
+    .mr-1{margin-right:.25rem}.mr-2{margin-right:.5rem}.mr-3{margin-right:.75rem}.mr-4{margin-right:1rem}
+    .ml-2{margin-left:.5rem}.ml-3{margin-left:.75rem}.ml-4{margin-left:1rem}.ml-auto{margin-left:auto}
 
-    .status-indicator { 
-      width: 10px; 
-      height: 10px; 
-      border-radius: 50%; 
-      display: inline-block; 
-      border: 2px solid white; 
-    }
-    
-    .status-active { background-color: #10b981; } 
-    .status-inactive { background-color: #ef4444; }
+    .gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}
+    .space-y-1>*+*{margin-top:.25rem}.space-y-2>*+*{margin-top:.5rem}.space-y-3>*+*{margin-top:.75rem}.space-y-4>*+*{margin-top:1rem}.space-y-6>*+*{margin-top:1.5rem}
 
-    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
-    
-    /* Animation utilities */
-    .animate-spin {
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    /* Additional custom styles */
-    .text-gradient {
-      background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .sidebar {
-      transform: translateX(-100%);
-      transition: transform 0.3s ease-in-out;
-    }
-    
-    .sidebar.open {
-      transform: translateX(0);
-    }
-    
-    @media (min-width: 1024px) {
-      .sidebar {
-        transform: translateX(0);
-      }
-    }
-    
-    .stat-card {
-      transition: all 0.3s ease;
-    }
-    
-    .stat-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
-    
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      font-weight: 500;
-      border-radius: 0.5rem;
-      transition: all 0.2s ease;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-    
-    .chart-container {
-      position: relative;
-      height: 300px;
-      width: 100%;
-    }
+    /* Colors */
+    .bg-white{background:#fff}.bg-gray-50{background:#f9fafb}.bg-gray-100{background:#f3f4f6}.bg-gray-200{background:#e5e7eb}.bg-gray-300{background:#d1d5db}.bg-gray-700{background:#374151}.bg-gray-800{background:#1f2937}.bg-gray-900{background:#111827}
+    .bg-purple-50{background:#faf5ff}.bg-purple-100{background:#f3e8ff}.bg-purple-500{background:#a855f7}.bg-purple-600{background:#9333ea}.bg-purple-700{background:#7e22ce}.bg-purple-800{background:#6b21a8}
+    .bg-blue-100{background:#dbeafe}.bg-blue-600{background:#2563eb}
+    .bg-green-100{background:#dcfce7}.bg-green-600{background:#16a34a}
+    .bg-amber-100{background:#fef3c7}.bg-amber-600{background:#d97706}
+    .bg-red-50{background:#fef2f2}.bg-red-100{background:#fee2e2}.bg-red-500{background:#ef4444}.bg-red-600{background:#dc2626}
+    .bg-slate-100{background:#f1f5f9}
+    .bg-indigo-50{background:#eef2ff}
+
+    .text-white{color:#fff}.text-gray-400{color:#9ca3af}.text-gray-500{color:#6b7280}.text-gray-600{color:#4b5563}.text-gray-700{color:#374151}.text-gray-800{color:#1f2937}.text-gray-900{color:#111827}
+    .text-purple-600{color:#9333ea}.text-blue-600{color:#2563eb}.text-green-600{color:#16a34a}.text-amber-600{color:#d97706}.text-red-500{color:#ef4444}.text-red-600{color:#dc2626}.text-red-700{color:#b91c1c}.text-red-800{color:#991b1b}
+
+    .text-xs{font-size:.75rem;line-height:1rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}
+    .font-medium{font-weight:500}.font-semibold{font-weight:600}.font-bold{font-weight:700}
+
+    .rounded{border-radius:.25rem}.rounded-md{border-radius:.375rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}
+    .rounded-l-lg{border-top-left-radius:.5rem;border-bottom-left-radius:.5rem}.rounded-r-lg{border-top-right-radius:.5rem;border-bottom-right-radius:.5rem}
+
+    .border{border-width:1px;border-style:solid}.border-0{border-width:0}.border-2{border-width:2px}
+    .border-gray-100{border-color:#f3f4f6}.border-gray-200{border-color:#e5e7eb}.border-gray-300{border-color:#d1d5db}.border-purple-100{border-color:#f3e8ff}
+    .border-t{border-top:1px solid #e5e7eb}.border-b{border-bottom:1px solid #e5e7eb}
+
+    .shadow{box-shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06)}
+    .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.05)}
+    .shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05)}
+    .shadow-xl{box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04)}
+
+    .cursor-pointer{cursor:pointer}.cursor-not-allowed{cursor:not-allowed}
+    .object-cover{object-fit:cover}
+
+    .z-30{z-index:30}.z-40{z-index:40}.z-50{z-index:50}
+
+    .transition{transition-property:background-color,border-color,color,fill,stroke,opacity,box-shadow,transform;transition-duration:150ms;transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .transition-all{transition-property:all;transition-duration:150ms;transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .transition-colors{transition-property:background-color,border-color,color,fill,stroke;transition-duration:150ms;transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .transition-opacity{transition-property:opacity;transition-duration:150ms;transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .transition-transform{transition-property:transform;transition-duration:150ms;transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .duration-200{transition-duration:200ms}.duration-300{transition-duration:300ms}
+    .ease-in-out{transition-timing-function:cubic-bezier(.4,0,.2,1)}
+    .transform{transform:translateX(var(--tw-translate-x)) translateY(var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+    .translate-x-0{--tw-translate-x:0}.translate-x-full{--tw-translate-x:100%}.
+    -translate-y-1\/2{--tw-translate-y:-50%}
+    .hover\:scale-105:hover{--tw-scale-x:1.05;--tw-scale-y:1.05}
+    .hover\:bg-gray-50:hover{background:#f9fafb}.hover\:bg-gray-100:hover{background:#f3f4f6}.hover\:bg-purple-100:hover{background:#f3e8ff}.hover\:bg-red-50:hover{background:#fef2f2}
+    .hover\:bg-green-700:hover{background:#15803d}.hover\:bg-red-700:hover{background:#b91c1c}.hover\:text-gray-700:hover{color:#374151}.hover\:text-gray-800:hover{color:#1f2937}.hover\:text-purple-500:hover{color:#a855f7}.hover\:shadow-lg:hover{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05)}
+    .focus\:ring:focus{outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 3px rgba(124,58,237,.35)}
+    .focus\:border-purple-500:focus{border-color:#a855f7}
+
+    .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .whitespace-nowrap{white-space:nowrap}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.break-all{word-break:break-all}
+
+    /* Grid */
+    .grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .col-span-2{grid-column:span 2/span 2}
+    @media(min-width:640px){.sm\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.md\:flex-row{flex-direction:row}.md\:items-center{align-items:center}.md\:justify-between{justify-content:space-between}.md\:block{display:block}}
+    @media(min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.lg\:col-span-2{grid-column:span 2/span 2}.lg\:hidden{display:none}.lg\:pl-64{padding-left:16rem}.lg\:static{position:static}}
+    @media(min-width:1280px){.xl\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+    /* Brand */
+    :root{--brand-primary:#7c3aed;--brand-secondary:#a855f7;--toast-success:#16a34a;--toast-error:#ef4444;--toast-info:#3b82f6;--toast-warning:#f59e0b}
+    .gradient-primary{background:linear-gradient(135deg,var(--brand-primary),var(--brand-secondary))}
+    .text-gradient{background:linear-gradient(135deg,var(--brand-primary),var(--brand-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+    /* Sidebar behavior */
+    .sidebar{transform:translateX(-100%);transition:transform .3s ease-in-out}
+    .sidebar.open{transform:translateX(0)}
+    @media(min-width:1024px){.sidebar{transform:translateX(0)}}
+
+    /* Cards, uploader, skeleton */
+    .stat-card{transition:all .3s ease}.stat-card:hover{transform:translateY(-3px);box-shadow:0 10px 15px -3px rgba(0,0,0,.1)}
+    .product-card{transition:all .3s ease;border:1px solid transparent}
+    .product-card:hover{transform:translateY(-5px);box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);border-color:#e5e7eb}
+    .image-uploader{border:2px dashed #d1d5db;transition:all .3s ease;cursor:pointer}
+    .image-uploader:hover{border-color:var(--brand-primary);background:#f8fafc}
+    .image-uploader.dragover{border-color:var(--toast-success);background:#f0fdf4;transform:scale(1.02)}
+    .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:loading 1.5s infinite}
+    @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* Toasts */
+    .toast{position:fixed;top:1.25rem;right:1.25rem;z-index:1050;padding:.75rem 1rem;border-radius:.5rem;color:#fff;opacity:0;transform:translateX(120%);transition:all .35s ease-in-out;max-width:400px;display:flex;align-items:center;gap:.5rem}
+    .toast.show{opacity:1;transform:translateX(0)}
+    .toast-success{background:var(--toast-success)}.toast-error{background:var(--toast-error)}.toast-info{background:var(--toast-info)}.toast-warning{background:var(--toast-warning)}
+
+    /* Modal */
+    .modal-backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(4px);opacity:0;transition:opacity .2s ease-in-out}
+    .modal-backdrop.show{opacity:1}
+    .modal-content{transform:scale(.95);opacity:0;transition:all .2s ease-in-out}
+    .modal-backdrop.show .modal-content{transform:scale(1);opacity:1}
+
+    /* Price prefix */
+    .price-input{position:relative}
+    .price-input::before{content:'₹';position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:500}
+    .price-input input{padding-left:30px!important}
+
+    .status-indicator{width:10px;height:10px;border-radius:50%;display:inline-block;border:2px solid #fff}
+    .status-active{background:#10b981}.status-inactive{background:#ef4444}
+
+    .custom-scrollbar::-webkit-scrollbar{width:8px}
+    .custom-scrollbar::-webkit-scrollbar-track{background:#f1f1f1;border-radius:10px}
+    .custom-scrollbar::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:10px}
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover{background:#a8a29e}
+
+    .animate-spin{animation:spin 1s linear infinite}
+    @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;font-weight:500;border-radius:.5rem;transition:all .2s ease}
+    .btn-primary{background:linear-gradient(135deg,var(--brand-primary),var(--brand-secondary));color:#fff}
+    .btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+
+    .chart-container{position:relative;height:320px;width:100%}
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans">
-
+  <!-- ================= AUTH ================= -->
   <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-indigo-50">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 transform transition-all hover:shadow-2xl">
       <div class="text-center mb-8">
@@ -556,6 +179,7 @@
         <button id="register-tab" class="flex-1 py-2 px-4 rounded-md font-medium transition-all text-gray-600">Register</button>
       </div>
 
+      <!-- Login Form -->
       <form id="login-form" class="space-y-4">
         <div>
           <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
@@ -578,28 +202,9 @@
           <span id="login-btn-text">Sign In</span>
           <i data-lucide="loader" id="login-spinner" class="animate-spin hidden w-5 h-5"></i>
         </button>
-        
-        <div class="relative my-4">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300"></div>
-          </div>
-          <div class="relative flex justify-center text-sm">
-            <span class="px-2 bg-white text-gray-500">Or continue with</span>
-          </div>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-3">
-          <button type="button" class="w-full bg-white border border-gray-300 rounded-lg p-3 font-medium text-gray-700 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
-            <i class="fab fa-google text-red-500"></i>
-            <span>Google</span>
-          </button>
-          <button type="button" class="w-full bg-white border border-gray-300 rounded-lg p-3 font-medium text-gray-700 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
-            <i class="fab fa-facebook text-blue-600"></i>
-            <span>Facebook</span>
-          </button>
-        </div>
       </form>
 
+      <!-- Register Form -->
       <form id="register-form" class="space-y-4 hidden">
         <div>
           <label for="reg-name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
@@ -623,9 +228,7 @@
         </div>
         <div class="flex items-center">
           <input id="reg-terms" type="checkbox" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
-          <label for="reg-terms" class="ml-2 block text-sm text-gray-700">
-            I agree to the <a href="#" class="text-purple-600 hover:text-purple-500">Terms of Service</a> and <a href="#" class="text-purple-600 hover:text-purple-500">Privacy Policy</a>
-          </label>
+          <label for="reg-terms" class="ml-2 block text-sm text-gray-700">I agree to the <a class="text-purple-600 hover:text-purple-500">Terms</a> & <a class="text-purple-600 hover:text-purple-500">Privacy</a></label>
         </div>
         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-all hover:shadow-lg flex items-center justify-center gap-2">
           <span id="register-btn-text">Create Account</span>
@@ -635,972 +238,428 @@
     </div>
   </section>
 
+  <!-- ================= APP LAYOUT ================= -->
   <section id="dashboard-section" class="hidden">
     <!-- Mobile sidebar backdrop -->
-    <div id="sidebar-backdrop" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden hidden"></div>
-    
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden lg:z-auto transition-opacity duration-200 hidden"></div>
+
     <!-- Sidebar -->
-    <aside class="sidebar fixed inset-y-0 left-0 z-50 bg-white shadow-lg flex flex-col lg:static lg:translate-x-0">
-      <div class="flex items-center justify-between h-20 border-b px-6">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
-            <i data-lucide="store" class="text-white"></i>
-          </div>
-          <h1 class="text-xl font-bold text-gray-800">QuickLocal</h1>
+    <div id="sidebar" class="flex fixed top-0 left-0 z-50 flex-col flex-shrink-0 w-64 h-full bg-white border-r border-gray-200 sidebar">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+          <div class="bg-purple-100 p-2 rounded-lg"><i data-lucide="store" class="text-purple-600 w-6 h-6"></i></div>
+          <span class="text-xl font-bold text-gray-800">QuickLocal</span>
         </div>
-        <button id="close-sidebar" class="lg:hidden text-gray-500 hover:text-gray-700">
-          <i data-lucide="x" class="w-6 h-6"></i>
+        <button id="close-sidebar" class="lg:hidden rounded-lg p-1 hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
         </button>
       </div>
-      
-      <div class="flex-1 px-4 py-6 overflow-y-auto">
-        <nav class="space-y-1">
-          <a href="#" class="flex items-center px-4 py-3 text-gray-700 bg-purple-50 rounded-lg font-medium border border-purple-100">
-            <i data-lucide="package" class="w-5 h-5 text-purple-600"></i>
-            <span class="ml-3">Products</span>
-          </a>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
-            <span class="ml-3">Orders</span>
-            <span class="ml-auto bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">3</span>
-          </a>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
-            <span class="ml-3">Analytics</span>
-          </a>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="users" class="w-5 h-5"></i>
-            <span class="ml-3">Customers</span>
-          </a>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="message-square" class="w-5 h-5"></i>
-            <span class="ml-3">Reviews</span>
-            <span class="ml-auto bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">12</span>
-          </a>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="settings" class="w-5 h-5"></i>
-            <span class="ml-3">Settings</span>
-          </a>
+
+      <div class="flex flex-col justify-between flex-1 mt-6 px-4 pb-4 custom-scrollbar overflow-y-auto">
+        <nav class="flex-1 space-y-2">
+          <a href="#" class="nav-item active flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="dashboard"><i data-lucide="layout-dashboard" class="w-5 h-5"></i><span>Dashboard</span></a>
+          <a href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="products"><i data-lucide="package" class="w-5 h-5"></i><span>Products</span><span id="nav-products-count" class="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">0</span></a>
+          <a href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="orders"><i data-lucide="shopping-cart" class="w-5 h-5"></i><span>Orders</span><span id="nav-orders-count" class="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">0</span></a>
+          <a href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="customers"><i data-lucide="users" class="w-5 h-5"></i><span>Customers</span></a>
+          <a href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="analytics"><i data-lucide="bar-chart-3" class="w-5 h-5"></i><span>Analytics</span></a>
+          <a href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50" data-page="settings"><i data-lucide="settings" class="w-5 h-5"></i><span>Settings</span></a>
         </nav>
-        
-        <div class="mt-8 px-4">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Business Tools</h3>
-          <div class="space-y-2">
-            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <i data-lucide="trending-up" class="w-4 h-4 mr-3"></i>
-              <span>Marketing</span>
-            </a>
-            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <i data-lucide="dollar-sign" class="w-4 h-4 mr-3"></i>
-              <span>Discounts</span>
-            </a>
-            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <i data-lucide="file-text" class="w-4 h-4 mr-3"></i>
-              <span>Reports</span>
-            </a>
-          </div>
+        <div class="border-t pt-4">
+          <button id="logout-btn" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600"><i data-lucide="log-out" class="w-5 h-5"></i><span>Logout</span></button>
         </div>
       </div>
-      
-      <div class="px-4 py-6 border-t">
-        <div class="flex items-center mb-4 px-4 py-3 bg-gray-50 rounded-lg">
-          <div class="flex-shrink-0">
-            <div class="w-10 h-10 gradient-primary rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              <span id="seller-initials">JD</span>
-            </div>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm font-medium text-gray-900" id="sidebar-seller-name">John Doe</p>
-            <p class="text-xs text-gray-500" id="sidebar-business-name">John's Store</p>
-          </div>
+    </div>
+
+    <!-- Topbar -->
+    <header class="sticky top-0 z-30 bg-white border-b border-gray-200 lg:pl-64">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button id="open-sidebar" class="lg:hidden rounded-lg p-2 hover:bg-gray-100"><i data-lucide="menu" class="w-6 h-6"></i></button>
+          <h2 class="text-xl font-semibold">Seller Dashboard</h2>
         </div>
-        
-        <button id="logout-btn" class="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium">
-          <i data-lucide="log-out" class="w-5 h-5"></i>
-          <span class="ml-3">Logout</span>
-        </button>
+        <div class="flex items-center gap-3">
+          <div id="seller-status" class="flex items-center gap-2 bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm"><span class="status-indicator status-active"></span><span>Online</span></div>
+          <div id="seller-name" class="text-sm text-gray-600 truncate max-w-[160px]"></div>
+        </div>
       </div>
-    </aside>
+    </header>
 
-    <!-- Main content -->
-    <div class="lg:pl-64 flex flex-col flex-1">
-      <!-- Header -->
-      <header class="bg-white border-b sticky top-0 z-30">
-        <div class="flex items-center justify-between px-6 py-4">
-          <div class="flex items-center">
-            <button id="mobile-menu-btn" class="mr-4 text-gray-500 hover:text-gray-700 lg:hidden">
-              <i data-lucide="menu" class="w-6 h-6"></i>
-            </button>
-            <div>
-              <h2 class="text-2xl font-semibold text-gray-800">Welcome back, <span id="seller-name" class="text-gradient">Seller</span>!</h2>
-              <p class="text-sm text-gray-500">Here's what's happening with your store today.</p>
+    <!-- Content -->
+    <main class="lg:pl-64">
+      <div class="max-w-7xl mx-auto p-4 space-y-6">
+        <!-- DASHBOARD PAGE -->
+        <section id="page-dashboard" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow stat-card p-4">
+              <div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-500">Total Sales</span><i data-lucide="indian-rupee" class="w-5 h-5 text-gray-400"></i></div>
+              <div class="text-2xl font-bold" id="stat-total-sales">₹0</div>
+              <div class="text-xs text-gray-500 mt-1" id="stat-sales-delta">+0% vs last week</div>
+            </div>
+            <div class="bg-white rounded-xl shadow stat-card p-4">
+              <div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-500">Orders</span><i data-lucide="shopping-bag" class="w-5 h-5 text-gray-400"></i></div>
+              <div class="text-2xl font-bold" id="stat-orders">0</div>
+              <div class="text-xs text-gray-500 mt-1">Last 7 days</div>
+            </div>
+            <div class="bg-white rounded-xl shadow stat-card p-4">
+              <div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-500">Products</span><i data-lucide="package" class="w-5 h-5 text-gray-400"></i></div>
+              <div class="text-2xl font-bold" id="stat-products">0</div>
+              <div class="text-xs text-gray-500 mt-1">Active listings</div>
+            </div>
+            <div class="bg-white rounded-xl shadow stat-card p-4">
+              <div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-500">Customers</span><i data-lucide="users" class="w-5 h-5 text-gray-400"></i></div>
+              <div class="text-2xl font-bold" id="stat-customers">0</div>
+              <div class="text-xs text-gray-500 mt-1">This month</div>
             </div>
           </div>
-          
-          <div class="flex items-center gap-4">
-            <div class="hidden md:flex items-center gap-4">
-              <button class="p-2 rounded-full hover:bg-gray-100 text-gray-500 relative">
-                <i data-lucide="bell" class="w-5 h-5"></i>
-                <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-              </button>
-              <button class="p-2 rounded-full hover:bg-gray-100 text-gray-500">
-                <i data-lucide="help-circle" class="w-5 h-5"></i>
-              </button>
-            </div>
-            
-            <div class="text-right hidden md:block">
-              <p class="text-sm font-medium text-gray-700">Wallet Balance</p>
-              <p class="text-lg font-bold text-purple-600">₹<span id="wallet-balance">0.00</span></p>
-            </div>
-            
-            <button id="toggle-debug" title="Toggle Debug Info" class="p-2 rounded-full hover:bg-gray-100 text-gray-500">
-              <i data-lucide="bug" class="w-5 h-5"></i>
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <!-- Main content area -->
-      <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
-        <!-- Stats overview -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
-            <div class="space-y-1">
-              <p class="text-sm font-medium text-gray-500">Total Products</p>
-              <p id="stat-products" class="text-3xl font-bold text-gray-800">0</p>
-              <p class="text-xs text-green-600 flex items-center"><i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> 12% from last month</p>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 lg:col-span-2">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold">Sales Overview</h3>
+                <div class="text-xs text-gray-500" id="chart-range-label">Last 7 days</div>
+              </div>
+              <div class="chart-container"><canvas id="salesChart"></canvas></div>
             </div>
-            <div class="w-12 h-12 flex items-center justify-center bg-blue-100 rounded-full">
-              <i data-lucide="package" class="w-6 h-6 text-blue-600"></i>
-            </div>
-          </div>
-          
-          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
-            <div class="space-y-1">
-              <p class="text-sm font-medium text-gray-500">Total Sales</p>
-              <p id="stat-sales" class="text-3xl font-bold text-gray-800">₹0</p>
-              <p class="text-xs text-green-600 flex items-center"><i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> 8% from last week</p>
-            </div>
-            <div class="w-12 h-12 flex items-center justify-center bg-green-100 rounded-full">
-              <i data-lucide="dollar-sign" class="w-6 h-6 text-green-600"></i>
+            <div class="bg-white rounded-xl shadow p-4">
+              <h3 class="font-semibold mb-3">Top Categories</h3>
+              <ul id="top-categories" class="space-y-2 text-sm"></ul>
             </div>
           </div>
-          
-          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
-            <div class="space-y-1">
-              <p class="text-sm font-medium text-gray-500">Active Orders</p>
-              <p id="stat-orders" class="text-3xl font-bold text-gray-800">0</p>
-              <p class="text-xs text-red-600 flex items-center"><i data-lucide="trending-down" class="w-4 h-4 mr-1"></i> 3 need attention</p>
-            </div>
-            <div class="w-12 h-12 flex items-center justify-center bg-amber-100 rounded-full">
-              <i data-lucide="shopping-cart" class="w-6 h-6 text-amber-600"></i>
-            </div>
-          </div>
-          
-          <div class="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between stat-card">
-            <div class="space-y-1">
-              <p class="text-sm font-medium text-gray-500">Average Rating</p>
-              <p id="stat-rating" class="text-3xl font-bold text-gray-800">N/A</p>
-              <p class="text-xs text-gray-600 flex items-center">Based on 0 reviews</p>
-            </div>
-            <div class="w-12 h-12 flex items-center justify-center bg-purple-100 rounded-full">
-              <i data-lucide="star" class="w-6 h-6 text-purple-600"></i>
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <!-- Quick actions & chart area -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-semibold text-gray-800">Sales Overview</h3>
-              <select class="text-sm border border-gray-300 rounded-lg px-3 py-1 focus-ring">
-                <option>Last 7 days</option>
-                <option>Last 30 days</option>
-                <option>Last 90 days</option>
+        <!-- PRODUCTS PAGE -->
+        <section id="page-products" class="hidden space-y-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Add / Edit Product</h3>
+              <button id="reset-product-form" class="text-sm text-gray-600 hover:underline">Reset</button>
+            </div>
+            <form id="product-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-700 mb-1 block">Name</label>
+                <input id="prod-name" class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500" placeholder="Product name" required />
+              </div>
+              <div>
+                <label class="text-sm text-gray-700 mb-1 block">Category</label>
+                <select id="prod-category" class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500" required></select>
+              </div>
+              <div class="price-input">
+                <label class="text-sm text-gray-700 mb-1 block">Price</label>
+                <input id="prod-price" type="number" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500" placeholder="0.00" required />
+              </div>
+              <div>
+                <label class="text-sm text-gray-700 mb-1 block">Stock</label>
+                <input id="prod-stock" type="number" min="0" class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500" placeholder="0" required />
+              </div>
+              <div class="md:col-span-2">
+                <label class="text-sm text-gray-700 mb-1 block">Description</label>
+                <textarea id="prod-description" rows="3" class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500" placeholder="Short description..."></textarea>
+              </div>
+              <div class="md:col-span-2">
+                <label class="text-sm text-gray-700 mb-1 block">Images</label>
+                <div id="image-drop" class="image-uploader rounded-xl p-4 flex items-center justify-center text-gray-600">
+                  <div class="text-center">
+                    <i data-lucide="image" class="w-8 h-8 mb-2"></i>
+                    <div>Drag & drop or click to upload</div>
+                    <input id="prod-images" type="file" accept="image/*" multiple class="hidden" />
+                  </div>
+                </div>
+                <div id="image-previews" class="flex flex-wrap gap-3 mt-3"></div>
+              </div>
+              <div class="md:col-span-2 flex items-center gap-3">
+                <button class="btn btn-primary px-4 py-2" id="save-product" type="submit"><i data-lucide="save"></i> Save Product</button>
+                <button class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50" id="delete-product" type="button"><i data-lucide="trash-2" class="mr-1"></i>Delete</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="bg-white rounded-xl shadow p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Your Products</h3>
+              <input id="product-search" placeholder="Search products..." class="border border-gray-300 rounded-lg p-2 w-64 focus-ring focus:border-purple-500" />
+            </div>
+            <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+          </div>
+        </section>
+
+        <!-- ORDERS PAGE -->
+        <section id="page-orders" class="hidden space-y-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Recent Orders</h3>
+              <select id="order-filter" class="border border-gray-300 rounded-lg p-2">
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            <div class="chart-container">
-              <canvas id="sales-chart"></canvas>
+            <div id="orders-list" class="space-y-2"></div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS PAGE -->
+        <section id="page-customers" class="hidden space-y-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">Customers</h3>
+            <div id="customers-list" class="space-y-2"></div>
+          </div>
+        </section>
+
+        <!-- ANALYTICS PAGE -->
+        <section id="page-analytics" class="hidden space-y-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">Analytics</h3>
+            <div class="chart-container"><canvas id="analyticsChart"></canvas></div>
+          </div>
+        </section>
+
+        <!-- SETTINGS PAGE -->
+        <section id="page-settings" class="hidden space-y-4">
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-3">Settings</h3>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between"><span>Store Status</span><label class="flex items-center gap-2"><input type="checkbox" id="store-status-toggle" checked /><span class="text-sm text-gray-600">Online</span></label></div>
+              <div class="flex items-center justify-between"><span>Low stock alerts</span><input type="checkbox" id="low-stock-toggle" checked /></div>
             </div>
           </div>
-          
-          <div class="bg-white rounded-xl shadow-sm p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-6">Quick Actions</h3>
-            <div class="space-y-4">
-              <button class="w-full flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200 transition-colors">
-                    <i data-lucide="plus" class="text-purple-600 w-5 h-5"></i>
-                  </div>
-                  <span class="font-medium text-gray-800">Add New Product</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
-              </button>
-              
-              <button class="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200 transition-colors">
-                    <i data-lucide="tag" class="text-blue-600 w-5 h-5"></i>
-                  </div>
-                  <span class="font-medium text-gray-800">Create Discount</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
-              </button>
-              
-              <button class="w-full flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 transition-colors">
-                    <i data-lucide="bar-chart-2" class="text-green-600 w-5 h-5"></i>
-                  </div>
-                  <span class="font-medium text-gray-800">View Reports</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
-              </button>
-              
-              <button class="w-full flex items-center justify-between p-4 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors group">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-amber-200 transition-colors">
-                    <i data-lucide="settings" class="text-amber-600 w-5 h-5"></i>
-                  </div>
-                  <span class="font-medium text-gray-800">Store Settings</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-400 w-5 h-5"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Product inventory -->
-        <div class="bg-white rounded-xl shadow">
-          <div class="p-6">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h3 class="text-xl font-semibold text-gray-800">Product Inventory</h3>
-                <p class="text-sm text-gray-500">Manage your product details, stock, and status.</p>
-              </div>
-              <div class="flex items-center gap-3 flex-wrap">
-                <div class="relative flex-grow max-w-xs">
-                  <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5"></i>
-                  <input id="product-search" type="text" placeholder="Search products..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus-ring w-full">
-                </div>
-                <select id="category-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus-ring">
-                  <option value="">All Categories</option>
-                </select>
-                <select id="status-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus-ring">
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-                <button id="add-product-btn" class="gradient-primary text-white px-4 py-2 rounded-lg transition-all hover:shadow-lg whitespace-nowrap flex items-center gap-2 btn btn-primary">
-                  <i data-lucide="plus" class="w-5 h-5"></i>Add Product
-                </button>
-              </div>
-            </div>
-
-            <div id="products-loading" class="text-center py-12 hidden">
-              <div class="flex justify-center items-center gap-2 text-gray-500">
-                <i data-lucide="loader" class="animate-spin w-5 h-5"></i>
-                <span>Loading products...</span>
-              </div>
-            </div>
-            
-            <div id="products-empty" class="text-center py-12 hidden">
-              <i data-lucide="package-x" class="mx-auto h-12 w-12 text-gray-400 mb-4"></i>
-              <h3 class="text-lg font-medium text-gray-800 mb-2">No Products Found</h3>
-              <p class="text-gray-500 mb-4">Add your first product to get started!</p>
-              <button id="add-first-product-btn" class="gradient-primary text-white px-4 py-2 rounded-lg transition-all hover:shadow-lg flex items-center gap-2 mx-auto btn btn-primary">
-                <i data-lucide="plus" class="w-4 h-4"></i>Add Your First Product
-              </button>
-            </div>
-
-            <div id="products-skeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
-            
-            <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"></div>
-
-            <div id="pagination" class="flex items-center justify-between border-t pt-4 mt-6 hidden">
-              <p class="text-sm text-gray-700">Showing <b id="pagination-start">1</b> to <b id="pagination-end">10</b> of <b id="pagination-total">0</b> results</p>
-              <div class="flex items-center gap-2">
-                <button id="prev-page" class="p-2 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  <i data-lucide="chevron-left" class="h-5 w-5"></i>
-                </button>
-                <span id="pagination-pages" class="text-sm font-medium text-gray-700"></span>
-                <button id="next-page" class="p-2 rounded-md border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  <i data-lucide="chevron-right" class="h-5 w-5"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+        </section>
+      </div>
+    </main>
   </section>
 
-  <!-- Product Modal -->
-  <div id="product-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-    <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl max-h-[90vh] flex flex-col modal-content">
-      <div class="flex items-center justify-between p-6 border-b">
-        <h3 id="modal-title" class="text-xl font-bold text-gray-800">Add New Product</h3>
-        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+  <!-- Toast container -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Simple Modal -->
+  <div id="modal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center">
+    <div class="modal-content bg-white rounded-xl shadow-xl p-6 max-w-lg w-full">
+      <div class="flex items-center justify-between mb-2">
+        <h3 id="modal-title" class="font-semibold">Confirm</h3>
+        <button id="modal-close" class="rounded-lg p-1 hover:bg-gray-100"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-      <form id="product-form" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        <div>
-          <h4 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h4>
-          <div class="space-y-4">
-            <div>
-              <label for="product-name" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-              <input id="product-name" placeholder="e.g., Premium Wireless Headphones" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="product-category" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <select id="product-category" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring bg-white">
-                  <option value="" disabled selected>Loading categories...</option>
-                </select>
-              </div>
-              <div>
-                <label for="product-stock" class="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
-                <input id="product-stock" type="number" min="0" step="1" placeholder="0" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
-              </div>
-            </div>
-            <div class="price-input">
-              <label for="product-price" class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
-              <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors">
-            </div>
-            <div>
-              <label for="product-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea id="product-description" rows="4" placeholder="Describe your product..." class="w-full border border-gray-300 rounded-lg p-3 focus-ring focus:border-purple-500 transition-colors" maxlength="500"></textarea>
-              <p class="text-xs text-gray-500 mt-1"><span id="char-count">0</span>/500 characters</p>
-            </div>
-            <div class="flex items-center">
-              <input id="product-active" type="checkbox" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" checked>
-              <label for="product-active" class="ml-2 block text-sm text-gray-700">
-                Product is active and visible to customers
-              </label>
-            </div>
-          </div>
-        </div>
-        <div>
-          <h4 class="text-lg font-semibold text-gray-800 mb-4">Product Images</h4>
-          <div id="upload-drop" class="image-uploader rounded-lg p-6 text-center">
-            <input id="product-images-input" type="file" multiple accept="image/*" class="hidden">
-            <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto text-gray-400 mb-2"></i>
-            <p class="text-gray-600">Drag & drop images here or <button type="button" id="pick-images-btn" class="text-purple-600 font-semibold underline">browse</button></p>
-            <p class="text-xs text-gray-500 mt-1">Upload up to 6 images (PNG, JPG). First image is the cover.</p>
-          </div>
-          <div id="upload-previews" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4"></div>
-        </div>
-      </form>
-      <div class="flex items-center justify-end gap-3 p-6 border-t bg-gray-50 rounded-b-2xl">
-        <button type="button" id="cancel-product-btn" class="px-4 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition-colors">Cancel</button>
-        <button type="submit" form="product-form" id="save-product-btn" class="px-6 py-2 rounded-lg gradient-primary text-white font-semibold transition-all hover:shadow-lg flex items-center gap-2 btn btn-primary">
-          <span id="save-product-text">Save Product</span>
-          <i data-lucide="loader" id="save-spinner" class="animate-spin hidden w-5 h-5"></i>
-        </button>
+      <div id="modal-body" class="text-sm text-gray-600">Are you sure?</div>
+      <div class="flex items-center justify-end gap-2 mt-4">
+        <button id="modal-cancel" class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Cancel</button>
+        <button id="modal-ok" class="btn btn-primary px-4 py-2">OK</button>
       </div>
     </div>
-  </div>
-
-  <!-- Confirm Modal -->
-  <div id="confirm-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-      <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 text-center modal-content">
-          <i id="confirm-modal-icon" data-lucide="alert-triangle" class="w-16 h-16 mx-auto text-red-500 mb-4"></i>
-          <h3 id="confirm-modal-title" class="text-xl font-bold text-gray-800 mb-2">Are you sure?</h3>
-          <p id="confirm-modal-text" class="text-gray-600 mb-6">You won't be able to revert this!</p>
-          <div class="flex justify-center gap-4">
-              <button id="confirm-modal-cancel-btn" class="px-6 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition-colors">Cancel</button>
-              <button id="confirm-modal-confirm-btn" class="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors">Yes, delete it!</button>
-          </div>
-      </div>
-  </div>
-
-  <!-- Debug Modal -->
-  <div id="debug-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-      <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 modal-content">
-          <div class="flex items-center justify-between mb-4">
-              <h3 class="text-xl font-bold text-gray-800">Debug Information</h3>
-              <button id="close-debug-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-          </div>
-          <div class="bg-gray-100 border rounded-lg p-4 text-xs text-gray-700 space-y-2 font-mono break-all max-h-96 overflow-y-auto">
-              <p><strong>Seller ID:</strong> <span id="debug-seller-id">-</span></p>
-              <p><strong>Access Token:</strong> <span id="debug-token">-</span></p>
-              <p><strong>API Base URL:</strong> <span id="debug-api-base">-</span></p>
-              <p><strong>Categories Loaded:</strong> <span id="debug-categories-count">0</span></p>
-              <p><strong>Last API Response (Categories):</strong> <span id="debug-last-category-response">-</span></p>
-              <p><strong>Products Count:</strong> <span id="debug-products-count">0</span></p>
-              <p><strong>Last API Error:</strong> <span id="debug-last-error">None</span></p>
-          </div>
-          <div class="mt-4 flex justify-end">
-            <button id="copy-debug-btn" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors text-sm flex items-center gap-2">
-              <i data-lucide="copy" class="w-4 h-4"></i> Copy Debug Info
-            </button>
-          </div>
-      </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">
-    <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5"></i>
-    <span id="toast-message"></span>
   </div>
 
   <script>
-    // ===================== CONFIG & INITIALIZATION =====================
-    const API_BASE = 'https://quicklocal-backend.onrender.com/api/v1';
-    const PAGE_SIZE = 8; // Reduced for better grid view
+    // ========= Preserve backend endpoints from seller-dashboard.html =========
+    // If your original file defines window.ENDPOINTS, we keep it. Otherwise we use sensible defaults.
+    const DEFAULT_API_BASE = 'https://quicklocal-backend.onrender.com/api/v1';
+    const ENDPOINTS = window.ENDPOINTS || {
+      base: DEFAULT_API_BASE,
+      auth: {
+        login: DEFAULT_API_BASE + '/auth/login',
+        register: DEFAULT_API_BASE + '/auth/register',
+        me: DEFAULT_API_BASE + '/auth/me'
+      },
+      categories: DEFAULT_API_BASE + '/categories',
+      products: {
+        listMine: DEFAULT_API_BASE + '/products/seller', // fallback
+        list: DEFAULT_API_BASE + '/products',
+        create: DEFAULT_API_BASE + '/products',
+        update: id => DEFAULT_API_BASE + '/products/' + id,
+        remove: id => DEFAULT_API_BASE + '/products/' + id
+      },
+      orders: {
+        listMine: DEFAULT_API_BASE + '/orders/seller',
+        updateStatus: (id) => DEFAULT_API_BASE + '/orders/' + id + '/status'
+      },
+      customers: DEFAULT_API_BASE + '/customers/seller'
+    };
 
-    document.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      App.init();
+    // ========= Axios setup =========
+    const api = axios.create({ baseURL: ENDPOINTS.base, withCredentials: true });
+    api.interceptors.request.use(cfg => {
+      const token = localStorage.getItem('accessToken');
+      if (token) cfg.headers.Authorization = 'Bearer ' + token;
+      return cfg;
     });
 
-    // ===================== GLOBAL STATE =====================
-    const state = {
-      token: localStorage.getItem('accessToken') || null,
-      seller: JSON.parse(localStorage.getItem('seller') || 'null'),
-      categories: [],
-      products: [],
-      currentPage: 1,
-      totalProducts: 0,
-      isEditing: null, // Stores product ID being edited
-      imageUploads: [] // { file, url }
-    };
-
-    // ===================== UTILITY FUNCTIONS =====================
+    // ========= Helpers =========
     const $ = sel => document.querySelector(sel);
     const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const icon = () => lucide.createIcons();
 
-    const UI = {
-      showToast(message, type = 'success') {
-        const toast = $('#toast');
-        const icon = $('#toast-icon');
-        const icons = { success: 'check-circle', error: 'x-circle', warning: 'alert-triangle', info: 'info' };
-        
-        $('#toast-message').textContent = message;
-        icon.setAttribute('data-lucide', icons[type] || 'info');
-        lucide.createIcons();
-        
-        toast.className = `toast toast-${type} show`;
-        setTimeout(() => toast.classList.remove('show'), 3000);
-      },
+    function showToast(msg, type='info'){ const el = $('#toast'); el.className = 'toast toast-' + type; el.innerHTML = `<i data-lucide="info"></i><span>${msg}</span>`; el.classList.add('show'); icon(); setTimeout(()=>el.classList.remove('show'), 2500); }
 
-      setLoading(selector, isLoading) {
-        const el = $(selector);
-        if (el) el.classList.toggle('hidden', !isLoading);
-      },
+    function openModal({title='Confirm', body='Are you sure?', onOk=null}){
+      $('#modal-title').textContent = title; $('#modal-body').textContent = body;
+      const wrap = $('#modal'); wrap.classList.remove('hidden'); setTimeout(()=>wrap.classList.add('show'), 10);
+      const cleanup = ()=>{ wrap.classList.add('hidden'); wrap.classList.remove('show'); $('#modal-ok').onclick=null; };
+      $('#modal-close').onclick = cleanup; $('#modal-cancel').onclick = cleanup; $('#modal').onclick = e=>{ if(e.target===wrap) cleanup(); };
+      $('#modal-ok').onclick = ()=>{ onOk && onOk(); cleanup(); };
+    }
 
-      showView(view) { // 'auth' or 'dashboard'
-        $('#auth-section').classList.toggle('hidden', view !== 'auth');
-        $('#dashboard-section').classList.toggle('hidden', view !== 'dashboard');
-      },
+    function formatINR(num){ try{ return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(num||0);}catch{ return '₹'+(num||0); } }
 
-      toggleModal(modalId, show) {
-        const modal = $(`#${modalId}`);
-        if(modal) {
-          if (show) {
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.add('show'), 10);
-            document.body.style.overflow = 'hidden';
-          } else {
-            modal.classList.remove('show');
-            setTimeout(() => modal.classList.add('hidden'), 200);
-            document.body.style.overflow = 'auto';
-          }
-        }
-      },
+    function setAuthUI(loggedIn){ $('#auth-section').classList.toggle('hidden', !!loggedIn); $('#dashboard-section').classList.toggle('hidden', !loggedIn); }
 
-      confirm(title, text, icon = 'alert-triangle') {
-        return new Promise(resolve => {
-            $('#confirm-modal-title').textContent = title;
-            $('#confirm-modal-text').textContent = text;
-            $('#confirm-modal-icon').setAttribute('data-lucide', icon);
-            lucide.createIcons();
-            UI.toggleModal('confirm-modal', true);
-            
-            $('#confirm-modal-confirm-btn').onclick = () => { UI.toggleModal('confirm-modal', false); resolve(true); };
-            $('#confirm-modal-cancel-btn').onclick = () => { UI.toggleModal('confirm-modal', false); resolve(false); };
-        });
-      },
+    // ========= Auth =========
+    async function doLogin(e){ e.preventDefault(); $('#login-spinner').classList.remove('hidden');
+      try{
+        const email = $('#login-email').value.trim(); const password = $('#login-password').value.trim();
+        const { data } = await api.post(ENDPOINTS.auth.login, { email, password });
+        if(data?.accessToken){ localStorage.setItem('accessToken', data.accessToken); localStorage.setItem('seller', JSON.stringify(data.user||{})); await hydrate(); showToast('Logged in!', 'success'); }
+        else showToast('Invalid response from server', 'error');
+      }catch(err){ showToast(err?.response?.data?.message || 'Login failed', 'error'); }
+      finally{ $('#login-spinner').classList.add('hidden'); }
+    }
 
-      formatCurrency(num) {
-        return new Intl.NumberFormat('en-IN').format(Number(num) || 0);
-      },
-      
-      toggleSidebar(show) {
-        const sidebar = $('.sidebar');
-        const backdrop = $('#sidebar-backdrop');
-        
-        if (show) {
-          sidebar.classList.add('open');
-          backdrop.classList.remove('hidden');
-        } else {
-          sidebar.classList.remove('open');
-          backdrop.classList.add('hidden');
-        }
-      }
-    };
-    
-    // ===================== API HELPERS =====================
-    const API = {
-        getHeaders() {
-            return state.token ? { Authorization: `Bearer ${state.token}` } : {};
-        },
+    async function doRegister(e){ e.preventDefault(); $('#register-spinner').classList.remove('hidden');
+      try{
+        const name=$('#reg-name').value.trim(); const email=$('#reg-email').value.trim(); const business=$('#reg-business').value.trim(); const password=$('#reg-password').value; const confirm=$('#reg-confirm-password').value; if(password!==confirm) return showToast('Passwords do not match','error');
+        const { data } = await api.post(ENDPOINTS.auth.register, { name, email, businessName:business, password });
+        showToast(data?.message||'Registered! Please log in.','success'); $('#login-tab').click();
+      }catch(err){ showToast(err?.response?.data?.message || 'Registration failed','error'); }
+      finally{ $('#register-spinner').classList.add('hidden'); }
+    }
 
-        async get(endpoint, params = {}) {
-            return axios.get(`${API_BASE}${endpoint}`, { params, headers: this.getHeaders() });
-        },
+    function logout(){ localStorage.removeItem('accessToken'); localStorage.removeItem('seller'); setAuthUI(false); }
 
-        async post(endpoint, data) {
-            return axios.post(`${API_BASE}${endpoint}`, data, { headers: { ...this.getHeaders(), 'Content-Type': 'application/json' }});
-        },
-        
-        async postForm(endpoint, formData) {
-            return axios.post(`${API_BASE}${endpoint}`, formData, { headers: { ...this.getHeaders(), 'Content-Type': 'multipart/form-data' }});
-        },
+    // ========= Navigation =========
+    function setPage(page){ ['dashboard','products','orders','customers','analytics','settings'].forEach(p=>{ $('#page-'+p).classList.toggle('hidden', p!==page); });
+      $$('.nav-item').forEach(a=>a.classList.remove('bg-gray-100')); const active = $(`.nav-item[data-page="${page}"]`); active && active.classList.add('bg-gray-100'); icon(); }
 
-        async putForm(endpoint, formData) {
-            return axios.put(`${API_BASE}${endpoint}`, formData, { headers: { ...this.getHeaders(), 'Content-Type': 'multipart/form-data' }});
-        },
+    // ========= Data loads =========
+    async function loadMe(){ try{ const {data}= await api.get(ENDPOINTS.auth.me); const user = data?.user || JSON.parse(localStorage.getItem('seller')||'{}'); $('#seller-name').textContent = user?.name || user?.email || 'Seller'; return user; }catch{ return JSON.parse(localStorage.getItem('seller')||'{}'); } }
 
-        async delete(endpoint) {
-            return axios.delete(`${API_BASE}${endpoint}`, { headers: this.getHeaders() });
-        },
+    async function loadCategories(){ try{ const {data}= await api.get(ENDPOINTS.categories); const cats = Array.isArray(data)?data:(data?.data||[]); const sel=$('#prod-category'); sel.innerHTML = '<option value="">Select</option>' + cats.map(c=>`<option value="${c._id||c.id}">${c.name}</option>`).join(''); }catch{ showToast('Failed to load categories','error'); } }
 
-        async patch(endpoint, data) {
-            return axios.patch(`${API_BASE}${endpoint}`, data, { headers: this.getHeaders() });
-        }
-    };
+    async function loadProducts(){ $('#products-grid').innerHTML = '<div class="grid grid-cols-2 gap-3">'+Array(4).fill().map(()=>`<div class="bg-white rounded-xl p-3 product-card skeleton h-48"></div>`).join('')+'</div>'; try{ const {data}= await api.get(ENDPOINTS.products.listMine); const items = data?.data || data || []; $('#nav-products-count').textContent = items.length; $('#stat-products').textContent = items.length; renderProducts(items); }catch{ showToast('Failed to load products','error'); $('#products-grid').innerHTML=''; } }
 
-    // ===================== APPLICATION LOGIC (App) =====================
-    const App = {
-      init() {
-        this.bindAuthEvents();
-        this.bindDashboardEvents();
-        this.bindModalEvents();
-        this.setupImageUploader();
+    function renderProducts(items){ const grid = $('#products-grid'); grid.innerHTML = items.map(p=>{
+      const img = (p.images && p.images[0]) || p.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image';
+      return `<div class="bg-white rounded-xl shadow product-card overflow-hidden">
+        <img src="${img}" alt="${(p.name||'').replace(/"/g,'&quot;')}" class="w-full h-40 object-cover">
+        <div class="p-3">
+          <div class="flex items-center justify-between mb-1"><div class="font-semibold truncate" title="${p.name}">${p.name}</div><div class="text-sm text-gray-600">${formatINR(p.price)}</div></div>
+          <div class="text-xs text-gray-500 line-clamp-2">${p.description||''}</div>
+          <div class="flex items-center justify-between mt-3">
+            <button class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50" data-edit="${p._id||p.id}"><i data-lucide="pencil"></i> Edit</button>
+            <button class="px-3 py-1 rounded-lg text-red-600 hover:bg-red-50" data-remove="${p._id||p.id}"><i data-lucide="trash-2"></i> Remove</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+      icon();
+      grid.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick = ()=>fillProductForm(items.find(i=> (i._id||i.id)===btn.dataset.edit)));
+      grid.querySelectorAll('[data-remove]').forEach(btn=>btn.onclick = ()=>confirmDeleteProduct(btn.dataset.remove));
+    }
 
-        if (state.token && state.seller) {
-          this.bootstrapDashboard();
-        } else {
-          UI.showView('auth');
-        }
-      },
+    function fillProductForm(p){ if(!p) return; $('#prod-name').value=p.name||''; $('#prod-category').value=p.category? (p.category._id||p.category.id||p.category) : ''; $('#prod-price').value=p.price||0; $('#prod-stock').value=p.stock||0; $('#prod-description').value=p.description||''; $('#product-form').dataset.editId = p._id||p.id; window.scrollTo({top:0,behavior:'smooth'}); setPage('products'); }
 
-      // ---------- AUTHENTICATION ----------
-      bindAuthEvents() {
-        $('#login-tab').onclick = () => this.switchAuthTab('login');
-        $('#register-tab').onclick = () => this.switchAuthTab('register');
-        $('#login-form').addEventListener('submit', this.handleLogin.bind(this));
-        $('#register-form').addEventListener('submit', this.handleRegister.bind(this));
-        
-        // Mobile sidebar
-        $('#mobile-menu-btn').onclick = () => UI.toggleSidebar(true);
-        $('#close-sidebar').onclick = () => UI.toggleSidebar(false);
-        $('#sidebar-backdrop').onclick = () => UI.toggleSidebar(false);
-      },
+    function resetProductForm(){ $('#product-form').reset(); delete $('#product-form').dataset.editId; $('#image-previews').innerHTML=''; }
 
-      switchAuthTab(tab) {
-        const isLogin = tab === 'login';
-        $('#login-tab').classList.toggle('bg-white', isLogin);
-        $('#login-tab').classList.toggle('text-purple-600', isLogin);
-        $('#login-tab').classList.toggle('font-semibold', isLogin);
-        $('#register-tab').classList.toggle('bg-white', !isLogin);
-        $('#register-tab').classList.toggle('text-purple-600', !isLogin);
-        $('#register-tab').classList.toggle('font-semibold', !isLogin);
-        $('#login-form').classList.toggle('hidden', !isLogin);
-        $('#register-form').classList.toggle('hidden', isLogin);
-      },
+    async function confirmDeleteProduct(id){ openModal({ title:'Delete product', body:'This action cannot be undone.', onOk:()=>deleteProduct(id) }); }
 
-      async handleLogin(e) {
-        e.preventDefault();
-        UI.setLoading('#login-spinner', true);
-        $('#login-btn-text').textContent = 'Signing in...';
-        try {
-          const { data } = await API.post('/auth/login', {
-            email: $('#login-email').value,
-            password: $('#login-password').value
-          });
-          state.token = data.accessToken || data.token;
-          state.seller = data.user || data.seller;
-          localStorage.setItem('accessToken', state.token);
-          localStorage.setItem('seller', JSON.stringify(state.seller));
-          UI.showToast('Login successful!');
-          this.bootstrapDashboard();
-        } catch (err) {
-          UI.showToast(err.response?.data?.message || 'Login failed', 'error');
-        } finally {
-          UI.setLoading('#login-spinner', false);
-          $('#login-btn-text').textContent = 'Sign In';
-        }
-      },
+    async function deleteProduct(id){ try{ await api.delete(ENDPOINTS.products.remove(id)); showToast('Product deleted','success'); loadProducts(); }catch(err){ showToast(err?.response?.data?.message||'Delete failed','error'); } }
 
-      async handleRegister(e) {
-          e.preventDefault();
-          // Validate passwords match
-          if ($('#reg-password').value !== $('#reg-confirm-password').value) {
-            UI.showToast('Passwords do not match', 'error');
-            return;
-          }
-          
-          // Validate terms accepted
-          if (!$('#reg-terms').checked) {
-            UI.showToast('Please accept the terms and conditions', 'error');
-            return;
-          }
-          
-          UI.setLoading('#register-spinner', true);
-          $('#register-btn-text').textContent = 'Creating account...';
-          try {
-              await API.post('/auth/register', {
-                  name: $('#reg-name').value,
-                  email: $('#reg-email').value,
-                  businessName: $('#reg-business').value,
-                  password: $('#reg-password').value,
-                  role: 'seller'
-              });
-              UI.showToast('Registration successful! Please login.', 'success');
-              this.switchAuthTab('login');
-              $('#login-email').value = $('#reg-email').value; // Pre-fill email
-              $('#register-form').reset();
-          } catch (err) {
-              UI.showToast(err.response?.data?.message || 'Registration failed', 'error');
-          } finally {
-              UI.setLoading('#register-spinner', false);
-              $('#register-btn-text').textContent = 'Create Account';
-          }
-      },
+    async function saveProduct(e){ e.preventDefault(); const fd = new FormData(); fd.append('name',$('#prod-name').value.trim()); fd.append('category',$('#prod-category').value); fd.append('price',$('#prod-price').value); fd.append('stock',$('#prod-stock').value); fd.append('description',$('#prod-description').value.trim());
+      const files = $$('#image-previews img').map(img=>img.file).filter(Boolean); files.forEach(f=>fd.append('images',f));
+      try{
+        const editId = $('#product-form').dataset.editId;
+        if(editId){ await api.put(ENDPOINTS.products.update(editId), fd, { headers:{'Content-Type':'multipart/form-data'} }); showToast('Product updated','success'); }
+        else { await api.post(ENDPOINTS.products.create, fd, { headers:{'Content-Type':'multipart/form-data'} }); showToast('Product created','success'); }
+        resetProductForm(); loadProducts();
+      }catch(err){ showToast(err?.response?.data?.message||'Save failed','error'); }
+    }
 
-      logout() {
-        state.token = null;
-        state.seller = null;
-        localStorage.clear();
-        UI.showView('auth');
-        UI.showToast('You have been logged out.', 'info');
-      },
-      
-      // ---------- DASHBOARD ----------
-      async bootstrapDashboard() {
-        UI.showView('dashboard');
-        const sellerName = state.seller.name || 'Seller';
-        $('#seller-name').textContent = sellerName;
-        $('#sidebar-seller-name').textContent = sellerName;
-        $('#sidebar-business-name').textContent = state.seller.businessName || 'Business';
-        $('#seller-initials').textContent = sellerName.split(' ').map(n => n[0]).join('').toUpperCase();
-        $('#wallet-balance').textContent = UI.formatCurrency(state.seller.walletBalance || 0);
-        this.updateDebugInfo();
-        await this.loadCategories();
-        await this.fetchProducts();
-      },
+    // Orders
+    async function loadOrders(){ try{ const {data}= await api.get(ENDPOINTS.orders.listMine); const list = data?.data || data || []; $('#nav-orders-count').textContent = list.length; $('#stat-orders').textContent = list.length; renderOrders(list); }catch{ showToast('Failed to load orders','error'); }}
 
-      bindDashboardEvents() {
-        $('#logout-btn').onclick = this.logout;
-        $('#add-product-btn').onclick = () => this.openProductModal('add');
-        $('#add-first-product-btn').onclick = () => this.openProductModal('add');
-        $('#product-search').addEventListener('input', this.debounce(() => { 
-          state.currentPage = 1; 
-          this.fetchProducts(); 
-        }, 500));
-        $('#category-filter').addEventListener('change', () => { state.currentPage = 1; this.fetchProducts(); });
-        $('#status-filter').addEventListener('change', () => { state.currentPage = 1; this.fetchProducts(); });
-        $('#prev-page').onclick = () => { if (state.currentPage > 1) { state.currentPage--; this.fetchProducts(); } };
-        $('#next-page').onclick = () => { if (state.currentPage < Math.ceil(state.totalProducts / PAGE_SIZE)) { state.currentPage++; this.fetchProducts(); } };
-        $('#toggle-debug').onclick = () => UI.toggleModal('debug-modal', true);
-        $('#close-debug-btn').onclick = () => UI.toggleModal('debug-modal', false);
-        $('#copy-debug-btn').onclick = this.copyDebugInfo;
-      },
-      
-      debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-          const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-          };
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
-        };
-      },
-      
-      copyDebugInfo() {
-        const debugInfo = `Seller ID: ${$('#debug-seller-id').textContent}
-Access Token: ${$('#debug-token').textContent}
-API Base URL: ${$('#debug-api-base').textContent}
-Categories Loaded: ${$('#debug-categories-count').textContent}
-Last Category Response: ${$('#debug-last-category-response').textContent}
-Products Count: ${$('#debug-products-count').textContent}
-Last Error: ${$('#debug-last-error').textContent}`;
-        
-        navigator.clipboard.writeText(debugInfo).then(() => {
-          UI.showToast('Debug info copied to clipboard', 'success');
-        });
-      },
+    function renderOrders(list){ const wrap = $('#orders-list'); if(!list.length){ wrap.innerHTML = '<div class="text-sm text-gray-500">No orders yet.</div>'; return; }
+      wrap.innerHTML = list.map(o=>{
+        const items = (o.items||[]).map(i=>`${i.qty||i.quantity}× ${i.name||i.product?.name||'Item'}`).join(', ');
+        return `<div class="border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+          <div>
+            <div class="font-semibold">#${o.orderId||o._id||''} <span class="text-xs text-gray-500">• ${new Date(o.createdAt||Date.now()).toLocaleString()}</span></div>
+            <div class="text-sm text-gray-600 truncate max-w-[520px]">${items}</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm px-2 py-1 rounded bg-gray-100">${o.status||'pending'}</span>
+            <button class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50" data-advance="${o._id||o.id}">Advance</button>
+          </div>
+        </div>`
+      }).join('');
+      icon();
+      wrap.querySelectorAll('[data-advance]').forEach(btn=> btn.onclick = ()=>advanceOrder(btn.dataset.advance));
+    }
 
-      updateDebugInfo() {
-        $('#debug-seller-id').textContent = state.seller?.id || state.seller?._id || '-';
-        $('#debug-token').textContent = state.token ? `${state.token.slice(0, 12)}...` : '-';
-        $('#debug-api-base').textContent = API_BASE;
-        $('#debug-categories-count').textContent = state.categories.length;
-        $('#debug-products-count').textContent = state.products.length;
-      },
-      
-      // ---------- CATEGORIES ----------
-      async loadCategories() {
-        try {
-          const { data } = await API.get('/categories');
-          const categories = data?.categories || data?.data || data || [];
-          state.categories = categories;
+    async function advanceOrder(id){ const statuses=['pending','processing','shipped','delivered']; try{ const {data}= await api.patch(ENDPOINTS.orders.updateStatus(id),{}); showToast(data?.message||'Order updated','success'); loadOrders(); }catch{ showToast('Failed to update order','error'); } }
 
-          const optionsHtml = categories.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
-          $('#product-category').innerHTML = `<option value="" disabled selected>Select a category</option>${optionsHtml}`;
-          $('#category-filter').innerHTML = `<option value="">All Categories</option>${optionsHtml}`;
-          $('#debug-last-category-response').textContent = `Success: Loaded ${categories.length} items.`;
-        } catch (err) {
-          UI.showToast('Could not load categories.', 'warning');
-          $('#debug-last-category-response').textContent = `Error: ${err.message}`;
-          $('#debug-last-error').textContent = err.message;
-        }
-        this.updateDebugInfo();
-      },
+    // Customers
+    async function loadCustomers(){ try{ const {data}= await api.get(ENDPOINTS.customers); const list = data?.data || data || []; $('#stat-customers').textContent = list.length; $('#customers-list').innerHTML = list.map(c=>`<div class="border border-gray-200 rounded-lg p-3 flex items-center justify-between"><div><div class="font-semibold">${c.name||c.email}</div><div class="text-xs text-gray-500">${c.email||''}</div></div><div class="text-sm text-gray-600">Orders: ${c.ordersCount||0}</div></div>`).join(''); }catch{ $('#customers-list').innerHTML='<div class="text-sm text-gray-500">No data</div>'; }}
 
-      // ---------- PRODUCTS ----------
-      async fetchProducts() {
-        UI.setLoading('#products-loading', true);
-        $('#products-grid').classList.add('hidden');
-        $('#products-empty').classList.add('hidden');
+    // Charts
+    let salesChart, analyticsChart;
+    function renderSalesChart(series){ const ctx = document.getElementById('salesChart').getContext('2d'); if(salesChart) salesChart.destroy(); salesChart = new Chart(ctx,{ type:'line', data:{ labels: series.map(s=>s.label), datasets:[{ label:'Sales', data: series.map(s=>s.value), tension:.35, fill:false }] }, options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback:v=>formatINR(v).replace('₹','') } } } }); }
+    function renderAnalyticsChart(series){ const ctx = document.getElementById('analyticsChart').getContext('2d'); if(analyticsChart) analyticsChart.destroy(); analyticsChart = new Chart(ctx,{ type:'bar', data:{ labels: series.map(s=>s.label), datasets:[{ label:'Orders', data: series.map(s=>s.value) }] }, options:{ responsive:true, plugins:{ legend:{ display:false } } }); }
 
-        try {
-          const params = { page: state.currentPage, limit: PAGE_SIZE };
-          const query = $('#product-search').value.trim();
-          const category = $('#category-filter').value;
-          const status = $('#status-filter').value;
-          
-          if (query) params.search = query;
-          if (category) params.category = category;
-          if (status) params.active = status === 'active';
+    async function loadDashboard(){ try{ // best-effort pulls
+        const [productsRes, ordersRes] = await Promise.allSettled([ api.get(ENDPOINTS.products.listMine), api.get(ENDPOINTS.orders.listMine) ]);
+        const products = productsRes.value?.data?.data || productsRes.value?.data || [];
+        const orders = ordersRes.value?.data?.data || ordersRes.value?.data || [];
+        $('#stat-products').textContent = products.length; $('#nav-products-count').textContent = products.length;
+        $('#stat-orders').textContent = orders.length; $('#nav-orders-count').textContent = orders.length;
+        const total = orders.reduce((sum,o)=> sum + (o.total||o.amount||0), 0); $('#stat-total-sales').textContent = formatINR(total);
+        const last7 = Array.from({length:7}).map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()- (6-i)); const label=d.toLocaleDateString('en-IN',{month:'short',day:'numeric'}); const dayTotal = orders.filter(o=> new Date(o.createdAt).toDateString()===d.toDateString()).reduce((s,o)=>s+(o.total||o.amount||0),0); return {label,value:dayTotal}; });
+        renderSalesChart(last7); renderAnalyticsChart(last7.map(d=>({label:d.label,value:Math.round((d.value||0)/1000)})));
+        const catCount = {}; products.forEach(p=>{ const name = p.category?.name || p.category || 'Other'; catCount[name] = (catCount[name]||0)+1; });
+        $('#top-categories').innerHTML = Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`<li class="flex items-center justify-between"><span>${k}</span><span class="text-sm text-gray-600">${v}</span></li>`).join('');
+      }catch{ /* non-fatal */ }
+    }
 
-          const { data } = await API.get('/seller/products', params);
-          state.products = data.products || data.items || [];
-          state.totalProducts = data.total || data.count || state.products.length;
+    // Uploader UI
+    function initUploader(){ const box = $('#image-drop'); const input = $('#prod-images');
+      box.onclick = ()=> input.click();
+      box.ondragover = e=>{ e.preventDefault(); box.classList.add('dragover'); };
+      box.ondragleave = ()=> box.classList.remove('dragover');
+      box.ondrop = e=>{ e.preventDefault(); box.classList.remove('dragover'); handleFiles(e.dataTransfer.files); };
+      input.onchange = ()=> handleFiles(input.files);
+      function handleFiles(files){ const list = Array.from(files); list.forEach(f=>{ const reader = new FileReader(); reader.onload = ()=>{ const img = new Image(); img.src = reader.result; img.className='w-16 h-16 object-cover rounded-lg border border-gray-200'; img.file = f; const wrap = document.createElement('div'); wrap.className='relative'; wrap.innerHTML = `<button class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center" title="Remove">×</button>`; wrap.appendChild(img); wrap.querySelector('button').onclick = ()=> wrap.remove(); $('#image-previews').appendChild(wrap); }; reader.readAsDataURL(f); }); }
+    }
 
-          this.renderProducts();
-          this.updatePagination();
-          $('#stat-products').textContent = state.totalProducts;
-          
-          // Update sales stat (mock data for demo)
-          $('#stat-sales').textContent = `₹${UI.formatCurrency(125000)}`;
-          $('#stat-orders').textContent = '5';
-          $('#stat-rating').textContent = '4.8';
-        } catch (err) {
-          UI.showToast('Failed to fetch products', 'error');
-          $('#debug-last-error').textContent = err.message;
-          state.products = [];
-          this.renderProducts();
-        } finally {
-          UI.setLoading('#products-loading', false);
-          this.updateDebugInfo();
-        }
-      },
+    // Sidebar mobile
+    function setupSidebar(){ const sb = $('#sidebar'), bd = $('#sidebar-backdrop'); $('#open-sidebar').onclick = ()=>{ sb.classList.add('open'); bd.classList.remove('hidden'); }; $('#close-sidebar').onclick = ()=>{ sb.classList.remove('open'); bd.classList.add('hidden'); }; bd.onclick = ()=>{ sb.classList.remove('open'); bd.classList.add('hidden'); } }
 
-      renderProducts() {
-          const grid = $('#products-grid');
-          grid.innerHTML = '';
+    // Hydrate after login
+    async function hydrate(){ setAuthUI(true); icon(); await loadMe(); await Promise.all([loadCategories(), loadProducts(), loadOrders(), loadCustomers()]); await loadDashboard(); setPage('dashboard'); }
 
-          if (state.products.length === 0) {
-              $('#products-empty').classList.remove('hidden');
-              grid.classList.add('hidden');
-              $('#pagination').classList.add('hidden');
-              return;
-          }
+    // ========= Events =========
+    document.addEventListener('DOMContentLoaded', ()=>{
+      icon(); setupSidebar(); initUploader();
+      // tabs
+      $('#login-tab').onclick = ()=>{ $('#login-form').classList.remove('hidden'); $('#register-form').classList.add('hidden'); $('#login-tab').classList.add('bg-white','text-purple-600','shadow-sm'); $('#register-tab').classList.remove('bg-white','text-purple-600','shadow-sm'); };
+      $('#register-tab').onclick = ()=>{ $('#register-form').classList.remove('hidden'); $('#login-form').classList.add('hidden'); $('#register-tab').classList.add('bg-white','text-purple-600','shadow-sm'); $('#login-tab').classList.remove('bg-white','text-purple-600','shadow-sm'); };
 
-          $('#products-empty').classList.add('hidden');
-          grid.classList.remove('hidden');
+      // auth
+      $('#login-form').addEventListener('submit', doLogin);
+      $('#register-form').addEventListener('submit', doRegister);
+      $('#logout-btn').onclick = logout;
 
-          state.products.forEach(p => {
-              const isActive = p.active !== false;
-              const imageUrl = p.images?.[0] || 'https://via.placeholder.com/400x300?text=No+Image';
-              const card = document.createElement('div');
-              card.className = 'bg-white rounded-lg shadow product-card overflow-hidden flex flex-col';
-              card.innerHTML = `
-                  <div class="relative">
-                      <img src="${imageUrl}" alt="${p.name}" class="w-full h-48 object-cover">
-                      <span class="absolute top-2 left-2 status-indicator ${isActive ? 'status-active' : 'status-inactive'}" title="${isActive ? 'Active' : 'Inactive'}"></span>
-                      ${p.stock <= 5 ? `<span class="absolute top-2 right-2 badge bg-amber-100 text-amber-800">Low Stock</span>` : ''}
-                  </div>
-                  <div class="p-4 flex-1 flex flex-col">
-                      <h3 class="font-semibold text-gray-800 line-clamp-2 h-12">${p.name || 'Unnamed Product'}</h3>
-                      <p class="text-sm text-gray-500 mt-1">${p.category?.name || 'Uncategorized'}</p>
-                      <p class="text-sm text-gray-500 mt-1">Stock: ${p.stock ?? 0}</p>
-                      <p class="text-xl font-bold text-gray-900 mt-2">₹${UI.formatCurrency(p.price)}</p>
-                      <div class="mt-auto pt-4 grid grid-cols-2 gap-2">
-                          <button class="edit-btn w-full px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 font-semibold flex items-center justify-center gap-1 transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i>Edit</button>
-                          <button class="delete-btn w-full px-3 py-2 text-sm rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold flex items-center justify-center gap-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i>Delete</button>
-                      </div>
-                  </div>`;
-              card.querySelector('.edit-btn').onclick = () => this.openProductModal('edit', p);
-              card.querySelector('.delete-btn').onclick = () => this.deleteProduct(p);
-              grid.appendChild(card);
-          });
-          lucide.createIcons();
-      },
+      // nav
+      $$('.nav-item').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); setPage(a.dataset.page); });
 
-      updatePagination() {
-          const totalPages = Math.ceil(state.totalProducts / PAGE_SIZE);
-          const container = $('#pagination');
-          container.classList.toggle('hidden', totalPages <= 1);
-          
-          $('#pagination-pages').textContent = `Page ${state.currentPage} of ${totalPages}`;
-          $('#pagination-total').textContent = state.totalProducts;
-          $('#pagination-start').textContent = (state.currentPage - 1) * PAGE_SIZE + 1;
-          $('#pagination-end').textContent = Math.min(state.currentPage * PAGE_SIZE, state.totalProducts);
-          
-          $('#prev-page').disabled = state.currentPage === 1;
-          $('#next-page').disabled = state.currentPage === totalPages;
-      },
-      
-      async deleteProduct(product) {
-          const confirmed = await UI.confirm('Delete Product', `Are you sure you want to delete "${product.name}"? This action cannot be undone.`, 'trash-2');
-          if (!confirmed) return;
+      // product form
+      $('#product-form').addEventListener('submit', saveProduct);
+      $('#reset-product-form').onclick = resetProductForm;
 
-          try {
-              await API.delete(`/seller/products/${product._id}`);
-              UI.showToast('Product deleted successfully.', 'success');
-              this.fetchProducts();
-          } catch (err) {
-              UI.showToast('Failed to delete product.', 'error');
-              $('#debug-last-error').textContent = err.message;
-          }
-      },
+      // filters
+      $('#order-filter').onchange = ()=> loadOrders();
 
-      // ---------- MODAL & FORM HANDLING ----------
-      bindModalEvents() {
-        $('#close-modal-btn').onclick = () => UI.toggleModal('product-modal', false);
-        $('#cancel-product-btn').onclick = () => UI.toggleModal('product-modal', false);
-        $('#close-debug-btn').onclick = () => UI.toggleModal('debug-modal', false);
-        $('#product-form').addEventListener('submit', this.handleSaveProduct.bind(this));
-        
-        // Character count for description
-        $('#product-description').addEventListener('input', (e) => {
-          $('#char-count').textContent = e.target.value.length;
-        });
-      },
+      // settings
+      $('#store-status-toggle').onchange = (e)=>{ const on = e.target.checked; $('#seller-status').className = 'flex items-center gap-2 '+(on?'bg-green-100 text-green-600':'bg-red-100 text-red-600')+' px-3 py-1 rounded-full text-sm'; $('#seller-status .status-indicator').className = 'status-indicator '+(on?'status-active':'status-inactive'); };
 
-      openProductModal(mode, product = null) {
-          $('#product-form').reset();
-          state.imageUploads = [];
-          this.renderImagePreviews();
-          $('#char-count').textContent = '0';
-
-          state.isEditing = (mode === 'edit' && product) ? product._id : null;
-          $('#modal-title').textContent = mode === 'edit' ? 'Edit Product' : 'Add New Product';
-
-          if (state.isEditing) {
-              $('#product-name').value = product.name || '';
-              $('#product-price').value = product.price || '';
-              $('#product-stock').value = product.stock || '';
-              $('#product-description').value = product.description || '';
-              $('#product-category').value = product.category?._id || product.category;
-              $('#product-active').checked = product.active !== false;
-              $('#char-count').textContent = product.description?.length || 0;
-              
-              (product.images || []).forEach(url => state.imageUploads.push({ file: null, url }));
-              this.renderImagePreviews();
-          }
-          
-          UI.toggleModal('product-modal', true);
-      },
-      
-      async handleSaveProduct(e) {
-          e.preventDefault();
-          UI.setLoading('#save-spinner', true);
-          $('#save-product-text').textContent = 'Saving...';
-          
-          const formData = new FormData();
-          formData.append('name', $('#product-name').value);
-          formData.append('category', $('#product-category').value);
-          formData.append('price', $('#product-price').value);
-          formData.append('stock', $('#product-stock').value);
-          formData.append('description', $('#product-description').value);
-          formData.append('active', $('#product-active').checked);
-          
-          state.imageUploads.forEach(upload => {
-              if (upload.file) formData.append('images', upload.file);
-          });
-          
-          try {
-              if (state.isEditing) {
-                  await API.putForm(`/seller/products/${state.isEditing}`, formData);
-                  UI.showToast('Product updated successfully!');
-              } else {
-                  await API.postForm('/seller/products', formData);
-                  UI.showToast('Product created successfully!');
-              }
-              UI.toggleModal('product-modal', false);
-              this.fetchProducts();
-          } catch (err) {
-              UI.showToast(err.response?.data?.message || 'Failed to save product.', 'error');
-              $('#debug-last-error').textContent = err.message;
-          } finally {
-              UI.setLoading('#save-spinner', false);
-              $('#save-product-text').textContent = 'Save Product';
-          }
-      },
-
-      // ---------- IMAGE UPLOADER ----------
-      setupImageUploader() {
-          const dropArea = $('#upload-drop');
-          const input = $('#product-images-input');
-          
-          $('#pick-images-btn').onclick = () => input.click();
-          input.onchange = (e) => this.handleFiles(e.target.files);
-          
-          ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-              dropArea.addEventListener(eventName, e => e.preventDefault(), false);
-          });
-          
-          ['dragenter', 'dragover'].forEach(eventName => {
-              dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
-          });
-          
-          ['dragleave', 'drop'].forEach(eventName => {
-              dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
-          });
-          
-          dropArea.addEventListener('drop', e => this.handleFiles(e.dataTransfer.files), false);
-      },
-
-      handleFiles(files) {
-        const newFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-        for(const file of newFiles) {
-          if (state.imageUploads.length < 6) {
-            state.imageUploads.push({ file, url: URL.createObjectURL(file) });
-          } else {
-            UI.showToast('Maximum 6 images allowed', 'warning');
-            break;
-          }
-        }
-        this.renderImagePreviews();
-      },
-
-      renderImagePreviews() {
-          const container = $('#upload-previews');
-          container.innerHTML = '';
-          state.imageUploads.forEach((upload, index) => {
-              const preview = document.createElement('div');
-              preview.className = 'relative group';
-              preview.innerHTML = `
-                  <img src="${upload.url}" class="w-full h-24 object-cover rounded-lg border"/>
-                  <button type="button" class="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-600 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
-                      <i data-lucide="x" class="w-4 h-4"></i>
-                  </button>`;
-              preview.querySelector('button').onclick = () => {
-                  state.imageUploads.splice(index, 1);
-                  this.renderImagePreviews();
-              };
-              container.appendChild(preview);
-          });
-          lucide.createIcons();
-      }
-    };
+      // restore session
+      const token = localStorage.getItem('accessToken'); if(token){ hydrate(); } else { setAuthUI(false); }
+    });
   </script>
 </body>
 </html>
