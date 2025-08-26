@@ -866,6 +866,8 @@
         update: id => `${DEFAULT_API_BASE}/seller/products/${id}`,
         remove: id => `${DEFAULT_API_BASE}/seller/products/${id}`
       },
+      // NOTE: The backend server is returning a 404 for these endpoints.
+      // They need to be created on the server for this to work.
       orders: {
         listMine: `${DEFAULT_API_BASE}/seller/orders`,
         updateStatus: id => `${DEFAULT_API_BASE}/seller/orders/${id}/status`
@@ -1074,7 +1076,13 @@
     async function loadCategories() {
       try {
         const { data } = await api.get(ENDPOINTS.categories);
-        const cats = Array.isArray(data) ? data : (data?.data || []);
+
+        // --- FIX START ---
+        // The original code failed if the API response was not structured as expected.
+        // This new code safely checks for an array in common response structures.
+        const cats = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+        // --- FIX END ---
+        
         const select = $('#prod-category');
         select.innerHTML = '<option value="">Select Category</option>' +
           cats.map(c => `<option value="${c._id || c.id}">${c.name}</option>`).join('');
@@ -1274,8 +1282,13 @@
         
         renderOrders(orders);
       } catch (err) {
-        showToast('Failed to load orders', 'error');
-        $('#orders-list').innerHTML = '<div class="text-center text-gray-500 py-8">Failed to load orders</div>';
+        // --- IMPROVED ERROR HANDLING ---
+        const message = err.response?.status === 404
+            ? 'Failed to load orders: API endpoint not found.'
+            : 'Failed to load orders';
+        showToast(message, 'error');
+        $('#orders-list').innerHTML = `<div class="text-center text-gray-500 py-8">${message}</div>`;
+        // --- END IMPROVEMENT ---
       }
     }
 
@@ -1369,7 +1382,12 @@
         $('#stat-customers').textContent = customers.length;
         renderCustomers(customers);
       } catch (err) {
-        $('#customers-list').innerHTML = '<div class="text-center text-gray-500 py-8">Failed to load customers</div>';
+        // --- IMPROVED ERROR HANDLING ---
+        const message = err.response?.status === 404
+            ? 'Failed to load customers: API endpoint not found.'
+            : 'Failed to load customers';
+        $('#customers-list').innerHTML = `<div class="text-center text-gray-500 py-8">${message}</div>`;
+        // --- END IMPROVEMENT ---
       }
     }
 
@@ -1509,9 +1527,9 @@
           api.get(ENDPOINTS.orders.listMine)
         ]);
         
-        const products = productsRes.value?.data?.data || productsRes.value?.data || [];
-        const orders = ordersRes.value?.data?.data || ordersRes.value?.data || [];
-        
+        const products = productsRes.status === 'fulfilled' ? (productsRes.value?.data?.data || productsRes.value?.data || []) : [];
+        const orders = ordersRes.status === 'fulfilled' ? (ordersRes.value?.data?.data || ordersRes.value?.data || []) : [];
+
         // Update stats
         $('#stat-products').textContent = products.length;
         $('#nav-products-count').textContent = products.length;
@@ -1573,7 +1591,7 @@
           return orderDate >= weekAgo;
         }).reduce((sum, order) => sum + (order.total || order.amount || 0), 0);
         
-        const growth = lastWeekSales > 0 ? ((thisWeekSales - lastWeekSales) / lastWeekSales * 100).toFixed(1) : 0;
+        const growth = lastWeekSales > 0 ? ((thisWeekSales - lastWeekSales) / lastWeekSales * 100).toFixed(1) : (thisWeekSales > 0 ? '100' : '0');
         $('#stat-sales-delta').textContent = `${growth >= 0 ? '+' : ''}${growth}% vs last week`;
         
       } catch (err) {
@@ -1776,7 +1794,7 @@
       // Search functionality
       $('#product-search').oninput = e => {
         const query = e.target.value.toLowerCase();
-        $$('.product-card-enhanced').forEach(card => {
+        $$('#products-grid > div').forEach(card => {
           const text = card.textContent.toLowerCase();
           card.style.display = text.includes(query) ? 'block' : 'none';
         });
