@@ -1018,11 +1018,13 @@
           throw new Error('Please fill in all fields');
         }
         
+        // --- FIX: The payload now matches what the backend controller expects. ---
         const { data } = await api.post(ENDPOINTS.auth.register, {
-          name,
-          email,
-          businessName: business,
-          password
+          fullName: name,
+          email: email,
+          phone: "9999999999",   // Added a placeholder phone number as it's required
+          password: password,
+          accountType: "seller" // Explicitly set the account type
         });
         
         showToast('Account created successfully! Please log in.', 'success');
