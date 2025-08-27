@@ -1001,49 +1001,54 @@
     }
 
     async function doRegister(e) {
-      e.preventDefault();
-      const spinner = $('#register-spinner');
-      const btnText = $('#register-btn-text');
-      
-      spinner.classList.remove('hidden');
-      btnText.textContent = 'Creating Account...';
-      
-      try {
-        const name = $('#reg-name').value.trim();
-        const email = $('#reg-email').value.trim();
-        const business = $('#reg-business').value.trim();
-        const password = $('#reg-password').value;
-        
-        if (!name || !email || !business || !password) {
-          throw new Error('Please fill in all fields');
-        }
-        
-        // --- FIX: The payload now matches what the backend controller expects. ---
-        const { data } = await api.post(ENDPOINTS.auth.register, {
-          fullName: name,
-          email: email,
-          phone: "9999999999",   // Added a placeholder phone number as it's required
-          password: password,
-          accountType: "seller" // Explicitly set the account type
-        });
-        
-        showToast('Account created successfully! Please log in.', 'success');
-        $('#login-tab').click();
-        $('#register-form').reset();
-      } catch (err) {
-        showToast(err?.response?.data?.message || err.message || 'Registration failed', 'error');
-      } finally {
-        spinner.classList.add('hidden');
-        btnText.textContent = 'Create Account';
-      }
-    }
+  e.preventDefault();
+  const spinner = $('#register-spinner');
+  const btnText = $('#register-btn-text');
+  
+  spinner.classList.remove('hidden');
+  btnText.textContent = 'Creating Account...';
+  
+  try {
+    const name = $('#reg-name').value.trim();
+    const email = $('#reg-email').value.trim();
+    const password = $('#reg-password').value;
+    
+    // This is the corrected payload that matches the backend requirements.
+    const payload = {
+      name: name,
+      email: email,
+      password: password,
+      role: 'seller' // Use 'role' instead of 'accountType'
+    };
+    
+    const { data } = await api.post(ENDPOINTS.auth.register, payload);
+    
+    // On success, show a message and switch to the login tab
+    showToast(data?.message || 'Seller registered successfully! Please log in.', 'success');
+    $('#login-tab').click();
+    $('#register-form').reset();
 
-    function logout() {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('seller');
-      setAuthUI(false);
-      showToast('Successfully logged out', 'success');
+  } catch (err) {
+    // This enhanced error handling will display specific validation errors from the backend.
+    const errors = err?.response?.data?.errors;
+    let message = 'Registration failed. Please check your details.';
+
+    if (Array.isArray(errors)) {
+      // Joins multiple validation errors, e.g., "Name is required, Email is invalid"
+      message = errors.map(e => e.msg).join(', ');
+    } else if (err?.response?.data?.message) {
+      // Shows a single error message, e.g., "User already exists"
+      message = err.response.data.message;
     }
+    
+    showToast(message, 'error');
+    console.error('Registration Error:', err.response || err);
+
+  } finally {
+    spinner.classList.add('hidden');
+    btnText.textContent = 'Create Account';
+  }
+}
 
     // Enhanced navigation
     function setPage(page) {
