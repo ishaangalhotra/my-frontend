@@ -6,327 +6,247 @@
   <title>QuickLocal — Seller Dashboard</title>
   <meta name="color-scheme" content="light dark">
 
-  <!-- Icons & libs -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* ===== Modern UI tokens ===== */
+    /* =====================
+       Clean, Minimal UI with Dark Mode
+       ===================== */
     :root {
-      --brand-1: #6d5ef9;
-      --brand-2: #7a5af8;
-      --ink-900: #0f172a; /* slate-900 */
-      --ink-700: #334155; /* slate-700 */
-      --ink-600: #475569; /* slate-600 */
-      --ink-500: #64748b; /* slate-500 */
-      --bg-grad-a: #667eea; /* indigo */
-      --bg-grad-b: #764ba2; /* purple */
-      --ok: #10b981;
-      --warn: #f59e0b;
-      --err: #ef4444;
-      --glass: rgba(255,255,255,.1);
-      --glass-border: rgba(255,255,255,.25);
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --ink-900: #0f172a;
+      --ink-700: #334155;
+      --ink-500: #64748b;
+      --line: #e5e7eb;
+      --brand: #6d5ef9;
+      --brand-600: #5b4df4;
+      --ok: #16a34a; --warn: #f59e0b; --err: #ef4444;
+      --shadow: 0 6px 18px rgba(15,23,42,.06);
+      --radius: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111827;
+        --panel: #1f2937;
+        --ink-900: #f3f4f6;
+        --ink-700: #9ca3af;
+        --ink-500: #6b7280;
+        --line: #374151;
+        --shadow: 0 6px 18px rgba(0,0,0,.15);
+      }
     }
 
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial;
-      color: var(--ink-900);
-      background: linear-gradient(135deg, var(--bg-grad-a) 0%, var(--bg-grad-b) 100%);
+      margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: var(--ink-900); background: var(--bg);
       -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      transition: background-color .2s ease, color .2s ease;
     }
+    .hidden { display: none !important; }
 
-    /* Utility */
-    .hidden{display:none}
-    .flex{display:flex}.grid{display:grid}.inline-flex{display:inline-flex}
-    .items-center{align-items:center}.justify-between{justify-content:space-between}.justify-center{justify-content:center}
-    .gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.gap-8{gap:2rem}
-    .p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}
-    .px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}
-    .rounded-xl{border-radius:1rem}.rounded-2xl{border-radius:1.25rem}.rounded-full{border-radius:9999px}
-    .w-full{width:100%}.h-48{height:12rem}
-    .max-w-lg{max-width:32rem}.max-w-7xl{max-width:80rem}.mx-auto{margin-left:auto;margin-right:auto}
+    /* Layout */
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    header.appbar { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.8); backdrop-filter: saturate(150%) blur(8px); border-bottom: 1px solid var(--line); }
+    @media (prefers-color-scheme: dark) { header.appbar { background: rgba(31,41,55,.8); } }
+    header .wrap { max-width: 1200px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+    main { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-    /* Glass cards */
-    .card { background: rgba(255,255,255,.9); backdrop-filter: blur(16px); border:1px solid var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,.12); border-radius: 20px; }
-    .card.dark { background: rgba(17,24,39,.9); color: #fff; border-color: rgba(255,255,255,.12); }
-    @media (prefers-color-scheme: dark) { body { color: #e5e7eb; } .card { background: rgba(17,24,39,.9); color:#fff; border-color:rgba(255,255,255,.12);} }
+    /* Sidebar */
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: #101827; color: #fff; border-right: 1px solid rgba(255,255,255,.06); padding: 14px; z-index: 30; transition: transform .25s ease; display:flex; flex-direction:column; }
+    .sb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .sb-title { font-weight: 800; font-size: 1.2rem; }
+    nav { display: grid; gap: 4px; }
+    nav a { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.85); text-decoration: none; padding: 10px 12px; border-radius: 10px; }
+    nav a:hover { background: rgba(255,255,255,.08); }
+    nav a.active { background: var(--brand); color: #fff; }
+    .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 25; }
+    .backdrop.show { display: block; }
+    @media (max-width: 1024px) { .app { grid-template-columns: 1fr; } .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } }
 
-    /* Buttons & Inputs */
-    .btn { background: linear-gradient(135deg, var(--brand-1), var(--brand-2)); color:#fff; border:none; border-radius:14px; padding:.9rem 1.2rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:.5rem; box-shadow:0 10px 24px rgba(109,94,249,.25); transition:transform .15s ease; }
-    .btn:hover { transform: translateY(-1px); }
-    .btn.outline { background: transparent; color: var(--brand-1); border: 2px solid var(--brand-1); box-shadow: none; }
-    .btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 10px 24px rgba(239,68,68,.25); }
+    /* Containers & Grids */
+    .grid-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; }
+    .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+    @media (max-width: 900px) { .grid-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .grid-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .grid-stats { grid-template-columns: 1fr; } }
 
-    .input, select, textarea { width:100%; border:2px solid rgba(0,0,0,.08); border-radius:14px; padding:1rem 1.1rem; font-size:1rem; background: rgba(255,255,255,.95); outline:none; transition:border-color .2s ease, box-shadow .2s ease; }
-    .input:focus, select:focus, textarea:focus { border-color: var(--brand-1); box-shadow: 0 0 0 4px rgba(109,94,249,.15); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem; }
+    .section { display: none; }
+    .section.show { display: block; }
 
-    /* Header / Sidebar */
-    header.app { position: sticky; top:0; z-index:30; backdrop-filter: blur(10px); background: rgba(0,0,0,.45); border-bottom:1px solid rgba(255,255,255,.15); }
-    header .title { color:#fff; font-weight:800; font-size:1.5rem; }
-    .status-pill { display:inline-flex; align-items:center; gap:.5rem; background:rgba(16,185,129,.15); color:#10b981; padding:.35rem .75rem; border-radius:999px; font-size:.85rem; font-weight:700; }
+    /* Controls & Elements */
+    .btn { display: inline-flex; align-items: center; justify-content:center; gap: 8px; padding: 10px 16px; border-radius: 12px; border: 1.5px solid var(--brand); background: var(--brand); color: #fff; font-weight: 600; cursor: pointer; transition: background-color .2s ease; }
+    .btn:hover { background: var(--brand-600); border-color: var(--brand-600); }
+    .btn.ghost { background: transparent; color: var(--brand); }
+    .btn.ghost:hover { background: rgba(109,94,249,.1); }
+    .btn.danger { border-color: var(--err); background: var(--err); }
+    .btn:disabled { background: var(--ink-500); border-color: var(--ink-500); cursor: not-allowed; }
 
-    .layout { display:grid; grid-template-columns: 16rem 1fr; }
-    .sidebar { position: fixed; left:0; top:0; bottom:0; width:16rem; background: rgba(15,23,42,.92); border-right:1px solid rgba(255,255,255,.1); padding:1rem; z-index:40; transform: translateX(0); transition: transform .25s ease; }
-    .sidebar .brand { color:#fff; font-weight:800; font-size:1.1rem; }
-    .nav a { display:flex; align-items:center; gap:.75rem; color:rgba(255,255,255,.8); text-decoration:none; padding:.8rem 1rem; border-radius:12px; }
-    .nav a:hover { background: rgba(255,255,255,.08); }
-    .nav a.active { background: linear-gradient(135deg, var(--brand-1), var(--brand-2)); color:#fff; box-shadow:0 10px 20px rgba(109,94,249,.25); }
+    .input, select, textarea { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; outline: none; background: var(--panel); color: var(--ink-900); font-size: 1rem; }
+    .input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(109,94,249,.1); }
 
-    @media (max-width: 1024px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-    }
+    .form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2,minmax(0,1fr)); }
+    @media(max-width: 720px){ .form-grid { grid-template-columns: 1fr; } }
+    .form-grid .full-span { grid-column: 1 / -1; }
 
-    .backdrop { position:fixed; inset:0; background: rgba(0,0,0,.45); z-index:35; display:none; }
-    .backdrop.show { display:block; }
-
-    /* Sections */
-    main { padding: 1.25rem; }
-    .section { display:none; }
-    .section.show { display:block; }
-
-    /* Products grid */
-    .grid-cards { display:grid; grid-template-columns: repeat(1,minmax(0,1fr)); gap:1rem; }
-    @media (min-width:640px){ .grid-cards { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-    @media (min-width:1024px){ .grid-cards { grid-template-columns: repeat(4, minmax(0,1fr)); } }
-
-    .product { overflow:hidden; }
-    .product .img { width:100%; height:11rem; object-fit:cover; border-radius:14px; background:#e5e7eb; }
-    .badge { display:inline-block; padding:.25rem .6rem; font-size:.75rem; border-radius:999px; background:#eef2ff; color:#3730a3; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .75rem; font-weight:600; background: #eef2ff; color: #3730a3; }
+    .product-img { width: 100%; height: 160px; border-radius: 12px; object-fit: cover; background: #e5e7eb; }
 
     /* Toast */
-    #toast { position: fixed; right:1rem; top:1rem; z-index:60; padding:.9rem 1rem; border-radius:14px; color:#fff; display:none; gap:.5rem; align-items:center; backdrop-filter: blur(8px); }
-    #toast.show { display:flex; }
-    .toast-success{ background: linear-gradient(135deg,#16a34a,#22c55e); }
-    .toast-error{ background: linear-gradient(135deg,#ef4444,#dc2626); }
+    #toast { position: fixed; right: 1rem; top: 1rem; z-index: 60; display: none; align-items: center; gap: .5rem; padding: .9rem 1rem; border-radius: 12px; color: #fff; }
+    #toast.show { display: flex; }
+    .toast-success { background: linear-gradient(135deg, #16a34a, #22c55e); }
+    .toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
 
     /* Modal */
-    #modal { position:fixed; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.45); }
-    #modal.show { display:flex; }
-    .modal-card { width:min(36rem, 92vw); }
+    #modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.45); z-index: 70; }
+    #modal.show { display: flex; }
+    .modal-card { width: min(560px, 92vw); }
 
     /* Skeleton */
     .skeleton { background: linear-gradient(90deg, rgba(0,0,0,.06) 25%, rgba(255,255,255,.35) 50%, rgba(0,0,0,.06) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+    @media (prefers-color-scheme: dark) { .skeleton { background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.06) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; } }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
   </style>
 </head>
-
 <body>
-  <!-- Auth screen -->
-  <section id="auth" class="min-h-screen flex items-center justify-center p-4">
-    <div class="card max-w-lg w-full p-6">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="inline-flex items-center justify-center rounded-2xl p-3" style="background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); color:#fff"><i data-lucide="store" class="w-6 h-6"></i></div>
-        <div>
-          <div style="font-weight:800; font-size:1.4rem">QuickLocal</div>
-          <div style="color:var(--ink-600)">Sell smarter. Grow faster.</div>
-        </div>
+  <section id="auth" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div class="card" style="width:min(440px, 92vw)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem"><i data-lucide="store"></i><h1 style="font-size:1.2rem; margin:0;">QuickLocal Seller</h1></div>
+      <p style="color:var(--ink-500);margin-top:0;margin-bottom:1rem">Sign in or create your seller account.</p>
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+        <button id="tab-login" class="btn" style="flex:1"><i data-lucide="log-in"></i>Login</button>
+        <button id="tab-register" class="btn ghost" style="flex:1"><i data-lucide="user-plus"></i>Register</button>
       </div>
-
-      <div class="flex gap-2 mb-6">
-        <button id="tab-login" class="btn w-full"><i data-lucide="log-in"></i> Login</button>
-        <button id="tab-register" class="btn outline w-full"><i data-lucide="user-plus"></i> Register</button>
-      </div>
-
-      <!-- Login form -->
-      <form id="form-login" class="grid gap-4">
-        <input id="login-email" type="email" class="input" placeholder="Email" required />
-        <input id="login-pass" type="password" class="input" placeholder="Password" required />
-        <button class="btn w-full" type="submit"><i data-lucide="arrow-right"></i> Sign in</button>
+      <form id="form-login" style="display:grid;gap:.75rem">
+        <input id="login-email" type="email" class="input" placeholder="Email" required>
+        <input id="login-pass" type="password" class="input" placeholder="Password" required>
+        <button class="btn" type="submit"><i data-lucide="arrow-right"></i> Sign in</button>
       </form>
-
-      <!-- Register form -->
-      <form id="form-register" class="grid gap-4 hidden">
-        <input id="reg-name" type="text" class="input" placeholder="Full name" required />
-        <input id="reg-email" type="email" class="input" placeholder="Email" required />
-        <input id="reg-pass" type="password" class="input" placeholder="Password" required />
-        <button class="btn w-full" type="submit"><i data-lucide="sparkles"></i> Create seller account</button>
-        <div style="font-size:.85rem; color:var(--ink-600)">We create a seller account. You can update profile later.</div>
+      <form id="form-register" class="hidden" style="display:grid;gap:.75rem">
+        <input id="reg-name" type="text" class="input" placeholder="Full name" required>
+        <input id="reg-email" type="email" class="input" placeholder="Email" required>
+        <input id="reg-pass" type="password" class="input" placeholder="Password" required>
+        <button class="btn" type="submit"><i data-lucide="sparkles"></i> Create Seller Account</button>
       </form>
     </div>
   </section>
 
-  <!-- App layout -->
   <section id="app" class="hidden">
-    <div class="backdrop" id="backdrop"></div>
-    <aside class="sidebar" id="sidebar">
-      <div class="flex items-center justify-between p-2">
-        <div class="brand">QuickLocal</div>
-        <button id="close-sidebar" class="btn outline" style="padding:.45rem .65rem"><i data-lucide="x"></i></button>
-      </div>
-      <nav class="nav grid gap-1 p-2">
-        <a href="#" class="active" data-page="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
-        <a href="#" data-page="products"><i data-lucide="package"></i><span>Products</span><span class="badge" id="badge-products">0</span></a>
-        <a href="#" data-page="orders"><i data-lucide="shopping-cart"></i><span>Orders</span><span class="badge" id="badge-orders">0</span></a>
-        <a href="#" data-page="customers"><i data-lucide="users"></i><span>Customers</span></a>
-        <a href="#" data-page="analytics"><i data-lucide="bar-chart-3"></i><span>Analytics</span></a>
-        <a href="#" data-page="settings"><i data-lucide="settings"></i><span>Settings</span></a>
-      </nav>
-      <div class="p-2">
-        <button id="btn-logout" class="btn danger w-full"><i data-lucide="log-out"></i> Logout</button>
-      </div>
-    </aside>
-
-    <header class="app">
-      <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
-        <div class="flex items-center gap-2">
-          <button id="open-sidebar" class="btn outline" style="padding:.45rem .65rem"><i data-lucide="menu"></i></button>
-          <div class="title">Seller Dashboard</div>
+    <div class="app">
+      <aside class="sidebar" id="sidebar">
+        <div class="sb-head">
+          <div class="sb-title">QuickLocal</div>
+          <button id="close-sidebar" class="btn ghost" style="padding:6px 8px; color:white;" aria-label="Close sidebar"><i data-lucide="x"></i></button>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="status-pill"><span style="width:.5rem;height:.5rem;border-radius:999px;background:currentColor"></span>Online</span>
-          <span id="whoami" style="color:#fff;font-weight:600">Seller</span>
+        <nav>
+          <a href="#" class="active" data-page="dashboard"><i data-lucide="layout-dashboard"></i>Dashboard</a>
+          <a href="#" data-page="products"><i data-lucide="package"></i>Products <span class="badge" id="badge-products">0</span></a>
+          <a href="#" data-page="orders"><i data-lucide="shopping-cart"></i>Orders <span class="badge" id="badge-orders">0</span></a>
+          <a href="#" data-page="customers"><i data-lucide="users"></i>Customers</a>
+          <a href="#" data-page="analytics"><i data-lucide="bar-chart-3"></i>Analytics</a>
+          <a href="#" data-page="settings"><i data-lucide="settings"></i>Settings</a>
+        </nav>
+        <div style="margin-top:auto">
+          <button id="btn-logout" class="btn danger" style="width:100%"><i data-lucide="log-out"></i>Logout</button>
         </div>
-      </div>
-    </header>
+      </aside>
+      <div class="backdrop" id="backdrop"></div>
 
-    <main class="max-w-7xl mx-auto">
-      <!-- Dashboard -->
-      <section id="page-dashboard" class="section show">
-        <div class="grid gap-4" style="grid-template-columns: repeat(4, minmax(0,1fr));">
-          <div class="card p-4"><div style="color:var(--ink-600)">Total Sales</div><div style="font-size:1.6rem;font-weight:800" id="stat-sales">₹0</div></div>
-          <div class="card p-4"><div style="color:var(--ink-600)">Orders</div><div style="font-size:1.6rem;font-weight:800" id="stat-orders">0</div></div>
-          <div class="card p-4"><div style="color:var(--ink-600)">Products</div><div style="font-size:1.6rem;font-weight:800" id="stat-products">0</div></div>
-          <div class="card p-4"><div style="color:var(--ink-600)">Customers</div><div style="font-size:1.6rem;font-weight:800" id="stat-customers">0</div></div>
-        </div>
-
-        <div class="grid gap-4" style="grid-template-columns:2fr 1fr; margin-top:1rem">
-          <div class="card p-4">
-            <div class="flex items-center justify-between mb-2"><strong>Sales Overview</strong><span id="chart-range" style="color:var(--ink-600); font-size:.9rem">Last 7 days</span></div>
-            <canvas id="salesChart" height="120"></canvas>
+      <div>
+        <header class="appbar">
+          <div class="wrap">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button id="open-sidebar" class="btn ghost" style="padding:6px 8px" aria-label="Open sidebar"><i data-lucide="menu"></i></button>
+              <div style="font-weight:700; font-size:1.1rem">Seller Dashboard</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="badge" style="background:#ecfdf5;color:#065f46">Online</span>
+              <span id="whoami" style="font-weight:600">Seller</span>
+            </div>
           </div>
-          <div class="card p-4">
-            <strong>Top Categories</strong>
-            <ul id="top-cats" class="grid gap-2" style="margin-top:1rem"></ul>
-          </div>
-        </div>
-      </section>
+        </header>
 
-      <!-- Products -->
-      <section id="page-products" class="section">
-        <div class="card p-4">
-          <div class="flex items-center justify-between">
-            <strong>Product Management</strong>
-            <button id="btn-reset" class="btn outline"><i data-lucide="rotate-ccw"></i> Reset Form</button>
-          </div>
-          <form id="form-product" class="grid gap-4" style="grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:1rem">
-            <div>
-              <label>Name</label>
-              <input id="p-name" class="input" required placeholder="e.g., Premium Running Shoes"/>
+        <main>
+          <section id="page-dashboard" class="section show">
+            <div class="grid-stats">
+              <div class="card"><div style="color:var(--ink-500)">Total Sales</div><div style="font-size:1.5rem;font-weight:800" id="stat-sales">₹0</div></div>
+              <div class="card"><div style="color:var(--ink-500)">Orders</div><div style="font-size:1.5rem;font-weight:800" id="stat-orders">0</div></div>
+              <div class="card"><div style="color:var(--ink-500)">Products</div><div style="font-size:1.5rem;font-weight:800" id="stat-products">0</div></div>
+              <div class="card"><div style="color:var(--ink-500)">Customers</div><div style="font-size:1.5rem;font-weight:800" id="stat-customers">0</div></div>
             </div>
-            <div>
-              <label>Category</label>
-              <select id="p-category" required>
-                <option value="">Select category</option>
-              </select>
-            </div>
-            <div>
-              <label>Price (₹)</label>
-              <input id="p-price" class="input" type="number" min="0" step="0.01" required />
-            </div>
-            <div>
-              <label>Stock</label>
-              <input id="p-stock" class="input" type="number" min="0" required />
-            </div>
-            <div class="" style="grid-column:1/-1">
-              <label>Description</label>
-              <textarea id="p-desc" class="input" rows="3" placeholder="Optional"></textarea>
-            </div>
-
-            <div style="grid-column:1/-1">
-              <label>Images</label>
-              <div id="drop" class="p-4 rounded-2xl" style="border: 2px dashed rgba(109,94,249,.5); text-align:center; cursor:pointer">
-                <div class="flex items-center justify-center gap-2"><i data-lucide="upload-cloud"></i> Drag & drop images, or click to browse</div>
-                <input id="p-images" type="file" accept="image/*" multiple class="hidden" />
+            <div class="grid-layout">
+              <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h2>Sales Overview</h2><span style="color:var(--ink-500)">Last 7 days</span></div>
+                <canvas id="salesChart" height="120"></canvas>
               </div>
-              <div id="previews" class="grid gap-3" style="grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:1rem"></div>
+              <div class="card">
+                <h2>Top Categories</h2>
+                <ul id="top-cats" style="display:grid;gap:.5rem;margin-top:.75rem;padding:0;list-style:none;"></ul>
+              </div>
+            </div>
+          </section>
+
+          <section id="page-products" class="section">
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+                <h2>Product Management</h2>
+                <button id="btn-reset" class="btn ghost"><i data-lucide="rotate-ccw"></i>Reset Form</button>
+              </div>
+              <form id="form-product" class="form-grid">
+                <div><label for="p-name">Name</label><input id="p-name" class="input" required placeholder="e.g., Premium Running Shoes"/></div>
+                <div><label for="p-category">Category</label><select id="p-category" class="input" required><option value="">Select category</option></select></div>
+                <div><label for="p-price">Price (₹)</label><input id="p-price" class="input" type="number" min="0" step="0.01" required /></div>
+                <div><label for="p-stock">Stock</label><input id="p-stock" class="input" type="number" min="0" required /></div>
+                <div class="full-span"><label for="p-desc">Description</label><textarea id="p-desc" class="input" rows="3" placeholder="Optional"></textarea></div>
+                <div class="full-span">
+                  <label>Images</label>
+                  <div id="drop" class="card" style="text-align:center;border-style:dashed;cursor:pointer;padding:1.5rem;">
+                    <div style="color:var(--ink-500);display:flex;align-items:center;justify-content:center;gap:.5rem;"><i data-lucide="upload-cloud"></i> Drag & drop images, or click to browse</div>
+                    <input id="p-images" type="file" accept="image/*" multiple class="hidden" />
+                  </div>
+                  <div id="previews" class="grid-cards" style="margin-top:1rem"></div>
+                </div>
+                <div class="full-span" style="display:flex;gap:10px">
+                  <button class="btn" type="submit" id="btn-save"><i data-lucide="save"></i>Save Product</button>
+                  <button class="btn danger" type="button" id="btn-delete"><i data-lucide="trash-2"></i>Delete Product</button>
+                </div>
+              </form>
             </div>
 
-            <div style="grid-column:1/-1" class="flex gap-2">
-              <button class="btn" type="submit" id="btn-save"><i data-lucide="save"></i> Save Product</button>
-              <button class="btn danger" type="button" id="btn-delete"><i data-lucide="trash-2"></i> Delete</button>
+            <div class="card" style="margin-top:1rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem">
+                <h2>Your Products</h2>
+                <div style="display:flex;gap:.5rem;align-items:center">
+                  <input id="q" class="input" placeholder="Search products..." style="width:220px" />
+                  <button id="btn-search" class="btn ghost" aria-label="Search"><i data-lucide="search"></i></button>
+                </div>
+              </div>
+              <div id="grid" class="grid-cards"></div>
             </div>
-          </form>
-        </div>
+          </section>
 
-        <div class="card p-4" style="margin-top:1rem">
-          <div class="flex items-center justify-between">
-            <strong>Your Products</strong>
-            <div class="flex items-center gap-2">
-              <input id="q" class="input" placeholder="Search products" style="width:16rem" />
-              <button id="btn-search" class="btn outline"><i data-lucide="search"></i></button>
-            </div>
-          </div>
-          <div id="grid" class="grid-cards" style="margin-top:1rem"></div>
-        </div>
-      </section>
-
-      <!-- Orders -->
-      <section id="page-orders" class="section">
-        <div class="card p-4">
-          <div class="flex items-center justify-between">
-            <strong>Order Management</strong>
-            <select id="filter-order" class="input" style="width:12rem">
-              <option value="all">All Orders</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div id="orders" class="grid gap-3" style="margin-top:1rem"></div>
-        </div>
-      </section>
-
-      <!-- Analytics -->
-      <section id="page-analytics" class="section">
-        <div class="card p-4">
-          <strong>Business Analytics</strong>
-          <canvas id="analyticsChart" height="160" style="margin-top:1rem"></canvas>
-        </div>
-      </section>
-
-      <!-- Customers -->
-      <section id="page-customers" class="section">
-        <div class="card p-4">
-          <strong>Customers</strong>
-          <div id="customers" class="grid gap-3" style="margin-top:1rem"></div>
-        </div>
-      </section>
-
-      <!-- Settings -->
-      <section id="page-settings" class="section">
-        <div class="card p-4 grid gap-3">
-          <strong>Store Settings</strong>
-          <label class="flex items-center justify-between p-3 rounded-2xl" style="background:rgba(255,255,255,.5)">
-            <span>Store Status</span>
-            <input id="toggle-store" type="checkbox" checked />
-          </label>
-          <label class="flex items-center justify-between p-3 rounded-2xl" style="background:rgba(255,255,255,.5)">
-            <span>Low Stock Alerts</span>
-            <input id="toggle-lowstock" type="checkbox" checked />
-          </label>
-          <label class="flex items-center justify-between p-3 rounded-2xl" style="background:rgba(255,255,255,.5)">
-            <span>Email Notifications</span>
-            <input id="toggle-email" type="checkbox" checked />
-          </label>
-        </div>
-      </section>
-    </main>
+          <section id="page-orders" class="section"><div class="card"><h2>Order Management</h2><div id="orders" style="display:grid;gap:.75rem;margin-top:1rem"></div></div></section>
+          <section id="page-analytics" class="section"><div class="card"><h2>Business Analytics</h2><canvas id="analyticsChart" height="160" style="margin-top:1rem"></canvas></div></section>
+          <section id="page-customers" class="section"><div class="card"><h2>Customers</h2><div id="customers" style="display:grid;gap:.75rem;margin-top:1rem"></div></div></section>
+          <section id="page-settings" class="section"><div class="card" style="display:grid;gap:.75rem"><h2>Store Settings</h2><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Store Status</span><input id="toggle-store" type="checkbox" checked></label><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Low Stock Alerts</span><input id="toggle-lowstock" type="checkbox" checked></label><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Email Notifications</span><input id="toggle-email" type="checkbox" checked></label></div></section>
+        </main>
+      </div>
+    </div>
   </section>
 
-  <!-- Toast + Modal -->
-  <div id="toast" class="rounded-xl"></div>
-  <div id="modal">
-    <div class="card modal-card p-4">
-      <div class="flex items-center justify-between"><strong id="modal-title">Confirm</strong><button id="modal-x" class="btn outline" style="padding:.35rem .55rem"><i data-lucide="x"></i></button></div>
-      <div id="modal-body" style="margin:.75rem 0; color:var(--ink-600)">Are you sure?</div>
-      <div class="flex gap-2 justify-end"><button id="modal-cancel" class="btn outline">Cancel</button><button id="modal-ok" class="btn">OK</button></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="card modal-card">
+      <div style="display:flex;align-items:center;justify-content:space-between"><strong id="modal-title">Confirm Action</strong><button id="modal-x" class="btn ghost" style="padding:6px 8px" aria-label="Close modal"><i data-lucide="x"></i></button></div>
+      <div id="modal-body" style="margin:10px 0;color:var(--ink-700)">Are you sure you want to proceed?</div>
+      <div style="display:flex;gap:8px;justify-content:end"><button id="modal-cancel" class="btn ghost">Cancel</button><button id="modal-ok" class="btn">OK</button></div>
     </div>
   </div>
 
@@ -358,37 +278,51 @@ function toast(msg, type='success', ms=2500){ const el=$('#toast'); el.textConte
 function modal({title='Confirm', body='Are you sure?', onOk=null}){ $('#modal-title').textContent=title; $('#modal-body').textContent=body; const m=$('#modal'); m.classList.add('show'); const close=()=>m.classList.remove('show'); $('#modal-x').onclick=close; $('#modal-cancel').onclick=close; $('#modal-ok').onclick=()=>{ onOk&&onOk(); close(); } }
 
 function setAuth(yes){ $('#auth').classList.toggle('hidden', !!yes); $('#app').classList.toggle('hidden', !yes); }
-function setPage(id){ $$('.section').forEach(s=>s.classList.remove('show')); $('#page-'+id).classList.add('show'); $$('.nav a').forEach(a=>a.classList.remove('active')); const nav = $(`.nav a[data-page="${id}"]`); if (nav) nav.classList.add('active'); icon(); }
+
+// ====== NAVIGATION & LAZY-LOADING (ENHANCED) ======
+function setPage(id){
+  $$('.section').forEach(s=>s.classList.remove('show'));
+  $('#page-'+id).classList.add('show');
+
+  $$('nav a').forEach(a=>a.classList.remove('active'));
+  const nav = $(`nav a[data-page="${id}"]`);
+  if (nav) nav.classList.add('active');
+
+  // Lazy-load data for each page on-demand
+  if (id === 'orders')      listOrders();
+  if (id === 'customers')   listCustomers();
+  if (id === 'products')    listMyProducts({search: $('#q').value.trim()});
+  if (id === 'analytics')   renderAnalyticsChart([
+    {label:'Grocery', value:40},
+    {label:'Fashion', value:25},
+    {label:'Electronics', value:20},
+    {label:'Home', value:10},
+    {label:'Other', value:5}
+  ]);
+
+  icon();
+}
 
 // ====== AUTH ======
 async function doLogin(e){ e.preventDefault(); const email=$('#login-email').value.trim(); const password=$('#login-pass').value; try { const {data}=await api.post(ENDPOINTS.auth.login,{email,password}); if(data?.accessToken){ localStorage.setItem('accessToken', data.accessToken); localStorage.setItem('seller', JSON.stringify(data.user||{})); await hydrate(); toast('Welcome back!', 'success'); } else toast('Invalid response from server','error'); } catch(err){ toast(err?.response?.data?.message||'Login failed','error'); } }
-
-async function doRegister(e){ e.preventDefault(); const name=$('#reg-name').value.trim(); const email=$('#reg-email').value.trim(); const password=$('#reg-pass').value; try { const {data}=await api.post(ENDPOINTS.auth.register,{ name, email, password, role:'seller' }); toast(data?.message||'Seller registered! Please log in.','success'); // switch
- $('#tab-login').click(); $('#form-register').reset(); } catch(err){ const msg = err?.response?.data?.message || (Array.isArray(err?.response?.data?.errors)? err.response.data.errors.map(x=>x.msg).join(', ') : 'Registration failed'); toast(msg,'error'); }
-}
-
+async function doRegister(e){ e.preventDefault(); const name=$('#reg-name').value.trim(); const email=$('#reg-email').value.trim(); const password=$('#reg-pass').value; try { const {data}=await api.post(ENDPOINTS.auth.register,{ name, email, password, role:'seller' }); toast(data?.message||'Seller registered! Please log in.','success'); $('#tab-login').click(); $('#form-register').reset(); } catch(err){ const msg = err?.response?.data?.message || (Array.isArray(err?.response?.data?.errors)? err.response.data.errors.map(x=>x.msg).join(', ') : 'Registration failed'); toast(msg,'error'); } }
 function doLogout(e){ if(e&&e.preventDefault) e.preventDefault(); try { localStorage.removeItem('accessToken'); localStorage.removeItem('seller'); setAuth(false); toast('Logged out','success'); } catch(err){ console.error('Logout error',err); } }
-window.logout = doLogout; // in case any inline handler ever references it
-
 async function loadMe(){ try { const {data}=await api.get(ENDPOINTS.auth.me); const user=data?.user || JSON.parse(localStorage.getItem('seller')||'{}'); $('#whoami').textContent=user?.name||user?.email||'Seller'; return user; } catch { const user=JSON.parse(localStorage.getItem('seller')||'{}'); $('#whoami').textContent=user?.name||user?.email||'Seller'; return user; } }
 
-// ====== CATEGORIES / PRODUCTS ======
+// ====== DATA: Categories & Products ======
 async function loadCategories(){ try { const {data}=await api.get(ENDPOINTS.categories); const cats = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []); const sel=$('#p-category'); sel.innerHTML='<option value="">Select category</option>' + cats.map(c=>`<option value="${c._id||c.id}">${c.name}</option>`).join(''); } catch(err){ toast('Failed to load categories','error'); console.error('categories',err); } }
-
-async function listMyProducts({search=''}={}){ const g=$('#grid'); // skeletons
- g.innerHTML = Array.from({length:4}).map(()=>`<div class='card p-4 skeleton' style='height:220px'></div>`).join(''); try { const url = ENDPOINTS.products.listMine + (search?`?search=${encodeURIComponent(search)}`:''); const {data}=await api.get(url); const payload = data?.data?.products || data?.data || data || []; renderProducts(payload); $('#badge-products').textContent = (payload.length||0); $('#stat-products').textContent = (payload.length||0); } catch(err){ g.innerHTML = `<div class='card p-4'>Failed to load products</div>`; toast('Failed to load products','error'); } }
-
-function renderProducts(items){ const g=$('#grid'); if(!items?.length){ g.innerHTML = `<div class='card p-6' style='text-align:center'><i data-lucide="package" class="w-10 h-10" style="opacity:.6"></i><div style='margin-top:.5rem;color:var(--ink-600)'>No products yet. Add your first product!</div></div>`; icon(); return; }
- g.innerHTML = items.map(p=>{ const id=p._id||p.id; const img=(p.images&&p.images[0]?.url)||p.images?.[0]||p.imageUrl||'https://via.placeholder.com/400x300?text=No+Image'; return `<div class='card p-3 product'>
-   <img class='img' src='${img}' alt='${(p.name||'')}'/>
-   <div class='flex items-center justify-between' style='margin-top:.5rem'>
+async function listMyProducts({search=''}={}){ const g=$('#grid'); g.innerHTML = Array.from({length:4}).map(()=>`<div class='card skeleton' style='height:260px'></div>`).join(''); try { const url = ENDPOINTS.products.listMine + (search?`?search=${encodeURIComponent(search)}`:''); const {data}=await api.get(url); const payload = data?.data?.products || data?.data || data || []; renderProducts(payload); $('#badge-products').textContent = (payload.length||0); $('#stat-products').textContent = (payload.length||0); } catch(err){ g.innerHTML = `<div class='card'>Failed to load products.</div>`; toast('Failed to load products','error'); } }
+function renderProducts(items){ const g=$('#grid'); if(!items?.length){ g.innerHTML = `<div class='card' style='text-align:center;color:var(--ink-500)'><i data-lucide="package" style="margin-bottom:.5rem;"></i><div>No products found. Add one!</div></div>`; icon(); return; }
+ g.innerHTML = items.map(p=>{ const id=p._id||p.id; const img=(p.images&&p.images[0]?.url)||p.images?.[0]||p.imageUrl||'https://via.placeholder.com/400x300?text=No+Image'; return `<div class='card' style="padding:.75rem">
+   <img class='product-img' src='${img}' alt='${(p.name||'')}'/>
+   <div style='display:flex;align-items:center;justify-content:space-between;margin-top:.5rem'>
      <div style='font-weight:700'>${p.name||''}</div>
-     <div style='font-weight:800;color:var(--brand-1)'>${inr(p.price)}</div>
+     <div style='font-weight:800;color:var(--brand)'>${inr(p.price)}</div>
    </div>
-   <div class='flex items-center gap-2' style='margin-top:.35rem'><span class='badge'>${p.category?.name||'Uncategorized'}</span><span class='badge' style='background:#ecfeff;color:#155e75'>Stock: ${p.stock||0}</span></div>
-   <div class='flex gap-2' style='margin-top:.6rem'>
-     <button class='btn w-full' data-edit='${id}'><i data-lucide="edit"></i>Edit</button>
-     <button class='btn danger' data-remove='${id}'><i data-lucide="trash-2"></i></button>
+   <div style='display:flex;gap:.5rem;margin-top:.35rem'><span class='badge'>${p.category?.name||'Uncategorized'}</span><span class='badge' style='background:#ecfeff;color:#155e75'>Stock: ${p.stock||0}</span></div>
+   <div style='display:flex;gap:.5rem;margin-top:.6rem'>
+     <button class='btn' data-edit='${id}' style="flex:1"><i data-lucide="edit"></i>Edit</button>
+     <button class='btn danger' data-remove='${id}' aria-label="Delete"><i data-lucide="trash-2"></i></button>
    </div>
  </div>`; }).join('');
  icon();
@@ -396,84 +330,107 @@ function renderProducts(items){ const g=$('#grid'); if(!items?.length){ g.innerH
  g.querySelectorAll('[data-remove]').forEach(btn=>btn.onclick=()=>confirmDelete(btn.dataset.remove));
 }
 
-function fillForm(p){ if(!p) return; $('#p-name').value=p.name||''; $('#p-category').value=p.category? (p.category._id||p.category.id||p.category):''; $('#p-price').value=p.price||0; $('#p-stock').value=p.stock||0; $('#p-desc').value=p.description||''; $('#form-product').dataset.editId = p._id||p.id; $('#previews').innerHTML=''; }
+function fillForm(p){ if(!p) return; $('#p-name').value=p.name||''; $('#p-category').value=p.category? (p.category._id||p.category.id||p.category):''; $('#p-price').value=p.price||0; $('#p-stock').value=p.stock||0; $('#p-desc').value=p.description||''; $('#form-product').dataset.editId = p._id||p.id; $('#previews').innerHTML=''; $('#btn-delete').disabled = false; }
+function resetForm(){ $('#form-product').reset(); delete $('#form-product').dataset.editId; $('#previews').innerHTML=''; $('#btn-delete').disabled = true; toast('Form has been reset','success'); }
+async function confirmDelete(id){ modal({title:'Delete Product', body:'This action is permanent and cannot be undone. Are you sure you want to delete this product?', onOk:()=> removeProduct(id)}); }
+async function removeProduct(id){ try { await api.delete(ENDPOINTS.products.remove(id)); toast('Product deleted successfully','success'); listMyProducts({search:$('#q').value.trim()}); if ($('#form-product').dataset.editId === id) { resetForm(); } } catch(err){ toast('Failed to delete product','error'); } }
+async function saveProduct(e){ e.preventDefault(); const form=$('#form-product'); const fd=new FormData(); fd.append('name', $('#p-name').value.trim()); fd.append('category', $('#p-category').value); fd.append('price', $('#p-price').value); fd.append('stock', $('#p-stock').value); fd.append('description', $('#p-desc').value.trim()); const files = Array.from($('#previews').querySelectorAll('img')).map(img=>img.file).filter(Boolean); files.forEach(f=>fd.append('images', f)); try { const id=form.dataset.editId; if(id){ await api.put(ENDPOINTS.products.update(id), fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product updated successfully','success'); } else { await api.post(ENDPOINTS.products.create, fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product created successfully','success'); } resetForm(); listMyProducts({search:$('#q').value.trim()}); } catch(err){ toast(err?.response?.data?.message||'Failed to save product','error'); } }
 
-function resetForm(){ $('#form-product').reset(); delete $('#form-product').dataset.editId; $('#previews').innerHTML=''; toast('Form reset','success'); }
-
-async function confirmDelete(id){ modal({title:'Delete Product', body:'This action cannot be undone. Delete product?', onOk:()=> removeProduct(id)}); }
-async function removeProduct(id){ try { await api.delete(ENDPOINTS.products.remove(id)); toast('Product deleted','success'); listMyProducts({search:$('#q').value.trim()}); } catch(err){ toast('Failed to delete product','error'); } }
-
-async function saveProduct(e){ e.preventDefault(); const form=$('#form-product'); const fd=new FormData(); fd.append('name', $('#p-name').value.trim()); fd.append('category', $('#p-category').value); fd.append('price', $('#p-price').value); fd.append('stock', $('#p-stock').value); fd.append('description', $('#p-desc').value.trim()); const files = Array.from($('#previews').querySelectorAll('img')).map(img=>img.file).filter(Boolean); files.forEach(f=>fd.append('images', f)); try { const id=form.dataset.editId; if(id){ await api.put(ENDPOINTS.products.update(id), fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product updated','success'); } else { await api.post(ENDPOINTS.products.create, fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product created','success'); } resetForm(); listMyProducts({search:$('#q').value.trim()}); } catch(err){ toast(err?.response?.data?.message||'Failed to save product','error'); }
-}
-
-// ====== ORDERS / CUSTOMERS / ANALYTICS ======
-async function listOrders(){ const box=$('#orders'); box.innerHTML = `<div class='card p-4 skeleton' style='height:140px'></div>`; try { const {data}=await api.get(ENDPOINTS.orders.listMine); const orders = data?.data || data || []; $('#badge-orders').textContent = orders.length||0; $('#stat-orders').textContent = orders.length||0; renderOrders(orders); } catch(err){ const msg = err?.response?.status===404 ? 'Orders API not ready yet' : 'Failed to load orders'; box.innerHTML = `<div class='card p-4'>${msg}</div>`; toast(msg,'error'); } }
-
-function renderOrders(orders){ const box=$('#orders'); if(!orders?.length){ box.innerHTML = `<div class='card p-6' style='text-align:center'><i data-lucide="shopping-cart" class="w-10 h-10" style="opacity:.6"></i><div style='margin-top:.5rem;color:var(--ink-600)'>No orders yet</div></div>`; icon(); return; } box.innerHTML = orders.map(o=>{ const items=(o.items||[]).map(i=> `${i.quantity||i.qty||1}× ${(i.name||i.product?.name||'Item')}`).join(', '); const total = inr(o.total||o.amount||0); const id=o._id||o.id||''; return `<div class='card p-4'>
-  <div class='flex items-center justify-between'>
-    <div><strong>#${id.slice(-6)}</strong><div style='color:var(--ink-600);font-size:.9rem'>${new Date(o.createdAt||Date.now()).toLocaleString('en-IN')}</div></div>
-    <div class='flex items-center gap-2'><div style='font-weight:800'>${total}</div><button class='btn' data-advance='${id}'><i data-lucide="arrow-right"></i> Advance</button></div>
-  </div>
-  <div style='margin-top:.5rem;color:var(--ink-600)'>${items||'No items'}</div>
-</div>`; }).join(''); icon(); box.querySelectorAll('[data-advance]').forEach(b=> b.onclick=()=>advanceOrder(b.dataset.advance)); }
-
-async function advanceOrder(id){ try { const {data}=await api.patch(ENDPOINTS.orders.update(id), {}); toast(data?.message||'Order updated','success'); listOrders(); } catch(err){ toast('Failed to update order','error'); } }
-
-async function listCustomers(){ const el=$('#customers'); el.innerHTML = `<div class='card p-4 skeleton' style='height:120px'></div>`; try { const {data}=await api.get(ENDPOINTS.customers); const rows = data?.data || data || []; $('#stat-customers').textContent = rows.length||0; el.innerHTML = rows.map(c=>`<div class='card p-3 flex items-center justify-between'><div class='flex items-center gap-3'><div class='rounded-full' style='width:42px;height:42px;background:rgba(109,94,249,.12);display:flex;align-items:center;justify-content:center'><i data-lucide='user'></i></div><div><div style='font-weight:700'>${c.name||c.email||'Customer'}</div><div style='color:var(--ink-600);font-size:.9rem'>${c.email||''}</div></div></div><div><strong>${(c.ordersCount||0)} orders</strong><div style='color:var(--ink-600);font-size:.9rem'>${inr(c.totalSpent||0)} spent</div></div></div>`).join(''); icon(); } catch(err){ const msg = err?.response?.status===404 ? 'Customers API not ready yet' : 'Failed to load customers'; el.innerHTML = `<div class='card p-4'>${msg}</div>`; }
-}
-
+// ====== DATA: Orders / Customers / Analytics ======
+async function listOrders(){ const box=$('#orders'); box.innerHTML = `<div class='card skeleton' style='height:140px'></div>`; try { const {data}=await api.get(ENDPOINTS.orders.listMine); const orders = data?.data || data || []; $('#badge-orders').textContent = orders.length||0; $('#stat-orders').textContent = orders.length||0; renderOrders(orders); } catch(err){ const msg = err?.response?.status===404 ? 'Orders API not ready yet' : 'Failed to load orders'; box.innerHTML = `<div class='card'>${msg}</div>`; toast(msg,'error'); } }
+function renderOrders(orders){ const box=$('#orders'); if(!orders?.length){ box.innerHTML = `<div class='card' style='text-align:center;color:var(--ink-500)'><i data-lucide="shopping-cart"></i><div style='margin-top:.5rem'>No orders yet</div></div>`; icon(); return; } box.innerHTML = orders.map(o=>{ const items=(o.items||[]).map(i=> `${i.quantity||i.qty||1}× ${(i.name||i.product?.name||'Item')}`).join(', '); const total = inr(o.total||o.amount||0); const id=o._id||o.id||''; return `<div class='card'><div style='display:flex;align-items:center;justify-content:space-between'><div><strong>#${id.slice(-6)}</strong><div style='color:var(--ink-500);font-size:.8rem'>${new Date(o.createdAt||Date.now()).toLocaleString('en-IN')}</div></div><div style='display:flex;align-items:center;gap:.5rem'><div style='font-weight:800'>${total}</div><button class='btn' data-advance='${id}'><i data-lucide="arrow-right"></i> Advance</button></div></div><div style='margin-top:.5rem;color:var(--ink-700)'>${items||'No items'}</div></div>`; }).join(''); icon(); box.querySelectorAll('[data-advance]').forEach(b=> b.onclick=()=>advanceOrder(b.dataset.advance)); }
+async function advanceOrder(id){ try { const {data}=await api.patch(ENDPOINTS.orders.update(id), {}); toast(data?.message||'Order status updated','success'); listOrders(); } catch(err){ toast('Failed to update order','error'); } }
+async function listCustomers(){ const el=$('#customers'); el.innerHTML = `<div class='card skeleton' style='height:120px'></div>`; try { const {data}=await api.get(ENDPOINTS.customers); const rows = data?.data || data || []; $('#stat-customers').textContent = rows.length||0; el.innerHTML = rows.map(c=>`<div class='card' style='display:flex;align-items:center;justify-content:space-between'><div style='display:flex;align-items:center;gap:10px'><div style='width:42px;height:42px;border-radius:999px;background:rgba(109,94,249,.12);display:flex;align-items:center;justify-content:center'><i data-lucide='user'></i></div><div><div style='font-weight:700'>${c.name||c.email||'Customer'}</div><div style='color:var(--ink-500);font-size:.8rem'>${c.email||''}</div></div></div><div><strong>${(c.ordersCount||0)} orders</strong><div style='color:var(--ink-500);font-size:.8rem'>${inr(c.totalSpent||0)} spent</div></div></div>`).join(''); icon(); } catch(err){ const msg = err?.response?.status===404 ? 'Customers API not ready yet' : 'Failed to load customers'; el.innerHTML = `<div class='card'>${msg}</div>`; } }
 function renderSalesChart(data){ const ctx=$('#salesChart').getContext('2d'); if(window.__sales) window.__sales.destroy(); window.__sales = new Chart(ctx,{ type:'line', data:{ labels:data.map(d=>d.label), datasets:[{ label:'Sales', data:data.map(d=>d.value), borderColor:'rgb(109,94,249)', backgroundColor:'rgba(109,94,249,.12)', tension:.35, fill:true }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>inr(v).replace('₹','₹') } } } } }); }
-
-function renderAnalyticsChart(data){ const ctx=$('#analyticsChart').getContext('2d'); if(window.__ana) window.__ana.destroy(); window.__ana = new Chart(ctx,{ type:'doughnut', data:{ labels:data.map(d=>d.label), datasets:[{ data:data.map(d=>d.value), backgroundColor:['rgba(109,94,249,.9)','rgba(122,90,248,.9)','rgba(34,197,94,.9)','rgba(239,68,68,.9)','rgba(245,158,11,.9)'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, padding:16 } } } } }); }
+function renderAnalyticsChart(data){ const ctx=$('#analyticsChart').getContext('2d'); if(window.__ana) window.__ana.destroy(); window.__ana = new Chart(ctx,{ type:'doughnut', data:{ labels:data.map(d=>d.label), datasets:[{ data:data.map(d=>d.value), backgroundColor:['#6d5ef9','#7a5af8','#22c55e','#ef4444','#f59e0b'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, padding:16 } } } } }); }
 
 // ====== IMAGE HANDLING ======
-function addPreview(file){ if(!file||!file.type?.startsWith('image/')) return; if(file.size>5*1024*1024){ toast('Image must be ≤ 5MB','error'); return; } const rd=new FileReader(); rd.onload=()=>{ const img=new Image(); img.src=rd.result; img.className='w-full h-48'; img.style.objectFit='cover'; img.style.borderRadius='12px'; img.file=file; const wrap=document.createElement('div'); wrap.className='card p-1'; wrap.appendChild(img); const remove=document.createElement('button'); remove.type='button'; remove.className='btn danger'; remove.style.position='absolute'; remove.style.right='8px'; remove.style.top='8px'; remove.style.padding='.25rem .5rem'; remove.innerHTML='×'; remove.onclick=()=>wrap.remove(); wrap.style.position='relative'; wrap.appendChild(remove); $('#previews').appendChild(wrap); }; rd.readAsDataURL(file); }
-
-// ====== HYDRATE (initial load) ======
-async function hydrate(){ setAuth(true); await loadMe(); await Promise.all([ loadCategories(), listMyProducts({}), loadDashboard() ]); setPage('dashboard'); }
-
-async function loadDashboard(){ try { const [pRes, oRes] = await Promise.allSettled([ api.get(ENDPOINTS.products.listMine), api.get(ENDPOINTS.orders.listMine) ]); const products = pRes.status==='fulfilled' ? (pRes.value?.data?.data?.products || pRes.value?.data?.data || pRes.value?.data || []) : []; const orders = oRes.status==='fulfilled' ? (oRes.value?.data?.data || oRes.value?.data || []) : []; $('#stat-products').textContent = products.length; $('#badge-products').textContent = products.length; $('#stat-orders').textContent = orders.length; const total = (orders||[]).reduce((s,o)=> s + (o.total||o.amount||0), 0); $('#stat-sales').textContent = inr(total); const days = Array.from({length:7}).map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); const label=d.toLocaleDateString('en-IN',{month:'short', day:'numeric'}); const dayTotal = (orders||[]).filter(o=> new Date(o.createdAt).toDateString()===d.toDateString()).reduce((s,o)=> s+(o.total||o.amount||0),0); return {label, value: dayTotal}; }); renderSalesChart(days); renderAnalyticsChart([{label:'Grocery', value:40},{label:'Fashion', value:25},{label:'Electronics', value:20},{label:'Home', value:10},{label:'Other', value:5}]); const top = [{name:'Fashion',qty:42},{name:'Grocery',qty:35},{name:'Electronics',qty:28}]; $('#top-cats').innerHTML = top.map(t=>`<li class='flex items-center justify-between'><span>${t.name}</span><strong>${t.qty}</strong></li>`).join(''); } catch(err){ console.error('dashboard',err); }
+function addPreview(file){
+  if (!file || !file.type?.startsWith('image/')) return;
+  if (file.size > 5 * 1024 * 1024) {
+    toast('Image must be ≤ 5MB', 'error');
+    return;
+  }
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img = new Image();
+    img.src = rd.result;
+    img.className = 'product-img';
+    img.file = file;
+    const wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.style.position = 'relative';
+    wrap.style.padding = '0.25rem';
+    wrap.appendChild(img);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn danger';
+    remove.style.position = 'absolute';
+    remove.style.right = '8px';
+    remove.style.top = '8px';
+    remove.style.padding = '.25rem .5rem';
+    remove.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
+    remove.onclick = () => wrap.remove();
+    wrap.appendChild(remove);
+    $('#previews').appendChild(wrap);
+    icon(); // Call after element is in the DOM
+  };
+  rd.readAsDataURL(file);
 }
+
+// ====== HYDRATE & DASHBOARD (REFACTORED) ======
+async function hydrate(){
+  setAuth(true);
+  await loadMe();
+  await Promise.all([
+    loadCategories(), // Needed for the product form, so load it once at the start.
+    loadDashboard()   // Load initial dashboard data.
+  ]);
+  setPage('dashboard');
+}
+async function loadDashboard(){ try { const [pRes, oRes] = await Promise.allSettled([ api.get(ENDPOINTS.products.listMine), api.get(ENDPOINTS.orders.listMine) ]); const products = pRes.status==='fulfilled' ? (pRes.value?.data?.data?.products || pRes.value?.data?.data || pRes.value?.data || []) : []; const orders = oRes.status==='fulfilled' ? (oRes.value?.data?.data || oRes.value?.data || []) : []; $('#stat-products').textContent = products.length; $('#badge-products').textContent = products.length; $('#stat-orders').textContent = orders.length; $('#badge-orders').textContent = orders.length; const total = (orders||[]).reduce((s,o)=> s + (o.total||o.amount||0), 0); $('#stat-sales').textContent = inr(total); const days = Array.from({length:7}).map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); const label=d.toLocaleDateString('en-IN',{month:'short', day:'numeric'}); const dayTotal = (orders||[]).filter(o=> new Date(o.createdAt).toDateString()===d.toDateString()).reduce((s,o)=> s+(o.total||o.amount||0),0); return {label, value: dayTotal}; }); renderSalesChart(days); const top = [{name:'Fashion',qty:42},{name:'Grocery',qty:35},{name:'Electronics',qty:28}]; $('#top-cats').innerHTML = top.map(t=>`<li style='display:flex;align-items:center;justify-content:space-between'><span>${t.name}</span><strong>${t.qty} sold</strong></li>`).join(''); } catch(err){ console.error('dashboard',err); } }
 
 // ====== DOM READY ======
 document.addEventListener('DOMContentLoaded', ()=>{
   icon();
   // Tabs
-  $('#tab-login').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.remove('hidden'); $('#form-register').classList.add('hidden'); $('#tab-login').classList.remove('outline'); $('#tab-register').classList.add('outline'); };
-  $('#tab-register').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.add('hidden'); $('#form-register').classList.remove('hidden'); $('#tab-register').classList.remove('outline'); $('#tab-login').classList.add('outline'); };
+  $('#tab-login').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.remove('hidden'); $('#form-register').classList.add('hidden'); $('#tab-login').classList.remove('ghost'); $('#tab-register').classList.add('ghost'); };
+  $('#tab-register').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.add('hidden'); $('#form-register').classList.remove('hidden'); $('#tab-register').classList.remove('ghost'); $('#tab-login').classList.add('ghost'); };
 
-  // Auth
+  // Auth & Nav
   $('#form-login').addEventListener('submit', doLogin);
   $('#form-register').addEventListener('submit', doRegister);
   $('#btn-logout').addEventListener('click', doLogout);
+  $$('nav a').forEach(a=> a.addEventListener('click', (e)=>{ e.preventDefault(); const page=a.getAttribute('data-page'); if(page) setPage(page); }));
 
   // Sidebar mobile
   const sidebar=$('#sidebar'), backdrop=$('#backdrop');
   $('#open-sidebar').onclick = ()=>{ sidebar.classList.add('open'); backdrop.classList.add('show'); };
-  $('#close-sidebar').onclick = ()=>{ sidebar.classList.remove('open'); backdrop.classList.remove('show'); };
-  backdrop.onclick = ()=>{ sidebar.classList.remove('open'); backdrop.classList.remove('show'); };
+  const closeSidebar = ()=>{ sidebar.classList.remove('open'); backdrop.classList.remove('show'); };
+  $('#close-sidebar').onclick = closeSidebar;
+  backdrop.onclick = closeSidebar;
 
-  // Nav
-  $$('.nav a').forEach(a=> a.addEventListener('click', (e)=>{ e.preventDefault(); const page=a.getAttribute('data-page'); if(page) setPage(page); }));
-
-  // Product form
+  // Product form logic
   $('#form-product').addEventListener('submit', saveProduct);
   $('#btn-reset').addEventListener('click', (e)=>{ e.preventDefault(); resetForm(); });
-  $('#btn-delete').addEventListener('click', ()=>{ const id=$('#form-product').dataset.editId; if(!id) return toast('No product selected','error'); confirmDelete(id); });
+  $('#btn-delete').addEventListener('click', ()=>{ const id=$('#form-product').dataset.editId; if(!id) return toast('No product selected for deletion.','error'); confirmDelete(id); });
+  $('#btn-delete').disabled = true; // Start with delete disabled
 
   // Image drop/upload
   const drop=$('#drop'), input=$('#p-images');
   drop.addEventListener('click', ()=> input.click());
-  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.borderColor = 'var(--brand-1)'; });
-  drop.addEventListener('dragleave', ()=>{ drop.style.borderColor = 'rgba(109,94,249,.5)'; });
-  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.style.borderColor = 'rgba(109,94,249,.5)'; const files = Array.from(e.dataTransfer.files||[]); files.forEach(addPreview); });
+  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.borderColor = 'var(--brand)'; });
+  drop.addEventListener('dragleave', ()=>{ drop.style.borderColor = 'var(--line)'; });
+  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.style.borderColor = 'var(--line)'; Array.from(e.dataTransfer.files||[]).forEach(addPreview); });
   input.addEventListener('change', ()=>{ Array.from(input.files||[]).forEach(addPreview); });
 
-  // Search
-  $('#btn-search').addEventListener('click', (e)=>{ e.preventDefault(); listMyProducts({search: $('#q').value.trim()}); });
+  // Search (on click and enter)
+  const performSearch = () => listMyProducts({search: $('#q').value.trim()});
+  $('#btn-search').addEventListener('click', performSearch);
+  $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); performSearch(); }});
 
   // Auto-login if token present
-  const token = localStorage.getItem('accessToken'); if(token){ hydrate(); }
+  if (localStorage.getItem('accessToken')) { hydrate(); }
 });
 </script>
 </body>
