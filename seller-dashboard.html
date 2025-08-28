@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QuickLocal — Seller Dashboard</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <meta name="color-scheme" content="light dark">
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -334,13 +335,13 @@ const ENDPOINTS = {
 const api = axios.create({ 
   baseURL: API_BASE, 
   withCredentials: true, 
-  timeout: 30000,
+  timeout: 60000, // Increased timeout to 60 seconds
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// Request interceptor
+// Request interceptor to add the auth token
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('accessToken');
   if (token) {
@@ -349,16 +350,42 @@ api.interceptors.request.use(config => {
   return config;
 }, error => Promise.reject(error));
 
-// Response interceptor 
+// ADVANCED Response interceptor to handle token refresh
 api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('seller');
-      setAuth(false);
-      toast('Session expired. Please log in again.', 'error');
+  (response) => response, // Directly return successful responses
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Check if the error is a 401 and we haven't already tried to refresh the token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true; // Mark that we've tried to refresh once
+
+      try {
+        // Attempt to get a new access token using the refresh token
+        // The refresh-token endpoint uses httpOnly cookies, so we don't need to send anything
+        const { data } = await api.post('/auth/refresh-token');
+        
+        // Update the access token in localStorage for future requests
+        if (data.accessToken) {
+            localStorage.setItem('accessToken', data.accessToken);
+        }
+        
+        // Now, retry the original request that failed
+        return api(originalRequest);
+
+      } catch (refreshError) {
+        // If the refresh token is also invalid, logout the user
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('seller');
+        setAuth(false);
+        toast('Session expired. Please log in again.', 'error');
+        
+        // Return a rejected promise to stop the chain
+        return Promise.reject(refreshError);
+      }
     }
+
+    // For any other errors, just return the error
     return Promise.reject(error);
   }
 );
@@ -483,7 +510,6 @@ async function doLogin(e) {
     });
 
     if (data?.success) {
-      // Find the access token and user object, wherever they are
       const accessToken = data.accessToken || data.data?.accessToken;
       const user = data.user || data.data?.user || {};
 
@@ -597,14 +623,12 @@ async function loadUserProfile() {
   try {
     const { data } = await api.get(ENDPOINTS.auth.me);
     
-    // Safely find the user object, whether it's at the top level or nested.
     const user = data?.user || data?.data?.user || JSON.parse(localStorage.getItem('seller') || '{}');
     
     $('#whoami').textContent = user?.name || user?.email || 'Seller';
     return user;
   } catch (err) {
     console.warn('Failed to load user profile:', err);
-    // Fallback to localStorage if the API call fails
     const user = JSON.parse(localStorage.getItem('seller') || '{}');
     $('#whoami').textContent = user?.name || user?.email || 'Seller';
     return user;
@@ -616,7 +640,6 @@ async function loadCategories() {
   try {
     const { data } = await api.get(ENDPOINTS.categories);
     
-    // Safely find the array of categories within the response
     let categories = [];
     if (Array.isArray(data?.data)) {
       categories = data.data;
@@ -639,7 +662,6 @@ async function listMyProducts(page = 1, search = '', status = 'all') {
   const grid = $('#grid');
   const pagination = $('#pagination');
   
-  // Show loading skeleton
   grid.innerHTML = Array.from({length: 8}).map(() => 
     `<div class='card skeleton' style='height:280px'></div>`
   ).join('');
@@ -664,7 +686,6 @@ async function listMyProducts(page = 1, search = '', status = 'all') {
     renderProducts(products);
     renderPagination(currentPageNum, totalPages, totalProducts);
     
-    // Update badges
     $('#badge-products').textContent = totalProducts;
     $('#stat-products').textContent = totalProducts;
 
@@ -748,14 +769,12 @@ function renderPagination(currentPage, totalPages, totalProducts) {
 
   paginationHTML += '<div style="display:flex;gap:0.5rem;align-items:center;">';
 
-  // Previous button
   if (currentPage > 1) {
     paginationHTML += `<button class="btn ghost" onclick="changePage(${currentPage - 1})">
       <i data-lucide="chevron-left"></i>Previous
     </button>`;
   }
 
-  // Page numbers
   const startPage = Math.max(1, currentPage - 2);
   const endPage = Math.min(totalPages, currentPage + 2);
 
@@ -774,7 +793,6 @@ function renderPagination(currentPage, totalPages, totalProducts) {
     paginationHTML += `<button class="btn ghost" onclick="changePage(${totalPages})">${totalPages}</button>`;
   }
 
-  // Next button
   if (currentPage < totalPages) {
     paginationHTML += `<button class="btn ghost" onclick="changePage(${currentPage + 1})">
       Next<i data-lucide="chevron-right"></i>
@@ -794,17 +812,13 @@ function changePage(page) {
 }
 
 function editProduct(productId) {
-  // Find product in current data and fill form
-  // This is a simplified version - in production you might want to fetch fresh data
   setPage('products');
   $('#form-product').dataset.editId = productId;
   $('#save-text').textContent = 'Update Product';
   $('#btn-delete').disabled = false;
   
-  // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // You could fetch the specific product here and fill the form
   toast('Product loaded for editing', 'success');
 }
 
@@ -822,7 +836,6 @@ async function deleteProduct(productId) {
     toast('Product deleted successfully', 'success');
     listMyProducts(currentProductPage);
     
-    // Clear form if this product was being edited
     if ($('#form-product').dataset.editId === productId) {
       resetProductForm();
     }
@@ -857,7 +870,6 @@ async function saveProduct(e) {
   try {
     const formData = new FormData();
     
-    // Basic product data
     formData.append('name', $('#p-name').value.trim());
     formData.append('category', $('#p-category').value);
     formData.append('price', $('#p-price').value);
@@ -865,7 +877,6 @@ async function saveProduct(e) {
     formData.append('description', $('#p-desc').value.trim());
     formData.append('isPublished', $('#p-published').checked);
     
-    // Optional fields
     const originalPrice = $('#p-original-price').value;
     if (originalPrice) formData.append('originalPrice', originalPrice);
     
@@ -875,7 +886,6 @@ async function saveProduct(e) {
     const tags = $('#p-tags').value.trim();
     if (tags) formData.append('tags', tags);
 
-    // Handle images
     const imageFiles = Array.from($('#previews').querySelectorAll('img'))
       .map(img => img.file)
       .filter(Boolean);
@@ -1085,7 +1095,6 @@ async function listCustomers() {
 // ====== DASHBOARD & ANALYTICS ======
 async function loadDashboard() {
   try {
-    // Load dashboard data in parallel
     const [productsRes, ordersRes] = await Promise.allSettled([
       api.get(ENDPOINTS.products.listMine + '?limit=100'),
       api.get(ENDPOINTS.orders.listMine)
@@ -1099,25 +1108,20 @@ async function loadDashboard() {
       ? (ordersRes.value?.data?.data || [])
       : [];
 
-    // Update stats
     $('#stat-products').textContent = products.length;
     $('#badge-products').textContent = products.length;
     $('#stat-orders').textContent = orders.length;
     $('#badge-orders').textContent = orders.length;
 
-    // Calculate total sales
     const totalSales = orders.reduce((sum, order) => sum + (order.subtotal || order.total || 0), 0);
     $('#stat-sales').textContent = inr(totalSales);
 
-    // Get unique customers count
     const customerIds = new Set(orders.map(order => order.user).filter(Boolean));
     $('#stat-customers').textContent = customerIds.size;
 
-    // Generate sales chart data (last 7 days)
     const salesData = generateSalesChartData(orders);
     renderSalesChart(salesData);
 
-    // Recent activity
     renderRecentActivity(orders.slice(0, 5));
 
   } catch (err) {
@@ -1151,7 +1155,7 @@ function renderSalesChart(data) {
   const ctx = $('#salesChart');
   if (!ctx) return;
 
-  if (window.salesChart) {
+  if (window.salesChart instanceof Chart) {
     window.salesChart.destroy();
   }
 
@@ -1226,7 +1230,6 @@ async function loadAnalytics() {
   const ctx = $('#analyticsChart');
   if (!ctx) return;
 
-  // Sample analytics data - in production this would come from your API
   const data = [
     { label: 'Fashion', value: 40 },
     { label: 'Electronics', value: 25 },
@@ -1235,7 +1238,7 @@ async function loadAnalytics() {
     { label: 'Other', value: 5 }
   ];
 
-  if (window.analyticsChart) {
+  if (window.analyticsChart instanceof Chart) {
     window.analyticsChart.destroy();
   }
 
@@ -1382,13 +1385,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-login if token exists
   const token = localStorage.getItem('accessToken');
   if (token) {
-    loadUserProfile().then(() => {
-      setAuth(true);
-      setPage('dashboard');
+    loadUserProfile().then((user) => {
+      if (user && user.name) { // Check if user data is valid
+        setAuth(true);
+        setPage('dashboard');
+      } else {
+        // If loadUserProfile resolves but with no valid user, treat as logged out.
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('seller');
+      }
     }).catch(() => {
-      // Token might be invalid, clear it
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('seller');
+      // Catch block will be handled by the interceptor, which logs the user out.
+      // No need to duplicate logout logic here.
     });
   }
 });
