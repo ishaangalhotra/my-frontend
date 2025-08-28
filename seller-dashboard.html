@@ -482,15 +482,23 @@ async function doLogin(e) {
       remember
     });
 
-    if (data?.success && data?.accessToken) {
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('seller', JSON.stringify(data.user || {}));
+    if (data?.success) {
+      // Find the access token and user object, wherever they are
+      const accessToken = data.accessToken || data.data?.accessToken;
+      const user = data.user || data.data?.user || {};
+
+      if (!accessToken) {
+        throw new Error('Login successful, but no access token received.');
+      }
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('seller', JSON.stringify(user));
       
       await loadUserProfile();
       setAuth(true);
       setPage('dashboard');
-      
-      toast(`Welcome back, ${data.user?.name || 'Seller'}!`, 'success');
+      toast(`Welcome back, ${user?.name || 'Seller'}!`, 'success');
+
     } else {
       throw new Error(data?.message || 'Invalid response from server');
     }
@@ -588,11 +596,15 @@ async function doLogout(e) {
 async function loadUserProfile() {
   try {
     const { data } = await api.get(ENDPOINTS.auth.me);
-    const user = data?.user || JSON.parse(localStorage.getItem('seller') || '{}');
+    
+    // Safely find the user object, whether it's at the top level or nested.
+    const user = data?.user || data?.data?.user || JSON.parse(localStorage.getItem('seller') || '{}');
+    
     $('#whoami').textContent = user?.name || user?.email || 'Seller';
     return user;
   } catch (err) {
     console.warn('Failed to load user profile:', err);
+    // Fallback to localStorage if the API call fails
     const user = JSON.parse(localStorage.getItem('seller') || '{}');
     $('#whoami').textContent = user?.name || user?.email || 'Seller';
     return user;
@@ -603,7 +615,16 @@ async function loadUserProfile() {
 async function loadCategories() {
   try {
     const { data } = await api.get(ENDPOINTS.categories);
-    const categories = data?.data || data || [];
+    
+    // Safely find the array of categories within the response
+    let categories = [];
+    if (Array.isArray(data?.data)) {
+      categories = data.data;
+    } else if (Array.isArray(data)) {
+      categories = data;
+    } else if (Array.isArray(data?.data?.categories)) {
+      categories = data.data.categories;
+    }
     
     const select = $('#p-category');
     select.innerHTML = '<option value="">Select category</option>' + 
