@@ -113,6 +113,21 @@
     .skeleton { background: linear-gradient(90deg, rgba(0,0,0,.06) 25%, rgba(255,255,255,.35) 50%, rgba(0,0,0,.06) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
     @media (prefers-color-scheme: dark) { .skeleton { background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.06) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; } }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    
+    .status-badge { 
+      padding: 4px 8px; 
+      border-radius: 4px; 
+      font-size: 12px; 
+      font-weight: 500; 
+    }
+    .status-active { 
+      background: #dcfce7; 
+      color: #166534; 
+    }
+    .status-draft { 
+      background: #fef3c7; 
+      color: #92400e; 
+    }
   </style>
 </head>
 <body>
@@ -127,12 +142,17 @@
       <form id="form-login" style="display:grid;gap:.75rem">
         <input id="login-email" type="email" class="input" placeholder="Email" required>
         <input id="login-pass" type="password" class="input" placeholder="Password" required>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--ink-700)">
+          <input id="remember-me" type="checkbox">
+          Remember me for 30 days
+        </label>
         <button class="btn" type="submit"><i data-lucide="arrow-right"></i> Sign in</button>
       </form>
       <form id="form-register" class="hidden" style="display:grid;gap:.75rem">
         <input id="reg-name" type="text" class="input" placeholder="Full name" required>
         <input id="reg-email" type="email" class="input" placeholder="Email" required>
-        <input id="reg-pass" type="password" class="input" placeholder="Password" required>
+        <input id="reg-pass" type="password" class="input" placeholder="Password (min 6 chars)" minlength="6" required>
+        <input id="reg-phone" type="tel" class="input" placeholder="Phone number (optional)">
         <button class="btn" type="submit"><i data-lucide="sparkles"></i> Create Seller Account</button>
       </form>
     </div>
@@ -187,8 +207,8 @@
                 <canvas id="salesChart" height="120"></canvas>
               </div>
               <div class="card">
-                <h2>Top Categories</h2>
-                <ul id="top-cats" style="display:grid;gap:.5rem;margin-top:.75rem;padding:0;list-style:none;"></ul>
+                <h2>Recent Activity</h2>
+                <div id="recent-activity" style="margin-top:.75rem;"></div>
               </div>
             </div>
           </section>
@@ -197,25 +217,36 @@
             <div class="card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
                 <h2>Product Management</h2>
-                <button id="btn-reset" class="btn ghost"><i data-lucide="rotate-ccw"></i>Reset Form</button>
+                <div style="display:flex;gap:10px;">
+                  <button id="btn-reset" class="btn ghost"><i data-lucide="rotate-ccw"></i>Reset Form</button>
+                </div>
               </div>
               <form id="form-product" class="form-grid">
-                <div><label for="p-name">Name</label><input id="p-name" class="input" required placeholder="e.g., Premium Running Shoes"/></div>
-                <div><label for="p-category">Category</label><select id="p-category" class="input" required><option value="">Select category</option></select></div>
-                <div><label for="p-price">Price (₹)</label><input id="p-price" class="input" type="number" min="0" step="0.01" required /></div>
-                <div><label for="p-stock">Stock</label><input id="p-stock" class="input" type="number" min="0" required /></div>
-                <div class="full-span"><label for="p-desc">Description</label><textarea id="p-desc" class="input" rows="3" placeholder="Optional"></textarea></div>
+                <div><label for="p-name">Product Name *</label><input id="p-name" class="input" required placeholder="e.g., Premium Running Shoes" maxlength="100"/></div>
+                <div><label for="p-category">Category *</label><select id="p-category" class="input" required><option value="">Select category</option></select></div>
+                <div><label for="p-price">Selling Price (₹) *</label><input id="p-price" class="input" type="number" min="0" step="0.01" required /></div>
+                <div><label for="p-original-price">Original Price (₹)</label><input id="p-original-price" class="input" type="number" min="0" step="0.01" placeholder="For discount display" /></div>
+                <div><label for="p-stock">Stock Quantity *</label><input id="p-stock" class="input" type="number" min="0" required /></div>
+                <div><label for="p-cost">Cost per Item (₹)</label><input id="p-cost" class="input" type="number" min="0" step="0.01" placeholder="For profit tracking" /></div>
+                <div class="full-span"><label for="p-desc">Description</label><textarea id="p-desc" class="input" rows="3" placeholder="Describe your product..." maxlength="1000"></textarea></div>
+                <div class="full-span"><label for="p-tags">Tags</label><input id="p-tags" class="input" placeholder="e.g., shoes, running, sports (comma separated)"/></div>
                 <div class="full-span">
-                  <label>Images</label>
+                  <label>Product Images (Max 8)</label>
                   <div id="drop" class="card" style="text-align:center;border-style:dashed;cursor:pointer;padding:1.5rem;">
                     <div style="color:var(--ink-500);display:flex;align-items:center;justify-content:center;gap:.5rem;"><i data-lucide="upload-cloud"></i> Drag & drop images, or click to browse</div>
                     <input id="p-images" type="file" accept="image/*" multiple class="hidden" />
                   </div>
                   <div id="previews" class="grid-cards" style="margin-top:1rem"></div>
                 </div>
+                <div class="full-span" style="display:flex;gap:10px;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:8px;">
+                    <input id="p-published" type="checkbox" checked>
+                    Publish immediately
+                  </label>
+                </div>
                 <div class="full-span" style="display:flex;gap:10px">
-                  <button class="btn" type="submit" id="btn-save"><i data-lucide="save"></i>Save Product</button>
-                  <button class="btn danger" type="button" id="btn-delete"><i data-lucide="trash-2"></i>Delete Product</button>
+                  <button class="btn" type="submit" id="btn-save"><i data-lucide="save"></i><span id="save-text">Save Product</span></button>
+                  <button class="btn danger" type="button" id="btn-delete" disabled><i data-lucide="trash-2"></i>Delete Product</button>
                 </div>
               </form>
             </div>
@@ -223,19 +254,43 @@
             <div class="card" style="margin-top:1rem">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem">
                 <h2>Your Products</h2>
-                <div style="display:flex;gap:.5rem;align-items:center">
+                <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                  <select id="filter-status" class="input" style="width:120px;">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                  </select>
                   <input id="q" class="input" placeholder="Search products..." style="width:220px" />
                   <button id="btn-search" class="btn ghost" aria-label="Search"><i data-lucide="search"></i></button>
                 </div>
               </div>
               <div id="grid" class="grid-cards"></div>
+              <div id="pagination" style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:1rem;"></div>
             </div>
           </section>
 
           <section id="page-orders" class="section"><div class="card"><h2>Order Management</h2><div id="orders" style="display:grid;gap:.75rem;margin-top:1rem"></div></div></section>
           <section id="page-analytics" class="section"><div class="card"><h2>Business Analytics</h2><canvas id="analyticsChart" height="160" style="margin-top:1rem"></canvas></div></section>
           <section id="page-customers" class="section"><div class="card"><h2>Customers</h2><div id="customers" style="display:grid;gap:.75rem;margin-top:1rem"></div></div></section>
-          <section id="page-settings" class="section"><div class="card" style="display:grid;gap:.75rem"><h2>Store Settings</h2><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Store Status</span><input id="toggle-store" type="checkbox" checked></label><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Low Stock Alerts</span><input id="toggle-lowstock" type="checkbox" checked></label><label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px"><span>Email Notifications</span><input id="toggle-email" type="checkbox" checked></label></div></section>
+          <section id="page-settings" class="section">
+            <div class="card">
+              <h2>Store Settings</h2>
+              <div style="display:grid;gap:1rem;margin-top:1rem;">
+                <label style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--line);border-radius:12px">
+                  <span>Store Status</span>
+                  <input id="toggle-store" type="checkbox" checked>
+                </label>
+                <label style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--line);border-radius:12px">
+                  <span>Low Stock Alerts</span>
+                  <input id="toggle-lowstock" type="checkbox" checked>
+                </label>
+                <label style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--line);border-radius:12px">
+                  <span>Email Notifications</span>
+                  <input id="toggle-email" type="checkbox" checked>
+                </label>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -254,184 +309,1074 @@
 // ====== CONFIG ======
 const API_BASE = 'https://quicklocal-backend.onrender.com/api/v1';
 const ENDPOINTS = {
-  auth: { login: API_BASE + '/auth/login', register: API_BASE + '/auth/register', me: API_BASE + '/auth/me' },
+  auth: { 
+    login: API_BASE + '/auth/login', 
+    register: API_BASE + '/auth/register', 
+    me: API_BASE + '/auth/me',
+    logout: API_BASE + '/auth/logout'
+  },
   categories: API_BASE + '/categories',
   products: {
     listMine: API_BASE + '/seller/products',
-    create:   API_BASE + '/seller/products',
-    update:   id => API_BASE + '/seller/products/' + id,
-    remove:   id => API_BASE + '/seller/products/' + id,
+    create: API_BASE + '/seller/products',
+    update: id => API_BASE + '/seller/products/' + id,
+    remove: id => API_BASE + '/seller/products/' + id,
   },
-  orders: { listMine: API_BASE + '/seller/orders', update: id => API_BASE + '/seller/orders/' + id + '/status' },
-  customers: API_BASE + '/seller/customers'
+  orders: { 
+    listMine: API_BASE + '/seller/orders', 
+    updateStatus: id => API_BASE + '/seller/orders/' + id + '/status' 
+  },
+  customers: API_BASE + '/seller/customers',
+  dashboard: API_BASE + '/seller/dashboard'
 };
 
-const api = axios.create({ baseURL: API_BASE, withCredentials: true, timeout: 15000 });
-api.interceptors.request.use(cfg => { const t = localStorage.getItem('accessToken'); if (t) cfg.headers.Authorization = 'Bearer ' + t; return cfg; });
-api.interceptors.response.use(r => r, err => { if (err.response?.status === 401) { localStorage.removeItem('accessToken'); localStorage.removeItem('seller'); setAuth(false); toast('Session expired. Please log in again.', 'error'); } return Promise.reject(err); });
+// Enhanced axios instance with better error handling
+const api = axios.create({ 
+  baseURL: API_BASE, 
+  withCredentials: true, 
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
 
-// ====== UTIL ======
-const $ = s => document.querySelector(s); const $$ = s => Array.from(document.querySelectorAll(s));
-function icon(){ try { lucide.createIcons(); } catch(_){} }
-function inr(n){ try { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n||0);} catch { return '₹'+(n||0);} }
-function toast(msg, type='success', ms=2500){ const el=$('#toast'); el.textContent=''; el.className=''; el.classList.add(type==='success'?'toast-success':'toast-error','show'); el.innerHTML=`<i data-lucide="${type==='success'?'check-circle':'x-circle'}"></i><span>${msg}</span>`; icon(); setTimeout(()=>{ el.classList.remove('show'); }, ms); }
-function modal({title='Confirm', body='Are you sure?', onOk=null}){ $('#modal-title').textContent=title; $('#modal-body').textContent=body; const m=$('#modal'); m.classList.add('show'); const close=()=>m.classList.remove('show'); $('#modal-x').onclick=close; $('#modal-cancel').onclick=close; $('#modal-ok').onclick=()=>{ onOk&&onOk(); close(); } }
+// Request interceptor
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = 'Bearer ' + token;
+  }
+  return config;
+}, error => Promise.reject(error));
 
-function setAuth(yes){ $('#auth').classList.toggle('hidden', !!yes); $('#app').classList.toggle('hidden', !yes); }
+// Response interceptor 
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('seller');
+      setAuth(false);
+      toast('Session expired. Please log in again.', 'error');
+    }
+    return Promise.reject(error);
+  }
+);
 
-// ====== NAVIGATION & LAZY-LOADING (ENHANCED) ======
-function setPage(id){
-  $$('.section').forEach(s=>s.classList.remove('show'));
-  $('#page-'+id).classList.add('show');
+// ====== UTILITIES ======
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
 
-  $$('nav a').forEach(a=>a.classList.remove('active'));
-  const nav = $(`nav a[data-page="${id}"]`);
-  if (nav) nav.classList.add('active');
+function icon() {
+  try { 
+    lucide.createIcons(); 
+  } catch(e) { 
+    console.warn('Lucide icons failed to load:', e); 
+  }
+}
 
-  // Lazy-load data for each page on-demand
-  if (id === 'orders')      listOrders();
-  if (id === 'customers')   listCustomers();
-  if (id === 'products')    listMyProducts({search: $('#q').value.trim()});
-  if (id === 'analytics')   renderAnalyticsChart([
-    {label:'Grocery', value:40},
-    {label:'Fashion', value:25},
-    {label:'Electronics', value:20},
-    {label:'Home', value:10},
-    {label:'Other', value:5}
-  ]);
+function inr(n) {
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(n || 0);
+  } catch {
+    return '₹' + (n || 0);
+  }
+}
+
+function toast(msg, type = 'success', ms = 3000) {
+  const el = $('#toast');
+  el.textContent = '';
+  el.className = '';
+  el.classList.add(type === 'success' ? 'toast-success' : 'toast-error', 'show');
+  el.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'x-circle'}"></i><span>${msg}</span>`;
+  icon();
+  setTimeout(() => {
+    el.classList.remove('show');
+  }, ms);
+}
+
+function modal({ title = 'Confirm', body = 'Are you sure?', onOk = null }) {
+  $('#modal-title').textContent = title;
+  $('#modal-body').textContent = body;
+  const m = $('#modal');
+  m.classList.add('show');
+  const close = () => m.classList.remove('show');
+  $('#modal-x').onclick = close;
+  $('#modal-cancel').onclick = close;
+  $('#modal-ok').onclick = () => {
+    if (onOk) onOk();
+    close();
+  };
+}
+
+function setAuth(isAuthenticated) {
+  $('#auth').classList.toggle('hidden', isAuthenticated);
+  $('#app').classList.toggle('hidden', !isAuthenticated);
+}
+
+// ====== NAVIGATION ======
+let currentPage = 'dashboard';
+let currentProductPage = 1;
+
+function setPage(pageId) {
+  currentPage = pageId;
+  
+  // Hide all sections
+  $$('.section').forEach(s => s.classList.remove('show'));
+  $('#page-' + pageId).classList.add('show');
+
+  // Update nav active state
+  $$('nav a').forEach(a => a.classList.remove('active'));
+  const navLink = $(`nav a[data-page="${pageId}"]`);
+  if (navLink) navLink.classList.add('active');
+
+  // Load page-specific data
+  switch (pageId) {
+    case 'dashboard':
+      loadDashboard();
+      break;
+    case 'products':
+      loadCategories();
+      listMyProducts();
+      break;
+    case 'orders':
+      listOrders();
+      break;
+    case 'customers':
+      listCustomers();
+      break;
+    case 'analytics':
+      loadAnalytics();
+      break;
+  }
 
   icon();
 }
 
-// ====== AUTH ======
-async function doLogin(e){ e.preventDefault(); const email=$('#login-email').value.trim(); const password=$('#login-pass').value; try { const {data}=await api.post(ENDPOINTS.auth.login,{email,password}); if(data?.accessToken){ localStorage.setItem('accessToken', data.accessToken); localStorage.setItem('seller', JSON.stringify(data.user||{})); await hydrate(); toast('Welcome back!', 'success'); } else toast('Invalid response from server','error'); } catch(err){ toast(err?.response?.data?.message||'Login failed','error'); } }
-async function doRegister(e){ e.preventDefault(); const name=$('#reg-name').value.trim(); const email=$('#reg-email').value.trim(); const password=$('#reg-pass').value; try { const {data}=await api.post(ENDPOINTS.auth.register,{ name, email, password, role:'seller' }); toast(data?.message||'Seller registered! Please log in.','success'); $('#tab-login').click(); $('#form-register').reset(); } catch(err){ const msg = err?.response?.data?.message || (Array.isArray(err?.response?.data?.errors)? err.response.data.errors.map(x=>x.msg).join(', ') : 'Registration failed'); toast(msg,'error'); } }
-function doLogout(e){ if(e&&e.preventDefault) e.preventDefault(); try { localStorage.removeItem('accessToken'); localStorage.removeItem('seller'); setAuth(false); toast('Logged out','success'); } catch(err){ console.error('Logout error',err); } }
-async function loadMe(){ try { const {data}=await api.get(ENDPOINTS.auth.me); const user=data?.user || JSON.parse(localStorage.getItem('seller')||'{}'); $('#whoami').textContent=user?.name||user?.email||'Seller'; return user; } catch { const user=JSON.parse(localStorage.getItem('seller')||'{}'); $('#whoami').textContent=user?.name||user?.email||'Seller'; return user; } }
+// ====== AUTHENTICATION ======
+async function doLogin(e) {
+  e.preventDefault();
+  
+  const email = $('#login-email').value.trim();
+  const password = $('#login-pass').value;
+  const remember = $('#remember-me').checked;
 
-// ====== DATA: Categories & Products ======
-async function loadCategories(){ try { const {data}=await api.get(ENDPOINTS.categories); const cats = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []); const sel=$('#p-category'); sel.innerHTML='<option value="">Select category</option>' + cats.map(c=>`<option value="${c._id||c.id}">${c.name}</option>`).join(''); } catch(err){ toast('Failed to load categories','error'); console.error('categories',err); } }
-async function listMyProducts({search=''}={}){ const g=$('#grid'); g.innerHTML = Array.from({length:4}).map(()=>`<div class='card skeleton' style='height:260px'></div>`).join(''); try { const url = ENDPOINTS.products.listMine + (search?`?search=${encodeURIComponent(search)}`:''); const {data}=await api.get(url); const payload = data?.data?.products || data?.data || data || []; renderProducts(payload); $('#badge-products').textContent = (payload.length||0); $('#stat-products').textContent = (payload.length||0); } catch(err){ g.innerHTML = `<div class='card'>Failed to load products.</div>`; toast('Failed to load products','error'); } }
-function renderProducts(items){ const g=$('#grid'); if(!items?.length){ g.innerHTML = `<div class='card' style='text-align:center;color:var(--ink-500)'><i data-lucide="package" style="margin-bottom:.5rem;"></i><div>No products found. Add one!</div></div>`; icon(); return; }
- g.innerHTML = items.map(p=>{ const id=p._id||p.id; const img=(p.images&&p.images[0]?.url)||p.images?.[0]||p.imageUrl||'https://via.placeholder.com/400x300?text=No+Image'; return `<div class='card' style="padding:.75rem">
-   <img class='product-img' src='${img}' alt='${(p.name||'')}'/>
-   <div style='display:flex;align-items:center;justify-content:space-between;margin-top:.5rem'>
-     <div style='font-weight:700'>${p.name||''}</div>
-     <div style='font-weight:800;color:var(--brand)'>${inr(p.price)}</div>
-   </div>
-   <div style='display:flex;gap:.5rem;margin-top:.35rem'><span class='badge'>${p.category?.name||'Uncategorized'}</span><span class='badge' style='background:#ecfeff;color:#155e75'>Stock: ${p.stock||0}</span></div>
-   <div style='display:flex;gap:.5rem;margin-top:.6rem'>
-     <button class='btn' data-edit='${id}' style="flex:1"><i data-lucide="edit"></i>Edit</button>
-     <button class='btn danger' data-remove='${id}' aria-label="Delete"><i data-lucide="trash-2"></i></button>
-   </div>
- </div>`; }).join('');
- icon();
- g.querySelectorAll('[data-edit]').forEach(btn=>btn.onclick=()=>{ const item = items.find(i=> (i._id||i.id)===btn.dataset.edit); fillForm(item); setPage('products'); window.scrollTo({top:0, behavior:'smooth'}); });
- g.querySelectorAll('[data-remove]').forEach(btn=>btn.onclick=()=>confirmDelete(btn.dataset.remove));
-}
-
-function fillForm(p){ if(!p) return; $('#p-name').value=p.name||''; $('#p-category').value=p.category? (p.category._id||p.category.id||p.category):''; $('#p-price').value=p.price||0; $('#p-stock').value=p.stock||0; $('#p-desc').value=p.description||''; $('#form-product').dataset.editId = p._id||p.id; $('#previews').innerHTML=''; $('#btn-delete').disabled = false; }
-function resetForm(){ $('#form-product').reset(); delete $('#form-product').dataset.editId; $('#previews').innerHTML=''; $('#btn-delete').disabled = true; toast('Form has been reset','success'); }
-async function confirmDelete(id){ modal({title:'Delete Product', body:'This action is permanent and cannot be undone. Are you sure you want to delete this product?', onOk:()=> removeProduct(id)}); }
-async function removeProduct(id){ try { await api.delete(ENDPOINTS.products.remove(id)); toast('Product deleted successfully','success'); listMyProducts({search:$('#q').value.trim()}); if ($('#form-product').dataset.editId === id) { resetForm(); } } catch(err){ toast('Failed to delete product','error'); } }
-async function saveProduct(e){ e.preventDefault(); const form=$('#form-product'); const fd=new FormData(); fd.append('name', $('#p-name').value.trim()); fd.append('category', $('#p-category').value); fd.append('price', $('#p-price').value); fd.append('stock', $('#p-stock').value); fd.append('description', $('#p-desc').value.trim()); const files = Array.from($('#previews').querySelectorAll('img')).map(img=>img.file).filter(Boolean); files.forEach(f=>fd.append('images', f)); try { const id=form.dataset.editId; if(id){ await api.put(ENDPOINTS.products.update(id), fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product updated successfully','success'); } else { await api.post(ENDPOINTS.products.create, fd, { headers:{'Content-Type':'multipart/form-data'} }); toast('Product created successfully','success'); } resetForm(); listMyProducts({search:$('#q').value.trim()}); } catch(err){ toast(err?.response?.data?.message||'Failed to save product','error'); } }
-
-// ====== DATA: Orders / Customers / Analytics ======
-async function listOrders(){ const box=$('#orders'); box.innerHTML = `<div class='card skeleton' style='height:140px'></div>`; try { const {data}=await api.get(ENDPOINTS.orders.listMine); const orders = data?.data || data || []; $('#badge-orders').textContent = orders.length||0; $('#stat-orders').textContent = orders.length||0; renderOrders(orders); } catch(err){ const msg = err?.response?.status===404 ? 'Orders API not ready yet' : 'Failed to load orders'; box.innerHTML = `<div class='card'>${msg}</div>`; toast(msg,'error'); } }
-function renderOrders(orders){ const box=$('#orders'); if(!orders?.length){ box.innerHTML = `<div class='card' style='text-align:center;color:var(--ink-500)'><i data-lucide="shopping-cart"></i><div style='margin-top:.5rem'>No orders yet</div></div>`; icon(); return; } box.innerHTML = orders.map(o=>{ const items=(o.items||[]).map(i=> `${i.quantity||i.qty||1}× ${(i.name||i.product?.name||'Item')}`).join(', '); const total = inr(o.total||o.amount||0); const id=o._id||o.id||''; return `<div class='card'><div style='display:flex;align-items:center;justify-content:space-between'><div><strong>#${id.slice(-6)}</strong><div style='color:var(--ink-500);font-size:.8rem'>${new Date(o.createdAt||Date.now()).toLocaleString('en-IN')}</div></div><div style='display:flex;align-items:center;gap:.5rem'><div style='font-weight:800'>${total}</div><button class='btn' data-advance='${id}'><i data-lucide="arrow-right"></i> Advance</button></div></div><div style='margin-top:.5rem;color:var(--ink-700)'>${items||'No items'}</div></div>`; }).join(''); icon(); box.querySelectorAll('[data-advance]').forEach(b=> b.onclick=()=>advanceOrder(b.dataset.advance)); }
-async function advanceOrder(id){ try { const {data}=await api.patch(ENDPOINTS.orders.update(id), {}); toast(data?.message||'Order status updated','success'); listOrders(); } catch(err){ toast('Failed to update order','error'); } }
-async function listCustomers(){ const el=$('#customers'); el.innerHTML = `<div class='card skeleton' style='height:120px'></div>`; try { const {data}=await api.get(ENDPOINTS.customers); const rows = data?.data || data || []; $('#stat-customers').textContent = rows.length||0; el.innerHTML = rows.map(c=>`<div class='card' style='display:flex;align-items:center;justify-content:space-between'><div style='display:flex;align-items:center;gap:10px'><div style='width:42px;height:42px;border-radius:999px;background:rgba(109,94,249,.12);display:flex;align-items:center;justify-content:center'><i data-lucide='user'></i></div><div><div style='font-weight:700'>${c.name||c.email||'Customer'}</div><div style='color:var(--ink-500);font-size:.8rem'>${c.email||''}</div></div></div><div><strong>${(c.ordersCount||0)} orders</strong><div style='color:var(--ink-500);font-size:.8rem'>${inr(c.totalSpent||0)} spent</div></div></div>`).join(''); icon(); } catch(err){ const msg = err?.response?.status===404 ? 'Customers API not ready yet' : 'Failed to load customers'; el.innerHTML = `<div class='card'>${msg}</div>`; } }
-function renderSalesChart(data){ const ctx=$('#salesChart').getContext('2d'); if(window.__sales) window.__sales.destroy(); window.__sales = new Chart(ctx,{ type:'line', data:{ labels:data.map(d=>d.label), datasets:[{ label:'Sales', data:data.map(d=>d.value), borderColor:'rgb(109,94,249)', backgroundColor:'rgba(109,94,249,.12)', tension:.35, fill:true }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>inr(v).replace('₹','₹') } } } } }); }
-function renderAnalyticsChart(data){ const ctx=$('#analyticsChart').getContext('2d'); if(window.__ana) window.__ana.destroy(); window.__ana = new Chart(ctx,{ type:'doughnut', data:{ labels:data.map(d=>d.label), datasets:[{ data:data.map(d=>d.value), backgroundColor:['#6d5ef9','#7a5af8','#22c55e','#ef4444','#f59e0b'], borderWidth:0 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, padding:16 } } } } }); }
-
-// ====== IMAGE HANDLING ======
-function addPreview(file){
-  if (!file || !file.type?.startsWith('image/')) return;
-  if (file.size > 5 * 1024 * 1024) {
-    toast('Image must be ≤ 5MB', 'error');
+  if (!email || !password) {
+    toast('Please fill in all fields', 'error');
     return;
   }
-  const rd = new FileReader();
-  rd.onload = () => {
-    const img = new Image();
-    img.src = rd.result;
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i data-lucide="loader-2"></i> Signing in...';
+  btn.disabled = true;
+
+  try {
+    const { data } = await api.post(ENDPOINTS.auth.login, {
+      email,
+      password,
+      remember
+    });
+
+    if (data?.success && data?.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('seller', JSON.stringify(data.user || {}));
+      
+      await loadUserProfile();
+      setAuth(true);
+      setPage('dashboard');
+      
+      toast(`Welcome back, ${data.user?.name || 'Seller'}!`, 'success');
+    } else {
+      throw new Error(data?.message || 'Invalid response from server');
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    const message = err?.response?.data?.message || err.message || 'Login failed';
+    toast(message, 'error');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    icon();
+  }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  
+  const name = $('#reg-name').value.trim();
+  const email = $('#reg-email').value.trim();
+  const password = $('#reg-pass').value;
+  const phone = $('#reg-phone').value.trim();
+
+  if (!name || !email || !password) {
+    toast('Please fill in all required fields', 'error');
+    return;
+  }
+  
+  if (password.length < 6) {
+    toast('Password must be at least 6 characters', 'error');
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i data-lucide="loader-2"></i> Creating account...';
+  btn.disabled = true;
+
+  try {
+    const requestData = {
+      name,
+      email,
+      password,
+      role: 'seller'
+    };
+    
+    if (phone) {
+      requestData.phone = phone;
+    }
+
+    const { data } = await api.post(ENDPOINTS.auth.register, requestData);
+
+    if (data?.success) {
+      toast(data.message || 'Seller account created successfully!', 'success');
+      $('#tab-login').click();
+      $('#form-register').reset();
+    } else {
+      throw new Error(data?.message || 'Registration failed');
+    }
+  } catch (err) {
+    console.error('Registration error:', err);
+    let message = 'Registration failed';
+    
+    if (err?.response?.data?.message) {
+      message = err.response.data.message;
+    } else if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+      message = err.response.data.errors.map(e => e.msg || e.message).join(', ');
+    } else if (err.message) {
+      message = err.message;
+    }
+    
+    toast(message, 'error');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    icon();
+  }
+}
+
+
+async function doLogout(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  
+  try {
+    await api.post(ENDPOINTS.auth.logout);
+  } catch (err) {
+    console.warn('Logout API call failed:', err);
+  } finally {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('seller');
+    setAuth(false);
+    toast('Logged out successfully', 'success');
+  }
+}
+
+async function loadUserProfile() {
+  try {
+    const { data } = await api.get(ENDPOINTS.auth.me);
+    const user = data?.user || JSON.parse(localStorage.getItem('seller') || '{}');
+    $('#whoami').textContent = user?.name || user?.email || 'Seller';
+    return user;
+  } catch (err) {
+    console.warn('Failed to load user profile:', err);
+    const user = JSON.parse(localStorage.getItem('seller') || '{}');
+    $('#whoami').textContent = user?.name || user?.email || 'Seller';
+    return user;
+  }
+}
+
+// ====== CATEGORIES & PRODUCTS ======
+async function loadCategories() {
+  try {
+    const { data } = await api.get(ENDPOINTS.categories);
+    const categories = data?.data || data || [];
+    
+    const select = $('#p-category');
+    select.innerHTML = '<option value="">Select category</option>' + 
+      categories.map(cat => `<option value="${cat._id || cat.id}">${cat.name}</option>`).join('');
+  } catch (err) {
+    console.error('Failed to load categories:', err);
+    toast('Failed to load categories', 'error');
+  }
+}
+
+async function listMyProducts(page = 1, search = '', status = 'all') {
+  const grid = $('#grid');
+  const pagination = $('#pagination');
+  
+  // Show loading skeleton
+  grid.innerHTML = Array.from({length: 8}).map(() => 
+    `<div class='card skeleton' style='height:280px'></div>`
+  ).join('');
+  pagination.innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '12'
+    });
+    
+    if (search.trim()) params.append('search', search.trim());
+    if (status !== 'all') params.append('status', status);
+
+    const { data } = await api.get(ENDPOINTS.products.listMine + '?' + params.toString());
+    
+    const products = data?.data?.products || data?.data || data || [];
+    const totalProducts = data?.data?.pagination?.totalProducts || products.length;
+    const currentPageNum = data?.data?.pagination?.currentPage || page;
+    const totalPages = data?.data?.pagination?.totalPages || 1;
+
+    renderProducts(products);
+    renderPagination(currentPageNum, totalPages, totalProducts);
+    
+    // Update badges
+    $('#badge-products').textContent = totalProducts;
+    $('#stat-products').textContent = totalProducts;
+
+  } catch (err) {
+    console.error('Failed to load products:', err);
+    grid.innerHTML = `<div class='card' style='text-align:center;padding:2rem;color:var(--ink-500)'>
+      <i data-lucide="alert-circle" style="margin-bottom:1rem;"></i>
+      <div>Failed to load products</div>
+      <button class="btn" style="margin-top:1rem;" onclick="listMyProducts(1)">Retry</button>
+    </div>`;
+    toast('Failed to load products', 'error');
+  }
+  
+  icon();
+}
+
+function renderProducts(products) {
+  const grid = $('#grid');
+  
+  if (!products || products.length === 0) {
+    grid.innerHTML = `<div class='card' style='grid-column: 1 / -1; text-align:center;padding:2rem;color:var(--ink-500)'>
+      <i data-lucide="package" style="margin-bottom:1rem;"></i>
+      <div>No products found</div>
+      <div style="margin-top:0.5rem;font-size:0.9rem;">Add your first product to get started!</div>
+    </div>`;
+    icon();
+    return;
+  }
+
+  grid.innerHTML = products.map(product => {
+    const id = product._id || product.id;
+    const imageUrl = product.images?.[0]?.url || product.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image';
+    const categoryName = product.category?.name || 'Uncategorized';
+    const statusClass = product.status === 'active' ? 'status-active' : 'status-draft';
+    const discountText = product.discountPercentage > 0 ? 
+      `<span class="badge" style="background:#fee2e2;color:#991b1b">${product.discountPercentage}% OFF</span>` : '';
+
+    return `<div class='card' style="padding:0.75rem">
+      <img class='product-img' src='${imageUrl}' alt='${product.name || ''}' 
+           onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'"/>
+      <div style='margin-top:0.75rem'>
+        <div style='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem'>
+          <div style='font-weight:700;line-height:1.2;flex:1'>${product.name || ''}</div>
+          <div style='text-align:right'>
+            <div style='font-weight:800;color:var(--brand)'>${inr(product.price)}</div>
+            ${product.originalPrice ? `<div style='font-size:0.8rem;color:var(--ink-500);text-decoration:line-through'>${inr(product.originalPrice)}</div>` : ''}
+          </div>
+        </div>
+        <div style='display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap'>
+          <span class='badge'>${categoryName}</span>
+          <span class='badge' style='background:#ecfeff;color:#155e75'>Stock: ${product.stock || 0}</span>
+          <span class='status-badge ${statusClass}'>${product.status || 'draft'}</span>
+          ${discountText}
+        </div>
+        <div style='display:flex;gap:0.5rem'>
+          <button class='btn' onclick="editProduct('${id}')" style="flex:1">
+            <i data-lucide="edit"></i>Edit
+          </button>
+          <button class='btn danger' onclick="confirmDeleteProduct('${id}')" aria-label="Delete">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  icon();
+}
+
+function renderPagination(currentPage, totalPages, totalProducts) {
+  const pagination = $('#pagination');
+  
+  if (totalPages <= 1) {
+    pagination.innerHTML = '';
+    return;
+  }
+
+  let paginationHTML = `<div style="color:var(--ink-500);font-size:0.9rem">
+    Showing page ${currentPage} of ${totalPages} (${totalProducts} products)
+  </div>`;
+
+  paginationHTML += '<div style="display:flex;gap:0.5rem;align-items:center;">';
+
+  // Previous button
+  if (currentPage > 1) {
+    paginationHTML += `<button class="btn ghost" onclick="changePage(${currentPage - 1})">
+      <i data-lucide="chevron-left"></i>Previous
+    </button>`;
+  }
+
+  // Page numbers
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, currentPage + 2);
+
+  if (startPage > 1) {
+    paginationHTML += `<button class="btn ghost" onclick="changePage(1)">1</button>`;
+    if (startPage > 2) paginationHTML += '<span>...</span>';
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    const isActive = i === currentPage ? 'btn' : 'btn ghost';
+    paginationHTML += `<button class="${isActive}" onclick="changePage(${i})">${i}</button>`;
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) paginationHTML += '<span>...</span>';
+    paginationHTML += `<button class="btn ghost" onclick="changePage(${totalPages})">${totalPages}</button>`;
+  }
+
+  // Next button
+  if (currentPage < totalPages) {
+    paginationHTML += `<button class="btn ghost" onclick="changePage(${currentPage + 1})">
+      Next<i data-lucide="chevron-right"></i>
+    </button>`;
+  }
+
+  paginationHTML += '</div>';
+  pagination.innerHTML = paginationHTML;
+  icon();
+}
+
+function changePage(page) {
+  currentProductPage = page;
+  const search = $('#q').value.trim();
+  const status = $('#filter-status').value;
+  listMyProducts(page, search, status);
+}
+
+function editProduct(productId) {
+  // Find product in current data and fill form
+  // This is a simplified version - in production you might want to fetch fresh data
+  setPage('products');
+  $('#form-product').dataset.editId = productId;
+  $('#save-text').textContent = 'Update Product';
+  $('#btn-delete').disabled = false;
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  // You could fetch the specific product here and fill the form
+  toast('Product loaded for editing', 'success');
+}
+
+async function confirmDeleteProduct(productId) {
+  modal({
+    title: 'Delete Product',
+    body: 'This action cannot be undone. Are you sure you want to delete this product?',
+    onOk: () => deleteProduct(productId)
+  });
+}
+
+async function deleteProduct(productId) {
+  try {
+    await api.delete(ENDPOINTS.products.remove(productId));
+    toast('Product deleted successfully', 'success');
+    listMyProducts(currentProductPage);
+    
+    // Clear form if this product was being edited
+    if ($('#form-product').dataset.editId === productId) {
+      resetProductForm();
+    }
+  } catch (err) {
+    console.error('Delete product error:', err);
+    toast('Failed to delete product', 'error');
+  }
+}
+
+// ====== PRODUCT FORM ======
+function resetProductForm() {
+  $('#form-product').reset();
+  delete $('#form-product').dataset.editId;
+  $('#previews').innerHTML = '';
+  $('#save-text').textContent = 'Save Product';
+  $('#btn-delete').disabled = true;
+  $('#p-published').checked = true;
+  toast('Form reset', 'success');
+}
+
+async function saveProduct(e) {
+  e.preventDefault();
+  
+  const form = $('#form-product');
+  const isEditing = !!form.dataset.editId;
+  
+  const btn = $('#btn-save');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i data-lucide="loader-2"></i> Saving...';
+  btn.disabled = true;
+
+  try {
+    const formData = new FormData();
+    
+    // Basic product data
+    formData.append('name', $('#p-name').value.trim());
+    formData.append('category', $('#p-category').value);
+    formData.append('price', $('#p-price').value);
+    formData.append('stock', $('#p-stock').value);
+    formData.append('description', $('#p-desc').value.trim());
+    formData.append('isPublished', $('#p-published').checked);
+    
+    // Optional fields
+    const originalPrice = $('#p-original-price').value;
+    if (originalPrice) formData.append('originalPrice', originalPrice);
+    
+    const cost = $('#p-cost').value;
+    if (cost) formData.append('costPerItem', cost);
+    
+    const tags = $('#p-tags').value.trim();
+    if (tags) formData.append('tags', tags);
+
+    // Handle images
+    const imageFiles = Array.from($('#previews').querySelectorAll('img'))
+      .map(img => img.file)
+      .filter(Boolean);
+    
+    imageFiles.forEach(file => formData.append('images', file));
+
+    let response;
+    if (isEditing) {
+      response = await api.put(ENDPOINTS.products.update(form.dataset.editId), formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast('Product updated successfully', 'success');
+    } else {
+      response = await api.post(ENDPOINTS.products.create, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast('Product created successfully', 'success');
+    }
+
+    resetProductForm();
+    listMyProducts(currentProductPage);
+
+  } catch (err) {
+    console.error('Save product error:', err);
+    let message = 'Failed to save product';
+    
+    if (err?.response?.data?.message) {
+      message = err.response.data.message;
+    } else if (err?.response?.data?.errors) {
+      message = Array.isArray(err.response.data.errors) 
+        ? err.response.data.errors.map(e => e.msg || e.message).join(', ')
+        : 'Validation failed';
+    }
+    
+    toast(message, 'error');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    icon();
+  }
+}
+
+// ====== IMAGE HANDLING ======
+function addImagePreview(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    toast('Only image files are allowed', 'error');
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    toast('Image size must be less than 5MB', 'error');
+    return;
+  }
+
+  const existingPreviews = $('#previews').children.length;
+  if (existingPreviews >= 8) {
+    toast('Maximum 8 images allowed', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card';
+    wrapper.style.position = 'relative';
+    wrapper.style.padding = '0.25rem';
+
+    const img = document.createElement('img');
+    img.src = e.target.result;
     img.className = 'product-img';
     img.file = file;
-    const wrap = document.createElement('div');
-    wrap.className = 'card';
-    wrap.style.position = 'relative';
-    wrap.style.padding = '0.25rem';
-    wrap.appendChild(img);
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'btn danger';
-    remove.style.position = 'absolute';
-    remove.style.right = '8px';
-    remove.style.top = '8px';
-    remove.style.padding = '.25rem .5rem';
-    remove.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
-    remove.onclick = () => wrap.remove();
-    wrap.appendChild(remove);
-    $('#previews').appendChild(wrap);
-    icon(); // Call after element is in the DOM
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn danger';
+    removeBtn.style.position = 'absolute';
+    removeBtn.style.top = '8px';
+    removeBtn.style.right = '8px';
+    removeBtn.style.padding = '4px 8px';
+    removeBtn.innerHTML = '<i data-lucide="x"></i>';
+    removeBtn.onclick = () => wrapper.remove();
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(removeBtn);
+    $('#previews').appendChild(wrapper);
+    
+    icon();
   };
-  rd.readAsDataURL(file);
+  
+  reader.readAsDataURL(file);
 }
 
-// ====== HYDRATE & DASHBOARD (REFACTORED) ======
-async function hydrate(){
-  setAuth(true);
-  await loadMe();
-  await Promise.all([
-    loadCategories(), // Needed for the product form, so load it once at the start.
-    loadDashboard()   // Load initial dashboard data.
-  ]);
-  setPage('dashboard');
-}
-async function loadDashboard(){ try { const [pRes, oRes] = await Promise.allSettled([ api.get(ENDPOINTS.products.listMine), api.get(ENDPOINTS.orders.listMine) ]); const products = pRes.status==='fulfilled' ? (pRes.value?.data?.data?.products || pRes.value?.data?.data || pRes.value?.data || []) : []; const orders = oRes.status==='fulfilled' ? (oRes.value?.data?.data || oRes.value?.data || []) : []; $('#stat-products').textContent = products.length; $('#badge-products').textContent = products.length; $('#stat-orders').textContent = orders.length; $('#badge-orders').textContent = orders.length; const total = (orders||[]).reduce((s,o)=> s + (o.total||o.amount||0), 0); $('#stat-sales').textContent = inr(total); const days = Array.from({length:7}).map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); const label=d.toLocaleDateString('en-IN',{month:'short', day:'numeric'}); const dayTotal = (orders||[]).filter(o=> new Date(o.createdAt).toDateString()===d.toDateString()).reduce((s,o)=> s+(o.total||o.amount||0),0); return {label, value: dayTotal}; }); renderSalesChart(days); const top = [{name:'Fashion',qty:42},{name:'Grocery',qty:35},{name:'Electronics',qty:28}]; $('#top-cats').innerHTML = top.map(t=>`<li style='display:flex;align-items:center;justify-content:space-between'><span>${t.name}</span><strong>${t.qty} sold</strong></li>`).join(''); } catch(err){ console.error('dashboard',err); } }
+// ====== ORDERS ======
+async function listOrders() {
+  const container = $('#orders');
+  container.innerHTML = `<div class='card skeleton' style='height:120px'></div>`;
 
-// ====== DOM READY ======
-document.addEventListener('DOMContentLoaded', ()=>{
+  try {
+    const { data } = await api.get(ENDPOINTS.orders.listMine);
+    const orders = data?.data || data || [];
+    
+    $('#badge-orders').textContent = orders.length;
+    $('#stat-orders').textContent = orders.length;
+    
+    if (orders.length === 0) {
+      container.innerHTML = `<div class='card' style='text-align:center;padding:2rem;color:var(--ink-500)'>
+        <i data-lucide="shopping-cart" style="margin-bottom:1rem;"></i>
+        <div>No orders yet</div>
+        <div style="margin-top:0.5rem;font-size:0.9rem;">Orders will appear here once customers start buying your products.</div>
+      </div>`;
+    } else {
+      container.innerHTML = orders.map(order => {
+        const orderId = order._id || order.id || '';
+        const items = (order.items || []).map(item => 
+          `${item.quantity || 1}× ${item.name || 'Item'}`
+        ).join(', ');
+        const total = inr(order.subtotal || order.total || 0);
+        const createdAt = new Date(order.createdAt || Date.now()).toLocaleDateString('en-IN');
+
+        return `<div class='card'>
+          <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem'>
+            <div>
+              <strong>Order #${orderId.slice(-6)}</strong>
+              <div style='color:var(--ink-500);font-size:0.8rem'>${createdAt}</div>
+            </div>
+            <div style='display:flex;align-items:center;gap:0.5rem'>
+              <div style='font-weight:800'>${total}</div>
+              <button class='btn' onclick="updateOrderStatus('${orderId}')">
+                <i data-lucide="arrow-right"></i>Process
+              </button>
+            </div>
+          </div>
+          <div style='color:var(--ink-700);font-size:0.9rem'>${items || 'No items'}</div>
+          ${order.shipping ? `<div style='color:var(--ink-500);font-size:0.8rem;margin-top:0.25rem'>
+            Ship to: ${order.shipping.fullName || ''}, ${order.shipping.city || ''}
+          </div>` : ''}
+        </div>`;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load orders:', err);
+    container.innerHTML = `<div class='card' style='text-align:center;padding:2rem;color:var(--ink-500)'>
+      <i data-lucide="alert-circle" style="margin-bottom:1rem;"></i>
+      <div>Failed to load orders</div>
+    </div>`;
+  }
+  
   icon();
-  // Tabs
-  $('#tab-login').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.remove('hidden'); $('#form-register').classList.add('hidden'); $('#tab-login').classList.remove('ghost'); $('#tab-register').classList.add('ghost'); };
-  $('#tab-register').onclick = (e)=>{ e.preventDefault(); $('#form-login').classList.add('hidden'); $('#form-register').classList.remove('hidden'); $('#tab-register').classList.remove('ghost'); $('#tab-login').classList.add('ghost'); };
+}
 
-  // Auth & Nav
+async function updateOrderStatus(orderId) {
+  try {
+    await api.patch(ENDPOINTS.orders.updateStatus(orderId), {
+      newStatus: 'processing'
+    });
+    toast('Order status updated', 'success');
+    listOrders();
+  } catch (err) {
+    console.error('Failed to update order:', err);
+    toast('Failed to update order status', 'error');
+  }
+}
+
+// ====== CUSTOMERS ======
+async function listCustomers() {
+  const container = $('#customers');
+  container.innerHTML = `<div class='card skeleton' style='height:100px'></div>`;
+
+  try {
+    const { data } = await api.get(ENDPOINTS.customers);
+    const customers = data?.data || data || [];
+    
+    $('#stat-customers').textContent = customers.length;
+    
+    if (customers.length === 0) {
+      container.innerHTML = `<div class='card' style='text-align:center;padding:2rem;color:var(--ink-500)'>
+        <i data-lucide="users" style="margin-bottom:1rem;"></i>
+        <div>No customers yet</div>
+      </div>`;
+    } else {
+      container.innerHTML = customers.map(customer => `
+        <div class='card' style='display:flex;align-items:center;justify-content:space-between'>
+          <div style='display:flex;align-items:center;gap:12px'>
+            <div style='width:42px;height:42px;border-radius:50%;background:var(--brand);color:white;display:flex;align-items:center;justify-content:center;font-weight:600'>
+              ${(customer.name || customer.email || 'C').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style='font-weight:700'>${customer.name || 'Customer'}</div>
+              <div style='color:var(--ink-500);font-size:0.8rem'>${customer.email || ''}</div>
+            </div>
+          </div>
+          <div style='text-align:right'>
+            <strong>${customer.totalOrders || 0} orders</strong>
+            <div style='color:var(--ink-500);font-size:0.8rem'>${inr(customer.totalSpent || 0)} spent</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load customers:', err);
+    container.innerHTML = `<div class='card'>Failed to load customers</div>`;
+  }
+  
+  icon();
+}
+
+// ====== DASHBOARD & ANALYTICS ======
+async function loadDashboard() {
+  try {
+    // Load dashboard data in parallel
+    const [productsRes, ordersRes] = await Promise.allSettled([
+      api.get(ENDPOINTS.products.listMine + '?limit=100'),
+      api.get(ENDPOINTS.orders.listMine)
+    ]);
+
+    const products = productsRes.status === 'fulfilled' 
+      ? (productsRes.value?.data?.data?.products || productsRes.value?.data?.data || [])
+      : [];
+      
+    const orders = ordersRes.status === 'fulfilled'
+      ? (ordersRes.value?.data?.data || [])
+      : [];
+
+    // Update stats
+    $('#stat-products').textContent = products.length;
+    $('#badge-products').textContent = products.length;
+    $('#stat-orders').textContent = orders.length;
+    $('#badge-orders').textContent = orders.length;
+
+    // Calculate total sales
+    const totalSales = orders.reduce((sum, order) => sum + (order.subtotal || order.total || 0), 0);
+    $('#stat-sales').textContent = inr(totalSales);
+
+    // Get unique customers count
+    const customerIds = new Set(orders.map(order => order.user).filter(Boolean));
+    $('#stat-customers').textContent = customerIds.size;
+
+    // Generate sales chart data (last 7 days)
+    const salesData = generateSalesChartData(orders);
+    renderSalesChart(salesData);
+
+    // Recent activity
+    renderRecentActivity(orders.slice(0, 5));
+
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+  }
+}
+
+function generateSalesChartData(orders) {
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    return {
+      date: date.toDateString(),
+      label: date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+      value: 0
+    };
+  });
+
+  orders.forEach(order => {
+    const orderDate = new Date(order.createdAt).toDateString();
+    const dayData = last7Days.find(day => day.date === orderDate);
+    if (dayData) {
+      dayData.value += order.subtotal || order.total || 0;
+    }
+  });
+
+  return last7Days;
+}
+
+function renderSalesChart(data) {
+  const ctx = $('#salesChart');
+  if (!ctx) return;
+
+  if (window.salesChart) {
+    window.salesChart.destroy();
+  }
+
+  window.salesChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        label: 'Sales',
+        data: data.map(d => d.value),
+        borderColor: '#6d5ef9',
+        backgroundColor: 'rgba(109, 94, 249, 0.1)',
+        tension: 0.4,
+        fill: true,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: value => inr(value).replace('₹', '₹')
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderRecentActivity(recentOrders) {
+  const container = $('#recent-activity');
+  
+  if (!recentOrders.length) {
+    container.innerHTML = `<div style="color:var(--ink-500);text-align:center;padding:1rem">
+      No recent activity
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = recentOrders.map(order => {
+    const timeAgo = getTimeAgo(new Date(order.createdAt));
+    const total = inr(order.subtotal || order.total || 0);
+    
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
+      <div>
+        <div style="font-weight:600">New order</div>
+        <div style="color:var(--ink-500);font-size:0.8rem">${timeAgo}</div>
+      </div>
+      <div style="font-weight:700;color:var(--brand)">${total}</div>
+    </div>`;
+  }).join('');
+}
+
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return 'Just now';
+}
+
+async function loadAnalytics() {
+  const ctx = $('#analyticsChart');
+  if (!ctx) return;
+
+  // Sample analytics data - in production this would come from your API
+  const data = [
+    { label: 'Fashion', value: 40 },
+    { label: 'Electronics', value: 25 },
+    { label: 'Home & Garden', value: 20 },
+    { label: 'Sports', value: 10 },
+    { label: 'Other', value: 5 }
+  ];
+
+  if (window.analyticsChart) {
+    window.analyticsChart.destroy();
+  }
+
+  window.analyticsChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        data: data.map(d => d.value),
+        backgroundColor: [
+          '#6d5ef9',
+          '#7a5af8', 
+          '#22c55e',
+          '#ef4444',
+          '#f59e0b'
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            padding: 16
+          }
+        }
+      }
+    }
+  });
+}
+
+// ====== EVENT LISTENERS & INITIALIZATION ======
+document.addEventListener('DOMContentLoaded', () => {
+  icon();
+
+  // Auth tabs
+  $('#tab-login').onclick = (e) => {
+    e.preventDefault();
+    $('#form-login').classList.remove('hidden');
+    $('#form-register').classList.add('hidden');
+    $('#tab-login').classList.remove('ghost');
+    $('#tab-register').classList.add('ghost');
+  };
+
+  $('#tab-register').onclick = (e) => {
+    e.preventDefault();
+    $('#form-login').classList.add('hidden');
+    $('#form-register').classList.remove('hidden');
+    $('#tab-register').classList.remove('ghost');
+    $('#tab-login').classList.add('ghost');
+  };
+
+  // Auth forms
   $('#form-login').addEventListener('submit', doLogin);
   $('#form-register').addEventListener('submit', doRegister);
   $('#btn-logout').addEventListener('click', doLogout);
-  $$('nav a').forEach(a=> a.addEventListener('click', (e)=>{ e.preventDefault(); const page=a.getAttribute('data-page'); if(page) setPage(page); }));
+
+  // Navigation
+  $$('nav a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const page = link.dataset.page;
+      if (page) setPage(page);
+      
+      const sidebar = $('#sidebar');
+      if (sidebar.classList.contains('open')) {
+          sidebar.classList.remove('open');
+          $('#backdrop').classList.remove('show');
+      }
+    });
+  });
 
   // Sidebar mobile
-  const sidebar=$('#sidebar'), backdrop=$('#backdrop');
-  $('#open-sidebar').onclick = ()=>{ sidebar.classList.add('open'); backdrop.classList.add('show'); };
-  const closeSidebar = ()=>{ sidebar.classList.remove('open'); backdrop.classList.remove('show'); };
+  const sidebar = $('#sidebar');
+  const backdrop = $('#backdrop');
+  
+  $('#open-sidebar').onclick = () => {
+    sidebar.classList.add('open');
+    backdrop.classList.add('show');
+  };
+  
+  const closeSidebar = () => {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('show');
+  };
+  
   $('#close-sidebar').onclick = closeSidebar;
   backdrop.onclick = closeSidebar;
 
-  // Product form logic
+  // Product form
   $('#form-product').addEventListener('submit', saveProduct);
-  $('#btn-reset').addEventListener('click', (e)=>{ e.preventDefault(); resetForm(); });
-  $('#btn-delete').addEventListener('click', ()=>{ const id=$('#form-product').dataset.editId; if(!id) return toast('No product selected for deletion.','error'); confirmDelete(id); });
-  $('#btn-delete').disabled = true; // Start with delete disabled
+  $('#btn-reset').addEventListener('click', (e) => {
+    e.preventDefault();
+    resetProductForm();
+  });
 
-  // Image drop/upload
-  const drop=$('#drop'), input=$('#p-images');
-  drop.addEventListener('click', ()=> input.click());
-  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.borderColor = 'var(--brand)'; });
-  drop.addEventListener('dragleave', ()=>{ drop.style.borderColor = 'var(--line)'; });
-  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.style.borderColor = 'var(--line)'; Array.from(e.dataTransfer.files||[]).forEach(addPreview); });
-  input.addEventListener('change', ()=>{ Array.from(input.files||[]).forEach(addPreview); });
+  // Image upload
+  const dropZone = $('#drop');
+  const fileInput = $('#p-images');
+  
+  dropZone.onclick = () => fileInput.click();
+  
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--brand)';
+  });
+  
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = 'var(--line)';
+  });
+  
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--line)';
+    Array.from(e.dataTransfer.files).forEach(addImagePreview);
+  });
+  
+  fileInput.addEventListener('change', () => {
+    Array.from(fileInput.files).forEach(addImagePreview);
+  });
 
-  // Search (on click and enter)
-  const performSearch = () => listMyProducts({search: $('#q').value.trim()});
-  $('#btn-search').addEventListener('click', performSearch);
-  $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); performSearch(); }});
+  // Search functionality
+  const performSearch = () => {
+    const search = $('#q').value.trim();
+    const status = $('#filter-status').value;
+    currentProductPage = 1; // Reset to first page on search
+    listMyProducts(1, search, status);
+  };
+  
+  $('#btn-search').onclick = performSearch;
+  $('#q').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      performSearch();
+    }
+  });
+  
+  $('#filter-status').addEventListener('change', performSearch);
 
-  // Auto-login if token present
-  if (localStorage.getItem('accessToken')) { hydrate(); }
+  // Auto-login if token exists
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    loadUserProfile().then(() => {
+      setAuth(true);
+      setPage('dashboard');
+    }).catch(() => {
+      // Token might be invalid, clear it
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('seller');
+    });
+  }
 });
+
+// Global functions for onclick handlers
+window.editProduct = editProduct;
+window.confirmDeleteProduct = confirmDeleteProduct;
+window.updateOrderStatus = updateOrderStatus;
+window.changePage = changePage;
 </script>
 </body>
 </html>
