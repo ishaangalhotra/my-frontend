@@ -1369,6 +1369,8 @@
     let orders = [];
     let customers = [];
     let categories = [];
+    // FIX 1: Add global variables to hold chart instances
+    let salesChartInstance, analyticsSalesChartInstance, categoriesChartInstance;
 
     // API client with interceptors
     const api = axios.create({
@@ -1471,7 +1473,9 @@
           showNotification(`Welcome back, ${currentUser.name}!`);
         }
       } catch (error) {
+        // FIX 2: Improved error logging
         const message = error.response?.data?.message || 'Login failed';
+        console.error("Login Error:", message, error.response || error);
         showNotification(message, 'error');
         throw error;
       }
@@ -1489,7 +1493,9 @@
           switchToLogin();
         }
       } catch (error) {
+        // FIX 2: Improved error logging
         const message = error.response?.data?.message || 'Registration failed';
+        console.error("Registration Error:", message, error.response || error);
         showNotification(message, 'error');
         throw error;
       }
@@ -1499,7 +1505,8 @@
       try {
         await api.post(ENDPOINTS.auth.logout);
       } catch (error) {
-        console.warn('Logout API call failed:', error);
+        // FIX 2: Improved error logging
+        console.warn('Logout API call failed:', error.response?.data?.message || error.message);
       } finally {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('seller');
@@ -1520,6 +1527,8 @@
           showAuthSection(false);
           await loadDashboard();
         } catch (error) {
+          // FIX 2: Improved error logging
+          console.error("Auth Check Failed:", error.response?.data?.message || error.message);
           logout();
         }
       } else {
@@ -1597,11 +1606,23 @@
     // Data loading functions
     async function loadDashboard() {
       try {
-        const [dashboardData, productsData, ordersData] = await Promise.all([
-          api.get(ENDPOINTS.seller.dashboard).catch(() => ({ stats: {} })),
-          api.get(ENDPOINTS.seller.products).catch(() => ({ products: [] })),
-          api.get(ENDPOINTS.seller.orders).catch(() => ({ orders: [] })),
-          api.get(ENDPOINTS.categories).catch(() => ({ categories: [] }))
+        const [dashboardData, productsData, ordersData, categoriesData] = await Promise.all([
+          api.get(ENDPOINTS.seller.dashboard).catch(err => {
+            console.error('Failed to load dashboard stats:', err.response?.data?.message || err.message);
+            return { stats: {} };
+          }),
+          api.get(ENDPOINTS.seller.products).catch(err => {
+             console.error('Failed to load products for dashboard:', err.response?.data?.message || err.message);
+            return { products: [] };
+          }),
+          api.get(ENDPOINTS.seller.orders).catch(err => {
+            console.error('Failed to load orders for dashboard:', err.response?.data?.message || err.message);
+            return { orders: [] };
+          }),
+          api.get(ENDPOINTS.categories).catch(err => {
+            console.error('Failed to load categories for dashboard:', err.response?.data?.message || err.message);
+            return { categories: [] };
+          })
         ]);
 
         // Update dashboard stats
@@ -1618,13 +1639,14 @@
         // Store data globally
         products = productsData.products || [];
         orders = ordersData.orders || [];
-        categories = dashboardData.categories || [];
+        categories = categoriesData.categories || [];
 
         // Load charts
         loadSalesChart();
         loadRecentActivity();
         
       } catch (error) {
+        // This catch block will now only catch errors not handled by the individual .catch() handlers
         console.error('Dashboard loading failed:', error);
         showNotification('Failed to load dashboard data', 'error');
       }
@@ -1635,10 +1657,8 @@
         const response = await api.get(ENDPOINTS.seller.products);
         products = response.products || [];
         
-        // Update products count display
         $('#products-showing').textContent = `Showing ${products.length} products`;
         
-        // Populate categories filter
         const categoryFilter = $('#category-filter');
         categoryFilter.innerHTML = '<option value="">All Categories</option>';
         const uniqueCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
@@ -1648,8 +1668,10 @@
 
         renderProductsTable();
       } catch (error) {
-        console.error('Products loading failed:', error);
-        showNotification('Failed to load products', 'error');
+        // FIX 2: Improved error logging
+        const message = error.response?.data?.message || 'Failed to load products';
+        console.error('Products loading failed:', message, error.response || error);
+        showNotification(message, 'error');
       }
     }
 
@@ -1658,7 +1680,6 @@
         const response = await api.get(ENDPOINTS.seller.orders);
         orders = response.orders || [];
         
-        // Update order stats
         const stats = {
           pending: orders.filter(o => o.status === 'pending').length,
           ready: orders.filter(o => o.status === 'confirmed').length,
@@ -1673,8 +1694,10 @@
 
         renderOrdersTable();
       } catch (error) {
-        console.error('Orders loading failed:', error);
-        showNotification('Failed to load orders', 'error');
+        // FIX 2: Improved error logging
+        const message = error.response?.data?.message || 'Failed to load orders';
+        console.error('Orders loading failed:', message, error.response || error);
+        showNotification(message, 'error');
       }
     }
 
@@ -1684,8 +1707,10 @@
         customers = response.customers || [];
         renderCustomersTable();
       } catch (error) {
-        console.error('Customers loading failed:', error);
-        showNotification('Failed to load customers', 'error');
+        // FIX 2: Improved error logging
+        const message = error.response?.data?.message || 'Failed to load customers';
+        console.error('Customers loading failed:', message, error.response || error);
+        showNotification(message, 'error');
       }
     }
 
@@ -1707,6 +1732,7 @@
             </td>
           </tr>
         `;
+        initializeIcons(); // Make sure icon is rendered
         return;
       }
 
@@ -1765,6 +1791,7 @@
             </td>
           </tr>
         `;
+        initializeIcons(); // Make sure icon is rendered
         return;
       }
 
@@ -1810,6 +1837,7 @@
             </td>
           </tr>
         `;
+        initializeIcons(); // Make sure icon is rendered
         return;
       }
 
@@ -1838,10 +1866,14 @@
 
     // Chart functions
     function loadSalesChart() {
-      const ctx = $('#sales-chart');
+      const ctx = $('#sales-chart')?.getContext('2d');
       if (!ctx) return;
 
-      // Generate sample data
+      // FIX 1: Destroy previous chart instance if it exists
+      if (salesChartInstance) {
+        salesChartInstance.destroy();
+      }
+
       const labels = [];
       const data = [];
       for (let i = 6; i >= 0; i--) {
@@ -1851,7 +1883,8 @@
         data.push(Math.floor(Math.random() * 5000) + 1000);
       }
 
-      new Chart(ctx, {
+      // FIX 1: Store new chart instance in the global variable
+      salesChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
@@ -1883,8 +1916,13 @@
 
     function loadAnalyticsCharts() {
       // Sales trend chart
-      const salesCtx = $('#analytics-sales-chart');
+      const salesCtx = $('#analytics-sales-chart')?.getContext('2d');
       if (salesCtx) {
+        // FIX 1: Destroy previous chart instance
+        if (analyticsSalesChartInstance) {
+          analyticsSalesChartInstance.destroy();
+        }
+        
         const labels = [];
         const data = [];
         for (let i = 29; i >= 0; i--) {
@@ -1894,7 +1932,8 @@
           data.push(Math.floor(Math.random() * 8000) + 2000);
         }
 
-        new Chart(salesCtx, {
+        // FIX 1: Store new chart instance
+        analyticsSalesChartInstance = new Chart(salesCtx, {
           type: 'line',
           data: {
             labels,
@@ -1915,9 +1954,15 @@
       }
 
       // Categories chart
-      const categoriesCtx = $('#categories-chart');
+      const categoriesCtx = $('#categories-chart')?.getContext('2d');
       if (categoriesCtx) {
-        new Chart(categoriesCtx, {
+        // FIX 1: Destroy previous chart instance
+        if (categoriesChartInstance) {
+          categoriesChartInstance.destroy();
+        }
+
+        // FIX 1: Store new chart instance
+        categoriesChartInstance = new Chart(categoriesCtx, {
           type: 'doughnut',
           data: {
             labels: ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports'],
@@ -1973,10 +2018,12 @@
       const title = $('#modal-title');
       const form = $('#product-form');
 
+      form.dataset.productId = ''; // Clear previous product ID
       modal.classList.remove('hidden');
       
       if (productId) {
         title.textContent = 'Edit Product';
+        form.dataset.productId = productId; // Store the ID for the save function
         const product = products.find(p => p._id === productId);
         if (product) {
           $('#product-name').value = product.name;
@@ -1990,7 +2037,6 @@
         form.reset();
       }
 
-      // Populate categories
       const categorySelect = $('#product-category');
       categorySelect.innerHTML = '<option value="">Select Category</option>';
       const sampleCategories = ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Beauty', 'Toys'];
@@ -2005,19 +2051,31 @@
 
     async function saveProduct(productData) {
       try {
-        const isEdit = productData._id;
+        const isEdit = !!productData._id;
         const endpoint = isEdit ? `${ENDPOINTS.seller.products}/${productData._id}` : ENDPOINTS.seller.products;
         const method = isEdit ? 'put' : 'post';
+        
+        // Remove the _id from the payload for creation to avoid issues
+        if (!isEdit) {
+            delete productData._id;
+        }
 
         const response = await api[method](endpoint, productData);
         
         if (response.success) {
           showNotification(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
           closeProductModal();
-          loadProducts();
+          // Reload data for the current section (which should be products)
+          if (currentSection === 'products') {
+            loadProducts();
+          }
+          // Also reload dashboard data in the background in case counts changed
+          loadDashboard();
         }
       } catch (error) {
+        // FIX 2: Improved error logging
         const message = error.response?.data?.message || `Failed to ${productData._id ? 'update' : 'create'} product`;
+        console.error("Save Product Error:", message, error.response || error);
         showNotification(message, 'error');
       }
     }
@@ -2030,9 +2088,12 @@
         if (response.success) {
           showNotification('Product deleted successfully!');
           loadProducts();
+          loadDashboard(); // Also reload dashboard data
         }
       } catch (error) {
+        // FIX 2: Improved error logging
         const message = error.response?.data?.message || 'Failed to delete product';
+        console.error("Delete Product Error:", message, error.response || error);
         showNotification(message, 'error');
       }
     }
@@ -2075,7 +2136,6 @@
       // Main app handlers
       $('#logout-btn').addEventListener('click', logout);
       
-      // *** NEWLY ADDED for the main dashboard button ***
       $('#dashboard-add-product-btn').addEventListener('click', () => {
         showSection('products');
         openProductModal();
@@ -2122,8 +2182,8 @@
       $('#product-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        // Manually construct the product data object from input values
         const productData = {
+          _id: e.target.dataset.productId || null, // Get ID for editing
           name: $('#product-name').value,
           category: $('#product-category').value,
           price: $('#product-price').value,
@@ -2131,8 +2191,6 @@
           description: $('#product-description').value
         };
 
-        // The 'id' for editing a product would need to be handled separately,
-        // but this fixes the creation of new products.
         await saveProduct(productData);
       });
 
