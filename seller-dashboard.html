@@ -2168,15 +2168,11 @@
       initializeIcons();
       checkAuth();
       
-      // ===== NEW CODE ADDED HERE =====
+      // ===== CORRECTED CODE STARTS HERE =====
       
       // Open Add Product modal
-      $('#add-product-btn').addEventListener('click', () => {
-        $('#product-modal').classList.remove('hidden');
-      });
-      $('#dashboard-add-product-btn').addEventListener('click', () => {
-        $('#product-modal').classList.remove('hidden');
-      });
+      $('#add-product-btn').addEventListener('click', () => openProductModal());
+      $('#dashboard-add-product-btn').addEventListener('click', () => openProductModal());
       
       // Close modal
       $('#close-modal').addEventListener('click', () => {
@@ -2186,10 +2182,14 @@
         $('#product-modal').classList.add('hidden');
       });
       
-      // Handle Add Product form submit
+      // Handle Add/Edit Product form submit
       $('#product-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        const form = e.target;
+        const productId = form.dataset.productId; // Get the product ID if it's an edit
+
+        // Create a FormData object to send data and images
         const formData = new FormData();
         formData.append('name', $('#product-name').value);
         formData.append('category', $('#product-category').value);
@@ -2203,23 +2203,38 @@
         }
 
         try {
-          const res = await api.post(ENDPOINTS.seller.products, formData, {
+          let response;
+          const config = {
             headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          };
 
-          if (res.success) {
-            showNotification("✅ Product added successfully!", "success");
-            $('#product-form').reset();
-            $('#product-modal').classList.add('hidden');
-            await loadProducts(); // refresh product list
+          if (productId) {
+            // This is an UPDATE (edit) operation
+            // The API endpoint for updating should include the product's ID
+            response = await api.put(`${ENDPOINTS.seller.products}/${productId}`, formData, config);
+            showNotification("✅ Product updated successfully!", "success");
           } else {
-            showNotification(res.message || "❌ Failed to add product", "error");
+            // This is a CREATE (add) operation
+            response = await api.post(ENDPOINTS.seller.products, formData, config);
+            showNotification("✅ Product added successfully!", "success");
+          }
+
+          if (response.success) {
+            form.reset();
+            form.dataset.productId = ''; // Clear the product ID
+            $('#product-modal').classList.add('hidden');
+            await loadProducts();     // Refresh the product list in the table
+            await loadDashboard();    // Refresh the stats on the dashboard
+          } else {
+            showNotification(response.message || "❌ Operation failed", "error");
           }
         } catch (err) {
-          console.error("Add product error:", err.response?.data || err.message);
-          showNotification(err.response?.data?.message || "❌ Server error", "error");
+          console.error("Product form submission error:", err.response?.data || err.message);
+          showNotification(err.response?.data?.message || "❌ A server error occurred", "error");
         }
       });
+      
+      // ===== CORRECTED CODE ENDS HERE =====
     });
 
     // Global functions for inline handlers
@@ -2232,8 +2247,6 @@
     window.viewOrder = function(orderId) {
       showNotification('Order details modal would open here');
     };
-
-
 
     window.updateOrderStatus = function(orderId) {
       showNotification('Order status update modal would open here');
