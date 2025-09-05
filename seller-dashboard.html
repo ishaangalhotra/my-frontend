@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    /* Your existing CSS remains unchanged */
     :root {
       --bg: #f8fafc;
       --panel: #ffffff;
@@ -1028,9 +1029,16 @@
       return Promise.reject(error);
     });
 
-    // Response interceptor
+    // Response interceptor - Fixed to handle both response structures
     api.interceptors.response.use(
-      response => response.data,
+      response => {
+        // Handle both response structures (with and without data wrapper)
+        if (response.data && response.data.data !== undefined) {
+          return response.data; // Backend returns {success, data, message}
+        } else {
+          return {success: true, data: response.data}; // Backend returns data directly
+        }
+      },
       async error => {
         const originalRequest = error.config;
         
@@ -1108,7 +1116,7 @@
       }
     }
 
-    // Authentication functions
+    // Authentication functions - Fixed to handle both response structures
     async function login(email, password, remember = false) {
       try {
         const response = await api.post(ENDPOINTS.auth.login, {
@@ -1116,31 +1124,38 @@
           password
         });
 
-        if (response.success && response.data) {
-          const { accessToken, refreshToken, user } = response.data;
+        // Handle both response structures
+        let accessToken, userData;
+        
+        if (response.data) {
+          // Backend returns {success, data: {accessToken, user}}
+          accessToken = response.data.accessToken;
+          userData = response.data.user;
+        } else {
+          // Backend returns {success, accessToken, user} 
+          accessToken = response.accessToken;
+          userData = response.user;
+        }
+
+        if (response.success && accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+          authToken = accessToken;
           
-          if (accessToken) {
-            localStorage.setItem('accessToken', accessToken);
-            authToken = accessToken;
-          }
-          
-          if (refreshToken) {
-            localStorage.setItem('refreshToken', refreshToken);
-            refreshToken = refreshToken;
-          }
-          
-          currentUser = user;
+          currentUser = userData;
           localStorage.setItem('seller', JSON.stringify(currentUser));
           
-          // Start token refresh interval
+          // Start token refresh
           startTokenRefresh();
           
           showAuthSection(false);
           await loadDashboard();
-          showNotification(`Welcome back, ${currentUser.name}!`);
+          showNotification(`Welcome back, ${currentUser.name || currentUser.fullName}!`);
+          return true;
+        } else {
+          throw new Error(response.message || 'Login failed');
         }
       } catch (error) {
-        const message = error.response?.data?.message || 'Login failed';
+        const message = error.response?.data?.message || error.message || 'Login failed';
         console.error("Login Error:", message, error.response || error);
         showNotification(message, 'error');
         throw error;
@@ -1157,9 +1172,12 @@
         if (response.success) {
           showNotification(response.message || 'Registration successful! Please login.');
           switchToLogin();
+          return true;
+        } else {
+          throw new Error(response.message || 'Registration failed');
         }
       } catch (error) {
-        const message = error.response?.data?.message || 'Registration failed';
+        const message = error.response?.data?.message || error.message || 'Registration failed';
         console.error("Registration Error:", message, error.response || error);
         showNotification(message, 'error');
         throw error;
@@ -1204,9 +1222,12 @@
             refreshToken: localStorage.getItem('refreshToken')
           });
           
-          if (response.data && response.data.accessToken) {
-            localStorage.setItem('accessToken', response.data.accessToken);
-            authToken = response.data.accessToken;
+          // Handle both response structures
+          const accessToken = response.data?.accessToken || response.accessToken;
+          
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            authToken = accessToken;
             console.log('Token refreshed successfully');
           }
         } catch (error) {
@@ -1224,19 +1245,24 @@
         try {
           // Verify the token is still valid
           const response = await api.get(ENDPOINTS.auth.me);
-          currentUser = response.user || JSON.parse(seller);
+          
+          // Handle both response structures
+          currentUser = response.data || response;
           
           // Start token refresh
           startTokenRefresh();
           
           showAuthSection(false);
           await loadDashboard();
+          return true;
         } catch (error) {
           console.error("Auth Check Failed:", error);
           logout();
+          return false;
         }
       } else {
         showAuthSection(true);
+        return false;
       }
     }
 
@@ -1246,7 +1272,7 @@
       $('#main-app').classList.toggle('hidden', show);
       
       if (!show && currentUser) {
-        $('#seller-name').textContent = currentUser.name || 'Seller';
+        $('#seller-name').textContent = currentUser.name || currentUser.fullName || 'Seller';
       }
     }
 
@@ -1317,8 +1343,10 @@
     // Data loading functions
     async function loadDashboard() {
       try {
-        const dashboardResponse = await api.get(ENDPOINTS.seller.dashboard);
-        const stats = dashboardResponse.data?.overview || {};
+        const response = await api.get(ENDPOINTS.seller.dashboard);
+        
+        // Handle both response structures
+        const stats = response.data?.overview || response.overview || {};
         
         $('#total-sales').textContent = formatCurrency(stats.totalRevenue || 0);
         $('#total-orders').textContent = stats.totalOrders || 0;
@@ -1331,7 +1359,9 @@
         // Load recent orders
         try {
           const ordersResponse = await api.get(`${ENDPOINTS.seller.orders}?limit=5`);
-          displayRecentOrders(ordersResponse.data || []);
+          // Handle both response structures
+          const ordersData = ordersResponse.data || ordersResponse;
+          displayRecentOrders(Array.isArray(ordersData) ? ordersData : []);
         } catch (orderError) {
           console.error('Failed to load orders:', orderError);
           $('#recent-orders-body').innerHTML = `
@@ -1389,7 +1419,8 @@
     async function loadProducts() {
       try {
         const response = await api.get(ENDPOINTS.seller.products);
-        products = response.data?.products || [];
+        // Handle both response structures
+        products = response.data?.products || response.products || [];
         displayProducts(products);
       } catch (error) {
         console.error('Failed to load products:', error);
