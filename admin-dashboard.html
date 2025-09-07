@@ -427,7 +427,9 @@
                     const categoriesResult = await categoriesResponse.json();
                     
                     if (categoriesResult.success && categoriesResult.data) {
-                        document.getElementById('totalCategories').textContent = categoriesResult.data.length;
+                        const categories = categoriesResult.data.categories || categoriesResult.data;
+                        const count = Array.isArray(categories) ? categories.length : 0;
+                        document.getElementById('totalCategories').textContent = count;
                     }
                 } catch (error) {
                     document.getElementById('totalCategories').textContent = '0';
@@ -446,12 +448,20 @@
                 const response = await fetch(`${API_BASE_URL}/categories`);
                 const result = await response.json();
 
-                if (result.success && result.data && result.data.length > 0) {
-                    statusEl.className = 'status-indicator status-online';
-                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Categories Ready (' + result.data.length + ')';
+                if (result.success && result.data) {
+                    const categories = result.data.categories || result.data;
+                    const count = Array.isArray(categories) ? categories.length : 0;
+                    
+                    if (count > 0) {
+                        statusEl.className = 'status-indicator status-online';
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Categories Ready (' + count + ')';
+                    } else {
+                        statusEl.className = 'status-indicator status-offline';
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> No categories found - Setup required';
+                    }
                 } else {
                     statusEl.className = 'status-indicator status-offline';
-                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> No categories found - Setup required';
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to load categories';
                 }
             } catch (error) {
                 statusEl.className = 'status-indicator status-offline';

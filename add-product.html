@@ -449,8 +449,15 @@
         // Load categories dynamically
         async function loadCategories() {
             try {
+                console.log('Loading categories from:', `${API_BASE_URL}/categories`);
                 const response = await fetch(`${API_BASE_URL}/categories`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log('Categories API response:', result);
 
                 if (result.success && result.data) {
                     const categoryGrid = document.getElementById('categoryGrid');
@@ -465,7 +472,16 @@
                         'Fashion': 'fas fa-tshirt'
                     };
 
-                    categoryGrid.innerHTML = result.data.map(category => `
+                    // Handle both API response formats
+                    const categories = result.data.categories || result.data;
+                    
+                    if (!Array.isArray(categories)) {
+                        console.error('Expected categories array, got:', categories);
+                        showAlert('Invalid categories data format', 'error');
+                        return;
+                    }
+
+                    categoryGrid.innerHTML = categories.map(category => `
                         <div class="category-item" data-category-id="${category._id}" data-category-name="${category.name}">
                             <i class="${categoryIcons[category.name] || 'fas fa-tag'}"></i><br>
                             ${category.name}
@@ -474,12 +490,50 @@
 
                     setupCategorySelection();
                 } else {
-                    showAlert('Failed to load categories. Please refresh the page.', 'error');
+                    console.warn('Categories API returned unsuccessful response:', result);
+                    loadDefaultCategories();
+                    showAlert('Failed to load categories. Using default categories.', 'warning');
                 }
             } catch (error) {
                 console.error('Error loading categories:', error);
+                loadDefaultCategories();
                 showAlert('Error loading categories. Using default categories.', 'error');
             }
+        }
+
+        // Load default categories as fallback
+        function loadDefaultCategories() {
+            const categoryGrid = document.getElementById('categoryGrid');
+            const defaultCategories = [
+                { _id: 'fruits', name: 'Fruits' },
+                { _id: 'vegetables', name: 'Vegetables' },
+                { _id: 'dairy', name: 'Dairy' },
+                { _id: 'bakery', name: 'Bakery' },
+                { _id: 'meat-fish', name: 'Meat & Fish' },
+                { _id: 'groceries', name: 'Groceries' },
+                { _id: 'electronics', name: 'Electronics' },
+                { _id: 'fashion', name: 'Fashion' }
+            ];
+            
+            const categoryIcons = {
+                'Fruits': 'fas fa-apple-alt',
+                'Vegetables': 'fas fa-carrot', 
+                'Dairy': 'fas fa-glass-whiskey',
+                'Bakery': 'fas fa-bread-slice',
+                'Meat & Fish': 'fas fa-fish',
+                'Groceries': 'fas fa-shopping-basket',
+                'Electronics': 'fas fa-mobile-alt',
+                'Fashion': 'fas fa-tshirt'
+            };
+            
+            categoryGrid.innerHTML = defaultCategories.map(category => `
+                <div class="category-item" data-category-id="${category._id}" data-category-name="${category.name}">
+                    <i class="${categoryIcons[category.name] || 'fas fa-tag'}"></i><br>
+                    ${category.name}
+                </div>
+            `).join('');
+            
+            setupCategorySelection();
         }
 
         // Category selection
