@@ -11,199 +11,239 @@
   </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal">
+  <div x-data="appData">
 
-  <!-- Auth Modal -->
-  <div x-data="{ authModal: true, isLogin: true }" x-show="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-      <h2 class="text-2xl font-bold mb-4">QuickLocal Seller Central</h2>
-      
-      <!-- Tabs -->
-      <div class="flex mb-4">
-        <button @click="isLogin = true" :class="{ 'bg-blue-500 text-white': isLogin, 'bg-gray-200': !isLogin }" class="flex-1 py-2 px-4 rounded-l">Login</button>
-        <button @click="isLogin = false" :class="{ 'bg-blue-500 text-white': !isLogin, 'bg-gray-200': isLogin }" class="flex-1 py-2 px-4 rounded-r">Register</button>
+    <!-- Auth Modal -->
+    <div x-show="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-2xl font-bold mb-4">QuickLocal Seller Central</h2>
+        
+        <!-- Tabs -->
+        <div class="flex mb-4">
+          <button @click="isLogin = true" :class="{ 'bg-blue-500 text-white': isLogin, 'bg-gray-200': !isLogin }" class="flex-1 py-2 px-4 rounded-l">Login</button>
+          <button @click="isLogin = false" :class="{ 'bg-blue-500 text-white': !isLogin, 'bg-gray-200': isLogin }" class="flex-1 py-2 px-4 rounded-r">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <form x-show="isLogin" @submit.prevent="login">
+          <div class="mb-4">
+            <label class="block mb-2">Email</label>
+            <input type="email" x-model="loginData.email" class="w-full px-3 py-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">Password</label>
+            <input type="password" x-model="loginData.password" class="w-full px-3 py-2 border rounded" required>
+          </div>
+          <div class="mb-4 flex items-center">
+            <input type="checkbox" x-model="loginData.remember" class="mr-2">
+            <label>Remember me for 30 days</label>
+          </div>
+          <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Sign In</button>
+        </form>
+
+        <!-- Register Form -->
+        <form x-show="!isLogin" @submit.prevent="register">
+          <div class="mb-4">
+            <label class="block mb-2">Full Name</label>
+            <input type="text" x-model="registerData.name" class="w-full px-3 py-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">Email</label>
+            <input type="email" x-model="registerData.email" class="w-full px-3 py-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">Password</label>
+            <input type="password" x-model="registerData.password" class="w-full px-3 py-2 border rounded" required>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">Phone (Optional)</label>
+            <input type="tel" x-model="registerData.phone" class="w-full px-3 py-2 border rounded">
+          </div>
+          <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Create Seller Account</button>
+        </form>
       </div>
-
-      <!-- Login Form -->
-      <form x-show="isLogin" @submit.prevent="login">
-        <div class="mb-4">
-          <label class="block mb-2">Email</label>
-          <input type="email" x-model="loginData.email" class="w-full px-3 py-2 border rounded" required>
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">Password</label>
-          <input type="password" x-model="loginData.password" class="w-full px-3 py-2 border rounded" required>
-        </div>
-        <div class="mb-4 flex items-center">
-          <input type="checkbox" x-model="loginData.remember" class="mr-2">
-          <label>Remember me for 30 days</label>
-        </div>
-        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Sign In</button>
-      </form>
-
-      <!-- Register Form -->
-      <form x-show="!isLogin" @submit.prevent="register">
-        <div class="mb-4">
-          <label class="block mb-2">Full Name</label>
-          <input type="text" x-model="registerData.name" class="w-full px-3 py-2 border rounded" required>
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">Email</label>
-          <input type="email" x-model="registerData.email" class="w-full px-3 py-2 border rounded" required>
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">Password</label>
-          <input type="password" x-model="registerData.password" class="w-full px-3 py-2 border rounded" required>
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">Phone (Optional)</label>
-          <input type="tel" x-model="registerData.phone" class="w-full px-3 py-2 border rounded">
-        </div>
-        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Create Seller Account</button>
-      </form>
     </div>
-  </div>
 
-  <!-- Main Dashboard (Hidden until logged in) -->
-  <div x-data="dashboardData" class="flex h-screen" x-show="!authModal">
+    <!-- Main Dashboard (Hidden until logged in) -->
+    <div class="flex h-screen" x-show="!authModal">
 
-    <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-md">
-      <div class="p-4">
-        <h1 class="text-2xl font-bold">QuickLocal</h1>
-        <p class="text-sm">Seller Central</p>
+      <!-- Sidebar -->
+      <aside class="w-64 bg-white shadow-md">
+        <div class="p-4">
+          <h1 class="text-2xl font-bold">QuickLocal</h1>
+          <p class="text-sm">Seller Central</p>
+        </div>
+        <nav class="mt-6">
+          <ul>
+            <li>
+              Overview
+              <ul>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'dashboard'">Dashboard</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'performance'">Performance</li>
+              </ul>
+            </li>
+            <li>
+              Catalog
+              <ul>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'products'">Manage Products 0</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'inventory'">Inventory</li>
+              </ul>
+            </li>
+            <li>
+              Orders
+              <ul>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'orders'">Manage Orders 0</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'returns'">Returns</li>
+              </ul>
+            </li>
+            <li>
+              Business
+              <ul>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'customers'">Customers</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'payments'">Payments</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'reports'">Reports</li>
+              </ul>
+            </li>
+            <li>
+              Settings
+              <ul>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'account'">Account</li>
+                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'store'">Store Settings</li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+          <div>
+            <nav class="text-sm">
+              Home / <span x-text="activeSection.charAt(0).toUpperCase() + activeSection.slice(1)"></span>
+            </nav>
+            <h2 class="text-2xl font-bold" x-text="activeSection.charAt(0).toUpperCase() + activeSection.slice(1)"></h2>
+          </div>
+          <button @click="openAddProductModal" class="bg-blue-500 text-white px-4 py-2 rounded">Add Product</button>
+        </header>
+
+        <!-- Sections -->
+        <div x-show="activeSection === 'dashboard'">
+          <div class="grid grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-4 rounded shadow">
+              <h4>Total Sales</h4>
+              <p class="text-2xl" x-text="`₹${dashboardStats.totalSales || 0}`"></p>
+              <p class="text-green-500">+12% from last month</p>
+            </div>
+            <div class="bg-white p-4 rounded shadow">
+              <h4>Total Orders</h4>
+              <p class="text-2xl" x-text="dashboardStats.totalOrders || 0"></p>
+              <p class="text-green-500">+8% from last month</p>
+            </div>
+            <div class="bg-white p-4 rounded shadow">
+              <h4>Total Products</h4>
+              <p class="text-2xl" x-text="dashboardStats.totalProducts || 0"></p>
+              <p class="text-green-500">+5% from last month</p>
+            </div>
+            <div class="bg-white p-4 rounded shadow">
+              <h4>Total Customers</h4>
+              <p class="text-2xl" x-text="dashboardStats.totalCustomers || 0"></p>
+              <p class="text-green-500">+15% from last month</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 mb-8">
+            <button @click="openAddProductModal" class="bg-blue-500 text-white p-4 rounded">Add Product</button>
+            <button class="bg-blue-500 text-white p-4 rounded">Manage Inventory</button>
+            <button class="bg-blue-500 text-white p-4 rounded">View Reports</button>
+            <button class="bg-blue-500 text-white p-4 rounded">Store Settings</button>
+          </div>
+          <h4>Recent Orders</h4>
+          <!-- Add table or list here -->
+        </div>
+
+        <div x-show="activeSection === 'performance'">Performance Analytics charts and data will be displayed here.</div>
+        <div x-show="activeSection === 'inventory'">Inventory Inventory management tools will be displayed here.</div>
+        <div x-show="activeSection === 'returns'">Returns Return requests will be displayed here.</div>
+        <div x-show="activeSection === 'customers'">Customers Customer information will be displayed here.</div>
+        <div x-show="activeSection === 'payments'">Payments Payment and payout information will be displayed here.</div>
+        <div x-show="activeSection === 'reports'">Reports Downloadable reports will be available here.</div>
+        <div x-show="activeSection === 'account'">Account Account settings will be displayed here.</div>
+        <div x-show="activeSection === 'store'">Store Settings Store settings form will be displayed here.</div>
+
+        <div x-show="activeSection === 'products'">Manage Products <!-- Add content --></div>
+        <div x-show="activeSection === 'orders'">Manage Orders <!-- Add content --></div>
+      </main>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div x-show="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-2xl font-bold mb-4">Add New Product</h2>
+        <form @submit.prevent="addProduct">
+          <div class="mb-4">
+            <label>Product Name</label>
+            <input type="text" x-model="productData.name" required>
+          </div>
+          <div class="mb-4">
+            <label>Price (₹)</label>
+            <input type="number" x-model="productData.price" required>
+          </div>
+          <div class="mb-4">
+            <label>Stock</label>
+            <input type="number" x-model="productData.stock" required>
+          </div>
+          <div class="mb-4">
+            <label>Category</label>
+            <select x-model="productData.category" required>
+              <!-- Options populated by JS -->
+            </select>
+          </div>
+          <div class="mb-4">
+            <label>Status</label>
+            <select x-model="productData.status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label>Description</label>
+            <textarea x-model="productData.description"></textarea>
+          </div>
+          <div class="mb-4">
+            <label>Product Images</label>
+            <input type="file" multiple>
+          </div>
+          <div class="flex justify-end">
+            <button type="button" @click="addProductModal = false">Cancel</button>
+            <button type="submit">Save Product</button>
+          </div>
+        </form>
       </div>
-      <nav class="mt-6">
-        <ul>
-          <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'overview'">Overview</li>
-          <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'catalog'">Catalog</li>
-          <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'orders'">Orders</li>
-          <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'business'">Business</li>
-          <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'settings'">Settings</li>
-        </ul>
-      </nav>
-    </aside>
+    </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 p-8 overflow-y-auto">
-      <header class="flex justify-between items-center mb-8">
-        <h2 class="text-2xl font-bold">Seller Central</h2>
-        <div class="flex items-center">
-          <span class="mr-4">Online</span>
-          <span class="mr-4">3</span>
-          <span>Seller</span>
-          <button @click="logout" class="ml-4 bg-red-500 text-white px-4 py-2 rounded">Logout</button>
-        </div>
-      </header>
-
-      <!-- Dashboard Content -->
-      <div x-show="activeSection === 'overview'">
-        <h3 class="text-xl mb-4">Dashboard</h3>
-        <div class="grid grid-cols-4 gap-4 mb-8">
-          <div class="bg-white p-4 rounded shadow">
-            <h4>Total Sales</h4>
-            <p class="text-2xl">₹0</p>
-            <p class="text-green-500">+12% from last month</p>
-          </div>
-          <div class="bg-white p-4 rounded shadow">
-            <h4>Total Orders</h4>
-            <p class="text-2xl">0</p>
-            <p class="text-green-500">+8% from last month</p>
-          </div>
-          <div class="bg-white p-4 rounded shadow">
-            <h4>Total Products</h4>
-            <p class="text-2xl">0</p>
-            <p class="text-green-500">+5% from last month</p>
-          </div>
-          <div class="bg-white p-4 rounded shadow">
-            <h4>Total Customers</h4>
-            <p class="text-2xl">0</p>
-            <p class="text-green-500">+15% from last month</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-4 gap-4 mb-8">
-          <button @click="openAddProductModal" class="bg-blue-500 text-white p-4 rounded">Add Product</button>
-          <button class="bg-blue-500 text-white p-4 rounded">Manage Inventory</button>
-          <button class="bg-blue-500 text-white p-4 rounded">View Reports</button>
-          <button class="bg-blue-500 text-white p-4 rounded">Store Settings</button>
-        </div>
-        <h4>Recent Orders</h4>
-        <!-- Add table or list here -->
+    <!-- Order Details Modal -->
+    <div x-show="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+        <h2>Order Details</h2>
+        <!-- Order details content -->
+        <button @click="orderModal = false">Close</button>
       </div>
-
-      <!-- Other Sections -->
-      <div x-show="activeSection === 'catalog'">Catalog content...</div>
-      <div x-show="activeSection === 'orders'">Orders content...</div>
-      <div x-show="activeSection === 'business'">Business content...</div>
-      <div x-show="activeSection === 'settings'">Settings content...</div>
-    </main>
-  </div>
-
-  <!-- Add Product Modal -->
-  <div x-data="{ addProductModal: false }" x-show="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-      <h2 class="text-2xl font-bold mb-4">Add New Product</h2>
-      <form @submit.prevent="addProduct">
-        <div class="mb-4">
-          <label>Product Name</label>
-          <input type="text" x-model="productData.name" required>
-        </div>
-        <div class="mb-4">
-          <label>Price (₹)</label>
-          <input type="number" x-model="productData.price" required>
-        </div>
-        <div class="mb-4">
-          <label>Stock</label>
-          <input type="number" x-model="productData.stock" required>
-        </div>
-        <div class="mb-4">
-          <label>Category</label>
-          <select x-model="productData.category" required>
-            <!-- Options populated by JS -->
-          </select>
-        </div>
-        <div class="mb-4">
-          <label>Status</label>
-          <select x-model="productData.status">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-        <div class="mb-4">
-          <label>Description</label>
-          <textarea x-model="productData.description"></textarea>
-        </div>
-        <div class="mb-4">
-          <label>Product Images</label>
-          <input type="file" multiple>
-        </div>
-        <div class="flex justify-end">
-          <button type="button" @click="addProductModal = false">Cancel</button>
-          <button type="submit">Save Product</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <!-- Order Details Modal -->
-  <div x-data="{ orderModal: false }" x-show="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-      <h2>Order Details</h2>
-      <!-- Order details content -->
-      <button @click="orderModal = false">Close</button>
-    </div>
   </div>
 
   <script>
     document.addEventListener('alpine:init', () => {
-      Alpine.data('dashboardData', () => ({
-        activeSection: 'overview',
-        authModal: true, // Start with auth modal
+      Alpine.data('appData', () => ({
+        activeSection: 'dashboard',
+        authModal: true,
         isLogin: true,
         loginData: { email: '', password: '', remember: false },
         registerData: { name: '', email: '', password: '', phone: '' },
         productData: { name: '', price: '', stock: '', category: '', status: 'active', description: '' },
         addProductModal: false,
         orderModal: false,
+        dashboardStats: { totalSales: 0, totalOrders: 0, totalProducts: 0, totalCustomers: 0 },
 
         async login() {
           try {
@@ -267,12 +307,12 @@
               if (!retry.ok) throw new Error('Dashboard load failed after refresh');
               const json = await retry.json();
               if (!json.data) throw new Error('Invalid response');
-              // Populate dashboard with json.data (e.g., update totals)
+              this.dashboardStats = json.data.overview || this.dashboardStats;
               console.log('Dashboard data:', json.data);
             } else {
               const json = await response.json();
               if (!json.data) throw new Error('Invalid response');
-              // Populate
+              this.dashboardStats = json.data.overview || this.dashboardStats;
               console.log('Dashboard data:', json.data);
             }
           } catch (error) {
@@ -316,7 +356,7 @@
         },
 
         async addProduct() {
-          // Implement product add fetch with form data
+          // Implement product add fetch with form data (e.g., FormData for files)
           console.log('Adding product:', this.productData);
           this.addProductModal = false;
         },
@@ -326,12 +366,11 @@
             this.authModal = false;
             this.loadDashboard();
           }
-          // Refresh token every 14 min
+          // Refresh token every 14 min (no 30s timeout)
           setInterval(() => this.refreshToken(), 14 * 60 * 1000);
         }
       }));
     });
   </script>
-
 </body>
 </html>
