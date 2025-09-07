@@ -1,376 +1,689 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuickLocal Seller Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <style>
-    /* Add any custom styles here if needed */
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seller Dashboard - QuickLocal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar { transition: width 0.3s; }
+        .sidebar-collapsed { width: 5rem; }
+        .sidebar-collapsed .menu-text { display: none; }
+        .content-hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal">
-  <div x-data="appData">
-
-    <!-- Auth Modal -->
-    <div x-show="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-        <h2 class="text-2xl font-bold mb-4">QuickLocal Seller Central</h2>
-        
-        <!-- Tabs -->
-        <div class="flex mb-4">
-          <button @click="isLogin = true" :class="{ 'bg-blue-500 text-white': isLogin, 'bg-gray-200': !isLogin }" class="flex-1 py-2 px-4 rounded-l">Login</button>
-          <button @click="isLogin = false" :class="{ 'bg-blue-500 text-white': !isLogin, 'bg-gray-200': isLogin }" class="flex-1 py-2 px-4 rounded-r">Register</button>
-        </div>
-
-        <!-- Login Form -->
-        <form x-show="isLogin" @submit.prevent="login">
-          <div class="mb-4">
-            <label class="block mb-2">Email</label>
-            <input type="email" x-model="loginData.email" class="w-full px-3 py-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2">Password</label>
-            <input type="password" x-model="loginData.password" class="w-full px-3 py-2 border rounded" required>
-          </div>
-          <div class="mb-4 flex items-center">
-            <input type="checkbox" x-model="loginData.remember" class="mr-2">
-            <label>Remember me for 30 days</label>
-          </div>
-          <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Sign In</button>
-        </form>
-
-        <!-- Register Form -->
-        <form x-show="!isLogin" @submit.prevent="register">
-          <div class="mb-4">
-            <label class="block mb-2">Full Name</label>
-            <input type="text" x-model="registerData.name" class="w-full px-3 py-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2">Email</label>
-            <input type="email" x-model="registerData.email" class="w-full px-3 py-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2">Password</label>
-            <input type="password" x-model="registerData.password" class="w-full px-3 py-2 border rounded" required>
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2">Phone (Optional)</label>
-            <input type="tel" x-model="registerData.phone" class="w-full px-3 py-2 border rounded">
-          </div>
-          <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Create Seller Account</button>
-        </form>
-      </div>
-    </div>
-
-    <!-- Main Dashboard (Hidden until logged in) -->
-    <div class="flex h-screen" x-show="!authModal">
-
-      <!-- Sidebar -->
-      <aside class="w-64 bg-white shadow-md">
-        <div class="p-4">
-          <h1 class="text-2xl font-bold">QuickLocal</h1>
-          <p class="text-sm">Seller Central</p>
-        </div>
-        <nav class="mt-6">
-          <ul>
-            <li>
-              Overview
-              <ul>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'dashboard'">Dashboard</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'performance'">Performance</li>
-              </ul>
-            </li>
-            <li>
-              Catalog
-              <ul>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'products'">Manage Products 0</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'inventory'">Inventory</li>
-              </ul>
-            </li>
-            <li>
-              Orders
-              <ul>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'orders'">Manage Orders 0</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'returns'">Returns</li>
-              </ul>
-            </li>
-            <li>
-              Business
-              <ul>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'customers'">Customers</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'payments'">Payments</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'reports'">Reports</li>
-              </ul>
-            </li>
-            <li>
-              Settings
-              <ul>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'account'">Account</li>
-                <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="activeSection = 'store'">Store Settings</li>
-              </ul>
-            </li>
-          </ul>
-        </nav>
-      </aside>
-
-      <!-- Main Content -->
-      <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
-          <div>
-            <nav class="text-sm">
-              Home / <span x-text="activeSection.charAt(0).toUpperCase() + activeSection.slice(1)"></span>
+<body class="bg-gray-100 text-gray-900">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar bg-indigo-800 text-white w-64 flex flex-col" id="sidebar">
+            <div class="p-4 flex items-center justify-between">
+                <h1 class="text-xl font-bold">QuickLocal Seller</h1>
+                <button id="toggle-sidebar" class="focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+            <nav class="flex-1 px-2 py-4">
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('dashboard')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-7 0h-2a1 1 0 01-1-1v-3" /></svg>
+                    <span class="menu-text">Dashboard</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('products')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                    <span class="menu-text">Manage Products</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('orders')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                    <span class="menu-text">Manage Orders</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('performance')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    <span class="menu-text">Performance</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('inventory')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                    <span class="menu-text">Inventory</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('returns')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <span class="menu-text">Returns</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('customers')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <span class="menu-text">Customers</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('payments')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <span class="menu-text">Payments</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('reports')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <span class="menu-text">Reports</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('account')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <span class="menu-text">Account</span>
+                </a>
+                <a href="#" class="flex items-center px-4 py-2 hover:bg-indigo-700 rounded" onclick="showSection('settings')">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span class="menu-text">Store Settings</span>
+                </a>
             </nav>
-            <h2 class="text-2xl font-bold" x-text="activeSection.charAt(0).toUpperCase() + activeSection.slice(1)"></h2>
-          </div>
-          <button @click="openAddProductModal" class="bg-blue-500 text-white px-4 py-2 rounded">Add Product</button>
-        </header>
+            <div class="p-4 border-t border-indigo-700">
+                <button class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onclick="logout()">
+                    Logout
+                </button>
+            </div>
+        </aside>
 
-        <!-- Sections -->
-        <div x-show="activeSection === 'dashboard'">
-          <div class="grid grid-cols-4 gap-4 mb-8">
-            <div class="bg-white p-4 rounded shadow">
-              <h4>Total Sales</h4>
-              <p class="text-2xl" x-text="`₹${dashboardStats.totalSales || 0}`"></p>
-              <p class="text-green-500">+12% from last month</p>
-            </div>
-            <div class="bg-white p-4 rounded shadow">
-              <h4>Total Orders</h4>
-              <p class="text-2xl" x-text="dashboardStats.totalOrders || 0"></p>
-              <p class="text-green-500">+8% from last month</p>
-            </div>
-            <div class="bg-white p-4 rounded shadow">
-              <h4>Total Products</h4>
-              <p class="text-2xl" x-text="dashboardStats.totalProducts || 0"></p>
-              <p class="text-green-500">+5% from last month</p>
-            </div>
-            <div class="bg-white p-4 rounded shadow">
-              <h4>Total Customers</h4>
-              <p class="text-2xl" x-text="dashboardStats.totalCustomers || 0"></p>
-              <p class="text-green-500">+15% from last month</p>
-            </div>
-          </div>
-          <div class="grid grid-cols-4 gap-4 mb-8">
-            <button @click="openAddProductModal" class="bg-blue-500 text-white p-4 rounded">Add Product</button>
-            <button class="bg-blue-500 text-white p-4 rounded">Manage Inventory</button>
-            <button class="bg-blue-500 text-white p-4 rounded">View Reports</button>
-            <button class="bg-blue-500 text-white p-4 rounded">Store Settings</button>
-          </div>
-          <h4>Recent Orders</h4>
-          <!-- Add table or list here -->
-        </div>
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-6">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section">
+                <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+                <div id="dashboard-overview" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <button class="bg-blue-500 text-white p-6 rounded-lg shadow hover:bg-blue-600" onclick="showSection('add-product')">
+                        <h3 class="text-lg font-semibold mb-2">Add Product</h3>
+                        <p>Create a new product listing</p>
+                    </button>
+                    <button class="bg-green-500 text-white p-6 rounded-lg shadow hover:bg-green-600" onclick="showSection('inventory')">
+                        <h3 class="text-lg font-semibold mb-2">Manage Inventory</h3>
+                        <p>Update stock levels</p>
+                    </button>
+                    <button class="bg-purple-500 text-white p-6 rounded-lg shadow hover:bg-purple-600" onclick="showSection('reports')">
+                        <h3 class="text-lg font-semibold mb-2">View Reports</h3>
+                        <p>Analyze sales performance</p>
+                    </button>
+                    <button class="bg-yellow-500 text-white p-6 rounded-lg shadow hover:bg-yellow-600" onclick="showSection('settings')">
+                        <h3 class="text-lg font-semibold mb-2">Store Settings</h3>
+                        <p>Configure your store</p>
+                    </button>
+                </div>
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold mb-4">Top Products</h3>
+                    <div id="top-products"></div>
+                </div>
+            </section>
 
-        <div x-show="activeSection === 'performance'">Performance Analytics charts and data will be displayed here.</div>
-        <div x-show="activeSection === 'inventory'">Inventory Inventory management tools will be displayed here.</div>
-        <div x-show="activeSection === 'returns'">Returns Return requests will be displayed here.</div>
-        <div x-show="activeSection === 'customers'">Customers Customer information will be displayed here.</div>
-        <div x-show="activeSection === 'payments'">Payments Payment and payout information will be displayed here.</div>
-        <div x-show="activeSection === 'reports'">Reports Downloadable reports will be available here.</div>
-        <div x-show="activeSection === 'account'">Account Account settings will be displayed here.</div>
-        <div x-show="activeSection === 'store'">Store Settings Store settings form will be displayed here.</div>
+            <!-- Manage Products Section -->
+            <section id="products" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Manage Products</h2>
+                <button onclick="showSection('add-product')" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">Add New Product</button>
+                <button onclick="exportProducts()" class="bg-purple-500 text-white px-4 py-2 rounded mb-4 ml-2">Export Products</button>
+                <table id="products-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
 
-        <div x-show="activeSection === 'products'">Manage Products <!-- Add content --></div>
-        <div x-show="activeSection === 'orders'">Manage Orders <!-- Add content --></div>
-      </main>
+            <!-- Add Product Form -->
+            <section id="add-product" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Add New Product</h2>
+                <form id="add-product-form" class="space-y-4">
+                    <div>
+                        <label for="product-name" class="block text-sm font-medium text-gray-700">Product Name</label>
+                        <input type="text" id="product-name" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="product-description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="product-description" name="description" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
+                    </div>
+                    <div>
+                        <label for="product-price" class="block text-sm font-medium text-gray-700">Price</label>
+                        <input type="number" id="product-price" name="price" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="product-originalPrice" class="block text-sm font-medium text-gray-700">Original Price</label>
+                        <input type="number" id="product-originalPrice" name="originalPrice" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="product-stock" class="block text-sm font-medium text-gray-700">Stock</label>
+                        <input type="number" id="product-stock" name="stock" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="product-category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="product-category" name="category" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="product-tags" class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                        <input type="text" id="product-tags" name="tags" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="product-images" class="block text-sm font-medium text-gray-700">Images (up to 8)</label>
+                        <input type="file" id="product-images" name="images" multiple accept="image/*" class="mt-1 block w-full">
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Product</button>
+                </form>
+            </section>
+
+            <!-- Edit Product Form (Modal-like, hidden by default) -->
+            <section id="edit-product" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Edit Product</h2>
+                <form id="edit-product-form" class="space-y-4">
+                    <!-- Similar fields as add-product, populated dynamically -->
+                    <input type="hidden" id="edit-product-id" name="productId">
+                    <div>
+                        <label for="edit-product-name" class="block text-sm font-medium text-gray-700">Product Name</label>
+                        <input type="text" id="edit-product-name" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <!-- Add other fields similarly -->
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Update Product</button>
+                </form>
+            </section>
+
+            <!-- Manage Orders Section -->
+            <section id="orders" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Manage Orders</h2>
+                <table id="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Performance Section -->
+            <section id="performance" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Performance</h2>
+                <div id="analytics-chart" class="mb-8">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div id="product-analytics"></div>
+            </section>
+
+            <!-- Inventory Section -->
+            <section id="inventory" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Inventory</h2>
+                <table id="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Stock</th>
+                            <th>Low Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Returns Section -->
+            <section id="returns" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Returns</h2>
+                <table id="returns-table">
+                    <thead>
+                        <tr>
+                            <th>Return ID</th>
+                            <th>Order ID</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Customers Section -->
+            <section id="customers" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Customers</h2>
+                <table id="customers-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Orders</th>
+                            <th>Total Spent</th>
+                            <th>Last Order</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Payments Section -->
+            <section id="payments" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Payments</h2>
+                <table id="payments-table">
+                    <thead>
+                        <tr>
+                            <th>Payment ID</th>
+                            <th>Order ID</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Reports</h2>
+                <button onclick="generateReport('sales')" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">Generate Sales Report</button>
+                <div id="reports-content"></div>
+            </section>
+
+            <!-- Account Section -->
+            <section id="account" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Account</h2>
+                <div id="account-details"></div>
+            </section>
+
+            <!-- Store Settings Section -->
+            <section id="settings" class="content-section content-hidden">
+                <h2 class="text-2xl font-bold mb-6">Store Settings</h2>
+                <form id="settings-form" class="space-y-4">
+                    <!-- Add form fields for store settings -->
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save Settings</button>
+                </form>
+            </section>
+        </main>
     </div>
 
-    <!-- Add Product Modal -->
-    <div x-show="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-        <h2 class="text-2xl font-bold mb-4">Add New Product</h2>
-        <form @submit.prevent="addProduct">
-          <div class="mb-4">
-            <label>Product Name</label>
-            <input type="text" x-model="productData.name" required>
-          </div>
-          <div class="mb-4">
-            <label>Price (₹)</label>
-            <input type="number" x-model="productData.price" required>
-          </div>
-          <div class="mb-4">
-            <label>Stock</label>
-            <input type="number" x-model="productData.stock" required>
-          </div>
-          <div class="mb-4">
-            <label>Category</label>
-            <select x-model="productData.category" required>
-              <!-- Options populated by JS -->
-            </select>
-          </div>
-          <div class="mb-4">
-            <label>Status</label>
-            <select x-model="productData.status">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          <div class="mb-4">
-            <label>Description</label>
-            <textarea x-model="productData.description"></textarea>
-          </div>
-          <div class="mb-4">
-            <label>Product Images</label>
-            <input type="file" multiple>
-          </div>
-          <div class="flex justify-end">
-            <button type="button" @click="addProductModal = false">Cancel</button>
-            <button type="submit">Save Product</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <script>
+        // API Base URL from your server.js (adjust if needed)
+        const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
 
-    <!-- Order Details Modal -->
-    <div x-show="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-        <h2>Order Details</h2>
-        <!-- Order details content -->
-        <button @click="orderModal = false">Close</button>
-      </div>
-    </div>
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggle-sidebar');
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-collapsed');
+        });
 
-  </div>
-
-  <script>
-    document.addEventListener('alpine:init', () => {
-      Alpine.data('appData', () => ({
-        activeSection: 'dashboard',
-        authModal: true,
-        isLogin: true,
-        loginData: { email: '', password: '', remember: false },
-        registerData: { name: '', email: '', password: '', phone: '' },
-        productData: { name: '', price: '', stock: '', category: '', status: 'active', description: '' },
-        addProductModal: false,
-        orderModal: false,
-        dashboardStats: { totalSales: 0, totalOrders: 0, totalProducts: 0, totalCustomers: 0 },
-
-        async login() {
-          try {
-            const response = await fetch('/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(this.loginData)
+        // Show section and load data
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('content-hidden');
             });
-            if (!response.ok) throw new Error('Login failed');
-            const { accessToken, refreshToken } = await response.json();
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
-            this.authModal = false;
-            await this.loadDashboard();
-          } catch (error) {
-            console.error('Login failed:', error);
-            alert('Invalid credentials');
-          }
-        },
+            document.getElementById(sectionId).classList.remove('content-hidden');
 
-        async register() {
-          try {
-            const response = await fetch('/api/auth/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...this.registerData, role: 'seller' })
-            });
-            if (!response.ok) throw new Error('Registration failed');
-            alert('Registration successful! Please login.');
-            this.isLogin = true;
-          } catch (error) {
-            console.error('Registration failed:', error);
-          }
-        },
-
-        async logout() {
-          try {
-            await fetch('/api/auth/logout', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-            });
-            localStorage.clear();
-            this.authModal = true;
-          } catch (error) {
-            console.error('Logout failed:', error);
-          }
-        },
-
-        async loadDashboard() {
-          const token = localStorage.getItem('accessToken');
-          if (!token) return this.logout();
-          try {
-            const response = await fetch('/api/v1/seller/dashboard', {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.status === 401) {
-              await this.refreshToken();
-              const retry = await fetch('/api/v1/seller/dashboard', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-              });
-              if (!retry.ok) throw new Error('Dashboard load failed after refresh');
-              const json = await retry.json();
-              if (!json.data) throw new Error('Invalid response');
-              this.dashboardStats = json.data.overview || this.dashboardStats;
-              console.log('Dashboard data:', json.data);
-            } else {
-              const json = await response.json();
-              if (!json.data) throw new Error('Invalid response');
-              this.dashboardStats = json.data.overview || this.dashboardStats;
-              console.log('Dashboard data:', json.data);
-            }
-          } catch (error) {
-            console.error('Failed to load dashboard:', error);
-            this.logout();
-          }
-        },
-
-        async refreshToken() {
-          const refresh = localStorage.getItem('refreshToken');
-          if (!refresh) throw new Error('No refresh token');
-          const response = await fetch('/api/auth/refresh-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: refresh })
-          });
-          if (!response.ok) throw new Error('Refresh failed');
-          const { accessToken, refreshToken: newRefresh } = await response.json();
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', newRefresh);
-        },
-
-        openAddProductModal() {
-          this.addProductModal = true;
-          this.loadCategories();
-        },
-
-        async loadCategories() {
-          const token = localStorage.getItem('accessToken');
-          try {
-            const response = await fetch('/api/v1/seller/categories', {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error('Categories load failed');
-            const { data } = await response.json();
-            const select = document.querySelector('select[x-model="productData.category"]');
-            select.innerHTML = data.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
-          } catch (error) {
-            console.error('Failed to load categories:', error);
-          }
-        },
-
-        async addProduct() {
-          // Implement product add fetch with form data (e.g., FormData for files)
-          console.log('Adding product:', this.productData);
-          this.addProductModal = false;
-        },
-
-        init() {
-          if (localStorage.getItem('accessToken')) {
-            this.authModal = false;
-            this.loadDashboard();
-          }
-          // Refresh token every 14 min (no 30s timeout)
-          setInterval(() => this.refreshToken(), 14 * 60 * 1000);
+            // Load data for the section
+            if (sectionId === 'dashboard') loadDashboard();
+            if (sectionId === 'products') loadProducts();
+            if (sectionId === 'orders') loadOrders();
+            if (sectionId === 'performance') loadPerformance();
+            if (sectionId === 'inventory') loadInventory();
+            if (sectionId === 'returns') loadReturns();
+            if (sectionId === 'customers') loadCustomers();
+            if (sectionId === 'payments') loadPayments();
+            if (sectionId === 'reports') loadReports();
+            if (sectionId === 'account') loadAccount();
+            if (sectionId === 'settings') loadSettings();
+            if (sectionId === 'add-product') loadCategories();
         }
-      }));
-    });
-  </script>
+
+        // Default to dashboard
+        showSection('dashboard');
+
+        // API Fetch Wrapper
+        async function apiFetch(endpoint, options = {}) {
+            const url = `${API_BASE_URL}${endpoint}`;
+            const resp = await fetch(url, {
+                ...options,
+                credentials: 'include',
+                headers: {
+                    ...options.headers,
+                    'Content-Type': options.body instanceof FormData ? undefined : 'application/json'
+                }
+            });
+
+            if (resp.status === 401 || resp.status === 403) {
+                console.error('Session expired, logging out');
+                logout();
+                throw new Error('Session expired');
+            }
+
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({ message: resp.statusText }));
+                console.error(`API Error [${resp.status}]: ${errData.message || 'Unknown error'} at ${endpoint}`);
+                throw errData;
+            }
+
+            return resp.json();
+        }
+
+        // Refresh Token
+        async function refreshToken() {
+            try {
+                await apiFetch('/auth/refresh-token', { method: 'POST' });
+                console.log('Tokens refreshed');
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+                logout();
+            }
+        }
+        setInterval(refreshToken, 10 * 60 * 1000);
+        window.addEventListener('load', refreshToken);
+
+        // Logout
+        async function logout() {
+            try {
+                await apiFetch('/auth/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Logout failed:', error);
+            } finally {
+                window.location.href = '/login.html'; // Adjust to your login page
+            }
+        }
+
+        // Load Dashboard
+        async function loadDashboard() {
+            try {
+                const response = await apiFetch('/seller/dashboard');
+                const data = response.data;
+                const overviewDiv = document.getElementById('dashboard-overview');
+                overviewDiv.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow"><h3>Total Sales</h3><p class="text-3xl">₹${data.overview.totalRevenue}</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3>Total Orders</h3><p class="text-3xl">${data.overview.totalOrders}</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3>Total Products</h3><p class="text-3xl">${data.overview.totalProducts}</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3>Total Customers</h3><p class="text-3xl">${data.overview.totalCustomers}</p></div>
+                `;
+                // Top products
+                const topProductsDiv = document.getElementById('top-products');
+                topProductsDiv.innerHTML = data.topProducts.map(p => `<div>${p.name} - Views: ${p.views}</div>`).join('');
+            } catch (error) {
+                showToast('Failed to load dashboard', 'error');
+            }
+        }
+
+        // Load Products
+        async function loadProducts() {
+            try {
+                const response = await apiFetch('/seller/products');
+                const tbody = document.querySelector('#products-table tbody');
+                tbody.innerHTML = response.data.products.map(p => `
+                    <tr>
+                        <td>${p.name}</td>
+                        <td>₹${p.price}</td>
+                        <td>${p.stock}</td>
+                        <td>${p.status}</td>
+                        <td>
+                            <button onclick="editProduct('${p.id}')">Edit</button>
+                            <button onclick="deleteProduct('${p.id}')">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        // Edit Product (Populate form and show section)
+        async function editProduct(productId) {
+            try {
+                const response = await apiFetch(`/seller/products/${productId}`);
+                const product = response.data.product;
+                document.getElementById('edit-product-id').value = productId;
+                document.getElementById('edit-product-name').value = product.name;
+                // Populate other fields...
+                showSection('edit-product');
+            } catch (error) {
+                showToast('Failed to load product for editing', 'error');
+            }
+        }
+
+        // Update Product Submission
+        const editProductForm = document.getElementById('edit-product-form');
+        editProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(editProductForm);
+            const productId = document.getElementById('edit-product-id').value;
+            try {
+                await apiFetch(`/seller/products/${productId}`, { method: 'PATCH', body: formData });
+                showToast('Product updated', 'success');
+                showSection('products');
+            } catch (error) {
+                showToast('Failed to update product', 'error');
+            }
+        });
+
+        // Delete Product
+        async function deleteProduct(productId) {
+            if (confirm('Are you sure?')) {
+                try {
+                    await apiFetch(`/seller/products/${productId}`, { method: 'DELETE' });
+                    showToast('Product deleted', 'success');
+                    loadProducts();
+                } catch (error) {
+                    showToast('Failed to delete product', 'error');
+                }
+            }
+        }
+
+        // Export Products
+        async function exportProducts() {
+            try {
+                const response = await apiFetch('/seller/products/export?format=csv');
+                // Handle CSV download (e.g., create blob and download link)
+                const blob = new Blob([response], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'products.csv';
+                a.click();
+            } catch (error) {
+                showToast('Failed to export products', 'error');
+            }
+        }
+
+        // Bulk Update (Example; add UI for this if needed)
+        async function bulkUpdate(productIds, updateData) {
+            try {
+                await apiFetch('/seller/products/bulk', { method: 'PATCH', body: JSON.stringify({ productIds, updateData }) });
+                showToast('Bulk update successful', 'success');
+            } catch (error) {
+                showToast('Bulk update failed', 'error');
+            }
+        }
+
+        // Load Orders
+        async function loadOrders() {
+            try {
+                const response = await apiFetch('/seller/orders');
+                const tbody = document.querySelector('#orders-table tbody');
+                tbody.innerHTML = response.map(order => `
+                    <tr>
+                        <td>${order.id}</td>
+                        <td>${order.customer}</td>
+                        <td>${order.status}</td>
+                        <td>₹${order.total}</td>
+                        <td>${new Date(order.date).toLocaleDateString()}</td>
+                        <td><button onclick="updateOrderStatus('${order.id}', 'shipped')">Update Status</button></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showToast('Failed to load orders', 'error');
+            }
+        }
+
+        // Update Order Status
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                await apiFetch(`/seller/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+                showToast('Order status updated', 'success');
+                loadOrders();
+            } catch (error) {
+                showToast('Failed to update order status', 'error');
+            }
+        }
+
+        // Load Performance (Analytics)
+        async function loadPerformance() {
+            try {
+                // Example: Fetch for a specific product; adjust as needed
+                const response = await apiFetch('/seller/products/someProductId/analytics'); // Replace with actual ID or loop
+                const data = response.data.analytics;
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Views', 'Ratings', 'Stock'],
+                        datasets: [{ label: 'Analytics', data: [data.views, data.averageRating, data.stockLevel] }]
+                    }
+                });
+            } catch (error) {
+                showToast('Failed to load performance data', 'error');
+            }
+        }
+
+        // Load Inventory (Filter products by stock)
+        async function loadInventory() {
+            try {
+                const response = await apiFetch('/seller/products?minStock=0&maxStock=10'); // Low stock example
+                const tbody = document.querySelector('#inventory-table tbody');
+                tbody.innerHTML = response.data.products.map(p => `
+                    <tr>
+                        <td>${p.name}</td>
+                        <td>${p.stock}</td>
+                        <td>${p.stock < 10 ? 'Low' : 'Normal'}</td>
+                        <td><button onclick="updateStock('${p.id}')">Update</button></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showToast('Failed to load inventory', 'error');
+            }
+        }
+
+        // Placeholder for Returns (Filter orders by status='returned')
+        async function loadReturns() {
+            try {
+                const response = await apiFetch('/seller/orders?status=returned'); // Assuming filter support
+                const tbody = document.querySelector('#returns-table tbody');
+                tbody.innerHTML = response.map(r => `<tr><td>${r.id}</td><td>${r.orderId}</td><td>${r.reason}</td><td>${r.status}</td><td>Actions</td></tr>`).join('');
+            } catch (error) {
+                showToast('Failed to load returns', 'error');
+            }
+        }
+
+        // Load Customers
+        async function loadCustomers() {
+            try {
+                const response = await apiFetch('/seller/customers');
+                const tbody = document.querySelector('#customers-table tbody');
+                tbody.innerHTML = response.map(c => `
+                    <tr>
+                        <td>${c.name}</td>
+                        <td>${c.email}</td>
+                        <td>${c.orders}</td>
+                        <td>₹${c.totalSpent}</td>
+                        <td>${new Date(c.lastOrder).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showToast('Failed to load customers', 'error');
+            }
+        }
+
+        // Load Payments (Placeholder; adjust to your payment routes)
+        async function loadPayments() {
+            try {
+                const response = await apiFetch('/payment'); // From your routes
+                const tbody = document.querySelector('#payments-table tbody');
+                tbody.innerHTML = response.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.orderId}</td>
+                        <td>₹${p.amount}</td>
+                        <td>${p.status}</td>
+                        <td>${new Date(p.date).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showToast('Failed to load payments', 'error');
+            }
+        }
+
+        // Load Reports (Example: Sales report via export)
+        async function loadReports() {
+            // UI for reports
+        }
+
+        async function generateReport(type) {
+            try {
+                const response = await apiFetch('/seller/products/export?format=json'); // Example
+                document.getElementById('reports-content').innerHTML = JSON.stringify(response, null, 2);
+            } catch (error) {
+                showToast('Failed to generate report', 'error');
+            }
+        }
+
+        // Load Account
+        async function loadAccount() {
+            try {
+                const response = await apiFetch('/auth/me');
+                document.getElementById('account-details').innerHTML = `
+                    <p>Name: ${response.data.fullName}</p>
+                    <p>Email: ${response.data.email}</p>
+                    <!-- Add more -->
+                `;
+            } catch (error) {
+                showToast('Failed to load account', 'error');
+            }
+        }
+
+        // Load Settings (Placeholder)
+        async function loadSettings() {
+            // Fetch and populate form
+        }
+
+        // Load Categories for Add/Edit Product
+        async function loadCategories() {
+            try {
+                const response = await apiFetch('/categories');
+                const select = document.getElementById('product-category');
+                select.innerHTML = '<option value="">Select Category</option>' + response.data.categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
+            } catch (error) {
+                showToast('Failed to load categories', 'error');
+            }
+        }
+
+        // Add Product Submission
+        const addProductForm = document.getElementById('add-product-form');
+        addProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(addProductForm);
+            try {
+                await apiFetch('/seller/products', { method: 'POST', body: formData });
+                showToast('Product added', 'success');
+                showSection('products');
+            } catch (error) {
+                showToast('Failed to add product: ' + (error.message || 'Unknown error'), 'error');
+            }
+        });
+
+        // Toast Function (Simple alert for now)
+        function showToast(message, type = 'info') {
+            alert(`[${type.toUpperCase()}] ${message}`);
+        }
+    </script>
 </body>
 </html>
