@@ -470,6 +470,43 @@
             }
         }
         
+        /* Login Form */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f1f5f9;
+            padding: 1rem;
+        }
+        
+        .login-card {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-subtitle {
+            text-align: center;
+            color: var(--gray);
+            margin-bottom: 2rem;
+        }
+        
         /* Responsive Styles */
         @media (max-width: 1024px) {
             .sidebar {
@@ -514,241 +551,283 @@
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <a href="#" class="logo">
-                <i class="fas fa-store"></i>
-                <span>QuickLocal</span>
-            </a>
-            
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a href="#" class="nav-link active">
-                        <i class="fas fa-chart-pie"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="fas fa-box"></i>
-                        <span>Products</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="fas fa-shopping-bag"></i>
-                        <span>Orders</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="fas fa-users"></i>
-                        <span>Customers</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Analytics</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="marketplace.html" class="nav-link">
-                        <i class="fas fa-external-link-alt"></i>
-                        <span>View Store</span>
-                    </a>
-                </li>
-            </ul>
-        </aside>
+    <div id="app">
+        <!-- Login Form (shown by default) -->
+        <div class="login-container" id="loginContainer">
+            <div class="login-card">
+                <div class="login-logo">
+                    <i class="fas fa-store" style="font-size: 3rem; color: var(--primary);"></i>
+                </div>
+                <h1 class="login-title">Seller Login</h1>
+                <p class="login-subtitle">Sign in to manage your products</p>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">
+                            <i class="fas fa-sign-in-alt"></i> Sign In
+                        </button>
+                    </div>
+                    
+                    <div style="text-align: center; color: var(--gray); font-size: 0.875rem;">
+                        Don't have an account? <a href="#" style="color: var(--primary);">Contact support</a>
+                    </div>
+                </form>
+            </div>
+        </div>
         
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="header">
-                <div class="welcome-text">
-                    <h1>Seller Dashboard</h1>
-                    <p>Manage your products and track your performance</p>
-                </div>
-                <div class="header-actions">
-                    <button class="btn btn-outline" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                    <button class="btn btn-primary" id="addProductBtn">
-                        <i class="fas fa-plus"></i> Add Product
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Stats Overview -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-title">Total Products</div>
-                        <div class="stat-icon">
+        <!-- Dashboard (hidden by default) -->
+        <div class="dashboard-container" id="dashboardContainer" style="display: none;">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <a href="#" class="logo">
+                    <i class="fas fa-store"></i>
+                    <span>QuickLocal</span>
+                </a>
+                
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
                             <i class="fas fa-box"></i>
-                        </div>
-                    </div>
-                    <div class="stat-value" id="totalProducts">0</div>
-                    <div class="stat-change">
-                        <i class="fas fa-arrow-up"></i> 12% from last month
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-title">Total Orders</div>
-                        <div class="stat-icon">
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
                             <i class="fas fa-shopping-bag"></i>
-                        </div>
-                    </div>
-                    <div class="stat-value" id="totalOrders">0</div>
-                    <div class="stat-change">
-                        <i class="fas fa-arrow-up"></i> 8% from last month
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-title">Total Revenue</div>
-                        <div class="stat-icon">
-                            <i class="fas fa-rupee-sign"></i>
-                        </div>
-                    </div>
-                    <div class="stat-value" id="totalRevenue">₹0</div>
-                    <div class="stat-change">
-                        <i class="fas fa-arrow-up"></i> 15% from last month
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-title">Average Rating</div>
-                        <div class="stat-icon">
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                    <div class="stat-value" id="averageRating">0.0</div>
-                    <div class="stat-change">
-                        <i class="fas fa-arrow-up"></i> 0.3 from last month
-                    </div>
-                </div>
-            </div>
+                            <span>Orders</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-users"></i>
+                            <span>Customers</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="marketplace.html" class="nav-link">
+                            <i class="fas fa-external-link-alt"></i>
+                            <span>View Store</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
+                </ul>
+            </aside>
             
-            <!-- Products Table -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Your Products</h2>
-                    <div class="table-actions">
-                        <button class="btn btn-outline" id="exportBtn">
-                            <i class="fas fa-download"></i> Export
+            <!-- Main Content -->
+            <main class="main-content">
+                <div class="header">
+                    <div class="welcome-text">
+                        <h1>Seller Dashboard</h1>
+                        <p>Manage your products and track your performance</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-outline" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" id="addProductBtn">
+                            <i class="fas fa-plus"></i> Add Product
                         </button>
                     </div>
                 </div>
                 
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productsTableBody">
-                            <!-- Products will be loaded here -->
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 2rem;">
-                                    <div class="loading-spinner">
-                                        <i class="fas fa-spinner fa-spin"></i> Loading products...
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Stats Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Products</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-box"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalProducts">0</div>
+                        <div class="stat-change">
+                            <i class="fas fa-arrow-up"></i> 12% from last month
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Orders</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-shopping-bag"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalOrders">0</div>
+                        <div class="stat-change">
+                            <i class="fas fa-arrow-up"></i> 8% from last month
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Revenue</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-rupee-sign"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalRevenue">₹0</div>
+                        <div class="stat-change">
+                            <i class="fas fa-arrow-up"></i> 15% from last month
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Average Rating</div>
+                            <div class="stat-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="averageRating">0.0</div>
+                        <div class="stat-change">
+                            <i class="fas fa-arrow-up"></i> 0.3 from last month
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Products Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Your Products</h2>
+                        <div class="table-actions">
+                            <button class="btn btn-outline" id="exportBtn">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <!-- Products will be loaded here -->
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 2rem;">
+                                        <div class="loading-spinner">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading products...
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Add/Edit Product Modal -->
+        <div class="modal-overlay" id="productModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="modalTitle">Add New Product</h2>
+                    <button class="modal-close" id="modalClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm">
+                        <input type="hidden" id="productId">
+                        
+                        <div class="form-group">
+                            <label for="productName" class="form-label">Product Name</label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productCategory" class="form-label">Category</label>
+                            <select class="form-select" id="productCategory" required>
+                                <option value="">Select a category</option>
+                                <!-- Categories will be loaded here -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productPrice" class="form-label">Price (₹)</label>
+                            <input type="number" class="form-control" id="productPrice" min="0" step="0.01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="comparePrice" class="form-label">Compare Price (₹)</label>
+                            <input type="number" class="form-control" id="comparePrice" min="0" step="0.01">
+                            <small style="color: var(--gray);">The original price before discount</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productStock" class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="productStock" min="0" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productImages" class="form-label">Product Images</label>
+                            <input type="file" class="form-control" id="productImages" multiple accept="image/*">
+                            <small style="color: var(--gray);">You can upload up to 8 images</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="productStatus" class="form-label">Status</label>
+                            <select class="form-select" id="productStatus">
+                                <option value="active">Active</option>
+                                <option value="draft">Draft</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="modalCancel">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="modalSave">Save Product</button>
                 </div>
             </div>
-        </main>
-    </div>
-    
-    <!-- Add/Edit Product Modal -->
-    <div class="modal-overlay" id="productModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Add New Product</h2>
-                <button class="modal-close" id="modalClose">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="productForm">
-                    <input type="hidden" id="productId">
-                    
-                    <div class="form-group">
-                        <label for="productName" class="form-label">Product Name</label>
-                        <input type="text" class="form-control" id="productName" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="productDescription" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productCategory" class="form-label">Category</label>
-                        <select class="form-select" id="productCategory" required>
-                            <option value="">Select a category</option>
-                            <!-- Categories will be loaded here -->
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productPrice" class="form-label">Price (₹)</label>
-                        <input type="number" class="form-control" id="productPrice" min="0" step="0.01" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="comparePrice" class="form-label">Compare Price (₹)</label>
-                        <input type="number" class="form-control" id="comparePrice" min="0" step="0.01">
-                        <small style="color: var(--gray);">The original price before discount</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productStock" class="form-label">Stock Quantity</label>
-                        <input type="number" class="form-control" id="productStock" min="0" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productImages" class="form-label">Product Images</label>
-                        <input type="file" class="form-control" id="productImages" multiple accept="image/*">
-                        <small style="color: var(--gray);">You can upload up to 8 images</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="productStatus" class="form-label">Status</label>
-                        <select class="form-select" id="productStatus">
-                            <option value="active">Active</option>
-                            <option value="draft">Draft</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" id="modalCancel">Cancel</button>
-                <button type="button" class="btn btn-primary" id="modalSave">Save Product</button>
-            </div>
         </div>
+        
+        <!-- Toast Container -->
+        <div class="toast-container" id="toastContainer"></div>
     </div>
-    
-    <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
-    
+
     <script>
         // API Configuration
         const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
@@ -760,6 +839,10 @@
         let currentProductId = null;
         
         // DOM Elements
+        const loginContainer = document.getElementById('loginContainer');
+        const dashboardContainer = document.getElementById('dashboardContainer');
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
         const productsTableBody = document.getElementById('productsTableBody');
         const productModal = document.getElementById('productModal');
         const productForm = document.getElementById('productForm');
@@ -776,15 +859,13 @@
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
             // Check if user is logged in
-            if (!authToken) {
-                // Redirect to login if not authenticated
-                window.location.href = 'login.html';
-                return;
+            if (authToken) {
+                showDashboard();
+                loadDashboardData();
+                loadCategories();
+            } else {
+                showLogin();
             }
-            
-            // Load initial data
-            loadDashboardData();
-            loadCategories();
             
             // Set up event listeners
             setupEventListeners();
@@ -792,25 +873,108 @@
         
         // Set up event listeners
         function setupEventListeners() {
+            // Login form
+            loginForm.addEventListener('submit', handleLogin);
+            
+            // Logout button
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', handleLogout);
+            }
+            
             // Modal events
-            addProductBtn.addEventListener('click', openAddProductModal);
-            modalCloseBtn.addEventListener('click', closeModal);
-            modalCancelBtn.addEventListener('click', closeModal);
-            modalSaveBtn.addEventListener('click', saveProduct);
+            if (addProductBtn) {
+                addProductBtn.addEventListener('click', openAddProductModal);
+            }
+            if (modalCloseBtn) {
+                modalCloseBtn.addEventListener('click', closeModal);
+            }
+            if (modalCancelBtn) {
+                modalCancelBtn.addEventListener('click', closeModal);
+            }
+            if (modalSaveBtn) {
+                modalSaveBtn.addEventListener('click', saveProduct);
+            }
             
             // Refresh button
-            refreshBtn.addEventListener('click', loadDashboardData);
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadDashboardData);
+            }
             
             // Close modal when clicking outside
-            productModal.addEventListener('click', function(e) {
-                if (e.target === productModal) {
-                    closeModal();
+            if (productModal) {
+                productModal.addEventListener('click', function(e) {
+                    if (e.target === productModal) {
+                        closeModal();
+                    }
+                });
+            }
+        }
+        
+        // Show login form
+        function showLogin() {
+            loginContainer.style.display = 'flex';
+            dashboardContainer.style.display = 'none';
+        }
+        
+        // Show dashboard
+        function showDashboard() {
+            loginContainer.style.display = 'none';
+            dashboardContainer.style.display = 'flex';
+        }
+        
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Save token
+                    authToken = data.accessToken;
+                    localStorage.setItem('authToken', authToken);
+                    
+                    // Show dashboard
+                    showDashboard();
+                    loadDashboardData();
+                    loadCategories();
+                    
+                    showToast('Success', 'Login successful!', 'success');
+                } else {
+                    showToast('Error', data.message || 'Login failed', 'error');
                 }
-            });
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast('Error', 'Login failed. Please try again.', 'error');
+            }
+        }
+        
+        // Handle logout
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            authToken = null;
+            showLogin();
+            showToast('Success', 'Logged out successfully', 'success');
         }
         
         // Load dashboard data
         async function loadDashboardData() {
+            if (!authToken) {
+                showLogin();
+                return;
+            }
+            
             try {
                 // Load products
                 const productsResponse = await fetch(`${API_BASE_URL}/seller/products`, {
@@ -821,7 +985,7 @@
                 
                 if (productsResponse.status === 401) {
                     // Token expired or invalid
-                    logout();
+                    handleLogout();
                     return;
                 }
                 
@@ -861,6 +1025,8 @@
         
         // Load categories
         async function loadCategories() {
+            if (!authToken) return;
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/seller/categories`, {
                     headers: {
@@ -882,6 +1048,8 @@
         
         // Populate category select dropdown
         function populateCategorySelect() {
+            if (!productCategorySelect) return;
+            
             productCategorySelect.innerHTML = '<option value="">Select a category</option>';
             
             categories.forEach(category => {
@@ -894,6 +1062,8 @@
         
         // Render products table
         function renderProductsTable(products) {
+            if (!productsTableBody) return;
+            
             if (products.length === 0) {
                 productsTableBody.innerHTML = `
                     <tr>
@@ -959,40 +1129,61 @@
         
         // Update stats cards
         function updateStats(products) {
-            document.getElementById('totalProducts').textContent = products.length;
+            if (document.getElementById('totalProducts')) {
+                document.getElementById('totalProducts').textContent = products.length;
+            }
             
             // Calculate total value of inventory
             const totalInventoryValue = products.reduce((total, product) => {
                 return total + (product.price * (product.stock || 0));
             }, 0);
             
-            document.getElementById('totalRevenue').textContent = `₹${totalInventoryValue.toLocaleString()}`;
+            if (document.getElementById('totalRevenue')) {
+                document.getElementById('totalRevenue').textContent = `₹${totalInventoryValue.toLocaleString()}`;
+            }
         }
         
         // Update dashboard stats from API
         function updateDashboardStats(stats) {
             if (stats.overview) {
-                document.getElementById('totalProducts').textContent = stats.overview.totalProducts || 0;
-                document.getElementById('totalOrders').textContent = stats.overview.totalOrders || 0;
-                document.getElementById('totalRevenue').textContent = `₹${(stats.overview.totalRevenue || 0).toLocaleString()}`;
+                if (document.getElementById('totalProducts')) {
+                    document.getElementById('totalProducts').textContent = stats.overview.totalProducts || 0;
+                }
+                if (document.getElementById('totalOrders')) {
+                    document.getElementById('totalOrders').textContent = stats.overview.totalOrders || 0;
+                }
+                if (document.getElementById('totalRevenue')) {
+                    document.getElementById('totalRevenue').textContent = `₹${(stats.overview.totalRevenue || 0).toLocaleString()}`;
+                }
             }
         }
         
         // Open Add Product Modal
         function openAddProductModal() {
+            if (!modalTitle || !productForm) return;
+            
             modalTitle.textContent = 'Add New Product';
             productForm.reset();
-            productIdField.value = '';
+            if (productIdField) productIdField.value = '';
             currentProductId = null;
             
             // Set default status
-            document.getElementById('productStatus').value = 'active';
+            if (document.getElementById('productStatus')) {
+                document.getElementById('productStatus').value = 'active';
+            }
             
-            productModal.classList.add('active');
+            if (productModal) {
+                productModal.classList.add('active');
+            }
         }
         
         // Open Edit Product Modal
         async function openEditProductModal(productId) {
+            if (!authToken) {
+                showLogin();
+                return;
+            }
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/seller/products/${productId}`, {
                     headers: {
@@ -1005,26 +1196,40 @@
                     if (data.success) {
                         const product = data.data.product || data.product;
                         
-                        modalTitle.textContent = 'Edit Product';
-                        productIdField.value = productId;
+                        if (modalTitle) modalTitle.textContent = 'Edit Product';
+                        if (productIdField) productIdField.value = productId;
                         currentProductId = productId;
                         
                         // Fill form with product data
-                        document.getElementById('productName').value = product.name || '';
-                        document.getElementById('productDescription').value = product.description || '';
-                        document.getElementById('productPrice').value = product.price || '';
-                        document.getElementById('comparePrice').value = product.originalPrice || product.comparePrice || '';
-                        document.getElementById('productStock').value = product.stock || 0;
-                        document.getElementById('productStatus').value = product.status || 'draft';
+                        if (document.getElementById('productName')) {
+                            document.getElementById('productName').value = product.name || '';
+                        }
+                        if (document.getElementById('productDescription')) {
+                            document.getElementById('productDescription').value = product.description || '';
+                        }
+                        if (document.getElementById('productPrice')) {
+                            document.getElementById('productPrice').value = product.price || '';
+                        }
+                        if (document.getElementById('comparePrice')) {
+                            document.getElementById('comparePrice').value = product.originalPrice || product.comparePrice || '';
+                        }
+                        if (document.getElementById('productStock')) {
+                            document.getElementById('productStock').value = product.stock || 0;
+                        }
+                        if (document.getElementById('productStatus')) {
+                            document.getElementById('productStatus').value = product.status || 'draft';
+                        }
                         
                         // Select category if available
-                        if (product.category && product.category._id) {
+                        if (product.category && product.category._id && document.getElementById('productCategory')) {
                             document.getElementById('productCategory').value = product.category._id;
-                        } else if (product.category) {
+                        } else if (product.category && document.getElementById('productCategory')) {
                             document.getElementById('productCategory').value = product.category;
                         }
                         
-                        productModal.classList.add('active');
+                        if (productModal) {
+                            productModal.classList.add('active');
+                        }
                     } else {
                         showToast('Error', 'Failed to load product details', 'error');
                     }
@@ -1039,22 +1244,29 @@
         
         // Close Modal
         function closeModal() {
-            productModal.classList.remove('active');
+            if (productModal) {
+                productModal.classList.remove('active');
+            }
         }
         
         // Save Product
         async function saveProduct() {
+            if (!authToken) {
+                showLogin();
+                return;
+            }
+            
             const formData = new FormData();
             
             // Get form values
-            const name = document.getElementById('productName').value;
-            const description = document.getElementById('productDescription').value;
-            const category = document.getElementById('productCategory').value;
-            const price = document.getElementById('productPrice').value;
-            const comparePrice = document.getElementById('comparePrice').value;
-            const stock = document.getElementById('productStock').value;
-            const status = document.getElementById('productStatus').value;
-            const imageFiles = document.getElementById('productImages').files;
+            const name = document.getElementById('productName')?.value || '';
+            const description = document.getElementById('productDescription')?.value || '';
+            const category = document.getElementById('productCategory')?.value || '';
+            const price = document.getElementById('productPrice')?.value || '';
+            const comparePrice = document.getElementById('comparePrice')?.value || '';
+            const stock = document.getElementById('productStock')?.value || '';
+            const status = document.getElementById('productStatus')?.value || 'draft';
+            const imageFiles = document.getElementById('productImages')?.files || [];
             
             // Basic validation
             if (!name || !category || !price || !stock) {
@@ -1118,6 +1330,11 @@
         
         // Delete Product
         async function deleteProduct(productId) {
+            if (!authToken) {
+                showLogin();
+                return;
+            }
+            
             if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
                 return;
             }
@@ -1150,6 +1367,8 @@
         
         // Show Toast Notification
         function showToast(title, message, type = 'success') {
+            if (!toastContainer) return;
+            
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerHTML = `
@@ -1178,12 +1397,6 @@
                     toast.remove();
                 }
             }, 5000);
-        }
-        
-        // Logout function
-        function logout() {
-            localStorage.removeItem('authToken');
-            window.location.href = 'login.html';
         }
     </script>
 </body>
