@@ -812,7 +812,6 @@
       </header>
 
       <main class="content" id="main-content-area">
-        <!-- Dashboard Section -->
         <section id="dashboard-section" class="section active">
           <div class="page-header">
             <div>
@@ -914,12 +913,10 @@
               <h2 class="card-title">Recent Orders</h2>
             </div>
             <div class="card-content" id="recent-orders-content">
-              <!-- Recent orders will be rendered here -->
-            </div>
+              </div>
           </div>
         </section>
 
-        <!-- Products Section -->
         <section id="products-section" class="section">
           <div class="page-header">
             <div>
@@ -940,12 +937,10 @@
 
           <div class="card">
             <div class="card-content" id="products-list-content">
-              <!-- Products will be rendered here -->
-            </div>
+              </div>
           </div>
         </section>
 
-        <!-- Orders Section -->
         <section id="orders-section" class="section">
           <div class="page-header">
               <div>
@@ -962,12 +957,10 @@
                   <h2 class="card-title">All Orders</h2>
               </div>
               <div class="card-content" id="orders-list-content">
-                  <!-- Orders table will be rendered here -->
-              </div>
+                  </div>
           </div>
         </section>
 
-        <!-- Other placeholder sections -->
         <section id="analytics-section" class="section"><div class="page-header"><h1 class="page-title">Performance</h1></div><p>Analytics charts and data will be displayed here.</p></section>
         <section id="inventory-section" class="section"><div class="page-header"><h1 class="page-title">Inventory</h1></div><p>Inventory management tools will be displayed here.</p></section>
         <section id="returns-section" class="section"><div class="page-header"><h1 class="page-title">Returns</h1></div><p>Return requests will be displayed here.</p></section>
@@ -981,7 +974,6 @@
     </div>
   </div>
 
-  <!-- Modal for Product Edit/Add -->
   <div id="product-modal" class="modal-overlay">
       <div class="modal-container">
           <div class="modal-header">
@@ -1010,8 +1002,7 @@
                       <div class="form-group">
                           <label class="label">Category</label>
                           <select class="select" id="product-category" required>
-                            <!-- Options will be populated dynamically -->
-                          </select>
+                            </select>
                       </div>
                       
                        <div class="form-group">
@@ -1046,16 +1037,14 @@
       </div>
   </div>
   
-  <!-- Modal for Order Details -->
-    <div id="order-details-modal" class="modal-overlay">
+  <div id="order-details-modal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
                 <h2 class="modal-title" id="order-modal-title">Order Details</h2>
                 <button class="close-modal-btn" data-modal-id="order-details-modal"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body" id="order-details-body">
-                <!-- Order details will be rendered here -->
-            </div>
+                </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary close-modal-btn" data-modal-id="order-details-modal">Close</button>
             </div>
@@ -1071,9 +1060,9 @@
     // =================================================================================
     const app = {
         config: {
-            API_BASE: window.location.hostname.includes('quicklocal.shop') 
-                ? 'https://quicklocal-backend.onrender.com/api/v1'
-                : 'http://localhost:10000/api/v1',
+            API_BASE: window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
+                ? 'http://localhost:10000/api/v1'
+                : 'https://quicklocal-backend.onrender.com/api/v1',
             ENDPOINTS: {
                 auth: {
                     login: '/auth/login',
@@ -1118,7 +1107,8 @@
             setupInterceptors() {
                 this.client = axios.create({
                     baseURL: app.config.API_BASE,
-                    timeout: 30000
+                    timeout: 30000,
+                    withCredentials: true // Important for CORS
                 });
 
                 this.client.interceptors.request.use(config => {
@@ -1133,7 +1123,6 @@
                     async error => {
                         const originalRequest = error.config;
                         
-                        // Handle timeout errors specifically
                         if (error.code === 'ECONNABORTED' || axios.isCancel(error)) {
                           console.error('Request timeout or was cancelled:', error.message);
                           return Promise.reject(error);
@@ -1148,19 +1137,16 @@
                                     return Promise.reject(error);
                                 }
 
-                                // Set timeout for refresh token request using AbortController
                                 const controller = new AbortController();
-                                const timeoutId = setTimeout(() => {
-                                    controller.abort('Refresh token request timeout');
-                                }, 10000); // 10 second timeout
+                                const timeoutId = setTimeout(() => controller.abort('Refresh token request timeout'), 10000);
 
                                 const res = await axios.post(
                                     `${app.config.API_BASE}${app.config.ENDPOINTS.auth.refreshToken}`, 
                                     { refreshToken: localRefreshToken },
-                                    { signal: controller.signal }
+                                    { signal: controller.signal, withCredentials: true }
                                 );
                                 
-                                clearTimeout(timeoutId); // Clear the timeout if request was successful
+                                clearTimeout(timeoutId);
 
                                 const { accessToken, refreshToken: newRefreshToken } = res.data;
                                 if (accessToken) {
@@ -1189,39 +1175,34 @@
             },
             async fetchProducts() {
                 const { data } = await this.client.get(app.config.ENDPOINTS.seller.products);
-                return data.data.products || [];
+                return data.data?.products || [];
             },
             async fetchOrders() {
                 const { data } = await this.client.get(app.config.ENDPOINTS.seller.orders);
-                return data.data.orders || [];
+                return data.data?.orders || [];
             },
-            // <-- FIXED: Added fetchCategories method
             async fetchCategories() {
               const { data } = await this.client.get(app.config.ENDPOINTS.seller.categories);
               return data.categories || [];
             },
-             async updateOrderStatus(orderId, status) {
+            async updateOrderStatus(orderId, status) {
                 const { data } = await this.client.patch(`${app.config.ENDPOINTS.seller.orders}/${orderId}/status`, { status });
                 return data.order;
             },
             async updateProduct(productId, productData) {
-                const { data } = await this.client.patch(`${app.config.ENDPOINTS.seller.products}/${productId}`, productData);
+                const { data } = await this.client.patch(`${app.config.ENDPOINTS.seller.products}/${productId}`, productData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
                 return data.data.product;
             },
             async addProduct(productData) {
-                const { data } = await this.client.post(app.config.ENDPOINTS.seller.products, productData);
+                const { data } = await this.client.post(app.config.ENDPOINTS.seller.products, productData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
                 return data.data.product;
             },
-             async deleteProduct(productId) {
+            async deleteProduct(productId) {
                 await this.client.delete(`${app.config.ENDPOINTS.seller.products}/${productId}`);
-            },
-            async uploadImage(file) {
-                // This is a mock upload function. In a real app, this would upload to Cloudinary/S3.
-                console.log(`Uploading ${file.name}...`);
-                const MOCK_UPLOAD_URL = "https://placehold.co/600x400/EEE/31343C?text=Uploaded";
-                await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate upload delay
-                console.log("Mock upload complete.");
-                return MOCK_UPLOAD_URL;
             }
         },
 
@@ -1269,8 +1250,7 @@
                     localStorage.clear();
                     app.state.authToken = null;
                     app.state.currentUser = null;
-                    app.ui.showAuthSection(true);
-                    app.ui.showNotification('Logged out successfully');
+                    window.location.reload();
                 }
             },
             async checkAuth() {
@@ -1329,10 +1309,8 @@
                     app.ui.renderEmptyState('orders-list-content', { message: 'Failed to load orders.' });
                 }
             },
-             // <-- FIXED: Added loadCategories handler
             async loadCategories() {
               try {
-                // Only fetch if not already loaded
                 if (app.state.categories.length === 0) {
                     app.state.categories = await app.api.fetchCategories();
                 }
@@ -1350,33 +1328,25 @@
                 saveButton.innerHTML = `<span class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></span> Saving...`;
 
                 try {
-                    const imageFile = form.querySelector('#product-images').files[0];
-                    let imageUrl = document.querySelector('#image-preview img')?.src;
-
-                    if (imageFile) {
-                        imageUrl = await app.api.uploadImage(imageFile);
-                    }
-                    
                     const productData = new FormData();
                     productData.append('name', form.querySelector('#product-name').value);
                     productData.append('price', parseFloat(form.querySelector('#product-price').value));
                     productData.append('stock', parseInt(form.querySelector('#product-stock').value));
                     productData.append('category', form.querySelector('#product-category').value);
                     productData.append('description', form.querySelector('#product-description').value);
-                    productData.append('isPublished', form.querySelector('#product-status').value);
+                    productData.append('isPublished', form.querySelector('#product-status').value === 'true');
 
+                    const imageFile = form.querySelector('#product-images').files[0];
                     if (imageFile) {
                         productData.append('images', imageFile);
                     }
-
+                    
                     if (productId) {
-                        // Update existing product
                         const updatedProduct = await app.api.updateProduct(productId, productData);
                         const index = app.state.products.findIndex(p => p._id === productId);
                         if (index !== -1) app.state.products[index] = updatedProduct;
                         app.ui.showNotification('Product updated successfully!');
                     } else {
-                        // Add new product
                         const newProduct = await app.api.addProduct(productData);
                         app.state.products.push(newProduct);
                         app.ui.showNotification('Product added successfully!');
@@ -1384,8 +1354,9 @@
                     app.ui.closeModal('product-modal');
                     app.ui.displayProducts(app.state.products);
                 } catch (error) {
+                    const message = error.response?.data?.message || 'Failed to save product.';
                     console.error('Failed to save product:', error);
-                    app.ui.showNotification('Failed to save product.', 'error');
+                    app.ui.showNotification(message, 'error');
                 } finally {
                     saveButton.disabled = false;
                     saveButton.innerHTML = `<i data-lucide="save"></i> Save Product`;
@@ -1412,12 +1383,12 @@
                     const updatedOrder = await app.api.updateOrderStatus(orderId, newStatus);
                     const index = app.state.orders.findIndex(o => o._id === orderId);
                     if (index !== -1) app.state.orders[index] = updatedOrder;
-                    app.ui.displayOrders(app.state.orders); // Re-render to update the table
+                    app.ui.displayOrders(app.state.orders);
                     app.ui.showNotification(`Order #${orderId.slice(-6)} status updated to ${newStatus}.`);
                 } catch (error) {
                     console.error(`Failed to update order ${orderId}:`, error);
                     app.ui.showNotification('Failed to update order status.', 'error');
-                    e.target.value = app.state.orders.find(o => o._id === orderId).status; // Revert dropdown
+                    e.target.value = app.state.orders.find(o => o._id === orderId).status;
                 }
             }
         },
@@ -1466,13 +1437,9 @@
                 if (navItem) navItem.classList.add('active');
                 app.state.currentSection = sectionName;
 
-                // <-- FIXED: Updated handler map
                 const handlerMap = {
                     dashboard: app.handlers.loadDashboard,
-                    products: () => {
-                        app.handlers.loadProducts();
-                        app.handlers.loadCategories();
-                    },
+                    products: app.handlers.loadProducts,
                     orders: app.handlers.loadOrders,
                 };
                 if (handlerMap[sectionName]) handlerMap[sectionName]();
@@ -1549,7 +1516,7 @@
                             <div class="product-price">${this.formatCurrency(p.price)}</div>
                             <div class="product-meta">
                                 <span>Stock: ${p.stock}</span>
-                                <span class="badge ${p.status === 'active' ? 'badge-success' : 'badge-warning'}">${p.status}</span>
+                                <span class="badge ${p.isPublished ? 'badge-success' : 'badge-danger'}">${p.isPublished ? 'Active' : 'Inactive'}</span>
                             </div>
                         </div>
                         <div class="product-actions">
@@ -1559,7 +1526,7 @@
                     </div>`).join('')}</div>`;
                 this.initializeIcons();
             },
-             displayOrders(orders) {
+            displayOrders(orders) {
                 const container = this.$('#orders-list-content');
                 if (!orders || orders.length === 0) {
                     this.renderEmptyState('orders-list-content', { icon: 'shopping-cart', title: 'No orders yet' });
@@ -1573,12 +1540,12 @@
                             <tbody>${orders.map(o => `
                                 <tr>
                                     <td>#${o._id.slice(-6)}</td>
-                                    <td>${o.customer?.name || 'N/A'}</td>
+                                    <td>${o.user?.name || 'N/A'}</td>
                                     <td>${this.formatDate(o.createdAt)}</td>
                                     <td>${this.formatCurrency(o.totalAmount)}</td>
                                     <td>
                                         <select class="select select-sm" data-action="change-status" data-order-id="${o._id}">
-                                            ${statuses.map(s => `<option value="${s.toLowerCase()}" ${o.status.toLowerCase() === s.toLowerCase() ? 'selected' : ''}>${s}</option>`).join('')}
+                                            ${statuses.map(s => `<option value="${s}" ${o.status.toLowerCase() === s.toLowerCase() ? 'selected' : ''}>${s}</option>`).join('')}
                                         </select>
                                     </td>
                                     <td><button class="btn btn-secondary btn-sm" data-action="view-order" data-order-id="${o._id}">Details</button></td>
@@ -1587,10 +1554,11 @@
                         </table>
                     </div>`;
             },
-            // <-- FIXED: Updated openProductModal
-            openProductModal(product = null) {
+            async openProductModal(product = null) {
                 const form = this.$('#product-form');
                 form.reset();
+                
+                await app.handlers.loadCategories(); // Ensure categories are loaded
                 
                 const categorySelect = this.$('#product-category');
                 categorySelect.innerHTML = '<option value="">Select a category</option>';
@@ -1613,8 +1581,8 @@
                     this.$('#product-price').value = product.price;
                     this.$('#product-stock').value = product.stock;
                     this.$('#product-description').value = product.description;
-                    this.$('#product-category').value = product.categoryId;
-                    this.$('#product-status').value = String(product.status === 'active');
+                    this.$('#product-category').value = product.category?._id || '';
+                    this.$('#product-status').value = String(product.isPublished);
                     this.$('#image-preview').innerHTML = product.images?.[0]?.url 
                         ? `<img src="${product.images[0].url}" alt="Preview">` 
                         : `<span class="product-image-preview-text">No image</span>`;
@@ -1629,7 +1597,7 @@
                  const body = this.$('#order-details-body');
                  body.innerHTML = `
                     <p><strong>Order ID:</strong> #${order._id.slice(-6)}</p>
-                    <p><strong>Customer:</strong> ${order.customer.name} (${order.customer.email})</p>
+                    <p><strong>Customer:</strong> ${order.user.name} (${order.user.email})</p>
                     <p><strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
                     <p><strong>Total:</strong> ${this.formatCurrency(order.totalAmount)}</p>
                     <p><strong>Status:</strong> <span class="badge status-${order.status.toLowerCase()}">${order.status}</span></p>
@@ -1661,12 +1629,10 @@
         // =================================================================================
         events: {
             init() {
-                document.addEventListener('DOMContentLoaded', () => {
-                    this.setupAuthListeners();
-                    this.setupNavListeners();
-                    this.setupModalListeners();
-                    this.setupGeneralListeners();
-                });
+                this.setupAuthListeners();
+                this.setupNavListeners();
+                this.setupModalListeners();
+                this.setupGeneralListeners();
             },
             setupAuthListeners() {
                 app.ui.$('#login-tab').addEventListener('click', app.ui.switchToLogin);
@@ -1676,12 +1642,15 @@
                 app.ui.$('#logout-btn').addEventListener('click', app.auth.logout);
             },
             setupNavListeners() {
-                app.ui.$$('.nav-item, .action-card').forEach(el => {
-                    if(el.dataset.section) el.addEventListener('click', (e) => { e.preventDefault(); app.ui.showSection(el.dataset.section); });
+                app.ui.$$('.nav-item, .action-card[data-section]').forEach(el => {
+                    el.addEventListener('click', (e) => { e.preventDefault(); app.ui.showSection(el.dataset.section); });
                 });
-                app.ui.$('#add-product-btn').addEventListener('click', () => app.ui.openProductModal());
-                app.ui.$('#add-product-btn-dash').addEventListener('click', () => app.ui.openProductModal());
-                app.ui.$('#add-product-action').addEventListener('click', () => app.ui.openProductModal());
+                const openModalHandler = async () => {
+                    await app.ui.openProductModal();
+                };
+                app.ui.$('#add-product-btn').addEventListener('click', openModalHandler);
+                app.ui.$('#add-product-btn-dash').addEventListener('click', openModalHandler);
+                app.ui.$('#add-product-action').addEventListener('click', openModalHandler);
                 app.ui.$('#toggle-sidebar').addEventListener('click', () => {
                     app.ui.$('#sidebar').classList.toggle('open');
                     app.ui.$('#mobile-backdrop').classList.toggle('show');
@@ -1705,8 +1674,7 @@
                 });
             },
             setupGeneralListeners() {
-                // Use event delegation for dynamic content
-                app.ui.$('#main-content-area').addEventListener('click', e => {
+                app.ui.$('#main-content-area').addEventListener('click', async e => {
                     const target = e.target.closest('[data-action]');
                     if (!target) return;
                     
@@ -1714,7 +1682,7 @@
 
                     if (action === 'edit-product') {
                         const product = app.state.products.find(p => p._id === productId);
-                        if(product) app.ui.openProductModal(product);
+                        if(product) await app.ui.openProductModal(product);
                     }
                     if (action === 'delete-product') {
                         app.handlers.deleteProduct(productId);
@@ -1734,8 +1702,7 @@
     };
 
     // Start the application
-    app.init();
+    document.addEventListener('DOMContentLoaded', () => app.init());
   </script>
 </body>
 </html>
-
