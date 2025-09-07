@@ -1672,8 +1672,9 @@
                 return `
                     <div class="product-card" data-product-id="${product.id}">
                         <div class="product-image-container">
-                            <img loading="lazy" src="${product.image || 'https://via.placeholder.com/300x220'}" 
-                                 alt="${product.name}" class="product-image">
+                            <img loading="lazy" src="${product.images?.[0]?.url || product.image || 'https://via.placeholder.com/300x220?text=' + encodeURIComponent(product.name)}" 
+                                 alt="${product.name}" class="product-image"
+                                 onerror="this.src='https://via.placeholder.com/300x220?text=No+Image';">
                             ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
                         </div>
                         <div class="product-content">
@@ -1765,8 +1766,9 @@
             return `
                 <div class="carousel-card" onclick="handleCardClick('${product.id}')">
                     <img class="p-image" loading="lazy" 
-                         src="${product.image || 'https://via.placeholder.com/280x160'}" 
-                         alt="${product.name}">
+                         src="${product.images?.[0]?.url || product.image || 'https://via.placeholder.com/280x160?text=' + encodeURIComponent(product.name)}" 
+                         alt="${product.name}"
+                         onerror="this.src='https://via.placeholder.com/280x160?text=No+Image';">
                     <div class="p-name">${product.name}</div>
                     <div class="price-row">
                         <div class="p-price">₹${product.price.toLocaleString()}</div>
@@ -2098,10 +2100,6 @@
                 observer.observe(card);
             });
         }, 100);
-</script> 
-<script type="module" src="js/marketplace.js"></script>
-<script type="module" src="js/simple-api.js"></script>
-<script type="module" src="js/global-search.js"></script>
-<script type="module" src="js/api/api-client.js"></script>
+</script>
 </body>
 </html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickLocal Testing Checklist</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: between;
+        }
+        
+        .test-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .test-body {
+            padding: 1.5rem;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .checklist-item:hover {
+            border-color: #6366f1;
+            background: #f8faff;
+        }
+        
+        .checklist-item.completed {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+        
+        .checklist-item.failed {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+        
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .checkbox.checked {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+        
+        .checkbox.failed {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+        
+        .test-description {
+            flex: 1;
+        }
+        
+        .test-action {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .test-details {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .quick-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .quick-link:hover {
+            border-color: #6366f1;
+            color: #6366f1;
+            background: #f8faff;
+        }
+        
+        .status-indicator {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            border-radius: 50px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #10b981;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        @media (max-width: 768px) {
+            .quick-links { grid-template-columns: 1fr; }
+            .status-indicator { 
+                position: relative;
+                bottom: auto;
+                right: auto;
+                margin-top: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-clipboard-check"></i> QuickLocal Testing</h1>
+            <p>Complete end-to-end testing checklist for your marketplace</p>
+        </div>
+        
+        <div class="content">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p><span id="completedCount">0</span> of <span id="totalCount">0</span> tests completed</p>
+            
+            <!-- Server Health Tests -->
+            <div class="test-section">
+                <div class="test-header">
+                    <div class="test-title">
+                        <i class="fas fa-server"></i>
+                        Server Health & API Tests
+                    </div>
+                </div>
+                <div class="test-body">
+                    <div class="checklist-item" data-test="server-health">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">1. Check Server Health</div>
+                            <div class="test-details">Open server-health.html and verify server status is "healthy" with memory &lt; 80%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="api-connection">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">2. Test API Connection</div>
+                            <div class="test-details">From admin-dashboard.html, click "Test API Connection" - should show success</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="categories-loaded">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">3. Verify Categories</div>
+                            <div class="test-details">Open setup-categories.html and ensure all 8 categories are created</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Product Addition Tests -->
+            <div class="test-section">
+                <div class="test-header">
+                    <div class="test-title">
+                        <i class="fas fa-plus"></i>
+                        Product Addition Tests
+                    </div>
+                </div>
+                <div class="test-body">
+                    <div class="checklist-item" data-test="product-form">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">4. Open Product Form</div>
+                            <div class="test-details">Open add-product.html and verify categories load dynamically</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="add-sample-product">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">5. Add Test Product</div>
+                            <div class="test-details">Add a sample product with name, description, price, category, stock, and image</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="product-success">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">6. Verify Success Message</div>
+                            <div class="test-details">Should see "Product added successfully!" message</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Marketplace Display Tests -->
+            <div class="test-section">
+                <div class="test-header">
+                    <div class="test-title">
+                        <i class="fas fa-store"></i>
+                        Marketplace Display Tests
+                    </div>
+                </div>
+                <div class="test-body">
+                    <div class="checklist-item" data-test="marketplace-loads">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">7. Open Marketplace</div>
+                            <div class="test-details">Open marketplace.html and verify it loads without errors</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="products-display">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">8. Verify Product Display</div>
+                            <div class="test-details">Your added product should appear in the products grid</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="filters-work">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">9. Test Filters</div>
+                            <div class="test-details">Try filtering by category and search - should work properly</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="add-to-cart">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">10. Test Add to Cart</div>
+                            <div class="test-details">Click "Add to Cart" on your product - should show success message</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dashboard Tests -->
+            <div class="test-section">
+                <div class="test-header">
+                    <div class="test-title">
+                        <i class="fas fa-chart-line"></i>
+                        Dashboard Tests
+                    </div>
+                </div>
+                <div class="test-body">
+                    <div class="checklist-item" data-test="seller-dashboard">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">11. Open Seller Dashboard</div>
+                            <div class="test-details">Open seller-dashboard-main.html and verify stats show your products</div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-item" data-test="stats-updated">
+                        <div class="checkbox" onclick="toggleTest(this)">
+                            <i class="fas fa-check" style="display: none;"></i>
+                            <i class="fas fa-times" style="display: none;"></i>
+                        </div>
+                        <div class="test-description">
+                            <div class="test-action">12. Verify Updated Stats</div>
+                            <div class="test-details">Product count should reflect your added products</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Action Links -->
+            <div class="quick-links">
+                <a href="server-health.html" class="quick-link">
+                    <i class="fas fa-heartbeat"></i>
+                    Server Health
+                </a>
+                <a href="admin-dashboard.html" class="quick-link">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Admin Dashboard
+                </a>
+                <a href="setup-categories.html" class="quick-link">
+                    <i class="fas fa-tags"></i>
+                    Setup Categories
+                </a>
+                <a href="add-product.html" class="quick-link">
+                    <i class="fas fa-plus"></i>
+                    Add Product
+                </a>
+                <a href="marketplace.html" class="quick-link">
+                    <i class="fas fa-store"></i>
+                    Marketplace
+                </a>
+                <a href="seller-dashboard-main.html" class="quick-link">
+                    <i class="fas fa-chart-bar"></i>
+                    Seller Dashboard
+                </a>
+            </div>
+            
+            <div style="text-align: center; margin-top: 3rem;">
+                <button id="resetTests" class="btn" onclick="resetAllTests()">
+                    <i class="fas fa-redo"></i> Reset All Tests
+                </button>
+                <button id="generateReport" class="btn btn-success" onclick="generateReport()" style="margin-left: 1rem;">
+                    <i class="fas fa-file-alt"></i> Generate Report
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-indicator" id="statusIndicator">
+        <i class="fas fa-clock"></i>
+        <span>Testing in progress...</span>
+    </div>
+    
+    <script>
+        let totalTests = 0;
+        let completedTests = 0;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            totalTests = document.querySelectorAll('.checklist-item').length;
+            document.getElementById('totalCount').textContent = totalTests;
+            updateProgress();
+            loadTestResults();
+        });
+        
+        function toggleTest(checkbox) {
+            const item = checkbox.closest('.checklist-item');
+            const checkIcon = checkbox.querySelector('.fa-check');
+            const failIcon = checkbox.querySelector('.fa-times');
+            
+            // Cycle through states: unchecked -> checked -> failed -> unchecked
+            if (!checkbox.classList.contains('checked') && !checkbox.classList.contains('failed')) {
+                // Mark as passed
+                checkbox.classList.add('checked');
+                checkbox.classList.remove('failed');
+                item.classList.add('completed');
+                item.classList.remove('failed');
+                checkIcon.style.display = 'block';
+                failIcon.style.display = 'none';
+            } else if (checkbox.classList.contains('checked')) {
+                // Mark as failed
+                checkbox.classList.remove('checked');
+                checkbox.classList.add('failed');
+                item.classList.remove('completed');
+                item.classList.add('failed');
+                checkIcon.style.display = 'none';
+                failIcon.style.display = 'block';
+            } else {
+                // Mark as unchecked
+                checkbox.classList.remove('checked', 'failed');
+                item.classList.remove('completed', 'failed');
+                checkIcon.style.display = 'none';
+                failIcon.style.display = 'none';
+            }
+            
+            updateProgress();
+            saveTestResults();
+        }
+        
+        function updateProgress() {
+            const completed = document.querySelectorAll('.checklist-item.completed').length;
+            const failed = document.querySelectorAll('.checklist-item.failed').length;
+            const total = totalTests;
+            
+            completedTests = completed;
+            
+            document.getElementById('completedCount').textContent = completed;
+            const progressPercent = (completed / total) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+            
+            const statusIndicator = document.getElementById('statusIndicator');
+            if (completed === total) {
+                statusIndicator.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i><span>All tests passed!</span>';
+            } else if (failed > 0) {
+                statusIndicator.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i><span>Some tests failed</span>';
+            } else {
+                statusIndicator.innerHTML = '<i class="fas fa-clock" style="color: #6366f1;"></i><span>Testing in progress...</span>';
+            }
+        }
+        
+        function resetAllTests() {
+            if (confirm('Reset all test results?')) {
+                document.querySelectorAll('.checklist-item').forEach(item => {
+                    const checkbox = item.querySelector('.checkbox');
+                    checkbox.classList.remove('checked', 'failed');
+                    item.classList.remove('completed', 'failed');
+                    item.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
+                });
+                updateProgress();
+                saveTestResults();
+            }
+        }
+        
+        function saveTestResults() {
+            const results = {};
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const testId = item.dataset.test;
+                const status = item.classList.contains('completed') ? 'passed' : 
+                              item.classList.contains('failed') ? 'failed' : 'pending';
+                results[testId] = status;
+            });
+            localStorage.setItem('quicklocalTestResults', JSON.stringify(results));
+        }
+        
+        function loadTestResults() {
+            const saved = localStorage.getItem('quicklocalTestResults');
+            if (saved) {
+                const results = JSON.parse(saved);
+                Object.entries(results).forEach(([testId, status]) => {
+                    const item = document.querySelector(`[data-test="${testId}"]`);
+                    if (item) {
+                        const checkbox = item.querySelector('.checkbox');
+                        const checkIcon = checkbox.querySelector('.fa-check');
+                        const failIcon = checkbox.querySelector('.fa-times');
+                        
+                        if (status === 'passed') {
+                            checkbox.classList.add('checked');
+                            item.classList.add('completed');
+                            checkIcon.style.display = 'block';
+                        } else if (status === 'failed') {
+                            checkbox.classList.add('failed');
+                            item.classList.add('failed');
+                            failIcon.style.display = 'block';
+                        }
+                    }
+                });
+                updateProgress();
+            }
+        }
+        
+        function generateReport() {
+            const passed = document.querySelectorAll('.checklist-item.completed').length;
+            const failed = document.querySelectorAll('.checklist-item.failed').length;
+            const pending = totalTests - passed - failed;
+            
+            const report = `
+QuickLocal Marketplace Testing Report
+Generated: ${new Date().toLocaleString()}
+
+=== SUMMARY ===
+✅ Passed: ${passed}/${totalTests} tests
+❌ Failed: ${failed}/${totalTests} tests  
+⏳ Pending: ${pending}/${totalTests} tests
+📊 Success Rate: ${Math.round((passed/totalTests)*100)}%
+
+=== STATUS ===
+${passed === totalTests ? '🎉 ALL TESTS PASSED! Your marketplace is ready to go!' :
+failed > 0 ? '⚠️ Some tests failed. Please review and fix issues.' :
+'⏳ Testing in progress. Complete all tests to verify readiness.'}
+`;
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'quicklocal-test-report.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

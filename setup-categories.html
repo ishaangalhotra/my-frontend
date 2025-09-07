@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Categories - QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f5f5;
+            padding: 2rem;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #333;
+        }
+        .btn {
+            background: #6366f1;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #4338ca;
+        }
+        .btn-success {
+            background: #10b981;
+        }
+        .btn-danger {
+            background: #ef4444;
+        }
+        .result {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            pre {
+                margin: 0;
+                white-space: pre-wrap;
+            }
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-tags"></i> Setup Categories for QuickLocal</h1>
+            <p>Initialize your marketplace categories before adding products</p>
+        </div>
+
+        <div id="results"></div>
+
+        <button onclick="setupCategories()" class="btn">
+            <i class="fas fa-plus"></i> Create Categories
+        </button>
+
+        <button onclick="listCategories()" class="btn btn-success">
+            <i class="fas fa-list"></i> List Existing Categories
+        </button>
+
+        <a href="add-product.html" class="btn btn-success">
+            <i class="fas fa-arrow-right"></i> Go to Add Products
+        </a>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
+
+        async function setupCategories() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Setting up categories...</div>';
+
+            const categories = [
+                {
+                    name: 'Fruits',
+                    slug: 'fruits',
+                    description: 'Fresh seasonal fruits from local orchards'
+                },
+                {
+                    name: 'Vegetables',
+                    slug: 'vegetables',
+                    description: 'Farm-fresh vegetables and leafy greens'
+                },
+                {
+                    name: 'Dairy',
+                    slug: 'dairy',
+                    description: 'Milk, cheese, yogurt and dairy products'
+                },
+                {
+                    name: 'Bakery',
+                    slug: 'bakery',
+                    description: 'Fresh bread, cakes, and baked goods'
+                },
+                {
+                    name: 'Meat & Fish',
+                    slug: 'meat-fish',
+                    description: 'Fresh meat and seafood products'
+                },
+                {
+                    name: 'Groceries',
+                    slug: 'groceries',
+                    description: 'Essential pantry items and household goods'
+                },
+                {
+                    name: 'Electronics',
+                    slug: 'electronics',
+                    description: 'Electronic gadgets and appliances'
+                },
+                {
+                    name: 'Fashion',
+                    slug: 'fashion',
+                    description: 'Clothing, shoes, and fashion accessories'
+                }
+            ];
+
+            let results = [];
+            let successful = 0;
+
+            for (const category of categories) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/categories`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(category)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        successful++;
+                        results.push(`✅ ${category.name} created successfully`);
+                    } else {
+                        results.push(`⚠️ ${category.name}: ${result.message || 'Failed to create'}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${category.name}: ${error.message}`);
+                }
+            }
+
+            resultsDiv.innerHTML = `
+                <div class="result">
+                    <h3>Category Setup Results</h3>
+                    <p><strong>${successful}/${categories.length}</strong> categories created successfully</p>
+                    <pre>${results.join('\n')}</pre>
+                    
+                    ${successful > 0 ? 
+                        '<p style="color: #10b981; font-weight: bold;">🎉 Categories are ready! You can now add products.</p>' : 
+                        '<p style="color: #ef4444; font-weight: bold;">⚠️ Some categories failed to create. Check the API connection.</p>'
+                    }
+                </div>
+            `;
+        }
+
+        async function listCategories() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading categories...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/categories`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const categories = result.data;
+                    const categoryList = categories.map(cat => 
+                        `• ${cat.name} (ID: ${cat._id}) - ${cat.slug}`
+                    ).join('\n');
+
+                    resultsDiv.innerHTML = `
+                        <div class="result">
+                            <h3>Existing Categories (${categories.length})</h3>
+                            <pre>${categoryList || 'No categories found'}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="result">
+                            <h3>Error</h3>
+                            <pre>Failed to load categories: ${result.message}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="result">
+                        <h3>Error</h3>
+                        <pre>Failed to load categories: ${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Load categories on page load
+        window.onload = () => {
+            listCategories();
+        };
+    </script>
+</body>
+</html>
