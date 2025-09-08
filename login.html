@@ -692,9 +692,9 @@
 
         <form class="auth-form" id="loginForm">
             <div class="form-group">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address" required autocomplete="email">
-                <i class="fas fa-envelope input-icon"></i>
+                <label for="identifier" class="form-label">Email Address or Phone Number</label>
+                <input type="text" id="identifier" name="identifier" class="form-input" placeholder="Enter your email or phone number" required autocomplete="username">
+                <i class="fas fa-user input-icon" id="identifierIcon"></i>
                 <button type="button" class="biometric-btn" id="biometricBtn" title="Use Biometric Login">
                     <i class="fas fa-fingerprint"></i>
                 </button>
@@ -798,18 +798,25 @@
                 }
             }
 
-            // Enhanced login method
+            // Enhanced login method supporting email and phone
             async login(credentials) {
                 try {
                     this.emit('auth:login:start');
                     
-                    const { email, password, rememberMe, twoFactorCode } = credentials;
+                    const { identifier, email, password, rememberMe, twoFactorCode } = credentials;
                     
-                    // Prepare login data
+                    // Support both 'identifier' (new) and 'email' (backward compatibility)
+                    const loginIdentifier = identifier || email;
+                    
+                    if (!loginIdentifier) {
+                        throw new Error('Email or phone number is required');
+                    }
+                    
+                    // Prepare login data - using 'identifier' for backend
                     const loginData = {
-                        email: email.toLowerCase().trim(),
+                        identifier: loginIdentifier.trim(),
                         password,
-                        rememberMe: !!rememberMe,
+                        remember: !!rememberMe, // Backend expects 'remember' not 'rememberMe'
                         deviceInfo: {
                             userAgent: navigator.userAgent,
                             platform: navigator.platform,
@@ -1049,9 +1056,9 @@
                 this.setupEventListeners();
                 this.setupEnhancedFeatures();
                 
-                // Auto-focus email field
+                // Auto-focus identifier field
                 setTimeout(() => {
-                    document.getElementById('email').focus();
+                    document.getElementById('identifier').focus();
                 }, 500);
                 
                 console.log('✅ Enhanced Login Handler ready');
@@ -1079,6 +1086,32 @@
                     input.addEventListener('blur', () => this.validateField(input));
                     input.addEventListener('input', () => this.clearFieldErrors(input));
                 });
+                
+                // Identifier input validation and icon change
+                const identifierInput = document.getElementById('identifier');
+                const identifierIcon = document.getElementById('identifierIcon');
+                
+                if (identifierInput && identifierIcon) {
+                    identifierInput.addEventListener('input', (e) => {
+                        const value = e.target.value.trim();
+                        if (!value) {
+                            identifierIcon.className = 'fas fa-user input-icon';
+                            e.target.style.borderColor = '';
+                            return;
+                        }
+                        
+                        if (this.isValidEmail(value)) {
+                            identifierIcon.className = 'fas fa-envelope input-icon';
+                            e.target.style.borderColor = 'var(--success)';
+                        } else if (this.isValidPhone(value)) {
+                            identifierIcon.className = 'fas fa-phone input-icon';
+                            e.target.style.borderColor = 'var(--success)';
+                        } else {
+                            identifierIcon.className = 'fas fa-exclamation-triangle input-icon';
+                            e.target.style.borderColor = 'var(--warning)';
+                        }
+                    });
+                }
                 
                 // Auth service events
                 authService.on('auth:login:start', () => this.showLoading(true));
@@ -1119,7 +1152,7 @@
                 try {
                     const formData = new FormData(e.target);
                     const credentials = {
-                        email: formData.get('email').trim(),
+                        identifier: formData.get('identifier').trim(),
                         password: formData.get('password'),
                         rememberMe: formData.get('remember') === 'on',
                         twoFactorCode: formData.get('twoFactorCode')
@@ -1142,17 +1175,32 @@
             }
 
             validateLoginForm(credentials) {
-                if (!credentials.email || !credentials.password) {
+                if (!credentials.identifier || !credentials.password) {
                     throw new Error('Please fill in all required fields');
                 }
                 
-                if (!authService.validateEmail(credentials.email)) {
-                    throw new Error('Please enter a valid email address');
+                // Validate either email or phone number
+                const isEmail = this.isValidEmail(credentials.identifier);
+                const isPhone = this.isValidPhone(credentials.identifier);
+                
+                if (!isEmail && !isPhone) {
+                    throw new Error('Please enter a valid email address or phone number');
                 }
                 
                 if (credentials.password.length < 6) {
                     throw new Error('Password must be at least 6 characters long');
                 }
+            }
+            
+            isValidEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+            
+            isValidPhone(phone) {
+                // Indian phone number regex
+                const phoneRegex = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/;
+                return phoneRegex.test(phone.replace(/[\s\-]/g, ''));
             }
 
             async handleBiometricLogin() {
@@ -1177,9 +1225,10 @@
             async handleForgotPassword(e) {
                 e.preventDefault();
                 
-                const email = document.getElementById('email').value.trim();
+                const identifier = document.getElementById('identifier').value.trim();
+                const email = this.isValidEmail(identifier) ? identifier : null;
                 
-                if (email && authService.validateEmail(email)) {
+                if (email) {
                     try {
                         this.showMessage('Sending reset instructions...', 'info');
                         await authService.forgotPassword(email);
@@ -1420,7 +1469,7 @@
             }
 
             loadDemoCredentials() {
-                document.getElementById('email').value = 'demo@quicklocal.shop';
+                document.getElementById('identifier').value = 'demo@quicklocal.shop';
                 document.getElementById('password').value = 'demo123';
                 this.showMessage('🎯 Demo credentials loaded. Click "Sign In" to continue.', 'success');
             }
@@ -1468,7 +1517,7 @@
                 font-family: inherit;
             `;
             demoBtn.onclick = () => {
-                document.getElementById('email').value = 'demo@quicklocal.shop';
+                document.getElementById('identifier').value = 'demo@quicklocal.shop';
                 document.getElementById('password').value = 'demo123';
                 document.querySelector('.success-message').innerHTML = '<i class="fas fa-check-circle"></i> 🎯 Demo credentials loaded!';
                 document.querySelector('.success-message').style.display = 'block';
@@ -1482,6 +1531,7 @@
         console.log('   • demo@quicklocal.shop / demo123');
         console.log('   • user@quicklocal.shop / user123');
         console.log('   • admin@quicklocal.shop / admin123');
+        console.log('   • +919876543220 / phone123 (Phone Login Demo)');
         console.log('🔧 Backend URL:', window.APP_CONFIG.API_BASE_URL);
         console.log('🛠️ Use ?demo=true to auto-load demo credentials');
         console.log('🔍 Access authService globally via window.authService');
