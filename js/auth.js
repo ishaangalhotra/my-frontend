@@ -75,6 +75,17 @@ class AuthUtils {
     return emailRegex.test(email);
   }
 
+  static validatePhone(phone) {
+    // Indian phone number regex - supports various formats
+    const phoneRegex = /^(\+91[\-\s]?)?[0]?(91)?[6789]\d{9}$/;
+    const cleanPhone = phone.replace(/[\s\-()]/g, '');
+    return phoneRegex.test(cleanPhone);
+  }
+
+  static validateName(name) {
+    return name && name.length >= 2 && /^[a-zA-Z\s'-]+$/.test(name.trim());
+  }
+
   static validatePassword(password) {
     const checks = {
       length: password.length >= AUTH_CONFIG.PASSWORD_MIN_LENGTH,
@@ -349,20 +360,61 @@ class EnhancedAuthService {
     return this.user || SecureStorage.get(STORAGE_KEYS.USER_DATA);
   }
 
+  // Validation helpers
+  validateEmail(email) {
+    return AuthUtils.validateEmail(email);
+  }
+
+  validatePhone(phone) {
+    return AuthUtils.validatePhone(phone);
+  }
+
+  validateName(name) {
+    return AuthUtils.validateName(name);
+  }
+
+  validatePassword(password) {
+    return AuthUtils.validatePassword(password);
+  }
+
+  async checkEmailAvailability(email) {
+    try {
+      const response = await AuthHTTPClient.request(`${API_ENDPOINTS.register}/check-email`, {
+        method: 'POST',
+        body: { email }
+      });
+      return response.data.available;
+    } catch (error) {
+      console.warn('Email availability check failed:', error);
+      return true; // Assume available if check fails
+    }
+  }
+
   // Registration
   async register(userData) {
     try {
       this.emit('auth:register:start');
       
-      const { name, email, password, confirmPassword, acceptTerms } = userData;
+      const { name, email, phone, password, confirmPassword, acceptTerms } = userData;
       
-      // Validation
-      if (!name || !email || !password) {
-        throw new Error('All fields are required');
+      // Basic validation
+      if (!name || !password) {
+        throw new Error('Name and password are required');
       }
       
-      if (!AuthUtils.validateEmail(email)) {
+      // Require at least email or phone
+      if (!email && !phone) {
+        throw new Error('Please provide either an email address or phone number');
+      }
+      
+      // Validate email if provided
+      if (email && !AuthUtils.validateEmail(email)) {
         throw new Error('Please enter a valid email address');
+      }
+      
+      // Validate phone if provided  
+      if (phone && !this.validatePhone(phone)) {
+        throw new Error('Please enter a valid phone number');
       }
       
       const passwordValidation = AuthUtils.validatePassword(password);
@@ -381,10 +433,18 @@ class EnhancedAuthService {
       // Prepare registration data
       const registrationData = {
         name: AuthUtils.sanitizeInput(name),
-        email: AuthUtils.sanitizeInput(email.toLowerCase()),
         password,
+        role: userData.role || 'customer',
         deviceInfo: AuthUtils.getDeviceInfo()
       };
+      
+      // Add email or phone (or both)
+      if (email) {
+        registrationData.email = AuthUtils.sanitizeInput(email.toLowerCase());
+      }
+      if (phone) {
+        registrationData.phone = AuthUtils.sanitizeInput(phone);
+      }
 
       const response = await AuthHTTPClient.retryRequest(API_ENDPOINTS.register, {
         method: 'POST',

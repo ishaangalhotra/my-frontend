@@ -935,17 +935,22 @@
             </div>
 
             <div class="form-group">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address" required autocomplete="email">
+                <label for="email" class="form-label">Email Address <span style="color: var(--text-light);">(Optional)</span></label>
+                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address (for account verification)" autocomplete="email">
                 <i class="fas fa-envelope input-icon"></i>
                 <div class="field-feedback" id="emailFeedback"></div>
             </div>
 
             <div class="form-group">
-                <label for="phone" class="form-label">Phone Number</label>
-                <input type="tel" id="phone" name="phone" class="form-input" placeholder="Enter your phone number" required autocomplete="tel">
+                <label for="phone" class="form-label">Phone Number <span style="color: var(--text-light);">(Optional)</span></label>
+                <input type="tel" id="phone" name="phone" class="form-input" placeholder="Enter your phone number (for quick login)" autocomplete="tel">
                 <i class="fas fa-phone input-icon"></i>
                 <div class="field-feedback" id="phoneFeedback"></div>
+            </div>
+            
+            <div class="field-feedback info-message" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: var(--radius-sm); font-size: 0.875rem;">
+                <i class="fas fa-info-circle"></i> 
+                Please provide at least an email address or phone number for account access.
             </div>
 
             <div class="form-group">
@@ -1199,11 +1204,11 @@
                         message: 'Please enter a valid full name'
                     },
                     email: {
-                        required: true,
+                        required: false, // Optional now
                         message: 'Please enter a valid email address'
                     },
                     phone: {
-                        required: true,
+                        required: false, // Optional now
                         minLength: 10,
                         message: 'Please enter a valid phone number'
                     },
@@ -1274,22 +1279,29 @@
                     errors.push('Please enter a valid full name');
                 }
                 
-                // Email validation
-                if (!userData.email || !window.authService.validateEmail(userData.email)) {
-                    errors.push('Please enter a valid email address');
-                } else {
-                    try {
-                        const emailAvailable = await window.authService.checkEmailAvailability(userData.email);
-                        if (!emailAvailable) {
-                            errors.push('An account with this email already exists');
+                // Require at least email or phone
+                if (!userData.email && !userData.phone) {
+                    errors.push('Please provide either an email address or phone number');
+                }
+                
+                // Email validation (if provided)
+                if (userData.email) {
+                    if (!window.authService.validateEmail(userData.email)) {
+                        errors.push('Please enter a valid email address');
+                    } else {
+                        try {
+                            const emailAvailable = await window.authService.checkEmailAvailability(userData.email);
+                            if (!emailAvailable) {
+                                errors.push('An account with this email already exists');
+                            }
+                        } catch (e) {
+                            console.warn('Email availability check failed:', e);
                         }
-                    } catch (e) {
-                        console.warn('Email availability check failed:', e);
                     }
                 }
                 
-                // Phone validation
-                if (!userData.phone || !window.authService.validatePhone(userData.phone)) {
+                // Phone validation (if provided)
+                if (userData.phone && !window.authService.validatePhone(userData.phone)) {
                     errors.push('Please enter a valid phone number');
                 }
                 
@@ -1322,7 +1334,8 @@
                 let message = '';
                 
                 try {
-                    if (field.hasAttribute('required') && !value) {
+                    // For email and phone, they're optional but if provided should be valid
+                    if (name !== 'email' && name !== 'phone' && field.hasAttribute('required') && !value) {
                         isValid = false;
                         message = `${name.charAt(0).toUpperCase() + name.slice(1)} is required`;
                     } else if (value) {
