@@ -1414,7 +1414,7 @@
     <div id="toastContainer"></div>
 
     <script>
-        // Enhanced Application State
+        // Enhanced Application State with Authentication
         const appState = {
             products: [],
             filteredProducts: [],
@@ -1422,6 +1422,8 @@
             cart: [],
             apiBaseUrl: 'https://quicklocal-backend.onrender.com/api/v1',
             isLoading: false,
+            user: null,
+            authToken: localStorage.getItem('authToken') || null,
             currentFilters: {
                 search: '',
                 category: '',
@@ -1430,22 +1432,248 @@
             }
         };
 
+        // Authentication utilities
+        const auth = {
+            isLoggedIn: () => !!appState.authToken,
+            getToken: () => appState.authToken,
+            login: (token, user) => {
+                appState.authToken = token;
+                appState.user = user;
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                updateAuthUI();
+            },
+            logout: () => {
+                appState.authToken = null;
+                appState.user = null;
+                appState.cart = [];
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                updateAuthUI();
+                showToast('Logged out successfully', 'info');
+            },
+            getHeaders: () => ({
+                'Content-Type': 'application/json',
+                ...(appState.authToken && { 'Authorization': `Bearer ${appState.authToken}` })
+            })
+        };
+
+        // API utilities
+        const api = {
+            async request(endpoint, options = {}) {
+                try {
+                    const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
+                        headers: auth.getHeaders(),
+                        ...options
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error(`API Error [${endpoint}]:`, error);
+                    throw error;
+                }
+            },
+            
+            async get(endpoint) {
+                return this.request(endpoint, { method: 'GET' });
+            },
+            
+            async post(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            },
+            
+            async put(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            },
+            
+            async delete(endpoint) {
+                return this.request(endpoint, { method: 'DELETE' });
+            }
+        };
+
         // Initialize application
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace...');
             
+            // Initialize authentication from localStorage
+            if (appState.authToken && localStorage.getItem('user')) {
+                try {
+                    appState.user = JSON.parse(localStorage.getItem('user'));
+                    console.log('✅ User restored from localStorage:', appState.user.name);
+                } catch (error) {
+                    console.error('Failed to restore user data:', error);
+                    auth.logout();
+                }
+            }
+            
             // Initialize components
             initializeEventListeners();
             initializeScrollEffects();
-            updateCartUI();
+            updateAuthUI();
             
             // Load data
             await loadProducts();
+            await loadCart(); // Load cart from backend
             await populateCarousels();
             
             console.log('✅ QuickLocal Marketplace loaded successfully!');
-            showToast('Welcome to QuickLocal! Discover amazing local products.', 'success');
+            
+            if (auth.isLoggedIn()) {
+                showToast(`Welcome back, ${appState.user.name}!`, 'success');
+            } else {
+                showToast('Welcome to QuickLocal! Login to start shopping.', 'info');
+            }
         });
+
+        // Update authentication UI
+        function updateAuthUI() {
+            const loginBtn = document.querySelector('a[href="login.html"]');
+            const userActions = document.querySelector('.user-actions');
+            
+            if (auth.isLoggedIn() && appState.user) {
+                // User is logged in - show user menu
+                if (loginBtn) {
+                    loginBtn.innerHTML = `<i class="fas fa-user"></i> ${appState.user.name}`;
+                    loginBtn.href = '#';
+                    loginBtn.onclick = (e) => {
+                        e.preventDefault();
+                        showUserMenu();
+                    };
+                }
+            } else {
+                // User is not logged in - show login button
+                if (loginBtn) {
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    loginBtn.href = 'login.html';
+                    loginBtn.onclick = null;
+                }
+            }
+        }
+
+        // Show user menu (dropdown)
+        function showUserMenu() {
+            const userMenu = document.createElement('div');
+            userMenu.className = 'user-menu';
+            userMenu.innerHTML = `
+                <div class="user-menu-content">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <div>
+                            <div class="user-name">${appState.user.name}</div>
+                            <div class="user-email">${appState.user.email}</div>
+                        </div>
+                    </div>
+                    <div class="user-menu-divider"></div>
+                    <a href="#" onclick="window.location.href='profile.html'"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="#" onclick="window.location.href='orders.html'"><i class="fas fa-box"></i> My Orders</a>
+                    <a href="#" onclick="window.location.href='cart.html'"><i class="fas fa-shopping-cart"></i> My Cart</a>
+                    <div class="user-menu-divider"></div>
+                    <a href="#" onclick="auth.logout(); closeUserMenu();"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            `;
+            
+            // Add styles for user menu
+            if (!document.getElementById('userMenuStyles')) {
+                const styles = document.createElement('style');
+                styles.id = 'userMenuStyles';
+                styles.textContent = `
+                    .user-menu {
+                        position: fixed;
+                        top: 80px;
+                        right: 2rem;
+                        background: white;
+                        border-radius: var(--radius-xl);
+                        box-shadow: var(--shadow-xl);
+                        border: 1px solid var(--border);
+                        z-index: 10000;
+                        min-width: 250px;
+                        animation: userMenuSlide 0.3s ease-out;
+                    }
+                    .user-menu-content {
+                        padding: 1rem;
+                    }
+                    .user-info {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        margin-bottom: 1rem;
+                    }
+                    .user-info i {
+                        font-size: 2rem;
+                        color: var(--primary);
+                    }
+                    .user-name {
+                        font-weight: 700;
+                        color: var(--text-primary);
+                    }
+                    .user-email {
+                        font-size: 0.85rem;
+                        color: var(--text-light);
+                    }
+                    .user-menu-divider {
+                        height: 1px;
+                        background: var(--border);
+                        margin: 0.75rem 0;
+                    }
+                    .user-menu a {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        padding: 0.75rem;
+                        color: var(--text-secondary);
+                        text-decoration: none;
+                        border-radius: var(--radius);
+                        transition: var(--transition);
+                        font-weight: 500;
+                    }
+                    .user-menu a:hover {
+                        background: var(--bg-tertiary);
+                        color: var(--primary);
+                    }
+                    @keyframes userMenuSlide {
+                        from {
+                            opacity: 0;
+                            transform: translateY(-10px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                `;
+                document.head.appendChild(styles);
+            }
+            
+            // Close menu on click outside
+            setTimeout(() => {
+                document.addEventListener('click', (e) => {
+                    if (!userMenu.contains(e.target)) {
+                        closeUserMenu();
+                    }
+                }, { once: true });
+            }, 100);
+            
+            document.body.appendChild(userMenu);
+        }
+
+        function closeUserMenu() {
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu) {
+                userMenu.style.opacity = '0';
+                userMenu.style.transform = 'translateY(-10px)';
+                setTimeout(() => userMenu.remove(), 200);
+            }
+        }
 
         // Enhanced Event Listeners
         function initializeEventListeners() {
@@ -1802,32 +2030,161 @@
             });
         }
 
-        // Enhanced event handlers
-        function handleAddToCart(productId) {
+        // Enhanced Cart Functions with Backend Integration
+        async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
-            if (!product) return;
+            if (!product) {
+                showToast('Product not found!', 'error');
+                return;
+            }
+
+            // Check if user is logged in
+            if (!auth.isLoggedIn()) {
+                showToast('Please login to add items to cart', 'warning');
+                // Redirect to login page or show login modal
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
 
             // Add animation to product card
             const productCard = document.querySelector(`[data-product-id="${productId}"]`);
             productCard?.classList.add('adding');
             setTimeout(() => productCard?.classList.remove('adding'), 300);
 
-            const existingItem = appState.cart.find(item => item.id === productId);
-            if (existingItem) {
-                existingItem.quantity++;
-                showToast(`Updated ${product.name} quantity in cart!`, 'info');
-            } else {
-                appState.cart.push({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.image,
+            try {
+                // Call backend API to add to cart
+                const response = await api.post('/cart/add', {
+                    productId: productId,
                     quantity: 1
                 });
-                showToast(`${product.name} added to cart!`, 'success');
+
+                if (response.success) {
+                    showToast(`${product.name} added to cart!`, 'success');
+                    // Update local cart state
+                    await loadCart();
+                } else {
+                    throw new Error(response.message || 'Failed to add item to cart');
+                }
+            } catch (error) {
+                console.error('Add to cart error:', error);
+                showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
+                
+                // If it's an auth error, redirect to login
+                if (error.message.includes('401') || error.message.includes('unauthorized')) {
+                    auth.logout();
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 1500);
+                }
             }
-            
-            updateCartUI();
+        }
+
+        // Load cart from backend
+        async function loadCart() {
+            if (!auth.isLoggedIn()) {
+                appState.cart = [];
+                updateCartUI();
+                return;
+            }
+
+            try {
+                const response = await api.get('/cart');
+                
+                if (response.success && response.cart) {
+                    // Convert backend cart format to frontend format
+                    appState.cart = response.cart.items.map(item => ({
+                        id: item.product._id || item.product.id,
+                        name: item.product.name,
+                        price: item.price,
+                        image: item.product.images?.[0]?.url || item.product.image,
+                        quantity: item.quantity
+                    }));
+                } else {
+                    appState.cart = [];
+                }
+                
+                updateCartUI();
+            } catch (error) {
+                console.error('Load cart error:', error);
+                appState.cart = [];
+                updateCartUI();
+                
+                // Only show error if it's not a 401 (user might not be logged in)
+                if (!error.message.includes('401')) {
+                    showToast('Could not load cart', 'warning');
+                }
+            }
+        }
+
+        // Remove item from cart
+        async function removeFromCart(productId) {
+            if (!auth.isLoggedIn()) {
+                showToast('Please login to manage cart', 'warning');
+                return;
+            }
+
+            try {
+                const response = await api.delete(`/cart/${productId}`);
+                
+                if (response.success) {
+                    showToast('Item removed from cart', 'success');
+                    await loadCart();
+                } else {
+                    throw new Error(response.message || 'Failed to remove item');
+                }
+            } catch (error) {
+                console.error('Remove from cart error:', error);
+                showToast(`Failed to remove item: ${error.message}`, 'error');
+            }
+        }
+
+        // Update cart item quantity
+        async function updateCartItemQuantity(productId, newQuantity) {
+            if (!auth.isLoggedIn()) {
+                showToast('Please login to manage cart', 'warning');
+                return;
+            }
+
+            try {
+                const response = await api.put(`/cart/${productId}`, {
+                    quantity: newQuantity
+                });
+                
+                if (response.success) {
+                    await loadCart();
+                } else {
+                    throw new Error(response.message || 'Failed to update quantity');
+                }
+            } catch (error) {
+                console.error('Update cart quantity error:', error);
+                showToast(`Failed to update quantity: ${error.message}`, 'error');
+            }
+        }
+
+        // Clear entire cart
+        async function clearCart() {
+            if (!auth.isLoggedIn()) {
+                appState.cart = [];
+                updateCartUI();
+                return;
+            }
+
+            try {
+                const response = await api.delete('/cart');
+                
+                if (response.success) {
+                    appState.cart = [];
+                    updateCartUI();
+                    showToast('Cart cleared!', 'success');
+                } else {
+                    throw new Error(response.message || 'Failed to clear cart');
+                }
+            } catch (error) {
+                console.error('Clear cart error:', error);
+                showToast(`Failed to clear cart: ${error.message}`, 'error');
+            }
         }
 
         function handleCategoryPillClick(e) {
