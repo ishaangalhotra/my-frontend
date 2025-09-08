@@ -768,6 +768,11 @@
         };
     </script>
 
+    <!-- Google Sign-In API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Facebook SDK -->
+    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+
     <!-- Load the enhanced auth service -->
     <script type="module">
         // Import from your js folder structure
@@ -1487,9 +1492,171 @@
             }
         }
 
+        // Social Login Implementation
+        class SocialLoginHandler {
+            constructor() {
+                this.initGoogle();
+                this.initFacebook();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('googleLoginBtn').addEventListener('click', () => {
+                    this.handleGoogleSignIn();
+                });
+                
+                document.getElementById('facebookLoginBtn').addEventListener('click', () => {
+                    this.handleFacebookLogin();
+                });
+            }
+
+            initGoogle() {
+                window.handleGoogleSignIn = async (response) => {
+                    try {
+                        console.log('Google sign-in response:', response);
+                        
+                        const result = await fetch(`${window.APP_CONFIG.API_BASE_URL}/auth/google-login`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                credential: response.credential
+                            })
+                        });
+
+                        const data = await result.json();
+                        
+                        if (data.success) {
+                            // Store tokens
+                            localStorage.setItem('quicklocal_access_token', data.accessToken);
+                            localStorage.setItem('quicklocal_user_data', JSON.stringify(data.user));
+                            
+                            // Show success and redirect
+                            this.showMessage(`✨ Welcome ${data.user.name}! Redirecting...`, 'success');
+                            
+                            setTimeout(() => {
+                                window.location.href = 'marketplace.html?login=google';
+                            }, 1500);
+                        } else {
+                            this.showError(data.message);
+                        }
+                    } catch (error) {
+                        console.error('Google login error:', error);
+                        this.showError('Google sign-in failed. Please try again.');
+                    }
+                };
+            }
+
+            handleGoogleSignIn() {
+                // Trigger Google Sign-In
+                if (window.google && window.google.accounts) {
+                    window.google.accounts.id.initialize({
+                        client_id: 'YOUR_GOOGLE_CLIENT_ID', // Replace with actual client ID
+                        callback: window.handleGoogleSignIn
+                    });
+                    
+                    window.google.accounts.id.prompt();
+                } else {
+                    console.error('Google Sign-In not loaded');
+                    this.showError('Google Sign-In is not available. Please try again.');
+                }
+            }
+
+            initFacebook() {
+                window.fbAsyncInit = function() {
+                    FB.init({
+                        appId: 'YOUR_FACEBOOK_APP_ID', // Replace with actual app ID
+                        cookie: true,
+                        xfbml: true,
+                        version: 'v18.0'
+                    });
+                };
+            }
+
+            async handleFacebookLogin() {
+                try {
+                    FB.login((response) => {
+                        if (response.authResponse) {
+                            FB.api('/me', { fields: 'name,email,picture' }, (userInfo) => {
+                                this.processFacebookLogin(response.authResponse, userInfo);
+                            });
+                        } else {
+                            this.showError('Facebook login cancelled.');
+                        }
+                    }, { scope: 'email' });
+                } catch (error) {
+                    console.error('Facebook login error:', error);
+                    this.showError('Facebook sign-in failed. Please try again.');
+                }
+            }
+
+            async processFacebookLogin(authResponse, userInfo) {
+                try {
+                    const result = await fetch(`${window.APP_CONFIG.API_BASE_URL}/auth/facebook-login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            accessToken: authResponse.accessToken,
+                            userID: authResponse.userID,
+                            userInfo: userInfo
+                        })
+                    });
+
+                    const data = await result.json();
+                    
+                    if (data.success) {
+                        localStorage.setItem('quicklocal_access_token', data.accessToken);
+                        localStorage.setItem('quicklocal_user_data', JSON.stringify(data.user));
+                        
+                        this.showMessage(`✨ Welcome ${data.user.name}! Redirecting...`, 'success');
+                        
+                        setTimeout(() => {
+                            window.location.href = 'marketplace.html?login=facebook';
+                        }, 1500);
+                    } else {
+                        this.showError(data.message);
+                    }
+                } catch (error) {
+                    console.error('Facebook login processing error:', error);
+                    this.showError('Facebook sign-in failed. Please try again.');
+                }
+            }
+
+            showMessage(message, type) {
+                const messageElements = {
+                    error: document.getElementById('errorMessage'),
+                    success: document.getElementById('successMessage'),
+                    info: document.getElementById('infoMessage')
+                };
+                
+                // Clear all messages
+                Object.values(messageElements).forEach(el => el.style.display = 'none');
+                
+                // Show specific message
+                if (messageElements[type]) {
+                    const icons = {
+                        error: 'fas fa-exclamation-triangle',
+                        success: 'fas fa-check-circle',
+                        info: 'fas fa-info-circle'
+                    };
+                    
+                    messageElements[type].innerHTML = `<i class="${icons[type]}"></i> ${message}`;
+                    messageElements[type].style.display = 'block';
+                }
+            }
+
+            showError(message) {
+                this.showMessage(message, 'error');
+            }
+        }
+
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             new EnhancedLoginHandler();
+            new SocialLoginHandler();
         });
 
         // Export for global access
