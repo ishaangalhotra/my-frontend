@@ -1615,7 +1615,7 @@
             filteredProducts: [],
             categories: new Set(),
             cart: [],
-            apiBaseUrl: 'https://quicklocal-backend.onrender.com/api/v1',
+            apiBaseUrl: '', // Will be set by environment detection
             isLoading: false,
             user: null,
             authToken: localStorage.getItem('authToken') || null,
@@ -1635,6 +1635,22 @@
                 page: 1
             }
         };
+
+        // Environment-aware API base URL detection
+        (function setApiBaseUrl() {
+            const isLocal = ['localhost', '127.0.0.1', 'file'].includes(window.location.hostname) ||
+                           window.location.protocol === 'file:';
+            
+            if (isLocal) {
+                // Check if local backend is running
+                appState.apiBaseUrl = 'http://localhost:10000/api/v1';
+                console.log('🏠 Using local backend:', appState.apiBaseUrl);
+            } else {
+                // Use hosted backend
+                appState.apiBaseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
+                console.log('🌐 Using hosted backend:', appState.apiBaseUrl);
+            }
+        })();
 
         // Authentication utilities
         const auth = {
