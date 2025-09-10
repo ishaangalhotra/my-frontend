@@ -1636,21 +1636,9 @@
             }
         };
 
-        // Environment-aware API base URL detection
-        (function setApiBaseUrl() {
-            const isLocal = ['localhost', '127.0.0.1', 'file'].includes(window.location.hostname) ||
-                           window.location.protocol === 'file:';
-            
-            if (isLocal) {
-                // Check if local backend is running
-                appState.apiBaseUrl = 'http://localhost:10000/api/v1';
-                console.log('🏠 Using local backend:', appState.apiBaseUrl);
-            } else {
-                // Use hosted backend
-                appState.apiBaseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
-                console.log('🌐 Using hosted backend:', appState.apiBaseUrl);
-            }
-        })();
+        // Use hosted backend on Render
+        appState.apiBaseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
+        console.log('🌐 Using hosted backend on Render:', appState.apiBaseUrl);
 
         // Authentication utilities
         const auth = {
@@ -2052,7 +2040,19 @@
                 
             } catch (error) {
                 console.error('❌ Failed to load products:', error);
-                showToast('Could not load products. Using demo data instead.', 'warning');
+                
+                // Try to get more detailed error information
+                let errorMessage = 'Could not load products from server.';
+                if (error.message.includes('500')) {
+                    errorMessage = 'Server error (500) - Backend is having issues. Check server logs.';
+                    console.error('🔴 500 Server Error Details:', {
+                        url: `${appState.apiBaseUrl}/products`,
+                        error: error.message,
+                        suggestion: 'Check Render backend logs or restart the service'
+                    });
+                }
+                
+                showToast(errorMessage + ' Using demo data instead.', 'warning');
                 
                 // Fallback to demo data
                 appState.products = generateDemoProducts();
