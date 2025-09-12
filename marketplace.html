@@ -1732,6 +1732,38 @@
             }
         };
 
+        // Helper function for safe image URL handling
+        function getSafeImageUrl(product, size = '300x220') {
+            // Try to get image URL from various possible formats
+            let imageUrl = null;
+            
+            // Check new API format with 'image' field
+            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                imageUrl = product.image;
+            }
+            // Check images array format
+            else if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string' && product.images[0].startsWith('http')) {
+                    imageUrl = product.images[0];
+                } else if (product.images[0] && product.images[0].url && product.images[0].url.startsWith('http')) {
+                    imageUrl = product.images[0].url;
+                }
+            }
+            // Check legacy primaryImage format
+            else if (product.primaryImage && product.primaryImage.url && product.primaryImage.url.startsWith('http')) {
+                imageUrl = product.primaryImage.url;
+            }
+            
+            // Return valid URL or placeholder
+            if (imageUrl && imageUrl.startsWith('http')) {
+                return imageUrl;
+            } else {
+                // Create a safe placeholder with product name
+                const safeName = encodeURIComponent(product.name || 'Product').replace(/%20/g, '+');
+                return `https://placehold.co/${size}/e6e6e6/666666?text=${safeName}`;
+            }
+        }
+
         // Initialize application
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
@@ -2297,9 +2329,9 @@
                     return `
                         <div class="product-card" data-product-id="${product.id}">
                             <div class="product-image-container">
-                                <img loading="lazy" src="${product.images?.[0]?.url || product.image || 'https://placehold.co/300x220?text=' + encodeURIComponent(product.name)}" 
+                                <img loading="lazy" src="${getSafeImageUrl(product)}" 
                                      alt="${product.name}" class="product-image"
-                                     onerror="this.src='https://placehold.co/300x220?text=No+Image';">
+                                     onerror="this.onerror=null; this.src='https://placehold.co/300x220/e6e6e6/666666?text=Image+Error';">
                                 ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
                             </div>
                             <div class="product-content">
@@ -2407,9 +2439,9 @@
             return `
                 <div class="carousel-card" onclick="handleCardClick('${product.id}')">
                     <img class="p-image" loading="lazy" 
-                         src="${product.images?.[0]?.url || product.image || 'https://placehold.co/280x160?text=' + encodeURIComponent(product.name)}" 
+                         src="${getSafeImageUrl(product, '280x160')}" 
                          alt="${product.name}"
-                         onerror="this.src='https://placehold.co/280x160?text=No+Image';">
+                         onerror="this.onerror=null; this.src='https://placehold.co/280x160/e6e6e6/666666?text=Image+Error';">
                     <div class="p-name">${product.name}</div>
                     <div class="price-row">
                         <div class="p-price">₹${product.price.toLocaleString()}</div>
