@@ -106,7 +106,7 @@ async function loadProducts() {
                 price: parseFloat(product.finalPrice || product.price),
                 originalPrice: parseFloat(product.price),
                 category: product.category?.name || product.category || 'Uncategorized',
-                image: product.images?.[0]?.url || 'https://via.placeholder.com/300x200?text=No+Image',
+                image: product.images?.[0]?.url || 'https://placehold.co/300x200?text=No+Image',
                 description: product.description,
                 rating: parseFloat(product.rating) || 4.0,
                 inStock: product.inStock !== false,
@@ -375,7 +375,7 @@ function createProductCard(product) {
         name = 'Unnamed Product',
         price = 0,
         originalPrice = 0,
-        image = 'https://via.placeholder.com/300x200?text=No+Image',
+        image = 'https://placehold.co/300x200?text=No+Image',
         description = 'No description available',
         rating = 0,
         category = 'Uncategorized',
@@ -416,7 +416,7 @@ function createProductCard(product) {
                         object-fit: cover;
                         transition: transform 0.3s ease;
                      "
-                     onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'"
+                     onerror="this.src='https://placehold.co/300x200?text=No+Image'"
                      onmouseover="this.style.transform='scale(1.05)'"
                      onmouseout="this.style.transform='scale(1)'"
                      loading="lazy">

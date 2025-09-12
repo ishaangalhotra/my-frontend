@@ -239,7 +239,7 @@
         
         // Get placeholder image
         getPlaceholderImage: function(text = 'QuickLocal', width = 240, height = 240) {
-            return `https://via.placeholder.com/${width}x${height}/f1f3f6/999?text=${encodeURIComponent(text)}`;
+            return `https://placehold.co/${width}x${height}/f1f3f6/999?text=${encodeURIComponent(text)}`;
         },
         
         // Calculate discount percentage

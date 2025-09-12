@@ -17,10 +17,10 @@ const productCardUtils = {
             <div class="product-card enhanced-card" data-product-id="${product.id}">
                 <div class="product-image-container">
                     <img loading="lazy" 
-                         src="${product.primaryImage?.url || product.image || 'https://via.placeholder.com/300x200?text=' + encodeURIComponent(product.name)}" 
+                         src="${product.primaryImage?.url || product.image || 'https://placehold.co/300x200?text=' + encodeURIComponent(product.name)}"
                          alt="${this.escapeHtml(product.name)}" 
                          class="product-image"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Image';">
+                         onerror="this.src='https://placehold.co/300x200?text=No+Image';"
                     ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
                     ${product.isNewArrival ? '<div class="product-badge new">NEW</div>' : ''}
                     ${product.isFeatured ? '<div class="product-badge featured">FEATURED</div>' : ''}
