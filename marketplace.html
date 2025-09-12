@@ -1658,15 +1658,15 @@
 
         // Hybrid Authentication utilities
         const auth = {
-            isLoggedIn: () => window.HybridAuth && window.HybridAuth.isAuthenticated(),
-            getUser: () => window.HybridAuth && window.HybridAuth.getCurrentUser(),
-            getAuthHeader: () => window.HybridAuth ? window.HybridAuth.getAuthHeader() : '',
+            isLoggedIn: () => window.HybridAuthClient && window.HybridAuthClient.isAuthenticated(),
+            getUser: () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser(),
+            getAuthHeader: () => window.HybridAuthClient ? window.HybridAuthClient.getAuthHeader() : '',
             login: async (identifier, password) => {
-                return window.HybridAuth ? await window.HybridAuth.login(identifier, password) : { success: false, message: 'Auth not initialized' };
+                return window.HybridAuthClient ? await window.HybridAuthClient.login(identifier, password) : { success: false, message: 'Auth not initialized' };
             },
             logout: async () => {
-                if (window.HybridAuth) {
-                    const result = await window.HybridAuth.logout();
+                if (window.HybridAuthClient) {
+                    const result = await window.HybridAuthClient.logout();
                     if (result.success) {
                         appState.user = null;
                         appState.cart = [];
@@ -1688,8 +1688,8 @@
             async request(endpoint, options = {}) {
                 try {
                     // Use hybrid auth API call method if available
-                    if (window.HybridAuth && typeof window.HybridAuth.apiCall === 'function') {
-                        return await window.HybridAuth.apiCall(endpoint, options);
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+                        return await window.HybridAuthClient.apiCall(endpoint, options);
                     }
                     
                     // Fallback to direct fetch
@@ -1769,10 +1769,10 @@
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
             
             // Wait for hybrid auth to initialize
-            if (window.HybridAuth) {
+            if (window.HybridAuthClient) {
                 // Set up auth state listener if available
-                if (typeof window.HybridAuth.onAuthStateChange === 'function') {
-                    window.HybridAuth.onAuthStateChange((user) => {
+                if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                    window.HybridAuthClient.onAuthStateChange((user) => {
                         appState.user = user;
                         updateAuthUI();
                         
@@ -1802,7 +1802,7 @@
                 console.warn('⚠️ Hybrid auth not loaded, checking periodically...');
                 // Keep checking for hybrid auth
                 const checkAuth = setInterval(() => {
-                    if (window.HybridAuth) {
+                    if (window.HybridAuthClient) {
                         clearInterval(checkAuth);
                         console.log('✅ Hybrid auth loaded!');
                         updateAuthUI();
