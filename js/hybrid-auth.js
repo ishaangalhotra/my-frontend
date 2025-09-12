@@ -1,4 +1,4 @@
-lass QuickLocalHybridAuth {
+class QuickLocalHybridAuth {
   constructor() {
     // Your Supabase configuration
     this.supabaseUrl = 'https://pmvhsjezhuokwygvhhqk.supabase.co';
