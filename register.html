@@ -1048,12 +1048,19 @@
     <div id="toastContainer"></div>
 
     <!-- Hybrid Authentication Client -->
-    <script src="js/hybrid-auth.js"></script>
-
-    <!-- Load your backend configuration and services -->
-    <script src="js/config.js"></script>
-    <script src="js/socket-client.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    
+    <!-- Configuration for hybrid auth -->
+    <script>
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api',
+            SUPABASE_URL:https://pmvhsjezhuokwygvhhqk.supabase.co
+            SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+    </script>
     
     <script>
         // Enhanced Registration Handler with Backend Integration
@@ -1258,10 +1265,7 @@
                     this.showLoading(true);
                     
                     // Use hybrid authentication for registration
-                    if (window.quickLocalAuth) {
-                        // Determine user role (default to customer)
-                        const role = 'customer';
-                        
+                    if (window.HybridAuth) {
                         // Use email or phone as identifier
                         const identifier = userData.email || userData.phone;
                         
@@ -1269,17 +1273,34 @@
                             throw new Error('Either email or phone number is required');
                         }
                         
-                        const result = await window.quickLocalAuth.register(
-                            identifier,
-                            userData.password,
-                            userData.name,
-                            role
-                        );
+                        const result = await window.HybridAuth.register({
+                            name: userData.name,
+                            email: userData.email,
+                            phone: userData.phone,
+                            password: userData.password
+                        });
                         
                         console.log('Hybrid registration result:', result);
                         this.handleRegistrationSuccess(result);
                     } else {
-                        throw new Error('Authentication system not loaded');
+                        // Fallback to direct API call
+                        const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/hybrid-auth/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: userData.name,
+                                email: userData.email,
+                                phone: userData.phone,
+                                password: userData.password
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Registration failed');
+                        }
+                        
+                        this.handleRegistrationSuccess(data);
                     }
                     
                 } catch (error) {

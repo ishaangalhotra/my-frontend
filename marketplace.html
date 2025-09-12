@@ -1612,7 +1612,19 @@
     <div id="toastContainer"></div>
 
     <!-- Hybrid Authentication Client -->
-    <script src="js/hybrid-auth.js"></script>
+    <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    
+    <!-- Configuration -->
+    <script>
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api',
+            SUPABASE_URL: https://pmvhsjezhuokwygvhhqk.supabase.co
+            SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+    </script>
 
     <script>
         // Enhanced Application State with Authentication
@@ -1646,15 +1658,15 @@
 
         // Hybrid Authentication utilities
         const auth = {
-            isLoggedIn: () => window.quickLocalAuth && window.quickLocalAuth.isAuthenticated(),
-            getUser: () => window.quickLocalAuth && window.quickLocalAuth.getCurrentUser(),
-            getAuthHeader: () => window.quickLocalAuth ? window.quickLocalAuth.getAuthHeader() : '',
-            login: async (email, password) => {
-                return window.quickLocalAuth ? await window.quickLocalAuth.login(email, password) : { success: false, message: 'Auth not initialized' };
+            isLoggedIn: () => window.HybridAuth && window.HybridAuth.isAuthenticated(),
+            getUser: () => window.HybridAuth && window.HybridAuth.getCurrentUser(),
+            getAuthHeader: () => window.HybridAuth ? window.HybridAuth.getAuthHeader() : '',
+            login: async (identifier, password) => {
+                return window.HybridAuth ? await window.HybridAuth.login(identifier, password) : { success: false, message: 'Auth not initialized' };
             },
             logout: async () => {
-                if (window.quickLocalAuth) {
-                    const result = await window.quickLocalAuth.logout();
+                if (window.HybridAuth) {
+                    const result = await window.HybridAuth.logout();
                     if (result.success) {
                         appState.user = null;
                         appState.cart = [];
@@ -1676,8 +1688,8 @@
             async request(endpoint, options = {}) {
                 try {
                     // Use hybrid auth API call method if available
-                    if (window.quickLocalAuth && typeof window.quickLocalAuth.apiCall === 'function') {
-                        return await window.quickLocalAuth.apiCall(endpoint, options);
+                    if (window.HybridAuth && typeof window.HybridAuth.apiCall === 'function') {
+                        return await window.HybridAuth.apiCall(endpoint, options);
                     }
                     
                     // Fallback to direct fetch
@@ -1725,24 +1737,53 @@
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
             
             // Wait for hybrid auth to initialize
-            if (window.quickLocalAuth) {
-                // Set up auth state listener
-                window.quickLocalAuth.onAuthStateChange((user) => {
-                    appState.user = user;
-                    updateAuthUI();
-                    
-                    if (user) {
-                        console.log('✅ User authenticated:', user.name, `(${user.role})`);
-                        showToast(`Welcome back, ${user.name}!`, 'success');
-                        loadCart(); // Load user's cart
-                    } else {
-                        console.log('👤 User not authenticated');
-                        appState.cart = []; // Clear cart
-                        updateCartUI();
-                    }
-                });
+            if (window.HybridAuth) {
+                // Set up auth state listener if available
+                if (typeof window.HybridAuth.onAuthStateChange === 'function') {
+                    window.HybridAuth.onAuthStateChange((user) => {
+                        appState.user = user;
+                        updateAuthUI();
+                        
+                        if (user) {
+                            console.log('✅ User authenticated:', user.name, `(${user.role || 'customer'})`);
+                            showToast(`Welcome back, ${user.name}!`, 'success');
+                            loadCart(); // Load user's cart
+                        } else {
+                            console.log('👤 User not authenticated');
+                            appState.cart = []; // Clear cart
+                            updateCartUI();
+                        }
+                    });
+                } else {
+                    // Manual check for auth state
+                    setTimeout(() => {
+                        const user = auth.getUser();
+                        appState.user = user;
+                        updateAuthUI();
+                        if (user) {
+                            console.log('✅ User authenticated:', user.name);
+                            loadCart();
+                        }
+                    }, 1000);
+                }
             } else {
-                console.error('❌ Hybrid auth not loaded!');
+                console.warn('⚠️ Hybrid auth not loaded, checking periodically...');
+                // Keep checking for hybrid auth
+                const checkAuth = setInterval(() => {
+                    if (window.HybridAuth) {
+                        clearInterval(checkAuth);
+                        console.log('✅ Hybrid auth loaded!');
+                        updateAuthUI();
+                        const user = auth.getUser();
+                        if (user) {
+                            appState.user = user;
+                            loadCart();
+                        }
+                    }
+                }, 500);
+                
+                // Stop checking after 10 seconds
+                setTimeout(() => clearInterval(checkAuth), 10000);
             }
             
             // Initialize URL state and filters from URL parameters
