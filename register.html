@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 QuickLocal - Enhanced Registration</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase CDN for Hybrid Auth -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
     <style>
         :root {
@@ -1044,6 +1047,9 @@
 
     <div id="toastContainer"></div>
 
+    <!-- Hybrid Authentication Client -->
+    <script src="js/hybrid-auth.js"></script>
+
     <!-- Load your backend configuration and services -->
     <script src="js/config.js"></script>
     <script src="js/socket-client.js"></script>
@@ -1251,17 +1257,30 @@
                     this.updateProgress(2);
                     this.showLoading(true);
                     
-                    // Attempt registration
-                    const result = await window.authService.register({
-                        name: userData.name,
-                        email: userData.email,
-                        phone: userData.phone,
-                        password: userData.password,
-                        newsletter: userData.newsletter
-                    });
-                    
-                    console.log('Registration result:', result);
-                    this.handleRegistrationSuccess(result);
+                    // Use hybrid authentication for registration
+                    if (window.quickLocalAuth) {
+                        // Determine user role (default to customer)
+                        const role = 'customer';
+                        
+                        // Use email or phone as identifier
+                        const identifier = userData.email || userData.phone;
+                        
+                        if (!identifier) {
+                            throw new Error('Either email or phone number is required');
+                        }
+                        
+                        const result = await window.quickLocalAuth.register(
+                            identifier,
+                            userData.password,
+                            userData.name,
+                            role
+                        );
+                        
+                        console.log('Hybrid registration result:', result);
+                        this.handleRegistrationSuccess(result);
+                    } else {
+                        throw new Error('Authentication system not loaded');
+                    }
                     
                 } catch (error) {
                     console.error('Registration failed:', error);

@@ -8,6 +8,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <!-- Supabase CDN for Hybrid Auth -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
     <!-- Enhanced Product Cards -->
     <link rel="stylesheet" href="css/product-cards.css">
     
@@ -1608,6 +1611,9 @@
 
     <div id="toastContainer"></div>
 
+    <!-- Hybrid Authentication Client -->
+    <script src="js/hybrid-auth.js"></script>
+
     <script>
         // Enhanced Application State with Authentication
         const appState = {
@@ -1615,10 +1621,10 @@
             filteredProducts: [],
             categories: new Set(),
             cart: [],
-            apiBaseUrl: '', // Will be set by environment detection
+            apiBaseUrl: 'https://quicklocal-backend.onrender.com', // Using hybrid auth backend
             isLoading: false,
             user: null,
-            authToken: localStorage.getItem('authToken') || null,
+            hybridAuth: null, // Will hold hybrid auth instance
             
             // Enhanced pagination and filtering
             pagination: {
@@ -1636,40 +1642,45 @@
             }
         };
 
-        // Use hosted backend on Render
-        appState.apiBaseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
-        console.log('🌐 Using hosted backend on Render:', appState.apiBaseUrl);
+        console.log('🌐 Using hybrid auth backend:', appState.apiBaseUrl);
 
-        // Authentication utilities
+        // Hybrid Authentication utilities
         const auth = {
-            isLoggedIn: () => !!appState.authToken,
-            getToken: () => appState.authToken,
-            login: (token, user) => {
-                appState.authToken = token;
-                appState.user = user;
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('user', JSON.stringify(user));
-                updateAuthUI();
+            isLoggedIn: () => window.quickLocalAuth && window.quickLocalAuth.isAuthenticated(),
+            getUser: () => window.quickLocalAuth && window.quickLocalAuth.getCurrentUser(),
+            getAuthHeader: () => window.quickLocalAuth ? window.quickLocalAuth.getAuthHeader() : '',
+            login: async (email, password) => {
+                return window.quickLocalAuth ? await window.quickLocalAuth.login(email, password) : { success: false, message: 'Auth not initialized' };
             },
-            logout: () => {
-                appState.authToken = null;
-                appState.user = null;
-                appState.cart = [];
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('user');
-                updateAuthUI();
-                showToast('Logged out successfully', 'info');
+            logout: async () => {
+                if (window.quickLocalAuth) {
+                    const result = await window.quickLocalAuth.logout();
+                    if (result.success) {
+                        appState.user = null;
+                        appState.cart = [];
+                        updateAuthUI();
+                        showToast('Logged out successfully', 'info');
+                    }
+                    return result;
+                }
+                return { success: false, message: 'Auth not initialized' };
             },
             getHeaders: () => ({
                 'Content-Type': 'application/json',
-                ...(appState.authToken && { 'Authorization': `Bearer ${appState.authToken}` })
+                'Authorization': auth.getAuthHeader()
             })
         };
 
-        // API utilities
+        // API utilities using hybrid auth
         const api = {
             async request(endpoint, options = {}) {
                 try {
+                    // Use hybrid auth API call method if available
+                    if (window.quickLocalAuth && typeof window.quickLocalAuth.apiCall === 'function') {
+                        return await window.quickLocalAuth.apiCall(endpoint, options);
+                    }
+                    
+                    // Fallback to direct fetch
                     const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
                         headers: auth.getHeaders(),
                         ...options
@@ -1711,21 +1722,31 @@
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Initializing Enhanced QuickLocal Marketplace...');
+            console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
+            
+            // Wait for hybrid auth to initialize
+            if (window.quickLocalAuth) {
+                // Set up auth state listener
+                window.quickLocalAuth.onAuthStateChange((user) => {
+                    appState.user = user;
+                    updateAuthUI();
+                    
+                    if (user) {
+                        console.log('✅ User authenticated:', user.name, `(${user.role})`);
+                        showToast(`Welcome back, ${user.name}!`, 'success');
+                        loadCart(); // Load user's cart
+                    } else {
+                        console.log('👤 User not authenticated');
+                        appState.cart = []; // Clear cart
+                        updateCartUI();
+                    }
+                });
+            } else {
+                console.error('❌ Hybrid auth not loaded!');
+            }
             
             // Initialize URL state and filters from URL parameters
             initializeFromURL();
-            
-            // Initialize authentication from localStorage
-            if (appState.authToken && localStorage.getItem('user')) {
-                try {
-                    appState.user = JSON.parse(localStorage.getItem('user'));
-                    console.log('✅ User restored from localStorage:', appState.user.name);
-                } catch (error) {
-                    console.error('Failed to restore user data:', error);
-                    auth.logout();
-                }
-            }
             
             // Initialize components
             initializeEventListeners();
@@ -1737,24 +1758,20 @@
             await loadCart(); // Load cart from backend
             await populateCarousels();
             
-            console.log('✅ QuickLocal Marketplace loaded successfully!');
+            console.log('✅ QuickLocal Marketplace with Hybrid Auth loaded successfully!');
             
-            if (auth.isLoggedIn()) {
-                showToast(`Welcome back, ${appState.user.name}!`, 'success');
-            } else {
-                showToast('Welcome to QuickLocal! Login to start shopping.', 'info');
-            }
+            // Welcome message handled by auth state listener
         });
 
-        // Update authentication UI
+        // Update authentication UI using hybrid auth
         function updateAuthUI() {
             const loginBtn = document.querySelector('a[href="login.html"]');
-            const userActions = document.querySelector('.user-actions');
+            const user = auth.getUser();
             
-            if (auth.isLoggedIn() && appState.user) {
+            if (auth.isLoggedIn() && user) {
                 // User is logged in - show user menu
                 if (loginBtn) {
-                    loginBtn.innerHTML = `<i class="fas fa-user"></i> ${appState.user.name}`;
+                    loginBtn.innerHTML = `<i class="fas fa-user"></i> ${user.name}`;
                     loginBtn.href = '#';
                     loginBtn.onclick = (e) => {
                         e.preventDefault();
@@ -1780,8 +1797,8 @@
                     <div class="user-info">
                         <i class="fas fa-user-circle"></i>
                         <div>
-                            <div class="user-name">${appState.user.name}</div>
-                            <div class="user-email">${appState.user.email}</div>
+                            <div class="user-name">${auth.getUser().name}</div>
+                            <div class="user-email">${auth.getUser().email}</div>
                         </div>
                     </div>
                     <div class="user-menu-divider"></div>
@@ -1978,7 +1995,7 @@
             showLoading(true);
             
             try {
-                const response = await fetch(`${appState.apiBaseUrl}/products`);
+                const response = await fetch(`${appState.apiBaseUrl}/api/v1/products`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -2390,7 +2407,7 @@
             });
         }
 
-        // Enhanced Cart Functions with Backend Integration
+        // Enhanced Cart Functions with Hybrid Authentication
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
@@ -2398,10 +2415,9 @@
                 return;
             }
 
-            // Check if user is logged in
+            // Check if user is logged in using hybrid auth
             if (!auth.isLoggedIn()) {
                 showToast('Please login to add items to cart', 'warning');
-                // Redirect to login page or show login modal
                 setTimeout(() => {
                     window.location.href = 'login.html';
                 }, 1500);
@@ -2414,18 +2430,28 @@
             setTimeout(() => productCard?.classList.remove('adding'), 300);
 
             try {
-                // Call backend API to add to cart
-                const response = await api.post('/cart/add', {
-                    productId: productId,
-                    quantity: 1
-                });
-
-                if (response.success) {
-                    showToast(`${product.name} added to cart!`, 'success');
-                    // Update local cart state
-                    await loadCart();
+                // Use hybrid auth addToCart method if available
+                if (window.quickLocalAuth && typeof window.quickLocalAuth.addToCart === 'function') {
+                    const result = await window.quickLocalAuth.addToCart(productId, 1);
+                    if (result.success) {
+                        showToast(`${product.name} added to cart!`, 'success');
+                        await loadCart();
+                    } else {
+                        throw new Error(result.message || 'Failed to add item to cart');
+                    }
                 } else {
-                    throw new Error(response.message || 'Failed to add item to cart');
+                    // Fallback to API call
+                    const response = await api.post('/api/v1/cart/add', {
+                        productId: productId,
+                        quantity: 1
+                    });
+
+                    if (response.success) {
+                        showToast(`${product.name} added to cart!`, 'success');
+                        await loadCart();
+                    } else {
+                        throw new Error(response.message || 'Failed to add item to cart');
+                    }
                 }
             } catch (error) {
                 console.error('Add to cart error:', error);
@@ -2433,7 +2459,7 @@
                 
                 // If it's an auth error, redirect to login
                 if (error.message.includes('401') || error.message.includes('unauthorized')) {
-                    auth.logout();
+                    await auth.logout();
                     setTimeout(() => {
                         window.location.href = 'login.html';
                     }, 1500);

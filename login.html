@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 QuickLocal - Enhanced Login</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase CDN for Hybrid Auth -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
     <style>
         :root {
@@ -750,6 +753,9 @@
 
     <div id="toastContainer"></div>
 
+    <!-- Hybrid Authentication Client -->
+    <script src="js/hybrid-auth.js"></script>
+
     <!-- Load configuration first -->
     <script>
         // Load configuration from js/config.js
@@ -1168,14 +1174,25 @@
                     
                     // Clear previous messages
                     this.clearMessages();
+                    this.showLoading(true);
                     
-                    // Attempt login
-                    const result = await authService.login(credentials);
-                    
-                    // Success handled by event listener
+                    // Use hybrid authentication
+                    if (window.quickLocalAuth) {
+                        const result = await window.quickLocalAuth.login(credentials.identifier, credentials.password);
+                        
+                        if (result.success) {
+                            this.handleLoginSuccess(result);
+                        } else {
+                            throw new Error(result.message || 'Login failed');
+                        }
+                    } else {
+                        throw new Error('Authentication system not loaded');
+                    }
                     
                 } catch (error) {
-                    // Error handled by event listener
+                    this.handleLoginError(error);
+                } finally {
+                    this.showLoading(false);
                 }
             }
 

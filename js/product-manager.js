@@ -145,6 +145,8 @@ class ProductManager {
   }
 
   searchProducts(query) {
+    // 💡 A client-side search is fine for small datasets. For larger inventories,
+    // consider changing this to an API call for a server-side search.
     const filtered = this.products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
     this.elements.productList.innerHTML = filtered.map(product => `
       <div class="product-item">

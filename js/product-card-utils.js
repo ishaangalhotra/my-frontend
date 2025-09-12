@@ -87,10 +87,15 @@ const productCardUtils = {
         return stars;
     },
     
-    // Escape HTML to prevent XSS
+    // ✅ CORRECTED FUNCTION: Escape HTML to prevent XSS and handle all data types
     escapeHtml(unsafe) {
-        if (!unsafe) return '';
-        return unsafe
+        if (unsafe === null || typeof unsafe === 'undefined') {
+            return '';
+        }
+        
+        const str = String(unsafe);
+        
+        return str
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
