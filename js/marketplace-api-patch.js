@@ -114,7 +114,7 @@ window.enhancedLoadProducts = async function() {
             async () => {
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                     console.log('🔐 Trying HybridAuthClient.apiCall...');
-                    return await window.HybridAuthClient.apiCall('/products');
+                    return await window.HybridAuthClient.apiCall('/api/v1/products');
                 }
                 throw new Error('HybridAuthClient not available');
             },
@@ -122,7 +122,7 @@ window.enhancedLoadProducts = async function() {
             // Attempt 2: Use enhanced API helper
             async () => {
                 console.log('🚀 Trying enhancedAPI...');
-                return await window.enhancedAPI.get('/products');
+                return await window.enhancedAPI.get('/api/v1/products');
             },
             
             // Attempt 3: Direct fetch with manual auth
@@ -136,7 +136,7 @@ window.enhancedLoadProducts = async function() {
                     if (authHeader) headers['Authorization'] = authHeader;
                 }
                 
-                const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
+                const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/api/v1/products', { headers });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return await response.json();
             }
