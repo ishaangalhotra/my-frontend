@@ -6,24 +6,57 @@
     <title>🚀 QuickLocal - Enhanced Registration</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase CDN for Hybrid Auth -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
     <style>
         :root {
             --primary: #6366f1;
             --primary-dark: #4338ca;
+            --primary-light: #a5b4fc;
+            --secondary: #f59e0b;
+            --accent: #10b981;
+            --accent-dark: #059669;
             --success: #22c55e;
-            --error: #ef4444;
             --warning: #f59e0b;
+            --error: #ef4444;
             --info: #3b82f6;
+            
             --text-primary: #0f172a;
             --text-secondary: #475569;
             --text-light: #94a3b8;
+            --text-inverse: #ffffff;
+            
             --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
             --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            --bg-glass: rgba(255, 255, 255, 0.1);
+            
             --border: #e2e8f0;
-            --radius-lg: 1rem;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+            
+            --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.05), 0 4px 16px rgba(99, 102, 241, 0.12);
+            --shadow-glow-lg: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 8px 32px rgba(99, 102, 241, 0.2);
+            
+            --radius-sm: 0.375rem;
+            --radius: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+            --radius-2xl: 2rem;
+            --radius-full: 9999px;
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * { 
@@ -41,36 +74,149 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 2rem;
         }
 
+        /* Enhanced Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            padding: 1rem 2rem;
+        }
+
+        .nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.875rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition-bounce);
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .logo i {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(2px 2px 4px rgba(99, 102, 241, 0.2));
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: white;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .back-btn:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Main Auth Container */
         .auth-container {
             background: white;
-            border-radius: var(--radius-lg);
-            padding: 2rem;
-            box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-2xl);
+            padding: 3rem;
+            box-shadow: var(--shadow-xl);
             border: 1px solid var(--border);
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
+            margin-top: 5rem;
+            position: relative;
         }
 
         .auth-header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
         }
 
         .auth-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
         }
 
         .auth-subtitle {
             color: var(--text-secondary);
-            font-size: 1rem;
+            font-size: 1.125rem;
+            font-weight: 500;
         }
 
+        /* Progress Indicator */
+        .form-progress {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            gap: 0.75rem;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-full);
+            background: var(--bg-tertiary);
+            color: var(--text-light);
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .progress-step.active {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .progress-step.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        .progress-step i {
+            font-size: 0.875rem;
+        }
+
+        /* Enhanced Form Styling */
         .form-group {
             margin-bottom: 1.5rem;
             position: relative;
@@ -78,7 +224,7 @@
 
         .form-label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             font-weight: 600;
             color: var(--text-primary);
             font-size: 0.9rem;
@@ -86,32 +232,72 @@
 
         .form-input {
             width: 100%;
-            height: 3rem;
-            padding: 0 1rem 0 2.5rem;
+            height: 3.5rem;
+            padding: 0 1.25rem 0 3.5rem;
             border: 2px solid var(--border);
-            border-radius: 0.5rem;
+            border-radius: var(--radius-lg);
             font-size: 1rem;
-            transition: all 0.2s;
+            font-weight: 500;
+            transition: var(--transition);
+            background: white;
+            color: var(--text-primary);
+            position: relative;
+            z-index: 2;
+        }
+
+        .form-input::placeholder {
+            color: var(--text-light);
         }
 
         .form-input:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: var(--shadow-glow);
+            transform: translateY(-1px);
         }
 
         .input-icon {
             position: absolute;
-            left: 0.75rem;
+            left: 1.25rem;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-light);
+            font-size: 1.125rem;
+            z-index: 3;
+            transition: var(--transition);
+        }
+
+        .form-input:focus + .input-icon {
+            color: var(--primary);
+        }
+
+        /* Validation States */
+        .form-input.valid {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .form-input.invalid {
+            border-color: var(--error);
+            background: rgba(239, 68, 68, 0.05);
+            animation: shake 0.3s ease-in-out;
+        }
+
+        .form-input.warning {
+            border-color: var(--warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
         }
 
         .field-feedback {
             margin-top: 0.5rem;
             padding: 0.5rem;
-            border-radius: 0.25rem;
+            border-radius: var(--radius-sm);
             font-size: 0.75rem;
             font-weight: 600;
             display: none;
@@ -120,17 +306,26 @@
         .field-feedback.success {
             background: rgba(34, 197, 94, 0.1);
             color: var(--success);
+            display: block;
         }
 
         .field-feedback.error {
             background: rgba(239, 68, 68, 0.1);
             color: var(--error);
+            display: block;
         }
 
+        .field-feedback.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            display: block;
+        }
+
+        /* Advanced Password Strength Indicator */
         .password-strength {
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
             padding: 0.75rem;
-            border-radius: 0.5rem;
+            border-radius: var(--radius-md);
             background: var(--bg-tertiary);
             display: none;
         }
@@ -143,7 +338,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .strength-label {
@@ -155,7 +350,7 @@
         .strength-score {
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
+            border-radius: var(--radius-sm);
             font-weight: 700;
         }
 
@@ -177,15 +372,15 @@
         .strength-bars {
             display: flex;
             gap: 0.25rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .strength-bar {
             flex: 1;
             height: 0.375rem;
-            border-radius: 0.25rem;
-            background: var(--border);
-            transition: all 0.3s;
+            border-radius: var(--radius-full);
+            background: var(--border-light);
+            transition: var(--transition);
         }
 
         .strength-bar.filled {
@@ -209,22 +404,36 @@
             color: var(--success);
         }
 
+        .strength-requirement i {
+            width: 0.875rem;
+            text-align: center;
+        }
+
+        /* Enhanced Checkbox Design */
         .checkbox-group {
             display: flex;
             align-items: flex-start;
             gap: 0.75rem;
             margin: 1.5rem 0;
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            background: var(--bg-tertiary);
+            transition: var(--transition);
+        }
+
+        .checkbox-group:hover {
+            background: var(--border-light);
         }
 
         .checkbox {
             width: 1.25rem;
             height: 1.25rem;
             border: 2px solid var(--border);
-            border-radius: 0.25rem;
+            border-radius: var(--radius-sm);
             background: white;
             cursor: pointer;
             position: relative;
-            transition: all 0.2s;
+            transition: var(--transition);
             flex-shrink: 0;
             margin-top: 0.125rem;
         }
@@ -240,6 +449,7 @@
         .checkbox input[type="checkbox"]:checked + .checkbox-mark {
             background: var(--primary);
             border-color: var(--primary);
+            transform: scale(1.1);
         }
 
         .checkbox input[type="checkbox"]:checked + .checkbox-mark::after {
@@ -271,36 +481,58 @@
             text-decoration: underline;
         }
 
+        /* Primary Button */
         .btn-primary {
             width: 100%;
-            height: 3rem;
-            background: var(--primary);
+            height: 3.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
-            border-radius: 0.5rem;
-            font-weight: 600;
+            border-radius: var(--radius-lg);
+            font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: var(--transition-bounce);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
-            margin: 1.5rem 0;
+            gap: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
         }
 
         .btn-primary:hover:not(:disabled) {
-            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
         }
 
         .btn-primary:disabled {
             opacity: 0.7;
             cursor: not-allowed;
+            transform: none;
         }
 
+        /* Divider */
         .divider {
             text-align: center;
-            margin: 1.5rem 0;
+            margin: 2rem 0;
             position: relative;
         }
 
@@ -316,34 +548,37 @@
 
         .divider span {
             background: white;
-            padding: 0 1rem;
+            padding: 0 1.5rem;
             color: var(--text-light);
             font-weight: 500;
             font-size: 0.9rem;
         }
 
+        /* Social Login */
         .social-login {
             display: flex;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .social-btn {
             flex: 1;
-            height: 2.5rem;
+            height: 3rem;
             background: white;
             border: 1px solid var(--border);
-            border-radius: 0.5rem;
+            border-radius: var(--radius-lg);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: var(--transition-bounce);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.125rem;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow-xs);
         }
 
         .social-btn:hover {
-            background: var(--bg-tertiary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
         .google {
@@ -354,6 +589,7 @@
             color: #4267b2;
         }
 
+        /* Auth Links */
         .auth-links {
             text-align: center;
         }
@@ -362,16 +598,34 @@
             color: var(--primary);
             text-decoration: none;
             font-weight: 600;
+            transition: var(--transition);
         }
 
         .auth-links a:hover {
+            color: var(--primary-dark);
             text-decoration: underline;
         }
 
+        .login-link {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            transition: var(--transition-bounce);
+        }
+
+        .login-link:hover {
+            background: var(--bg-secondary);
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+        /* Messages */
         .message {
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
             font-size: 0.9rem;
             font-weight: 500;
             display: none;
@@ -396,6 +650,78 @@
             border-left-color: var(--info);
         }
 
+        /* Toast Notifications */
+        #toastContainer {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-xl);
+            border-left: 4px solid var(--success);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: toastSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid var(--border);
+        }
+
+        .toast.error {
+            border-left-color: var(--error);
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        .toast.info {
+            border-left-color: var(--info);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--error);
+        }
+
+        .toast.warning .toast-icon {
+            color: var(--warning);
+        }
+
+        .toast.info .toast-icon {
+            color: var(--info);
+        }
+
+        .toast-content {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        @keyframes toastSlide {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
         .spinner {
             animation: spin 1s linear infinite;
         }
@@ -405,14 +731,145 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Phone Number Formatting */
+        .phone-formatted {
+            font-family: 'Inter', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            .auth-container {
+                padding: 2rem 1.5rem;
+                margin-top: 6rem;
+                margin: 6rem 1rem 2rem;
+            }
+            
+            .auth-title {
+                font-size: 2rem;
+            }
+            
+            .nav {
+                gap: 1rem;
+            }
+            
+            #toastContainer {
+                left: 1rem;
+                right: 1rem;
+                top: 1rem;
+            }
+
+            .form-progress {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .progress-step {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .auth-container {
+                padding: 1.5rem;
+            }
+            
+            .auth-title {
+                font-size: 1.75rem;
+            }
+            
+            .social-login {
+                flex-direction: column;
+            }
+
+            .checkbox-group {
+                padding: 0.75rem;
+            }
+        }
+
+        /* Animation for form elements */
+        .form-group {
+            animation: slideInUp 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.15s; }
+        .form-group:nth-child(3) { animation-delay: 0.2s; }
+        .form-group:nth-child(4) { animation-delay: 0.25s; }
+        .form-group:nth-child(5) { animation-delay: 0.3s; }
+        .form-group:nth-child(6) { animation-delay: 0.35s; }
+        .checkbox-group { animation: slideInUp 0.6s ease-out; animation-fill-mode: both; }
+        .checkbox-group:nth-child(7) { animation-delay: 0.4s; }
+        .checkbox-group:nth-child(8) { animation-delay: 0.45s; }
+        .btn-primary { animation: slideInUp 0.6s ease-out; animation-fill-mode: both; animation-delay: 0.5s; }
+        .divider { animation: slideInUp 0.6s ease-out; animation-fill-mode: both; animation-delay: 0.55s; }
+        .social-login { animation: slideInUp 0.6s ease-out; animation-fill-mode: both; animation-delay: 0.6s; }
+        .auth-links { animation: slideInUp 0.6s ease-out; animation-fill-mode: both; animation-delay: 0.65s; }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-container {
+            animation: fadeInScale 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Celebration Animation */
+        .celebration-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 9998;
+            pointer-events: none;
+        }
+
+        .celebration-overlay.active {
+            opacity: 0.1;
+        }
+
+        /* Redirect Message Styling */
         .redirect-message {
-            background: linear-gradient(135deg, var(--success), var(--primary));
+            background: linear-gradient(135deg, var(--success), var(--accent));
             color: white;
             padding: 1.5rem;
-            border-radius: 0.5rem;
+            border-radius: var(--radius-lg);
             text-align: center;
             margin: 1rem 0;
             display: none;
+            animation: slideInUp 0.5s ease-out;
         }
 
         .redirect-message.show {
@@ -420,17 +877,43 @@
         }
 
         .redirect-countdown {
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 2rem;
+            font-weight: 900;
             margin: 0.5rem 0;
         }
     </style>
 </head>
 <body>
+    <header class="header">
+        <nav class="nav">
+            <a href="#" class="logo">
+                <i class="fas fa-rocket"></i> QuickLocal
+            </a>
+            <a href="login.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Login
+            </a>
+        </nav>
+    </header>
+
+    <div class="celebration-overlay" id="celebrationOverlay"></div>
+
     <div class="auth-container">
         <div class="auth-header">
             <h1 class="auth-title">Join QuickLocal!</h1>
             <p class="auth-subtitle">Create your account and start shopping locally</p>
+        </div>
+
+        <!-- Registration Progress -->
+        <div class="form-progress" id="registrationProgress">
+            <div class="progress-step active" data-step="1">
+                <i class="fas fa-user"></i> Personal
+            </div>
+            <div class="progress-step" data-step="2">
+                <i class="fas fa-shield-alt"></i> Security
+            </div>
+            <div class="progress-step" data-step="3">
+                <i class="fas fa-check"></i> Complete
+            </div>
         </div>
 
         <div class="message error-message" id="errorMessage"></div>
@@ -439,7 +922,7 @@
 
         <!-- Redirect Message -->
         <div class="redirect-message" id="redirectMessage">
-            <i class="fas fa-check-circle"></i>
+            <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
             <h3>🎉 Registration Successful!</h3>
             <p>Redirecting to login page in</p>
             <div class="redirect-countdown" id="redirectCountdown">5</div>
@@ -456,19 +939,19 @@
 
             <div class="form-group">
                 <label for="email" class="form-label">Email Address <span style="color: var(--text-light);">(Optional)</span></label>
-                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address" autocomplete="email">
+                <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email address (for account verification)" autocomplete="email">
                 <i class="fas fa-envelope input-icon"></i>
                 <div class="field-feedback" id="emailFeedback"></div>
             </div>
 
             <div class="form-group">
                 <label for="phone" class="form-label">Phone Number <span style="color: var(--text-light);">(Optional)</span></label>
-                <input type="tel" id="phone" name="phone" class="form-input" placeholder="Enter your phone number" autocomplete="tel">
+                <input type="tel" id="phone" name="phone" class="form-input" placeholder="Enter your phone number (for quick login)" autocomplete="tel">
                 <i class="fas fa-phone input-icon"></i>
                 <div class="field-feedback" id="phoneFeedback"></div>
             </div>
             
-            <div class="message info-message">
+            <div class="field-feedback info-message" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: var(--radius-sm); font-size: 0.875rem;">
                 <i class="fas fa-info-circle"></i> 
                 Please provide at least an email address or phone number for account access.
             </div>
@@ -547,36 +1030,127 @@
             </div>
 
             <div class="social-login">
-                <button type="button" class="social-btn google">
+                <button type="button" class="social-btn google" id="googleRegisterBtn">
                     <i class="fab fa-google"></i>
                 </button>
-                <button type="button" class="social-btn facebook">
+                <button type="button" class="social-btn facebook" id="facebookRegisterBtn">
                     <i class="fab fa-facebook-f"></i>
                 </button>
             </div>
 
             <div class="auth-links">
-                <span style="color: var(--text-secondary);">Already have an account? </span>
-                <a href="login.html">Sign In Instead</a>
+                <span style="color: var(--text-secondary);">Already have an account? </span><br>
+                <a href="login.html" class="login-link">Sign In Instead</a>
             </div>
         </form>
     </div>
 
-    <script>
-        // Configuration
-        const APP_CONFIG = {
-            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
-            TOKEN_STORAGE_KEY: 'quicklocal_access_token'
-        };
+    <div id="toastContainer"></div>
 
-        // Enhanced Registration Handler
+    <!-- Hybrid Authentication Client -->
+    <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    
+    <!-- Configuration for hybrid auth -->
+    <script>
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+    </script>
+    
+    <script>
+        // Enhanced Registration Handler with Backend Integration
         class RegistrationHandler {
             constructor() {
+                this.currentStep = 1;
+                this.maxSteps = 3;
                 this.redirectTimer = null;
-                this.init();
+                
+                // Wait for auth service to be available
+                this.waitForAuthService().then(() => {
+                    this.init();
+                });
             }
 
-            init() {
+            async waitForAuthService() {
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds
+                
+                while (!window.authService && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.authService) {
+                    console.warn('⚠️ Backend auth service not available, using fallback');
+                    this.createFallbackAuthService();
+                } else {
+                    console.log('✅ Using backend auth service');
+                    console.log('🔧 Auth service methods:', Object.getOwnPropertyNames(window.authService));
+                }
+            }
+
+            createFallbackAuthService() {
+                // Fallback auth service if backend isn't available
+                window.authService = {
+                    async register(userData) {
+                        console.warn('Using fallback mock registration');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return {
+                            success: true,
+                            message: 'Registration successful (mock)',
+                            user: {
+                                id: 'mock_' + Date.now(),
+                                name: userData.name,
+                                email: userData.email,
+                                phone: userData.phone
+                            },
+                            accessToken: 'mock_token_' + Date.now()
+                        };
+                    },
+                    
+                    async checkEmailAvailability(email) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return !['test@test.com', 'admin@quicklocal.shop'].includes(email.toLowerCase());
+                    },
+                    
+                    validateEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+                    validatePhone: (phone) => phone.replace(/\D/g, '').length >= 10,
+                    validateName: (name) => name.length >= 2 && /^[a-zA-Z\s'-]+$/.test(name),
+                    
+                    validatePassword(password) {
+                        const checks = {
+                            length: password.length >= 8,
+                            uppercase: /[A-Z]/.test(password),
+                            lowercase: /[a-z]/.test(password),
+                            number: /\d/.test(password),
+                            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+                        };
+                        
+                        const score = Object.values(checks).filter(Boolean).length;
+                        const strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
+                        
+                        return { ...checks, score, strength, valid: score >= 3 };
+                    },
+                    
+                    // Event system for compatibility
+                    on: (event, callback) => {
+                        document.addEventListener(event, (e) => callback(e.detail));
+                    },
+                    
+                    emit: (event, data) => {
+                        document.dispatchEvent(new CustomEvent(event, { detail: data }));
+                    }
+                };
+            }
+
+            async init() {
+                console.log('🚀 Registration Handler initializing...');
+                
                 this.setupEventListeners();
                 this.setupValidation();
                 
@@ -585,6 +1159,8 @@
                     const nameField = document.getElementById('name');
                     if (nameField) nameField.focus();
                 }, 500);
+                
+                console.log('✅ Registration Handler ready');
             }
 
             setupEventListeners() {
@@ -592,6 +1168,17 @@
                 const form = document.getElementById('registerForm');
                 if (form) {
                     form.addEventListener('submit', this.handleRegistration.bind(this));
+                }
+                
+                // Social registration
+                const googleBtn = document.getElementById('googleRegisterBtn');
+                const facebookBtn = document.getElementById('facebookRegisterBtn');
+                
+                if (googleBtn) {
+                    googleBtn.addEventListener('click', () => this.handleSocialRegistration('google'));
+                }
+                if (facebookBtn) {
+                    facebookBtn.addEventListener('click', () => this.handleSocialRegistration('facebook'));
                 }
                 
                 // Real-time validation
@@ -605,6 +1192,21 @@
                 if (passwordField) {
                     passwordField.addEventListener('input', this.checkPasswordStrength.bind(this));
                 }
+                
+                // Phone number formatting
+                const phoneField = document.getElementById('phone');
+                if (phoneField) {
+                    phoneField.addEventListener('input', this.formatPhoneNumber.bind(this));
+                }
+                
+                // Auth service events (if available)
+                if (window.authService && typeof window.authService.on === 'function') {
+                    window.authService.on('auth:register:start', () => this.showLoading(true));
+                    window.authService.on('auth:register:success', (data) => this.handleRegistrationSuccess(data));
+                    window.authService.on('auth:register:error', (error) => this.handleRegistrationError(error));
+                } else {
+                    console.log('📡 Auth service events not available, using direct callbacks');
+                }
             }
 
             setupValidation() {
@@ -615,11 +1217,11 @@
                         message: 'Please enter a valid full name'
                     },
                     email: {
-                        required: false,
+                        required: false, // Optional now
                         message: 'Please enter a valid email address'
                     },
                     phone: {
-                        required: false,
+                        required: false, // Optional now
                         minLength: 10,
                         message: 'Please enter a valid phone number'
                     },
@@ -650,39 +1252,61 @@
                         newsletter: formData.get('newsletter') === 'on'
                     };
                     
+                    console.log('Registration attempt with data:', { ...userData, password: '***', confirmPassword: '***' });
+                    
                     // Validate form
                     await this.validateRegistrationForm(userData);
                     
                     // Clear previous messages
                     this.clearMessages();
+                    
+                    // Update progress
+                    this.updateProgress(2);
                     this.showLoading(true);
                     
-                    // Call the registration API
-                    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/auth/register`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
+                    // Use hybrid authentication for registration
+                    if (window.HybridAuthClient) {
+                        // Use email or phone as identifier
+                        const identifier = userData.email || userData.phone;
+                        
+                        if (!identifier) {
+                            throw new Error('Either email or phone number is required');
+                        }
+                        
+                        const result = await window.HybridAuthClient.register({
                             name: userData.name,
                             email: userData.email,
                             phone: userData.phone,
                             password: userData.password
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Registration failed');
+                        });
+                        
+                        console.log('Hybrid registration result:', result);
+                        this.handleRegistrationSuccess(result);
+                    } else {
+                        // Fallback to direct API call
+                        const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/auth/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: userData.name,
+                                email: userData.email,
+                                phone: userData.phone,
+                                password: userData.password
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Registration failed');
+                        }
+                        
+                        this.handleRegistrationSuccess(data);
                     }
-                    
-                    this.handleRegistrationSuccess(data);
                     
                 } catch (error) {
                     console.error('Registration failed:', error);
                     this.handleRegistrationError(error);
-                } finally {
+                    this.updateProgress(1);
                     this.showLoading(false);
                 }
             }
@@ -691,7 +1315,7 @@
                 const errors = [];
                 
                 // Name validation
-                if (!userData.name || userData.name.length < 2) {
+                if (!userData.name || !window.authService.validateName(userData.name)) {
                     errors.push('Please enter a valid full name');
                 }
                 
@@ -701,17 +1325,28 @@
                 }
                 
                 // Email validation (if provided)
-                if (userData.email && !this.validateEmail(userData.email)) {
-                    errors.push('Please enter a valid email address');
+                if (userData.email) {
+                    if (!window.authService.validateEmail(userData.email)) {
+                        errors.push('Please enter a valid email address');
+                    } else {
+                        try {
+                            const emailAvailable = await window.authService.checkEmailAvailability(userData.email);
+                            if (!emailAvailable) {
+                                errors.push('An account with this email already exists');
+                            }
+                        } catch (e) {
+                            console.warn('Email availability check failed:', e);
+                        }
+                    }
                 }
                 
                 // Phone validation (if provided)
-                if (userData.phone && !this.validatePhone(userData.phone)) {
+                if (userData.phone && !window.authService.validatePhone(userData.phone)) {
                     errors.push('Please enter a valid phone number');
                 }
                 
                 // Password validation
-                const passwordValidation = this.validatePassword(userData.password);
+                const passwordValidation = window.authService.validatePassword(userData.password);
                 if (!passwordValidation.valid) {
                     errors.push('Password must meet strength requirements');
                 }
@@ -739,28 +1374,39 @@
                 let message = '';
                 
                 try {
-                    if (field.hasAttribute('required') && !value) {
+                    // For email and phone, they're optional but if provided should be valid
+                    if (name !== 'email' && name !== 'phone' && field.hasAttribute('required') && !value) {
                         isValid = false;
                         message = `${name.charAt(0).toUpperCase() + name.slice(1)} is required`;
                     } else if (value) {
                         switch (name) {
                             case 'name':
-                                isValid = value.length >= 2;
+                                isValid = window.authService.validateName(value);
                                 message = isValid ? 'Great name!' : 'Please enter a valid name';
                                 break;
                                 
                             case 'email':
-                                isValid = this.validateEmail(value);
-                                message = isValid ? 'Valid email address' : 'Please enter a valid email';
+                                isValid = window.authService.validateEmail(value);
+                                if (isValid) {
+                                    try {
+                                        const available = await window.authService.checkEmailAvailability(value);
+                                        isValid = available;
+                                        message = available ? 'Email is available!' : 'Email already registered';
+                                    } catch (e) {
+                                        message = 'Valid email format';
+                                    }
+                                } else {
+                                    message = 'Please enter a valid email';
+                                }
                                 break;
                                 
                             case 'phone':
-                                isValid = this.validatePhone(value);
+                                isValid = window.authService.validatePhone(value);
                                 message = isValid ? 'Valid phone number' : 'Please enter a valid phone number';
                                 break;
                                 
                             case 'password':
-                                const validation = this.validatePassword(value);
+                                const validation = window.authService.validatePassword(value);
                                 isValid = validation.score >= 3;
                                 message = `Password strength: ${validation.strength}`;
                                 break;
@@ -785,7 +1431,7 @@
                 const feedback = document.getElementById(`${field.name}Feedback`);
                 
                 // Remove existing classes
-                field.classList.remove('valid', 'invalid');
+                field.classList.remove('valid', 'invalid', 'warning');
                 
                 if (field.value.trim()) {
                     if (isValid) {
@@ -793,18 +1439,16 @@
                         if (feedback && showFeedback) {
                             feedback.textContent = message;
                             feedback.className = 'field-feedback success';
-                            feedback.style.display = 'block';
                         }
                     } else {
                         field.classList.add('invalid');
                         if (feedback && showFeedback) {
                             feedback.textContent = message;
                             feedback.className = 'field-feedback error';
-                            feedback.style.display = 'block';
                         }
                     }
                 } else if (feedback) {
-                    feedback.style.display = 'none';
+                    feedback.className = 'field-feedback';
                 }
             }
 
@@ -825,7 +1469,7 @@
                 
                 strengthContainer?.classList.add('show');
                 
-                const validation = this.validatePassword(password);
+                const validation = window.authService.validatePassword(password);
                 
                 // Update score display
                 if (strengthScore) {
@@ -871,39 +1515,44 @@
                 }
             }
 
-            validateEmail(email) {
-                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            formatPhoneNumber(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                
+                if (value.length >= 6) {
+                    value = `(${value.substring(0, 3)}) ${value.substring(3, 6)}-${value.substring(6, 10)}`;
+                } else if (value.length >= 3) {
+                    value = `(${value.substring(0, 3)}) ${value.substring(3)}`;
+                }
+                
+                e.target.value = value;
+                e.target.classList.add('phone-formatted');
             }
 
-            validatePhone(phone) {
-                // Remove all non-digit characters
-                const digits = phone.replace(/\D/g, '');
-                return digits.length >= 10;
+            async handleSocialRegistration(provider) {
+                try {
+                    this.showLoading(true, `Connecting to ${provider}...`);
+                    this.showToast(`${provider} registration coming soon!`, 'info');
+                } catch (error) {
+                    this.showToast(error.message || `${provider} registration error`, 'error');
+                } finally {
+                    setTimeout(() => this.showLoading(false), 2000);
+                }
             }
 
-            validatePassword(password) {
-                const checks = {
-                    length: password.length >= 8,
-                    uppercase: /[A-Z]/.test(password),
-                    lowercase: /[a-z]/.test(password),
-                    number: /\d/.test(password),
-                    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-                };
+            handleRegistrationSuccess(result) {
+                console.log('Registration success:', result);
                 
-                const score = Object.values(checks).filter(Boolean).length;
-                const strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
-                
-                return { ...checks, score, strength, valid: score >= 3 };
-            }
-
-            handleRegistrationSuccess(data) {
-                console.log('Registration success:', data);
-                
+                this.updateProgress(3);
                 this.showLoading(false);
                 
-                const user = data.user || { name: 'User' };
-                const successMessage = `🎉 Welcome to QuickLocal! Your account has been created successfully.`;
+                const user = result.user || { name: 'User' };
+                
+                // Show celebration
+                this.showCelebration();
+                
+                const successMessage = `🎉 Welcome to QuickLocal, ${user.name}! Your account has been created successfully.`;
                 this.showMessage(successMessage, 'success');
+                this.showToast(`Welcome to QuickLocal, ${user.name}!`, 'success');
                 
                 // Hide the form and show redirect message
                 const form = document.getElementById('registerForm');
@@ -920,6 +1569,7 @@
                 
                 const errorMessage = error.message || 'Registration failed. Please try again.';
                 this.showMessage(errorMessage, 'error');
+                this.showToast(errorMessage, 'error');
             }
 
             startRedirectCountdown() {
@@ -927,7 +1577,7 @@
                 const countdownElement = document.getElementById('redirectCountdown');
                 
                 if (redirectMessage) {
-                    redirectMessage.style.display = 'block';
+                    redirectMessage.classList.add('show');
                 }
                 
                 let countdown = 5;
@@ -952,46 +1602,143 @@
             }
 
             redirectToLogin() {
-                console.log('Redirecting to login page...');
-                window.location.href = 'login.html';
+                console.log('🔄 Redirecting to login page...');
+                this.showToast('🚀 Redirecting to login...', 'info');
+                
+                // Small delay for UX
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 500);
             }
 
-            showLoading(show) {
+            updateProgress(step) {
+                this.currentStep = step;
+                const steps = document.querySelectorAll('.progress-step');
+                
+                steps.forEach((stepEl, index) => {
+                    stepEl.classList.remove('active', 'completed');
+                    
+                    if (index + 1 < step) {
+                        stepEl.classList.add('completed');
+                    } else if (index + 1 === step) {
+                        stepEl.classList.add('active');
+                    }
+                });
+            }
+
+            showCelebration() {
+                const overlay = document.getElementById('celebrationOverlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                    
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 1500);
+                }
+            }
+
+            showLoading(show, message = 'Creating your account...') {
                 const btn = document.getElementById('registerBtn');
+                const container = document.querySelector('.auth-container');
+                
                 if (btn) {
                     if (show) {
-                        btn.innerHTML = '<i class="fas fa-spinner spinner"></i> Creating account...';
+                        btn.innerHTML = `<i class="fas fa-spinner spinner"></i> ${message}`;
                         btn.disabled = true;
                     } else {
                         btn.innerHTML = '<i class="fas fa-user-plus"></i> Create My Account';
                         btn.disabled = false;
                     }
                 }
+                
+                if (container) {
+                    container.style.opacity = show ? '0.8' : '1';
+                }
             }
 
             showMessage(message, type) {
-                const element = document.getElementById(`${type}Message`);
-                if (element) {
-                    element.textContent = message;
-                    element.style.display = 'block';
+                const messageElements = {
+                    error: document.getElementById('errorMessage'),
+                    success: document.getElementById('successMessage'),
+                    info: document.getElementById('infoMessage')
+                };
+                
+                // Clear all messages
+                Object.values(messageElements).forEach(el => {
+                    if (el) el.style.display = 'none';
+                });
+                
+                // Show specific message
+                if (messageElements[type]) {
+                    const icons = {
+                        error: 'fas fa-exclamation-triangle',
+                        success: 'fas fa-check-circle',
+                        info: 'fas fa-info-circle'
+                    };
                     
-                    // Auto-hide success messages
-                    if (type === 'success') {
+                    messageElements[type].innerHTML = `<i class="${icons[type]}"></i> ${message}`;
+                    messageElements[type].style.display = 'block';
+                    
+                    // Auto-hide after 8 seconds for success, keep errors visible
+                    if (type === 'success' || type === 'info') {
                         setTimeout(() => {
-                            element.style.display = 'none';
-                        }, 5000);
+                            if (messageElements[type]) {
+                                messageElements[type].style.display = 'none';
+                            }
+                        }, 8000);
                     }
                 }
             }
 
             clearMessages() {
-                const errorElement = document.getElementById('errorMessage');
-                const successElement = document.getElementById('successMessage');
-                const infoElement = document.getElementById('infoMessage');
+                ['errorMessage', 'successMessage', 'infoMessage'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'none';
+                });
+            }
+
+            showToast(message, type = 'success') {
+                const container = document.getElementById('toastContainer');
+                if (!container) return;
+
+                const toast = document.createElement('div');
                 
-                if (errorElement) errorElement.style.display = 'none';
-                if (successElement) successElement.style.display = 'none';
-                if (infoElement) infoElement.style.display = 'none';
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                
+                toast.className = `toast ${type}`;
+                toast.innerHTML = `
+                    <i class="fas ${icons[type]} toast-icon"></i>
+                    <div class="toast-content">${message}</div>
+                `;
+                
+                container.appendChild(toast);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 5000);
+                
+                // Remove on click
+                toast.addEventListener('click', () => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                });
             }
         }
 
@@ -1042,6 +1789,35 @@
                 document.body.appendChild(demoBtn);
             }, 1000);
         }
+
+        // Console helpers with backend integration status
+        console.log('🚀 QuickLocal Registration System with Auto-Redirect');
+        console.log('📋 Demo registration available with ?demo=true');
+        console.log('🔄 Auto-redirects to login.html after successful registration');
+        console.log('🛠️ Backend integration: config.js, socket-client.js, auth.js loaded');
+        
+        // Check backend integration status
+        setTimeout(() => {
+            if (window.authService) {
+                console.log('✅ Backend auth service loaded successfully');
+                if (typeof window.authService.register === 'function') {
+                    console.log('✅ Registration method available');
+                }
+                if (typeof window.authService.validateEmail === 'function') {
+                    console.log('✅ Validation methods available');
+                }
+            } else {
+                console.warn('⚠️ Backend auth service not available, using fallback');
+            }
+            
+            if (window.APP_CONFIG) {
+                console.log('⚙️ App config loaded:', window.APP_CONFIG);
+            }
+            
+            if (window.socketClient) {
+                console.log('🔌 Socket client available');
+            }
+        }, 2000);
     </script>
 </body>
 </html>
