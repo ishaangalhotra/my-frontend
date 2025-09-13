@@ -190,6 +190,8 @@ window.enhancedLoadProducts = async function() {
         
         // Process products for display
         if (window.appState) {
+            console.log('📋 Debug - window.appState found:', !!window.appState);
+            console.log('📋 Debug - window.appState.categories type:', typeof window.appState.categories);
             const processedProducts = products.map(product => ({
                 ...product,
                 id: product._id || product.id,
@@ -199,7 +201,10 @@ window.enhancedLoadProducts = async function() {
                 stock: product.stock !== undefined ? product.stock : Math.floor(Math.random() * 50) + 5,
                 // Fix image URL handling
                 image: product.image || (product.images && product.images.length > 0 ? 
-                    (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url) : null)
+                    (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url) : null),
+                // Normalize category to string for consistent rendering
+                category: typeof product.category === 'object' && product.category && product.category.name ? 
+                    product.category.name : (typeof product.category === 'string' ? product.category : 'Uncategorized')
             }));
             
             console.log('🎨 Processed products:', processedProducts);
@@ -210,12 +215,8 @@ window.enhancedLoadProducts = async function() {
             
             // Update categories
             processedProducts.forEach(product => {
-                if (product.category) {
-                    if (typeof product.category === 'object' && product.category.name) {
-                        window.appState.categories.add(product.category.name);
-                    } else if (typeof product.category === 'string') {
-                        window.appState.categories.add(product.category);
-                    }
+                if (product.category && typeof product.category === 'string') {
+                    window.appState.categories.add(product.category);
                 }
             });
             
@@ -229,7 +230,11 @@ window.enhancedLoadProducts = async function() {
         // Render products if functions are available
         if (typeof window.renderAll === 'function') {
             console.log('🎨 Calling renderAll...');
+            console.log('📋 Debug - appState.filteredProducts:', window.appState.filteredProducts);
+            console.log('📋 Debug - appState.products length:', window.appState.products.length);
             window.renderAll();
+        } else {
+            console.error('❌ renderAll function not found!');
         }
         
         if (typeof window.updatePagination === 'function') {
@@ -299,20 +304,8 @@ if (typeof window.loadProducts === 'function') {
     window.loadProducts = window.enhancedLoadProducts;
 }
 
-// Auto-trigger when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            console.log('🚀 Auto-triggering enhanced loadProducts...');
-            window.loadProducts();
-        }, 3000); // Wait a bit for hybrid auth to initialize
-    });
-} else {
-    // DOM already loaded
-    setTimeout(() => {
-        console.log('🚀 Auto-triggering enhanced loadProducts (DOM ready)...');
-        window.loadProducts();
-    }, 3000);
-}
+// Auto-trigger disabled to prevent conflicts with marketplace.html
+// The marketplace.html file will call loadProducts() when ready
+console.log('🔧 Auto-trigger disabled, waiting for marketplace.html to initialize...');
 
 console.log('✅ Marketplace API patch loaded successfully!');
