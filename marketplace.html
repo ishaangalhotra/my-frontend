@@ -2068,8 +2068,36 @@
             showLoading(true);
             
             try {
-                // Use the api.get() helper which handles authentication and correct base URL
-                const data = await api.get('/products');
+                // Enhanced API call with multiple fallbacks
+                let data = null;
+                
+                try {
+                    // Try hybrid auth client first
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+                        console.log('🔐 Using HybridAuthClient.apiCall');
+                        data = await window.HybridAuthClient.apiCall('/products');
+                    } else {
+                        throw new Error('HybridAuthClient not available');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ HybridAuthClient failed, trying direct fetch:', error.message);
+                    
+                    // Fallback to direct fetch
+                    const response = await fetch(`${appState.apiBaseUrl}/products`, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': auth.getAuthHeader()
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    data = await response.json();
+                }
+                
+                console.log('✅ API response received:', data);
                 
                 // Handle different response formats from your backend
                 let products = [];
@@ -3227,5 +3255,6 @@
     <script src="js/product-card-utils.js"></script>
     <script src="js/advanced-pagination-system.js"></script>
     <script src="js/advanced-ux-features.js"></script>
+    <script src="js/marketplace-api-patch.js"></script>
 </body>
 </html>
