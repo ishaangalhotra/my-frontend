@@ -114,7 +114,11 @@ window.enhancedLoadProducts = async function() {
             async () => {
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                     console.log('🔐 Trying HybridAuthClient.apiCall...');
-                    return await window.HybridAuthClient.apiCall('/api/v1/products');
+                    const response = await window.HybridAuthClient.apiCall('/api/v1/products');
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return await response.json();
                 }
                 throw new Error('HybridAuthClient not available');
             },
@@ -136,7 +140,7 @@ window.enhancedLoadProducts = async function() {
                     if (authHeader) headers['Authorization'] = authHeader;
                 }
                 
-                const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/api/v1/products', { headers });
+                const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return await response.json();
             }

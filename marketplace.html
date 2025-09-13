@@ -1689,7 +1689,11 @@
                 try {
                     // Use hybrid auth API call method if available
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                        return await window.HybridAuthClient.apiCall(endpoint, options);
+                        const response = await window.HybridAuthClient.apiCall(endpoint, options);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return await response.json();
                     }
                     
                     // Fallback to direct fetch
@@ -2075,7 +2079,11 @@
                     // Try hybrid auth client first
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                         console.log('🔐 Using HybridAuthClient.apiCall');
-                        data = await window.HybridAuthClient.apiCall('/products');
+                        const response = await window.HybridAuthClient.apiCall('/api/v1/products');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        data = await response.json();
                     } else {
                         throw new Error('HybridAuthClient not available');
                     }
