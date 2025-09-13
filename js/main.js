@@ -4,7 +4,7 @@ import { CartManager } from './managers/cart-manager';
 import { showToast } from './utils/ui-helpers';
 
 // Configuration
-const API_BASE_URL = 'https://ecommerce-backend-8ykq.onrender.com/api'; // ✅ Updated to production backend
+const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1'; // ✅ Fixed to match your actual backend
 const DEFAULT_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 
 // Initialize the application
