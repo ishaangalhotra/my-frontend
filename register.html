@@ -7,7 +7,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Supabase CDN for Hybrid Auth -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
     <style>
@@ -903,7 +902,6 @@
             <p class="auth-subtitle">Create your account and start shopping locally</p>
         </div>
 
-        <!-- Registration Progress -->
         <div class="form-progress" id="registrationProgress">
             <div class="progress-step active" data-step="1">
                 <i class="fas fa-user"></i> Personal
@@ -920,7 +918,6 @@
         <div class="message success-message" id="successMessage"></div>
         <div class="message info-message" id="infoMessage"></div>
 
-        <!-- Redirect Message -->
         <div class="redirect-message" id="redirectMessage">
             <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
             <h3>🎉 Registration Successful!</h3>
@@ -1047,10 +1044,8 @@
 
     <div id="toastContainer"></div>
 
-    <!-- Hybrid Authentication Client -->
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     
-    <!-- Configuration for hybrid auth -->
     <script>
         window.APP_CONFIG = {
             API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
@@ -1066,11 +1061,9 @@
         // Enhanced Registration Handler with Backend Integration
         class RegistrationHandler {
             constructor() {
-                this.currentStep = 1;
-                this.maxSteps = 3;
+                this.authService = null;
                 this.redirectTimer = null;
                 
-                // Wait for auth service to be available
                 this.waitForAuthService().then(() => {
                     this.init();
                 });
@@ -1078,496 +1071,171 @@
 
             async waitForAuthService() {
                 let attempts = 0;
-                const maxAttempts = 50; // 5 seconds
-                
-                while (!window.authService && attempts < maxAttempts) {
+                while (!window.HybridAuthClient && attempts < 50) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
                 }
                 
-                if (!window.authService) {
-                    console.warn('⚠️ Backend auth service not available, using fallback');
-                    this.createFallbackAuthService();
+                if (window.HybridAuthClient) {
+                    console.log('✅ HybridAuthClient found, using it as the auth service.');
+                    this.authService = window.HybridAuthClient;
                 } else {
-                    console.log('✅ Using backend auth service');
-                    console.log('🔧 Auth service methods:', Object.getOwnPropertyNames(window.authService));
+                    console.error('❌ CRITICAL: HybridAuthClient could not be loaded!');
+                    this.showToast('Authentication service failed to load. Please refresh.', 'error');
                 }
             }
 
-            createFallbackAuthService() {
-                // Fallback auth service if backend isn't available
-                window.authService = {
-                    async register(userData) {
-                        console.warn('Using fallback mock registration');
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        return {
-                            success: true,
-                            message: 'Registration successful (mock)',
-                            user: {
-                                id: 'mock_' + Date.now(),
-                                name: userData.name,
-                                email: userData.email,
-                                phone: userData.phone
-                            },
-                            accessToken: 'mock_token_' + Date.now()
-                        };
-                    },
-                    
-                    async checkEmailAvailability(email) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        return !['test@test.com', 'admin@quicklocal.shop'].includes(email.toLowerCase());
-                    },
-                    
-                    validateEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
-                    validatePhone: (phone) => phone.replace(/\D/g, '').length >= 10,
-                    validateName: (name) => name.length >= 2 && /^[a-zA-Z\s'-]+$/.test(name),
-                    
-                    validatePassword(password) {
-                        const checks = {
-                            length: password.length >= 8,
-                            uppercase: /[A-Z]/.test(password),
-                            lowercase: /[a-z]/.test(password),
-                            number: /\d/.test(password),
-                            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-                        };
-                        
-                        const score = Object.values(checks).filter(Boolean).length;
-                        const strength = score < 2 ? 'weak' : score < 4 ? 'medium' : 'strong';
-                        
-                        return { ...checks, score, strength, valid: score >= 3 };
-                    },
-                    
-                    // Event system for compatibility
-                    on: (event, callback) => {
-                        document.addEventListener(event, (e) => callback(e.detail));
-                    },
-                    
-                    emit: (event, data) => {
-                        document.dispatchEvent(new CustomEvent(event, { detail: data }));
-                    }
-                };
-            }
-
-            async init() {
+            init() {
+                if (!this.authService) return;
+                
                 console.log('🚀 Registration Handler initializing...');
-                
                 this.setupEventListeners();
-                this.setupValidation();
-                
-                // Auto-focus first field
-                setTimeout(() => {
-                    const nameField = document.getElementById('name');
-                    if (nameField) nameField.focus();
-                }, 500);
-                
-                console.log('✅ Registration Handler ready');
+                document.getElementById('name')?.focus();
             }
 
             setupEventListeners() {
-                // Form submission
-                const form = document.getElementById('registerForm');
-                if (form) {
-                    form.addEventListener('submit', this.handleRegistration.bind(this));
-                }
-                
-                // Social registration
-                const googleBtn = document.getElementById('googleRegisterBtn');
-                const facebookBtn = document.getElementById('facebookRegisterBtn');
-                
-                if (googleBtn) {
-                    googleBtn.addEventListener('click', () => this.handleSocialRegistration('google'));
-                }
-                if (facebookBtn) {
-                    facebookBtn.addEventListener('click', () => this.handleSocialRegistration('facebook'));
-                }
-                
-                // Real-time validation
+                document.getElementById('registerForm')?.addEventListener('submit', this.handleRegistration.bind(this));
                 document.querySelectorAll('.form-input').forEach(input => {
                     input.addEventListener('input', () => this.validateField(input));
-                    input.addEventListener('blur', () => this.validateField(input, true));
                 });
-
-                // Password strength checking
-                const passwordField = document.getElementById('password');
-                if (passwordField) {
-                    passwordField.addEventListener('input', this.checkPasswordStrength.bind(this));
-                }
-                
-                // Phone number formatting
-                const phoneField = document.getElementById('phone');
-                if (phoneField) {
-                    phoneField.addEventListener('input', this.formatPhoneNumber.bind(this));
-                }
-                
-                // Auth service events (if available)
-                if (window.authService && typeof window.authService.on === 'function') {
-                    window.authService.on('auth:register:start', () => this.showLoading(true));
-                    window.authService.on('auth:register:success', (data) => this.handleRegistrationSuccess(data));
-                    window.authService.on('auth:register:error', (error) => this.handleRegistrationError(error));
-                } else {
-                    console.log('📡 Auth service events not available, using direct callbacks');
-                }
+                document.getElementById('password')?.addEventListener('input', this.checkPasswordStrength.bind(this));
+                document.getElementById('phone')?.addEventListener('input', this.formatPhoneNumber.bind(this));
             }
-
-            setupValidation() {
-                this.validationRules = {
-                    name: {
-                        required: true,
-                        minLength: 2,
-                        message: 'Please enter a valid full name'
-                    },
-                    email: {
-                        required: false, // Optional now
-                        message: 'Please enter a valid email address'
-                    },
-                    phone: {
-                        required: false, // Optional now
-                        minLength: 10,
-                        message: 'Please enter a valid phone number'
-                    },
-                    password: {
-                        required: true,
-                        minLength: 8,
-                        message: 'Password must be at least 8 characters'
-                    },
-                    confirmPassword: {
-                        required: true,
-                        message: 'Passwords do not match'
-                    }
+            
+            getPasswordValidation(password) {
+                const checks = {
+                    length: password.length >= 6, // Matching backend requirement
+                    uppercase: /[A-Z]/.test(password),
+                    lowercase: /[a-z]/.test(password),
+                    number: /\d]/.test(password),
                 };
+                const score = Object.values(checks).filter(Boolean).length;
+                const strength = score < 2 ? 'Weak' : score < 4 ? 'Medium' : 'Strong';
+                return { ...checks, score, strength, valid: checks.length }; // Must be at least 6 chars
             }
 
             async handleRegistration(e) {
                 e.preventDefault();
                 
+                const formData = new FormData(e.target);
+                const userData = {
+                    name: formData.get('name')?.trim() || '',
+                    email: formData.get('email')?.trim() || '',
+                    phone: formData.get('phone')?.trim().replace(/\D/g, '') || '',
+                    password: formData.get('password') || '',
+                    confirmPassword: formData.get('confirmPassword') || '',
+                    terms: formData.get('terms') === 'on'
+                };
+                
                 try {
-                    const formData = new FormData(e.target);
-                    const userData = {
-                        name: formData.get('name')?.trim() || '',
-                        email: formData.get('email')?.trim() || '',
-                        phone: formData.get('phone')?.trim() || '',
-                        password: formData.get('password') || '',
-                        confirmPassword: formData.get('confirmPassword') || '',
-                        terms: formData.get('terms') === 'on',
-                        newsletter: formData.get('newsletter') === 'on'
-                    };
+                    this.validateFullForm(userData);
                     
-                    console.log('Registration attempt with data:', { ...userData, password: '***', confirmPassword: '***' });
-                    
-                    // Validate form
-                    await this.validateRegistrationForm(userData);
-                    
-                    // Clear previous messages
                     this.clearMessages();
-                    
-                    // Update progress
-                    this.updateProgress(2);
                     this.showLoading(true);
                     
-                    // Use hybrid authentication for registration
-                    if (window.HybridAuthClient) {
-                        // Use email or phone as identifier
-                        const identifier = userData.email || userData.phone;
-                        
-                        if (!identifier) {
-                            throw new Error('Either email or phone number is required');
-                        }
-                        
-                        const result = await window.HybridAuthClient.register({
-                            name: userData.name,
-                            email: userData.email,
-                            phone: userData.phone,
-                            password: userData.password
-                        });
-                        
-                        console.log('Hybrid registration result:', result);
+                    const result = await this.authService.register({
+                        name: userData.name,
+                        email: userData.email,
+                        phone: userData.phone,
+                        password: userData.password
+                    });
+                    
+                    if (result.success) {
                         this.handleRegistrationSuccess(result);
                     } else {
-                        // Fallback to direct API call
-                        const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/auth/register`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                name: userData.name,
-                                email: userData.email,
-                                phone: userData.phone,
-                                password: userData.password
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        if (!response.ok) {
-                            throw new Error(data.message || 'Registration failed');
-                        }
-                        
-                        this.handleRegistrationSuccess(data);
+                        throw new Error(result.message);
                     }
                     
                 } catch (error) {
-                    console.error('Registration failed:', error);
                     this.handleRegistrationError(error);
-                    this.updateProgress(1);
                     this.showLoading(false);
                 }
             }
-
-            async validateRegistrationForm(userData) {
-                const errors = [];
-                
-                // Name validation
-                if (!userData.name || !window.authService.validateName(userData.name)) {
-                    errors.push('Please enter a valid full name');
-                }
-                
-                // Require at least email or phone
-                if (!userData.email && !userData.phone) {
-                    errors.push('Please provide either an email address or phone number');
-                }
-                
-                // Email validation (if provided)
-                if (userData.email) {
-                    if (!window.authService.validateEmail(userData.email)) {
-                        errors.push('Please enter a valid email address');
-                    } else {
-                        try {
-                            const emailAvailable = await window.authService.checkEmailAvailability(userData.email);
-                            if (!emailAvailable) {
-                                errors.push('An account with this email already exists');
-                            }
-                        } catch (e) {
-                            console.warn('Email availability check failed:', e);
-                        }
-                    }
-                }
-                
-                // Phone validation (if provided)
-                if (userData.phone && !window.authService.validatePhone(userData.phone)) {
-                    errors.push('Please enter a valid phone number');
-                }
-                
-                // Password validation
-                const passwordValidation = window.authService.validatePassword(userData.password);
-                if (!passwordValidation.valid) {
-                    errors.push('Password must meet strength requirements');
-                }
-                
-                // Password confirmation
-                if (userData.password !== userData.confirmPassword) {
-                    errors.push('Passwords do not match');
-                }
-                
-                // Terms acceptance
-                if (!userData.terms) {
-                    errors.push('Please accept the Terms of Service and Privacy Policy');
-                }
-                
-                if (errors.length > 0) {
-                    throw new Error(errors[0]);
-                }
+            
+            validateFullForm(data) {
+                if (!data.name || data.name.length < 2) throw new Error('Please enter a valid full name.');
+                if (!data.email && !data.phone) throw new Error('Please provide either an email or a phone number.');
+                if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) throw new Error('Please enter a valid email address.');
+                if (!this.getPasswordValidation(data.password).valid) throw new Error('Password must be at least 6 characters long.');
+                if (data.password !== data.confirmPassword) throw new Error('Passwords do not match.');
+                if (!data.terms) throw new Error('You must agree to the Terms of Service.');
             }
 
-            async validateField(field, showFeedback = false) {
-                const name = field.name;
+            validateField(field) {
                 const value = field.value.trim();
-                
                 let isValid = true;
-                let message = '';
-                
-                try {
-                    // For email and phone, they're optional but if provided should be valid
-                    if (name !== 'email' && name !== 'phone' && field.hasAttribute('required') && !value) {
-                        isValid = false;
-                        message = `${name.charAt(0).toUpperCase() + name.slice(1)} is required`;
-                    } else if (value) {
-                        switch (name) {
-                            case 'name':
-                                isValid = window.authService.validateName(value);
-                                message = isValid ? 'Great name!' : 'Please enter a valid name';
-                                break;
-                                
-                            case 'email':
-                                isValid = window.authService.validateEmail(value);
-                                if (isValid) {
-                                    try {
-                                        const available = await window.authService.checkEmailAvailability(value);
-                                        isValid = available;
-                                        message = available ? 'Email is available!' : 'Email already registered';
-                                    } catch (e) {
-                                        message = 'Valid email format';
-                                    }
-                                } else {
-                                    message = 'Please enter a valid email';
-                                }
-                                break;
-                                
-                            case 'phone':
-                                isValid = window.authService.validatePhone(value);
-                                message = isValid ? 'Valid phone number' : 'Please enter a valid phone number';
-                                break;
-                                
-                            case 'password':
-                                const validation = window.authService.validatePassword(value);
-                                isValid = validation.score >= 3;
-                                message = `Password strength: ${validation.strength}`;
-                                break;
-                                
-                            case 'confirmPassword':
-                                const password = document.getElementById('password')?.value || '';
-                                isValid = value === password;
-                                message = isValid ? 'Passwords match!' : 'Passwords do not match';
-                                break;
-                        }
-                    }
-                    
-                    this.updateFieldState(field, isValid, message, showFeedback);
-                    
-                } catch (error) {
-                    console.warn(`Validation error for ${name}:`, error);
-                    this.updateFieldState(field, false, 'Validation error', showFeedback);
+
+                if (field.name === 'password') {
+                   isValid = this.getPasswordValidation(value).valid;
+                } else if (field.name === 'confirmPassword') {
+                    isValid = value === document.getElementById('password')?.value;
                 }
+                // Other real-time validations can be added here if needed.
+                this.updateFieldState(field, isValid);
             }
 
-            updateFieldState(field, isValid, message, showFeedback) {
-                const feedback = document.getElementById(`${field.name}Feedback`);
-                
-                // Remove existing classes
-                field.classList.remove('valid', 'invalid', 'warning');
-                
+            updateFieldState(field, isValid) {
+                field.classList.remove('valid', 'invalid');
                 if (field.value.trim()) {
-                    if (isValid) {
-                        field.classList.add('valid');
-                        if (feedback && showFeedback) {
-                            feedback.textContent = message;
-                            feedback.className = 'field-feedback success';
-                        }
-                    } else {
-                        field.classList.add('invalid');
-                        if (feedback && showFeedback) {
-                            feedback.textContent = message;
-                            feedback.className = 'field-feedback error';
-                        }
-                    }
-                } else if (feedback) {
-                    feedback.className = 'field-feedback';
+                    field.classList.add(isValid ? 'valid' : 'invalid');
                 }
             }
 
             checkPasswordStrength() {
-                const passwordField = document.getElementById('password');
-                if (!passwordField) return;
-
-                const password = passwordField.value;
+                const password = document.getElementById('password')?.value || '';
                 const strengthContainer = document.getElementById('passwordStrength');
-                const strengthScore = document.getElementById('strengthScore');
-                const strengthBars = document.getElementById('strengthBars')?.children;
-                const requirements = document.getElementById('strengthRequirements')?.children;
-                
                 if (!password) {
                     strengthContainer?.classList.remove('show');
                     return;
                 }
-                
                 strengthContainer?.classList.add('show');
                 
-                const validation = window.authService.validatePassword(password);
-                
-                // Update score display
-                if (strengthScore) {
-                    strengthScore.textContent = validation.strength.charAt(0).toUpperCase() + validation.strength.slice(1);
-                    strengthScore.className = `strength-score ${validation.strength}`;
+                const validation = this.getPasswordValidation(password);
+                const scoreEl = document.getElementById('strengthScore');
+                const bars = document.getElementById('strengthBars')?.children;
+                const requirements = document.getElementById('strengthRequirements');
+
+                if (scoreEl) {
+                    scoreEl.textContent = validation.strength;
+                    scoreEl.className = `strength-score ${validation.strength.toLowerCase()}`;
                 }
-                
-                // Update strength bars
-                if (strengthBars) {
-                    for (let i = 0; i < strengthBars.length; i++) {
-                        if (i < validation.score) {
-                            strengthBars[i].classList.add('filled');
-                        } else {
-                            strengthBars[i].classList.remove('filled');
-                        }
-                    }
+                if (bars) {
+                    Array.from(bars).forEach((bar, i) => bar.classList.toggle('filled', i < validation.score));
                 }
-                
-                // Update requirements
                 if (requirements) {
-                    const ruleChecks = [
-                        { rule: 'length', met: validation.length },
-                        { rule: 'uppercase', met: validation.uppercase },
-                        { rule: 'lowercase', met: validation.lowercase },
-                        { rule: 'number', met: validation.number },
-                        { rule: 'special', met: validation.special }
-                    ];
-                    
-                    ruleChecks.forEach((check, index) => {
-                        if (requirements[index]) {
-                            const requirement = requirements[index];
-                            const icon = requirement.querySelector('i');
-                            
-                            if (check.met) {
-                                requirement.classList.add('met');
-                                if (icon) icon.className = 'fas fa-check';
-                            } else {
-                                requirement.classList.remove('met');
-                                if (icon) icon.className = 'fas fa-times';
-                            }
+                    Object.keys(validation).forEach(rule => {
+                        const reqEl = requirements.querySelector(`[data-rule="${rule}"]`);
+                        if (reqEl) {
+                            reqEl.classList.toggle('met', validation[rule]);
+                            reqEl.querySelector('i').className = `fas fa-${validation[rule] ? 'check' : 'times'}`;
                         }
                     });
                 }
             }
 
             formatPhoneNumber(e) {
-                let value = e.target.value.replace(/\D/g, '');
-                
-                if (value.length >= 6) {
-                    value = `(${value.substring(0, 3)}) ${value.substring(3, 6)}-${value.substring(6, 10)}`;
-                } else if (value.length >= 3) {
-                    value = `(${value.substring(0, 3)}) ${value.substring(3)}`;
-                }
-                
+                let value = e.target.value.replace(/\D/g, '').substring(0, 10);
                 e.target.value = value;
-                e.target.classList.add('phone-formatted');
-            }
-
-            async handleSocialRegistration(provider) {
-                try {
-                    this.showLoading(true, `Connecting to ${provider}...`);
-                    this.showToast(`${provider} registration coming soon!`, 'info');
-                } catch (error) {
-                    this.showToast(error.message || `${provider} registration error`, 'error');
-                } finally {
-                    setTimeout(() => this.showLoading(false), 2000);
-                }
             }
 
             handleRegistrationSuccess(result) {
-                console.log('Registration success:', result);
-                
-                this.updateProgress(3);
                 this.showLoading(false);
-                
-                const user = result.user || { name: 'User' };
-                
-                // Show celebration
                 this.showCelebration();
                 
-                const successMessage = `🎉 Welcome to QuickLocal, ${user.name}! Your account has been created successfully.`;
-                this.showMessage(successMessage, 'success');
-                this.showToast(`Welcome to QuickLocal, ${user.name}!`, 'success');
+                const message = result.requiresVerification 
+                    ? `Registration successful! Please check your email to verify your account.` 
+                    : `Welcome to QuickLocal!`;
+
+                this.showMessage(message, 'success');
+                this.showToast(message, 'success');
                 
-                // Hide the form and show redirect message
-                const form = document.getElementById('registerForm');
-                if (form) {
-                    form.style.display = 'none';
-                }
-                
-                // Start redirect countdown
+                document.getElementById('registerForm').style.display = 'none';
+                document.getElementById('registrationProgress').style.display = 'none';
                 this.startRedirectCountdown();
             }
 
             handleRegistrationError(error) {
-                console.error('Registration error:', error);
-                
-                const errorMessage = error.message || 'Registration failed. Please try again.';
+                const errorMessage = error.message || 'An unknown error occurred.';
                 this.showMessage(errorMessage, 'error');
                 this.showToast(errorMessage, 'error');
             }
@@ -1575,249 +1243,74 @@
             startRedirectCountdown() {
                 const redirectMessage = document.getElementById('redirectMessage');
                 const countdownElement = document.getElementById('redirectCountdown');
-                
-                if (redirectMessage) {
-                    redirectMessage.classList.add('show');
-                }
-                
+                if (!redirectMessage || !countdownElement) return;
+
+                redirectMessage.classList.add('show');
                 let countdown = 5;
+                countdownElement.textContent = countdown;
                 
-                // Clear any existing timer
-                if (this.redirectTimer) {
-                    clearInterval(this.redirectTimer);
-                }
+                if (this.redirectTimer) clearInterval(this.redirectTimer);
                 
                 this.redirectTimer = setInterval(() => {
                     countdown--;
-                    
-                    if (countdownElement) {
-                        countdownElement.textContent = countdown;
-                    }
-                    
+                    countdownElement.textContent = countdown;
                     if (countdown <= 0) {
                         clearInterval(this.redirectTimer);
-                        this.redirectToLogin();
+                        window.location.href = 'login.html';
                     }
                 }, 1000);
             }
-
-            redirectToLogin() {
-                console.log('🔄 Redirecting to login page...');
-                this.showToast('🚀 Redirecting to login...', 'info');
-                
-                // Small delay for UX
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 500);
-            }
-
-            updateProgress(step) {
-                this.currentStep = step;
-                const steps = document.querySelectorAll('.progress-step');
-                
-                steps.forEach((stepEl, index) => {
-                    stepEl.classList.remove('active', 'completed');
-                    
-                    if (index + 1 < step) {
-                        stepEl.classList.add('completed');
-                    } else if (index + 1 === step) {
-                        stepEl.classList.add('active');
-                    }
-                });
-            }
-
-            showCelebration() {
-                const overlay = document.getElementById('celebrationOverlay');
-                if (overlay) {
-                    overlay.classList.add('active');
-                    
-                    setTimeout(() => {
-                        overlay.classList.remove('active');
-                    }, 1500);
-                }
-            }
-
-            showLoading(show, message = 'Creating your account...') {
+            
+            showLoading(show, message = 'Creating Account...') {
                 const btn = document.getElementById('registerBtn');
-                const container = document.querySelector('.auth-container');
-                
-                if (btn) {
-                    if (show) {
-                        btn.innerHTML = `<i class="fas fa-spinner spinner"></i> ${message}`;
-                        btn.disabled = true;
-                    } else {
-                        btn.innerHTML = '<i class="fas fa-user-plus"></i> Create My Account';
-                        btn.disabled = false;
-                    }
-                }
-                
-                if (container) {
-                    container.style.opacity = show ? '0.8' : '1';
-                }
+                if (!btn) return;
+                btn.disabled = show;
+                btn.innerHTML = show ? `<i class="fas fa-spinner spinner"></i> ${message}` : '<i class="fas fa-user-plus"></i> Create My Account';
             }
 
             showMessage(message, type) {
-                const messageElements = {
-                    error: document.getElementById('errorMessage'),
-                    success: document.getElementById('successMessage'),
-                    info: document.getElementById('infoMessage')
-                };
-                
-                // Clear all messages
-                Object.values(messageElements).forEach(el => {
-                    if (el) el.style.display = 'none';
-                });
-                
-                // Show specific message
-                if (messageElements[type]) {
-                    const icons = {
-                        error: 'fas fa-exclamation-triangle',
-                        success: 'fas fa-check-circle',
-                        info: 'fas fa-info-circle'
-                    };
-                    
-                    messageElements[type].innerHTML = `<i class="${icons[type]}"></i> ${message}`;
-                    messageElements[type].style.display = 'block';
-                    
-                    // Auto-hide after 8 seconds for success, keep errors visible
-                    if (type === 'success' || type === 'info') {
-                        setTimeout(() => {
-                            if (messageElements[type]) {
-                                messageElements[type].style.display = 'none';
-                            }
-                        }, 8000);
-                    }
+                this.clearMessages();
+                const el = document.getElementById(`${type}Message`);
+                if (el) {
+                    const icons = { error: 'fa-exclamation-triangle', success: 'fa-check-circle', info: 'fa-info-circle' };
+                    el.innerHTML = `<i class="fas ${icons[type]}"></i> ${message}`;
+                    el.style.display = 'block';
                 }
             }
 
             clearMessages() {
                 ['errorMessage', 'successMessage', 'infoMessage'].forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) element.style.display = 'none';
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
                 });
+            }
+            
+            showCelebration() {
+                const overlay = document.getElementById('celebrationOverlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                    setTimeout(() => overlay.classList.remove('active'), 1500);
+                }
             }
 
             showToast(message, type = 'success') {
                 const container = document.getElementById('toastContainer');
                 if (!container) return;
-
                 const toast = document.createElement('div');
-                
-                const icons = {
-                    success: 'fa-check-circle',
-                    error: 'fa-exclamation-circle',
-                    warning: 'fa-exclamation-triangle',
-                    info: 'fa-info-circle'
-                };
-                
+                const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle' };
                 toast.className = `toast ${type}`;
-                toast.innerHTML = `
-                    <i class="fas ${icons[type]} toast-icon"></i>
-                    <div class="toast-content">${message}</div>
-                `;
-                
+                toast.innerHTML = `<i class="fas ${icons[type]} toast-icon"></i><div class="toast-content">${message}</div>`;
                 container.appendChild(toast);
-                
-                // Auto remove after 5 seconds
                 setTimeout(() => {
                     toast.style.opacity = '0';
-                    toast.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
+                    setTimeout(() => toast.remove(), 300);
                 }, 5000);
-                
-                // Remove on click
-                toast.addEventListener('click', () => {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
-                });
             }
         }
 
-        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
             new RegistrationHandler();
         });
-
-        // Add demo button for testing
-        if (window.location.search.includes('demo') || window.location.hostname === 'localhost') {
-            setTimeout(() => {
-                const demoBtn = document.createElement('button');
-                demoBtn.innerHTML = '🎯 Load Demo';
-                demoBtn.style.cssText = `
-                    position: fixed; 
-                    bottom: 20px; 
-                    left: 20px; 
-                    padding: 8px 16px; 
-                    background: var(--primary); 
-                    color: white; 
-                    border: none; 
-                    border-radius: 8px; 
-                    cursor: pointer; 
-                    font-size: 12px;
-                    z-index: 9999;
-                    font-family: inherit;
-                `;
-                demoBtn.onclick = () => {
-                    const fields = {
-                        name: 'John Doe',
-                        email: 'demo@quicklocal.shop',
-                        phone: '(555) 123-4567',
-                        password: 'DemoPass123!',
-                        confirmPassword: 'DemoPass123!'
-                    };
-
-                    Object.entries(fields).forEach(([id, value]) => {
-                        const field = document.getElementById(id);
-                        if (field) field.value = value;
-                    });
-                    
-                    const infoMsg = document.getElementById('infoMessage');
-                    if (infoMsg) {
-                        infoMsg.innerHTML = '<i class="fas fa-info-circle"></i> 🎯 Demo data loaded!';
-                        infoMsg.style.display = 'block';
-                    }
-                };
-                document.body.appendChild(demoBtn);
-            }, 1000);
-        }
-
-        // Console helpers with backend integration status
-        console.log('🚀 QuickLocal Registration System with Auto-Redirect');
-        console.log('📋 Demo registration available with ?demo=true');
-        console.log('🔄 Auto-redirects to login.html after successful registration');
-        console.log('🛠️ Backend integration: config.js, socket-client.js, auth.js loaded');
-        
-        // Check backend integration status
-        setTimeout(() => {
-            if (window.authService) {
-                console.log('✅ Backend auth service loaded successfully');
-                if (typeof window.authService.register === 'function') {
-                    console.log('✅ Registration method available');
-                }
-                if (typeof window.authService.validateEmail === 'function') {
-                    console.log('✅ Validation methods available');
-                }
-            } else {
-                console.warn('⚠️ Backend auth service not available, using fallback');
-            }
-            
-            if (window.APP_CONFIG) {
-                console.log('⚙️ App config loaded:', window.APP_CONFIG);
-            }
-            
-            if (window.socketClient) {
-                console.log('🔌 Socket client available');
-            }
-        }, 2000);
     </script>
 </body>
 </html>
