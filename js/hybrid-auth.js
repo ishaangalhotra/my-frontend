@@ -1,422 +1,246 @@
-class QuickLocalHybridAuth {
-  constructor() {
-    // Your Supabase configuration
-    this.supabaseUrl = 'https://pmvhsjezhuokwygvhhqk.supabase.co';
-    this.supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg';
-    this.backendUrl = 'https://quicklocal-backend.onrender.com';
-    
-    this.supabase = null;
-    this.currentUser = null;
-    this.authMethod = null;
-    this.listeners = [];
-    
-    this.initializeSupabase();
-    this.initialize();
-  }
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const { rateLimit } = require('express-rate-limit');
+const crypto = require('crypto');
+const validator = require('validator');
 
-  initializeSupabase() {
-    // Initialize Supabase client (CDN version)
-    if (typeof window !== 'undefined' && window.supabase) {
-      this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseAnonKey);
-    }
-  }
+const router = express.Router();
 
-  async initialize() {
+// Import utilities
+// const User = require('../models/User'); // MongoDB User model is no longer needed
+const logger = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
+const { hybridProtect, requireRole } = require('../middleware/hybridAuth');
+const { supabase, supabaseAdmin, SupabaseHelpers } = require('../config/supabase');
+
+// Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * REGISTER - Uses Supabase Auth
+ * Creates a new user in Supabase Auth only.
+ * This endpoint no longer interacts with MongoDB.
+ */
+router.post(
+  '/register',
+  authLimiter,
+  [
+    body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
+    body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+    body('password').isLength({ min: 6, max: 128 }).withMessage('Password must be at least 6 characters'),
+    body('phone').optional().isMobilePhone('en-IN').withMessage('Valid Indian phone number required'),
+    body('role').optional().isIn(['customer', 'seller']).withMessage('Role must be customer or seller')
+  ],
+  async (req, res) => {
     try {
-      console.log('🔧 Initializing QuickLocal Hybrid Auth...');
-      
-      // Check for existing Supabase session
-      if (this.supabase) {
-        const { data: { session } } = await this.supabase.auth.getSession();
-        if (session) {
-          console.log('📱 Found Supabase session');
-          await this.handleSupabaseAuth(session);
-          return;
-        }
-      }
-
-      // Fallback to legacy JWT token
-      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-      if (token) {
-        console.log('🔑 Found legacy JWT token');
-        await this.handleLegacyAuth(token);
-      } else {
-        console.log('👤 No existing session found');
-      }
-    } catch (error) {
-      console.error('❌ Failed to initialize auth:', error);
-    }
-  }
-
-  async handleSupabaseAuth(session) {
-    try {
-      this.authMethod = 'supabase';
-      console.log('🚀 Using Supabase authentication');
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.currentUser = data.user;
-        console.log('✅ Supabase user authenticated:', this.currentUser.name);
-        this.notifyListeners(this.currentUser);
-      } else {
-        console.warn('⚠️ Supabase auth failed, response:', response.status);
-      }
-    } catch (error) {
-      console.error('❌ Supabase auth error:', error);
-    }
-  }
-
-  async handleLegacyAuth(token) {
-    try {
-      this.authMethod = 'jwt';
-      console.log('🔄 Using legacy JWT authentication');
-      
-      const response = await fetch(`${this.backendUrl}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.currentUser = data.user;
-        console.log('✅ Legacy user authenticated:', this.currentUser.name);
-        this.notifyListeners(this.currentUser);
-      } else {
-        console.warn('⚠️ Legacy token expired, clearing storage');
-        localStorage.removeItem('token');
-        localStorage.removeItem('accessToken');
-      }
-    } catch (error) {
-      console.error('❌ Legacy auth error:', error);
-    }
-  }
-
-  /**
-   * Register new user (uses Supabase for memory efficiency)
-   */
-  async register(email, password, name, role = 'customer') {
-    try {
-      console.log(`📝 Registering new ${role}:`, email);
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, role })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        console.log('✅ Registration successful');
-        return { 
-          success: true, 
-          message: data.message, 
-          requiresVerification: data.requiresVerification 
-        };
-      } else {
-        console.error('❌ Registration failed:', data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('❌ Registration error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  /**
-   * Login user (hybrid approach - handles both auth methods)
-   */
-  async login(email, password) {
-    try {
-      console.log('🔐 Attempting login for:', email);
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Handle Supabase tokens (new users)
-        if (data.accessToken && data.refreshToken) {
-          localStorage.setItem('supabase_access_token', data.accessToken);
-          localStorage.setItem('supabase_refresh_token', data.refreshToken);
-          this.authMethod = 'supabase';
-          console.log('✅ Login successful with Supabase');
-        } 
-        // Handle legacy JWT (existing users)
-        else if (data.token) {
-          localStorage.setItem('token', data.token);
-          this.authMethod = 'jwt';
-          console.log('✅ Login successful with legacy JWT');
-        }
-
-        this.currentUser = data.user;
-        this.notifyListeners(this.currentUser);
-        return { success: true, user: data.user, message: data.message };
-      } else {
-        console.error('❌ Login failed:', data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('❌ Login error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  /**
-   * Logout user (works with both auth methods)
-   */
-  async logout() {
-    try {
-      console.log('👋 Logging out...');
-      
-      await fetch(`${this.backendUrl}/api/hybrid-auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': this.getAuthHeader(),
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Sign out from Supabase if using Supabase
-      if (this.authMethod === 'supabase' && this.supabase) {
-        await this.supabase.auth.signOut();
-      }
-
-      // Clear all auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('supabase_access_token');
-      localStorage.removeItem('supabase_refresh_token');
-
-      this.currentUser = null;
-      this.authMethod = null;
-      this.notifyListeners(null);
-
-      console.log('✅ Logout successful');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  /**
-   * Get authorization header for API calls
-   */
-  getAuthHeader() {
-    if (this.authMethod === 'supabase') {
-      const token = localStorage.getItem('supabase_access_token');
-      return token ? `Bearer ${token}` : '';
-    } else if (this.authMethod === 'jwt') {
-      const token = localStorage.getItem('token');
-      return token ? `Bearer ${token}` : '';
-    }
-    return '';
-  }
-
-  /**
-   * Make authenticated API calls to your backend
-   */
-  async apiCall(endpoint, options = {}) {
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': this.getAuthHeader()
-    };
-
-    const response = await fetch(`${this.backendUrl}${endpoint}`, {
-      ...options,
-      headers: { ...defaultHeaders, ...options.headers }
-    });
-
-    // Handle token refresh for Supabase users
-    if (response.status === 401 && this.authMethod === 'supabase') {
-      const refreshed = await this.refreshToken();
-      if (refreshed) {
-        // Retry with new token
-        return fetch(`${this.backendUrl}${endpoint}`, {
-          ...options,
-          headers: { 
-            ...defaultHeaders, 
-            'Authorization': this.getAuthHeader(), 
-            ...options.headers 
-          }
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: errors.array()[0].msg,
+          errors: errors.array() 
         });
       }
-    }
 
-    return response;
-  }
+      const { name, email, password, phone, role = 'customer' } = req.body;
 
-  /**
-   * Refresh Supabase access token
-   */
-  async refreshToken() {
-    try {
-      const refreshToken = localStorage.getItem('supabase_refresh_token');
-      if (!refreshToken) return false;
-
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/refresh-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken })
+      // Use Supabase to create the user. It handles password hashing and existence checks.
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password,
+        user_metadata: {
+          name,
+          role,
+          phone
+        },
+        email_confirm: true // Auto-confirm all new users
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('supabase_access_token', data.accessToken);
-        localStorage.setItem('supabase_refresh_token', data.refreshToken);
-        console.log('🔄 Token refreshed successfully');
-        return true;
+      if (authError) {
+        logger.error('Supabase user creation failed', authError);
+        return res.status(400).json({ success: false, message: authError.message || 'Registration failed due to authentication service error' });
       }
-    } catch (error) {
-      console.error('❌ Token refresh error:', error);
-    }
-    return false;
-  }
 
-  /**
-   * Subscribe to authentication state changes
-   */
-  onAuthStateChange(callback) {
-    this.listeners.push(callback);
-    // Call immediately with current state
-    if (this.currentUser !== undefined) {
-      callback(this.currentUser);
+      logger.info('User successfully registered via Supabase Auth', { id: authData.user.id, email: authData.user.email });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Registration successful!',
+        data: {
+          id: authData.user.id,
+          email: authData.user.email,
+          role: role,
+        }
+      });
+    } catch (err) {
+      logger.error('Registration failed', err);
+      res.status(500).json({ success: false, message: 'Server error during registration.' });
     }
   }
+);
 
-  /**
-   * Notify all listeners of auth state changes
-   */
-  notifyListeners(user) {
-    this.listeners.forEach(callback => {
-      try {
-        callback(user);
-      } catch (error) {
-        console.error('❌ Auth listener error:', error);
+/**
+ * LOGIN - Uses Supabase Auth
+ * Authenticates user credentials against Supabase.
+ */
+router.post(
+  '/login',
+  authLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email required'),
+    body('password').isLength({ min: 6 }).withMessage('Password required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, message: errors.array()[0].msg });
       }
+
+      const { email, password } = req.body;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        logger.warn('Login attempt failed', { email, error: error.message });
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials. Please check and try again.'
+        });
+      }
+
+      if (!data.session || !data.user) {
+        return res.status(401).json({ success: false, message: 'Authentication failed. Please try again.' });
+      }
+
+      logger.info('User logged in successfully', { email: data.user.email, id: data.user.id });
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful!',
+        session: data.session,
+        user: data.user
+      });
+    } catch (err) {
+      logger.error('Login error', err);
+      res.status(500).json({ success: false, message: 'An unexpected server error occurred.' });
+    }
+  }
+);
+
+/**
+ * REFRESH TOKEN - Uses Supabase for memory efficiency
+ */
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken
+    });
+
+    if (error) {
+      logger.error('Token refresh failed', error);
+      return res.status(401).json({
+        success: false,
+        message: 'Token refresh failed due to invalid token',
+        error: error.message
+      });
+    }
+
+    if (!data.session) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token. No session returned.'
+      });
+    }
+
+    res.json({
+      success: true,
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token
+    });
+
+  } catch (err) {
+    logger.error('Token refresh error', err);
+    res.status(500).json({
+      success: false,
+      message: 'Token refresh failed'
     });
   }
+});
 
-  /**
-   * Get current authenticated user
-   */
-  getCurrentUser() {
-    return this.currentUser;
-  }
-
-  /**
-   * Check if user is authenticated
-   */
-  isAuthenticated() {
-    return !!this.currentUser;
-  }
-
-  /**
-   * Get current authentication method
-   */
-  getAuthMethod() {
-    return this.authMethod;
-  }
-
-  /**
-   * Get user role
-   */
-  getUserRole() {
-    return this.currentUser?.role || 'guest';
-  }
-
-  /**
-   * Check if user has specific role
-   */
-  hasRole(role) {
-    return this.currentUser?.role === role;
-  }
-
-  /**
-   * Utility functions for common API calls
-   */
-  
-  // Load products with authentication context
-  async loadProducts(filters = {}) {
+/**
+ * PASSWORD RESET - Uses Supabase for memory efficiency
+ */
+router.post('/forgot-password', 
+  authLimiter,
+  [body('email').isEmail().normalizeEmail().withMessage('Valid email required')],
+  async (req, res) => {
     try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const response = await this.apiCall(`/api/v1/products${queryParams ? '?' + queryParams : ''}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, products: data.products };
-      } else {
-        return { success: false, message: 'Failed to load products' };
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
       }
-    } catch (error) {
-      console.error('❌ Failed to load products:', error);
-      return { success: false, message: error.message };
-    }
-  }
 
-  // Get user profile
-  async getUserProfile() {
-    try {
-      const response = await this.apiCall('/api/v1/users/profile');
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, profile: data.user };
-      } else {
-        return { success: false, message: 'Failed to load profile' };
-      }
-    } catch (error) {
-      console.error('❌ Failed to load profile:', error);
-      return { success: false, message: error.message };
-    }
-  }
+      const { email } = req.body;
 
-  // Add to cart
-  async addToCart(productId, quantity = 1) {
-    try {
-      const response = await this.apiCall('/api/v1/cart/add', {
-        method: 'POST',
-        body: JSON.stringify({ productId, quantity })
+      // Use Supabase reset password (more memory efficient)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.CLIENT_URL}/reset-password`
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, cart: data.cart };
+
+      // Always return success for security (don't reveal if email exists)
+      res.json({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      });
+
+      if (!error) {
+        logger.info('Password reset requested', { email });
       } else {
-        const data = await response.json();
-        return { success: false, message: data.message };
+        logger.error('Password reset failed', { email, error: error.message });
       }
-    } catch (error) {
-      console.error('❌ Failed to add to cart:', error);
-      return { success: false, message: error.message };
+    } catch (err) {
+      logger.error('Forgot password endpoint failed', err);
+      res.status(500).json({ success: false, message: 'Server error.' });
     }
   }
-}
+);
 
-// Create global instance
-window.quickLocalAuth = new QuickLocalHybridAuth();
+/**
+ * LOGOUT - Logs out of Supabase
+ */
+router.post('/logout', async (req, res) => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      logger.error('Supabase logout failed', error);
+      return res.status(500).json({ success: false, message: 'Failed to log out.' });
+    }
+    res.json({ success: true, message: 'Successfully logged out.' });
+  } catch (err) {
+    logger.error('Logout failed', err);
+    res.status(500).json({ success: false, message: 'Server error during logout.' });
+  }
+});
 
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = QuickLocalHybridAuth;
-}
-
-// Log initialization
-console.log('🚀 QuickLocal Hybrid Auth loaded successfully');
-console.log('📊 Memory-efficient authentication ready');
-console.log('🔗 Backend URL:', 'https://quicklocal-backend.onrender.com');
-console.log('🗃️ Supabase URL:', 'https://pmvhsjezhuokwygvhhqk.supabase.co');
+module.exports = router;
