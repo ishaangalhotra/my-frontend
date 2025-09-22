@@ -52,8 +52,8 @@ const featureFlags = {
 // Environment configurations
 const environments = {
   development: {
-    API_BASE_URL: 'http://localhost:3000/api/v1',
-    SOCKET_URL: 'http://localhost:3000',
+    API_BASE_URL: 'http://localhost:10000/api/v1',
+    SOCKET_URL: 'http://localhost:10000',
     DEBUG: true,
     MOCK_API: false,
     API_TIMEOUT: 30000,
