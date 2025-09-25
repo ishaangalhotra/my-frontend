@@ -107,18 +107,57 @@
         </form>
     </div>
     
-    <!-- Load hybrid auth client from backend server -->
-   <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    <!-- Load Supabase client library first -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+
+    <!-- Hybrid auth client will be loaded dynamically with retry and fallback -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the HybridAuthClient with correct parameters:
-            // supabaseUrl, supabaseAnonKey, backendUrl
-const authClient = new HybridAuthClient(
-    'https://pmvhsjezhuokwygvhhqk.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjYzOTAwMjksImV4cCI6MjA0MTk2NjAyOX0.c6aUZnHBHBGK-Bh1EKCbTMN5CHPt7Kul0T3FHFJfmLI',
-    'https://quicklocal-backend.onrender.com' // <-- Updated URL
-);
-            new RegistrationHandler(authClient);
+            // Dynamically load the HybridAuthClient with retry and local fallback
+            const REMOTE_SRC = 'https://quicklocal-backend.onrender.com/hybrid-auth-client.js';
+            const LOCAL_FALLBACK_SRC = './hybrid-auth-client.js';
+
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.async = true;
+                    s.crossOrigin = 'anonymous';
+                    s.onload = () => resolve(src);
+                    s.onerror = () => reject(new Error('Failed to load ' + src));
+                    document.head.appendChild(s);
+                });
+            }
+
+            async function loadHybridClientWithRetry(maxAttempts = 5, delayMs = 1500) {
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        await loadScript(REMOTE_SRC);
+                        if (window.HybridAuthClient) return 'remote';
+                    } catch (e) {
+                        await new Promise(r => setTimeout(r, delayMs));
+                    }
+                }
+                await loadScript(LOCAL_FALLBACK_SRC);
+                if (window.HybridAuthClient) return 'local';
+                throw new Error('HybridAuthClient not available after retries and fallback');
+            }
+
+            (async () => {
+                try {
+                    const source = await loadHybridClientWithRetry();
+                    console.log('HybridAuthClient loaded from:', source);
+                    const authClient = new HybridAuthClient(
+                        'https://pmvhsjezhuokwygvhhqk.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+                        'https://quicklocal-backend.onrender.com'
+                    );
+                    new RegistrationHandler(authClient);
+                } catch (err) {
+                    console.error('❌ Auth Client failed to load/initialize', err);
+                    alert('Authentication module is waking up. Please refresh in a few seconds.');
+                }
+            })();
         });
 
         class RegistrationHandler {
