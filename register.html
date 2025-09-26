@@ -129,17 +129,24 @@
                 });
             }
 
+            function isHybridAvailable() {
+                try { return (typeof window.HybridAuthClient !== 'undefined') || (typeof HybridAuthClient !== 'undefined'); }
+                catch (e) { return false; }
+            }
+
             async function loadHybridClientWithRetry(maxAttempts = 5, delayMs = 1500) {
                 for (let attempt = 1; attempt <= maxAttempts; attempt++) {
                     try {
                         await loadScript(REMOTE_SRC);
-                        if (window.HybridAuthClient) return 'remote';
+                        if (isHybridAvailable()) return 'remote';
+                        console.warn(`Remote script loaded but global not found (attempt ${attempt})`);
                     } catch (e) {
-                        await new Promise(r => setTimeout(r, delayMs));
+                        // ignore and retry
                     }
+                    await new Promise(r => setTimeout(r, delayMs));
                 }
                 await loadScript(LOCAL_FALLBACK_SRC);
-                if (window.HybridAuthClient) return 'local';
+                if (isHybridAvailable()) return 'local';
                 throw new Error('HybridAuthClient not available after retries and fallback');
             }
 
