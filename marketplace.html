@@ -2615,7 +2615,7 @@
             try {
                 console.log('🛒 Adding to cart:', product.name);
                 
-                const response = await api.post('/cart/add', {
+                const response = await api.post('/api/v1/cart/add', {
                     productId: productId,
                     quantity: 1
                 });
@@ -2651,7 +2651,7 @@
             try {
                 console.log('🛒 Loading cart for authenticated user...');
                 
-                const response = await api.get('/cart');
+                const response = await api.get('/api/v1/cart');
                 
                 if (response.success && response.cart) {
                     // Convert backend cart format to frontend format
@@ -2690,7 +2690,7 @@
             }
 
             try {
-                const response = await api.delete(`/cart/${productId}`);
+                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
                 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2712,8 +2712,9 @@
             }
 
             try {
-                const response = await api.put(`/cart/${productId}`, {
-                    quantity: newQuantity
+                const response = await api.patch('/api/v1/cart/update', {
+                 productId: productId,
+                 quantity: newQuantity
                 });
                 
                 if (response.success) {
@@ -2736,7 +2737,7 @@
             }
 
             try {
-                const response = await api.delete('/cart');
+                const response = await api.delete('/api/v1/cart/clear');
                 
                 if (response.success) {
                     appState.cart = [];
