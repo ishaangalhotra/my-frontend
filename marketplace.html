@@ -1857,16 +1857,16 @@
             }
         }
 
-        // Enhanced initialization with better auth detection
+        // CORRECTED INITIALIZATION LOGIC
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
+            console.log('🚀 Initializing Enhanced QuickLocal Marketplace...');
             
-            // Initialize components first
+            // Initialize components that don't need auth state
             initializeEventListeners();
             initializeScrollEffects();
             initializeFromURL();
-            
-            // Wait for HybridAuthClient to load with timeout
+
+            // Wait for HybridAuthClient to load
             let authClientLoaded = false;
             let attempts = 0;
             const maxAttempts = 20; // 2 seconds total wait time
@@ -1876,42 +1876,28 @@
                     authClientLoaded = true;
                     console.log('✅ HybridAuthClient detected');
                     
-                    // Set up auth state listener
+                    // Set up the crucial auth state listener
                     if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
                         window.HybridAuthClient.onAuthStateChange((user) => {
-                            console.log('🔄 Auth state changed:', user ? user.name : 'logged out');
+                            console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
                             appState.user = user;
                             
-                            // Store user data for persistence
                             if (user) {
+                                // User is confirmed logged in. NOW it's safe to load private data.
                                 localStorage.setItem('quicklocal_user', JSON.stringify(user));
                                 showToast(`Welcome back, ${user.name}!`, 'success');
-                                loadCart();
+                                loadCart(); // Load cart only when user is confirmed
                             } else {
+                                // User is logged out. Clear cart state.
                                 localStorage.removeItem('quicklocal_user');
                                 appState.cart = [];
                                 updateCartUI();
                             }
                             
+                            // Update UI elements based on auth state
                             updateAuthUI();
                         });
                     }
-                    
-                    // Check current auth state
-                    try {
-                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
-                        if (isAuthenticated) {
-                            const currentUser = window.HybridAuthClient.getCurrentUser();
-                            if (currentUser) {
-                                appState.user = currentUser;
-                                console.log('✅ User already authenticated:', currentUser.name);
-                                loadCart();
-                            }
-                        }
-                    } catch (error) {
-                        console.warn('⚠️ Auth state check failed:', error);
-                    }
-                    
                     break;
                 } else {
                     await new Promise(resolve => setTimeout(resolve, 100));
@@ -1920,30 +1906,19 @@
             }
             
             if (!authClientLoaded) {
-                console.warn('⚠️ HybridAuthClient not loaded, using fallback auth detection');
-                
-                // Fallback: Check for existing tokens and user data
-                if (auth.isLoggedIn()) {
-                    const user = auth.getUser();
-                    if (user) {
-                        appState.user = user;
-                        console.log('✅ User detected from stored data:', user.name);
-                        loadCart();
-                    }
-                }
+                console.warn('⚠️ HybridAuthClient not loaded. Auth features may be limited.');
             }
-            
-            // Always update UI regardless of auth client status
-            updateAuthUI();
-            
-            // Load data
+
+            // Immediately load public data that does not require authentication
             await loadProducts();
-            await loadCart();
             await populateCarousels();
             
-            console.log('✅ QuickLocal Marketplace loaded successfully!');
-            console.log('👤 Auth status:', appState.user ? `Logged in as ${appState.user.name}` : 'Not logged in');
+            // The HybridAuthClient's own initialization will trigger the onAuthStateChange listener
+            // if a session already exists, which will then load the cart.
+            
+            console.log('✅ QuickLocal Marketplace initialized. Waiting for auth state resolution...');
         });
+
 
         // Enhanced updateAuthUI function with better user detection
         function updateAuthUI() {
@@ -2645,7 +2620,7 @@
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
                 updateCartUI();
-                console.log('👤 Not logged in, cart cleared');
+                console.log('👤 Not logged in, cart cannot be loaded.');
                 return;
             }
             try {
