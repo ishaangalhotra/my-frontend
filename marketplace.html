@@ -1726,8 +1726,8 @@
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
                         const result = await window.HybridAuthClient.logout();
                         if (result.success) {
-                            // Clear all stored data
-                            this.clearStoredData();
+                            // CORRECTED: Refer to the object directly
+                            auth.clearStoredData(); 
                             appState.user = null;
                             appState.cart = [];
                             updateAuthUI();
@@ -1736,7 +1736,7 @@
                         return result;
                     } else {
                         // Manual logout fallback
-                        this.clearStoredData();
+                        auth.clearStoredData(); // CORRECTED
                         appState.user = null;
                         appState.cart = [];
                         updateAuthUI();
@@ -1746,23 +1746,29 @@
                 } catch (error) {
                     console.error('Logout error:', error);
                     // Force logout even if API call fails
-                    this.clearStoredData();
+                    auth.clearStoredData(); // CORRECTED
                     appState.user = null;
                     appState.cart = [];
                     updateAuthUI();
                     showToast('Logged out (forced)', 'warning');
-                    return { success: true };
+                    return { success: false, message: error.message }; // Return failure but still clean up
                 }
             },
             
             // Clear all stored authentication data
             clearStoredData: () => {
-                localStorage.removeItem('supabase_access_token');
-                localStorage.removeItem('supabase_refresh_token');
                 localStorage.removeItem('token');
                 localStorage.removeItem('accessToken');
+                localStorage.removeItem('quicklocal_access_token');
+                localStorage.removeItem('quicklocal_refresh_token');
                 localStorage.removeItem('quicklocal_user');
-                localStorage.removeItem('quicklocal_session');
+                
+                // Also clear Supabase's own storage keys
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                        localStorage.removeItem(key);
+                    }
+                });
             },
             
             // Get headers for API calls
@@ -1869,36 +1875,39 @@
             // Wait for HybridAuthClient to load
             let authClientLoaded = false;
             let attempts = 0;
-            const maxAttempts = 20; // 2 seconds total wait time
+            const maxAttempts = 50; // Wait up to 5 seconds
             
             while (!authClientLoaded && attempts < maxAttempts) {
-                if (window.HybridAuthClient) {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.onAuthStateChange === 'function') {
                     authClientLoaded = true;
                     console.log('✅ HybridAuthClient detected');
                     
                     // Set up the crucial auth state listener
-                    if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
-                        window.HybridAuthClient.onAuthStateChange((user) => {
-                            console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
-                            appState.user = user;
-                            
-                            if (user) {
-                                // User is confirmed logged in. NOW it's safe to load private data.
-                                localStorage.setItem('quicklocal_user', JSON.stringify(user));
-                                showToast(`Welcome back, ${user.name}!`, 'success');
-                                loadCart(); // Load cart only when user is confirmed
-                            } else {
-                                // User is logged out. Clear cart state.
-                                localStorage.removeItem('quicklocal_user');
-                                appState.cart = [];
-                                updateCartUI();
+                    window.HybridAuthClient.onAuthStateChange((user) => {
+                        console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
+                        appState.user = user;
+                        
+                        // Update UI elements based on auth state
+                        updateAuthUI(); 
+
+                        if (user) {
+                            // User is confirmed logged in. NOW it's safe to load private data.
+                            localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                            // The ?login=success param triggers a welcome toast
+                            if (new URLSearchParams(window.location.search).get('login') === 'success') {
+                                 showToast(`Welcome back, ${user.name}!`, 'success');
+                                 // Clean up the URL
+                                 history.replaceState(null, '', window.location.pathname);
                             }
-                            
-                            // Update UI elements based on auth state
-                            updateAuthUI();
-                        });
-                    }
-                    break;
+                            loadCart(); // Load cart only when user is confirmed
+                        } else {
+                            // User is logged out. Clear local user data and cart state.
+                            localStorage.removeItem('quicklocal_user');
+                            appState.cart = [];
+                            updateCartUI();
+                        }
+                    });
+                    break; // Exit the loop
                 } else {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
@@ -1906,7 +1915,8 @@
             }
             
             if (!authClientLoaded) {
-                console.warn('⚠️ HybridAuthClient not loaded. Auth features may be limited.');
+                console.warn('⚠️ HybridAuthClient not loaded. Proceeding in logged-out state.');
+                updateAuthUI(); // Ensure UI is in logged-out state
             }
 
             // Immediately load public data that does not require authentication
@@ -1914,7 +1924,7 @@
             await populateCarousels();
             
             // The HybridAuthClient's own initialization will trigger the onAuthStateChange listener
-            // if a session already exists, which will then load the cart.
+            // if a session already exists, which will then load the cart and update the UI.
             
             console.log('✅ QuickLocal Marketplace initialized. Waiting for auth state resolution...');
         });
@@ -2196,7 +2206,7 @@
                     // Try hybrid auth client first
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                         console.log('🔐 Using HybridAuthClient.apiCall');
-                        const response = await window.HybridAuthClient.apiCall('/api/v1/products');
+                        const response = await window.HybridAuthClient.apiCall('/products');
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
@@ -2590,7 +2600,7 @@
             try {
                 console.log('🛒 Adding to cart:', product.name);
                 
-                const response = await api.post('/api/v1/cart/add', {
+                const response = await api.post('/cart/add', {
                     productId: productId,
                     quantity: 1
                 });
@@ -2602,15 +2612,16 @@
                 }
             } catch (error) {
                 console.error('🛒 Add to cart error:', error);
-                showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
                 
-                // If it's an auth error, redirect to login
-                if (error.message.includes('401') || error.message.includes('unauthorized')) {
-                    showToast('Session expired. Please login again.', 'warning');
-                    await auth.logout();
+                // IMPROVED ERROR HANDLING
+                if (error.message.includes('401')) {
+                    showToast('Your session may have expired. Please log in again.', 'warning');
+                    // Don't log out, just redirect to login
                     setTimeout(() => {
-                        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                    }, 1500);
+                         window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+                    }, 2000);
+                } else {
+                     showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
                 }
             }
         }
@@ -2626,7 +2637,7 @@
             try {
                 console.log('🛒 Loading cart for authenticated user...');
                 
-                const response = await api.get('/api/v1/cart');
+                const response = await api.get('/cart');
                 
                 if (response.success && response.cart) {
                     // Convert backend cart format to frontend format
@@ -2665,7 +2676,7 @@
             }
 
             try {
-                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
+                const response = await api.delete(`/cart/remove/${productId}`);
                 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2687,7 +2698,7 @@
             }
 
             try {
-                const response = await api.patch('/api/v1/cart/update', {
+                const response = await api.patch('/cart/update', {
                  productId: productId,
                  quantity: newQuantity
                 });
@@ -2712,7 +2723,7 @@
             }
 
             try {
-                const response = await api.delete('/api/v1/cart/clear');
+                const response = await api.delete('/cart/clear');
                 
                 if (response.success) {
                     appState.cart = [];
