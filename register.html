@@ -1080,7 +1080,7 @@
                     console.log('✅ HybridAuthClient found, using it as the auth service.');
                     this.authService = window.HybridAuthClient;
                 } else {
-                    console.error('❌ CRITICAL: HybridAuthClient could not be loaded!');
+                    console.error('⚠ CRITICAL: HybridAuthClient could not be loaded!');
                     this.showToast('Authentication service failed to load. Please refresh.', 'error');
                 }
             }
@@ -1107,7 +1107,7 @@
                     length: password.length >= 6, // Matching backend requirement
                     uppercase: /[A-Z]/.test(password),
                     lowercase: /[a-z]/.test(password),
-                    number: /\d]/.test(password),
+                    number: /\d/.test(password), // ✅ FIXED: Corrected regex - removed the extra ] bracket
                 };
                 const score = Object.values(checks).filter(Boolean).length;
                 const strength = score < 2 ? 'Weak' : score < 4 ? 'Medium' : 'Strong';
