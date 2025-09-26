@@ -8,10 +8,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- Supabase CDN for Hybrid Auth -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
-    <!-- Enhanced Product Cards -->
     <link rel="stylesheet" href="css/product-cards.css">
     
     <style>
@@ -1514,7 +1512,6 @@
                     <p>Try adjusting your search criteria or browse our categories to discover amazing products.</p>
                 </div>
                 
-                <!-- Pagination Controls -->
                 <div class="pagination-container" id="paginationContainer" style="display: none;">
                     <div class="pagination-info">
                         <span id="paginationInfo">Showing 1-20 of 100 products</span>
@@ -1611,10 +1608,8 @@
 
     <div id="toastContainer"></div>
 
-    <!-- Hybrid Authentication Client -->
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     
-    <!-- Configuration -->
     <script>
         window.APP_CONFIG = {
             API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
@@ -1659,27 +1654,118 @@
 
         console.log('🌐 Using hybrid auth backend:', appState.apiBaseUrl);
 
-        // Hybrid Authentication utilities
+        // Enhanced authentication utilities with better session detection
         const auth = {
-            isLoggedIn: () => window.HybridAuthClient && window.HybridAuthClient.isAuthenticated(),
-            getUser: () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser(),
-            getAuthHeader: () => window.HybridAuthClient ? window.HybridAuthClient.getAuthHeader() : '',
-            login: async (identifier, password) => {
-                return window.HybridAuthClient ? await window.HybridAuthClient.login(identifier, password) : { success: false, message: 'Auth not initialized' };
+            // Check if user is logged in with multiple fallback methods
+            isLoggedIn: () => {
+                // Method 1: Check HybridAuthClient
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+                    return window.HybridAuthClient.isAuthenticated();
+                }
+                
+                // Method 2: Check for stored tokens
+                const supabaseToken = localStorage.getItem('supabase_access_token');
+                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                
+                return !!(supabaseToken || legacyToken);
             },
+            
+            // Get current user with fallback methods
+            getUser: () => {
+                // Try HybridAuthClient first
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    const user = window.HybridAuthClient.getCurrentUser();
+                    if (user) return user;
+                }
+                
+                // Fallback: Try to get user from stored data
+                try {
+                    const storedUser = localStorage.getItem('quicklocal_user');
+                    if (storedUser) {
+                        return JSON.parse(storedUser);
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse stored user data:', error);
+                }
+                
+                return null;
+            },
+            
+            // Get auth header with multiple token sources
+            getAuthHeader: () => {
+                // Try HybridAuthClient method first
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    const header = window.HybridAuthClient.getAuthHeader();
+                    if (header) return header;
+                }
+                
+                // Fallback: Manual token retrieval
+                const supabaseToken = localStorage.getItem('supabase_access_token');
+                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                
+                if (supabaseToken) {
+                    return `Bearer ${supabaseToken}`;
+                } else if (legacyToken) {
+                    return `Bearer ${legacyToken}`;
+                }
+                
+                return '';
+            },
+            
+            // Enhanced login method
+            login: async (identifier, password) => {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.login === 'function') {
+                    return await window.HybridAuthClient.login(identifier, password);
+                }
+                return { success: false, message: 'Auth client not available' };
+            },
+            
+            // Enhanced logout method
             logout: async () => {
-                if (window.HybridAuthClient) {
-                    const result = await window.HybridAuthClient.logout();
-                    if (result.success) {
+                try {
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
+                        const result = await window.HybridAuthClient.logout();
+                        if (result.success) {
+                            // Clear all stored data
+                            this.clearStoredData();
+                            appState.user = null;
+                            appState.cart = [];
+                            updateAuthUI();
+                            showToast('Logged out successfully', 'info');
+                        }
+                        return result;
+                    } else {
+                        // Manual logout fallback
+                        this.clearStoredData();
                         appState.user = null;
                         appState.cart = [];
                         updateAuthUI();
                         showToast('Logged out successfully', 'info');
+                        return { success: true };
                     }
-                    return result;
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Force logout even if API call fails
+                    this.clearStoredData();
+                    appState.user = null;
+                    appState.cart = [];
+                    updateAuthUI();
+                    showToast('Logged out (forced)', 'warning');
+                    return { success: true };
                 }
-                return { success: false, message: 'Auth not initialized' };
             },
+            
+            // Clear all stored authentication data
+            clearStoredData: () => {
+                localStorage.removeItem('supabase_access_token');
+                localStorage.removeItem('supabase_refresh_token');
+                localStorage.removeItem('token');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('quicklocal_user');
+                localStorage.removeItem('quicklocal_session');
+            },
+            
+            // Get headers for API calls
             getHeaders: () => ({
                 'Content-Type': 'application/json',
                 'Authorization': auth.getAuthHeader()
@@ -1771,99 +1857,152 @@
             }
         }
 
-        // Initialize application
+        // Enhanced initialization with better auth detection
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace with Hybrid Auth...');
             
-            // Wait for hybrid auth to initialize
-            if (window.HybridAuthClient) {
-                // Set up auth state listener if available
-                if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
-                    window.HybridAuthClient.onAuthStateChange((user) => {
-                        appState.user = user;
-                        updateAuthUI();
-                        
-                        if (user) {
-                            console.log('✅ User authenticated:', user.name, `(${user.role || 'customer'})`);
-                            showToast(`Welcome back, ${user.name}!`, 'success');
-                            loadCart(); // Load user's cart
-                        } else {
-                            console.log('👤 User not authenticated');
-                            appState.cart = []; // Clear cart
-                            updateCartUI();
-                        }
-                    });
-                } else {
-                    // Manual check for auth state
-                    setTimeout(() => {
-                        const user = auth.getUser();
-                        appState.user = user;
-                        updateAuthUI();
-                        if (user) {
-                            console.log('✅ User authenticated:', user.name);
-                            loadCart();
-                        }
-                    }, 1000);
-                }
-            } else {
-                console.warn('⚠️ Hybrid auth not loaded, checking periodically...');
-                // Keep checking for hybrid auth
-                const checkAuth = setInterval(() => {
-                    if (window.HybridAuthClient) {
-                        clearInterval(checkAuth);
-                        console.log('✅ Hybrid auth loaded!');
-                        updateAuthUI();
-                        const user = auth.getUser();
-                        if (user) {
-                            appState.user = user;
-                            loadCart();
-                        }
-                    }
-                }, 500);
-                
-                // Stop checking after 10 seconds
-                setTimeout(() => clearInterval(checkAuth), 10000);
-            }
-            
-            // Initialize URL state and filters from URL parameters
-            initializeFromURL();
-            
-            // Initialize components
+            // Initialize components first
             initializeEventListeners();
             initializeScrollEffects();
+            initializeFromURL();
+            
+            // Wait for HybridAuthClient to load with timeout
+            let authClientLoaded = false;
+            let attempts = 0;
+            const maxAttempts = 20; // 2 seconds total wait time
+            
+            while (!authClientLoaded && attempts < maxAttempts) {
+                if (window.HybridAuthClient) {
+                    authClientLoaded = true;
+                    console.log('✅ HybridAuthClient detected');
+                    
+                    // Set up auth state listener
+                    if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                        window.HybridAuthClient.onAuthStateChange((user) => {
+                            console.log('🔄 Auth state changed:', user ? user.name : 'logged out');
+                            appState.user = user;
+                            
+                            // Store user data for persistence
+                            if (user) {
+                                localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                                showToast(`Welcome back, ${user.name}!`, 'success');
+                                loadCart();
+                            } else {
+                                localStorage.removeItem('quicklocal_user');
+                                appState.cart = [];
+                                updateCartUI();
+                            }
+                            
+                            updateAuthUI();
+                        });
+                    }
+                    
+                    // Check current auth state
+                    try {
+                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+                        if (isAuthenticated) {
+                            const currentUser = window.HybridAuthClient.getCurrentUser();
+                            if (currentUser) {
+                                appState.user = currentUser;
+                                console.log('✅ User already authenticated:', currentUser.name);
+                                loadCart();
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Auth state check failed:', error);
+                    }
+                    
+                    break;
+                } else {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+            }
+            
+            if (!authClientLoaded) {
+                console.warn('⚠️ HybridAuthClient not loaded, using fallback auth detection');
+                
+                // Fallback: Check for existing tokens and user data
+                if (auth.isLoggedIn()) {
+                    const user = auth.getUser();
+                    if (user) {
+                        appState.user = user;
+                        console.log('✅ User detected from stored data:', user.name);
+                        loadCart();
+                    }
+                }
+            }
+            
+            // Always update UI regardless of auth client status
             updateAuthUI();
             
             // Load data
             await loadProducts();
-            await loadCart(); // Load cart from backend
+            await loadCart();
             await populateCarousels();
             
-            console.log('✅ QuickLocal Marketplace with Hybrid Auth loaded successfully!');
-            
-            // Welcome message handled by auth state listener
+            console.log('✅ QuickLocal Marketplace loaded successfully!');
+            console.log('👤 Auth status:', appState.user ? `Logged in as ${appState.user.name}` : 'Not logged in');
         });
 
-        // Update authentication UI using hybrid auth
+        // Enhanced updateAuthUI function with better user detection
         function updateAuthUI() {
             const loginBtn = document.querySelector('a[href="login.html"]');
             const user = auth.getUser();
+            const isLoggedIn = auth.isLoggedIn();
             
-            if (auth.isLoggedIn() && user) {
+            console.log('🔄 Updating auth UI:', { isLoggedIn, user: user?.name });
+            
+            if (isLoggedIn && user) {
                 // User is logged in - show user menu
                 if (loginBtn) {
                     loginBtn.innerHTML = `<i class="fas fa-user"></i> ${user.name}`;
                     loginBtn.href = '#';
+                    loginBtn.classList.remove('btn-secondary');
+                    loginBtn.classList.add('btn-primary');
                     loginBtn.onclick = (e) => {
                         e.preventDefault();
                         showUserMenu();
                     };
                 }
+                
+                // Update other UI elements for logged-in state
+                const wishlistBtn = document.querySelector('a[href="#"] .fa-heart');
+                if (wishlistBtn && wishlistBtn.parentElement) {
+                    wishlistBtn.parentElement.style.display = 'flex';
+                }
+                
             } else {
                 // User is not logged in - show login button
                 if (loginBtn) {
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
                     loginBtn.href = 'login.html';
+                    loginBtn.classList.remove('btn-primary');
+                    loginBtn.classList.add('btn-secondary');
                     loginBtn.onclick = null;
+                }
+                
+                // Hide auth-required UI elements
+                const wishlistBtn = document.querySelector('a[href="#"] .fa-heart');
+                if (wishlistBtn && wishlistBtn.parentElement) {
+                    wishlistBtn.parentElement.style.display = 'none';
+                }
+            }
+            
+            // Update footer login link
+            const footerLoginBtn = document.getElementById('login-btn');
+            if (footerLoginBtn) {
+                if (isLoggedIn && user) {
+                    footerLoginBtn.textContent = 'My Account';
+                    footerLoginBtn.href = '#';
+                    footerLoginBtn.onclick = (e) => {
+                        e.preventDefault();
+                        showUserMenu();
+                    };
+                } else {
+                    footerLoginBtn.textContent = 'Login';
+                    footerLoginBtn.href = 'login.html';
+                    footerLoginBtn.onclick = null;
                 }
             }
         }
@@ -2454,75 +2593,64 @@
             });
         }
 
-        // Enhanced Cart Functions with Hybrid Authentication
+        // Enhanced handleAddToCart with better auth checking
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
                 showToast('Product not found!', 'error');
                 return;
             }
-
-            // Check if user is logged in using hybrid auth
+            // Check authentication with fallback methods
             if (!auth.isLoggedIn()) {
                 showToast('Please login to add items to cart', 'warning');
                 setTimeout(() => {
-                    window.location.href = 'login.html';
+                    window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
                 }, 1500);
                 return;
             }
-
             // Add animation to product card
             const productCard = document.querySelector(`[data-product-id="${productId}"]`);
             productCard?.classList.add('adding');
             setTimeout(() => productCard?.classList.remove('adding'), 300);
-
             try {
-                // Use hybrid auth addToCart method if available
-                if (window.quickLocalAuth && typeof window.quickLocalAuth.addToCart === 'function') {
-                    const result = await window.quickLocalAuth.addToCart(productId, 1);
-                    if (result.success) {
-                        showToast(`${product.name} added to cart!`, 'success');
-                        await loadCart();
-                    } else {
-                        throw new Error(result.message || 'Failed to add item to cart');
-                    }
+                console.log('🛒 Adding to cart:', product.name);
+                
+                const response = await api.post('/cart/add', {
+                    productId: productId,
+                    quantity: 1
+                });
+                if (response.success) {
+                    showToast(`${product.name} added to cart!`, 'success');
+                    await loadCart();
                 } else {
-                    // Fallback to API call
-                    const response = await api.post('/api/v1/cart/add', {
-                        productId: productId,
-                        quantity: 1
-                    });
-
-                    if (response.success) {
-                        showToast(`${product.name} added to cart!`, 'success');
-                        await loadCart();
-                    } else {
-                        throw new Error(response.message || 'Failed to add item to cart');
-                    }
+                    throw new Error(response.message || 'Failed to add item to cart');
                 }
             } catch (error) {
-                console.error('Add to cart error:', error);
+                console.error('🛒 Add to cart error:', error);
                 showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
                 
                 // If it's an auth error, redirect to login
                 if (error.message.includes('401') || error.message.includes('unauthorized')) {
+                    showToast('Session expired. Please login again.', 'warning');
                     await auth.logout();
                     setTimeout(() => {
-                        window.location.href = 'login.html';
+                        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
                     }, 1500);
                 }
             }
         }
 
-        // Load cart from backend
+        // Enhanced loadCart function with better error handling
         async function loadCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
                 updateCartUI();
+                console.log('👤 Not logged in, cart cleared');
                 return;
             }
-
             try {
+                console.log('🛒 Loading cart for authenticated user...');
+                
                 const response = await api.get('/cart');
                 
                 if (response.success && response.cart) {
@@ -2534,18 +2662,21 @@
                         image: item.product.images?.[0]?.url || item.product.image,
                         quantity: item.quantity
                     }));
+                    
+                    console.log('✅ Cart loaded:', appState.cart.length, 'items');
                 } else {
                     appState.cart = [];
+                    console.log('ℹ️ Empty cart or no cart data');
                 }
                 
                 updateCartUI();
             } catch (error) {
-                console.error('Load cart error:', error);
+                console.error('🛒 Load cart error:', error);
                 appState.cart = [];
                 updateCartUI();
                 
                 // Only show error if it's not a 401 (user might not be logged in)
-                if (!error.message.includes('401')) {
+                if (!error.message.includes('401') && !error.message.includes('unauthorized')) {
                     showToast('Could not load cart', 'warning');
                 }
             }
@@ -3202,7 +3333,6 @@
         }, 100);
     </script>
     
-    <!-- Enhanced Product Cards Utilities -->
     <script src="js/product-card-utils.js"></script>
     <script src="js/advanced-pagination-system.js"></script>
     <script src="js/advanced-ux-features.js"></script>
