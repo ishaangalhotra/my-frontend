@@ -619,32 +619,10 @@
             flex-direction: column;
             height: 100%;
         }
-        
-        .product-card::after {
-            content: '👁️ View Details';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-            z-index: 10;
-        }
         .product-card:hover {
             transform: translateY(-12px) scale(1.02);
             box-shadow: var(--shadow-xl);
             border-color: var(--primary-light);
-        }
-        
-        .product-card:hover::after {
-            opacity: 1;
         }
 
         .product-image-container {
@@ -2219,54 +2197,6 @@
             }
         }
 
-        // Enhanced Toast Notification System
-        function showToast(message, type = 'info', duration = 4000) {
-            const toastContainer = document.getElementById('toastContainer') || createToastContainer();
-            
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            
-            const icons = {
-                success: 'fas fa-check-circle',
-                error: 'fas fa-times-circle',
-                warning: 'fas fa-exclamation-triangle',
-                info: 'fas fa-info-circle'
-            };
-            
-            toast.innerHTML = `
-                <i class="toast-icon ${icons[type] || icons.info}"></i>
-                <div class="toast-content">${message}</div>
-            `;
-            
-            toastContainer.appendChild(toast);
-            
-            // Auto remove after duration
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translateX(100%)';
-                    setTimeout(() => toast.remove(), 300);
-                }
-            }, duration);
-            
-            // Click to dismiss
-            toast.addEventListener('click', () => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                setTimeout(() => toast.remove(), 300);
-            });
-        }
-        
-        function createToastContainer() {
-            const container = document.createElement('div');
-            container.id = 'toastContainer';
-            document.body.appendChild(container);
-            return container;
-        }
-        
-        // Make showToast globally available
-        window.showToast = showToast;
-
         // Generate demo products for fallback
         function generateDemoProducts() {
             const demoProducts = [
@@ -2376,7 +2306,7 @@
                     const stars = generateStars(product.rating);
                     
                     return `
-                        <div class="product-card" data-product-id="${product.id}" onclick="handleCardClick('${product.id}')">
+                        <div class="product-card" data-product-id="${product.id}">
                             <div class="product-image-container">
                                 <img loading="lazy" src="${getSafeImageUrl(product)}" 
                                      alt="${product.name}" class="product-image"
@@ -2397,9 +2327,9 @@
                                         `<span class="price-original">₹${product.originalPrice.toLocaleString()}</span>` : ''}
                                     ${discount > 0 ? `<span class="price-discount">${discount}% OFF</span>` : ''}
                                 </div>
-                                <div class="product-actions" onclick="event.stopPropagation();">
+                                <div class="product-actions">
                                     <button class="action-btn btn-primary add-to-cart" 
-                                            onclick="event.stopPropagation(); handleAddToCart('${product.id}');" 
+                                            onclick="handleAddToCart('${product.id}')" 
                                             ${product.stock === 0 ? 'disabled' : ''}>
                                         <i class="fas fa-shopping-cart"></i> 
                                         ${product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -2705,13 +2635,8 @@
         }
 
         function handleCardClick(productId) {
-            // Open product modal with detailed information
-            if (window.ProductModal) {
-                window.ProductModal.open(productId);
-            } else {
-                // Fallback - navigate to product detail page
-                window.location.href = `product-detail.html?id=${productId}`;
-            }
+            showToast(`Opening product details for ${productId}...`, 'info');
+            // Future: Navigate to product detail page
         }
 
         function handleSearchInput(e) {
@@ -3279,7 +3204,6 @@
     
     <!-- Enhanced Product Cards Utilities -->
     <script src="js/product-card-utils.js"></script>
-    <script src="js/product-modal.js"></script>
     <script src="js/advanced-pagination-system.js"></script>
     <script src="js/advanced-ux-features.js"></script>
     <script src="js/marketplace-api-patch.js"></script>
