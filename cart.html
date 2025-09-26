@@ -505,108 +505,115 @@
 
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Include Supabase (required for HybridAuthClient) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.7/supabase.min.js"></script>
+    <!-- Include HybridAuthClient -->
+    <script src="hybrid-auth-client.js"></script>
+
     <script>
         // Application state
         const appState = {
             cart: null,
-            apiBaseUrl: 'https://quicklocal-backend.onrender.com/api/v1',
-            authToken: localStorage.getItem('authToken') || null,
             user: null,
             isLoading: false
         };
 
-        // Authentication utilities
+        // Use the global HybridAuthClient instance that's auto-instantiated
         const auth = {
-            isLoggedIn: () => !!appState.authToken,
+            isLoggedIn: () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser(),
             getHeaders: () => ({
                 'Content-Type': 'application/json',
-                ...(appState.authToken && { 'Authorization': `Bearer ${appState.authToken}` })
+                'Authorization': window.HybridAuthClient ? window.HybridAuthClient.getAuthHeader() : ''
             }),
             redirectToLogin: () => {
                 showToast('Please login to view your cart', 'warning');
                 setTimeout(() => {
-                    window.location.href = 'login.html';
+                    // Redirect to login, passing the current page for a redirect back
+                    window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
                 }, 1500);
             }
         };
 
-        // API utilities
+        // API utilities using the HybridAuthClient's apiCall method
         const api = {
             async request(endpoint, options = {}) {
+                if (!window.HybridAuthClient) {
+                    throw new Error('Auth client not available');
+                }
                 try {
-                    const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
-                        headers: auth.getHeaders(),
-                        ...options
-                    });
-                    
+                    const response = await window.HybridAuthClient.apiCall(endpoint, options);
                     if (!response.ok) {
+                        const errorData = await response.text();
+                        console.error('API Response Error Text:', errorData);
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
-                    
                     return await response.json();
                 } catch (error) {
                     console.error(`API Error [${endpoint}]:`, error);
+                    // If unauthorized, redirect to login
+                    if (error.message.includes('401') || error.message.includes('403')) {
+                        auth.redirectToLogin();
+                    }
                     throw error;
                 }
             },
-            
-            async get(endpoint) {
-                return this.request(endpoint, { method: 'GET' });
-            },
-            
-            async post(endpoint, data) {
-                return this.request(endpoint, {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-            },
-            
-            async put(endpoint, data) {
-                return this.request(endpoint, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-            },
-            
-            async delete(endpoint) {
-                return this.request(endpoint, { method: 'DELETE' });
-            }
+            get: (endpoint) => api.request(endpoint, { method: 'GET' }),
+            put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
 
         // Initialize application
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🛒 Initializing Cart Page...');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🛒 Initializing Cart Page with Hybrid Auth...');
             
-            // Check if user is logged in
-            if (!auth.isLoggedIn()) {
-                auth.redirectToLogin();
-                return;
-            }
+            // Wait for the HybridAuthClient to be ready
+            const waitForAuthClient = setInterval(() => {
+                if (window.HybridAuthClient) {
+                    clearInterval(waitForAuthClient);
+                    console.log('✅ HybridAuthClient detected on Cart Page.');
+                    
+                    // Set up a listener for auth state changes (login/logout)
+                    window.HybridAuthClient.onAuthStateChange(user => {
+                        if (user) {
+                            // User is logged in, load their cart
+                            console.log(`👤 User authenticated: ${user.name}. Loading cart...`);
+                            appState.user = user;
+                            loadCart();
+                        } else {
+                            // User is not logged in, redirect them
+                            console.log('👤 No user session found. Redirecting to login.');
+                            auth.redirectToLogin();
+                        }
+                    });
 
-            // Restore user from localStorage
-            if (localStorage.getItem('user')) {
-                try {
-                    appState.user = JSON.parse(localStorage.getItem('user'));
-                } catch (error) {
-                    console.error('Failed to restore user data:', error);
+                    // Check current authentication status
+                    const currentUser = window.HybridAuthClient.getCurrentUser();
+                    if (currentUser) {
+                        console.log(`👤 User already authenticated: ${currentUser.name}. Loading cart...`);
+                        appState.user = currentUser;
+                        loadCart();
+                    } else {
+                        // Try to restore authentication
+                        window.HybridAuthClient.initializeAuth().then(() => {
+                            const user = window.HybridAuthClient.getCurrentUser();
+                            if (user) {
+                                appState.user = user;
+                                loadCart();
+                            } else {
+                                auth.redirectToLogin();
+                            }
+                        });
+                    }
                 }
-            }
+            }, 100);
 
-            // Load cart
-            await loadCart();
-            
-            // Initialize event listeners
             initializeEventListeners();
-            
-            console.log('✅ Cart Page initialized successfully!');
         });
 
-        // Initialize event listeners
         function initializeEventListeners() {
-            document.getElementById('checkoutBtn').addEventListener('click', proceedToCheckout);
+            document.getElementById('checkoutBtn')?.addEventListener('click', proceedToCheckout);
         }
 
-        // Load cart from backend
         async function loadCart() {
             if (appState.isLoading) return;
             
@@ -614,7 +621,8 @@
             showLoading(true);
             
             try {
-                const response = await api.get('/cart');
+                // The API call now correctly uses the bearer token from HybridAuthClient
+                const response = await api.get('/api/v1/cart');
                 
                 if (response.success && response.cart) {
                     appState.cart = response.cart;
@@ -624,21 +632,16 @@
                 }
             } catch (error) {
                 console.error('Load cart error:', error);
-                
-                if (error.message.includes('401')) {
-                    auth.redirectToLogin();
-                    return;
+                if (!error.message.includes('401')) { // Avoid double redirect message
+                    showToast(`Failed to load cart: ${error.message}`, 'error');
                 }
-                
-                showToast(`Failed to load cart: ${error.message}`, 'error');
-                showEmptyCart();
+                showEmptyCart(); // Show empty cart on any failure
             } finally {
                 appState.isLoading = false;
                 showLoading(false);
             }
         }
 
-        // Render cart
         function renderCart() {
             const cartContainer = document.getElementById('cartContainer');
             const emptyCart = document.getElementById('emptyCart');
@@ -652,9 +655,9 @@
             cartContainer.style.display = 'grid';
             emptyCart.style.display = 'none';
             
-            // Render cart items
             cartItemsList.innerHTML = appState.cart.items.map(item => {
                 const product = item.product;
+                if (!product) return ''; // Skip item if product data is missing
                 const itemTotal = item.price * item.quantity;
                 
                 return `
@@ -688,11 +691,9 @@
                 `;
             }).join('');
             
-            // Update summary
             updateCartSummary();
         }
 
-        // Update cart summary
         function updateCartSummary() {
             if (!appState.cart || !appState.cart.pricing) return;
             
@@ -703,29 +704,20 @@
             document.getElementById('tax').textContent = `₹${pricing.tax.toLocaleString()}`;
             document.getElementById('total').textContent = `₹${pricing.total.toLocaleString()}`;
             
-            // Enable/disable checkout button
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            if (appState.cart.items && appState.cart.items.length > 0) {
-                checkoutBtn.disabled = false;
-            } else {
-                checkoutBtn.disabled = true;
-            }
+            document.getElementById('checkoutBtn').disabled = !(appState.cart.items && appState.cart.items.length > 0);
         }
 
-        // Update item quantity
         async function updateQuantity(productId, newQuantity) {
             if (newQuantity <= 0) {
-                await removeItem(productId);
-                return;
+                return await removeItem(productId);
             }
             
             try {
-                const response = await api.put(`/cart/${productId}`, {
-                    quantity: newQuantity
-                });
+                // Corrected endpoint for updating quantity
+                const response = await api.put(`/api/v1/cart/update`, { productId, quantity: newQuantity });
                 
                 if (response.success) {
-                    await loadCart(); // Reload cart to get updated data
+                    await loadCart();
                     showToast('Quantity updated!', 'success');
                 } else {
                     throw new Error(response.message || 'Failed to update quantity');
@@ -736,13 +728,13 @@
             }
         }
 
-        // Remove item from cart
         async function removeItem(productId) {
             try {
-                const response = await api.delete(`/cart/${productId}`);
+                // Corrected endpoint for removing an item
+                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
                 
                 if (response.success) {
-                    await loadCart(); // Reload cart to get updated data
+                    await loadCart();
                     showToast('Item removed from cart!', 'success');
                 } else {
                     throw new Error(response.message || 'Failed to remove item');
@@ -753,24 +745,19 @@
             }
         }
 
-        // Proceed to checkout
         function proceedToCheckout() {
             if (!appState.cart || !appState.cart.items || appState.cart.items.length === 0) {
                 showToast('Your cart is empty', 'warning');
                 return;
             }
-            
-            // Redirect to checkout page
             window.location.href = 'checkout.html';
         }
 
-        // Show empty cart
         function showEmptyCart() {
             document.getElementById('cartContainer').style.display = 'none';
             document.getElementById('emptyCart').style.display = 'block';
         }
 
-        // Show/hide loading
         function showLoading(isLoading) {
             const loadingContainer = document.getElementById('loadingContainer');
             const cartContainer = document.getElementById('cartContainer');
@@ -785,43 +772,25 @@
             }
         }
 
-        // Toast notifications
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             if (!container) return;
             
             const toast = document.createElement('div');
-            const icons = {
-                success: 'fa-check-circle',
-                error: 'fa-exclamation-circle',
-                warning: 'fa-exclamation-triangle',
-                info: 'fa-info-circle'
-            };
+            const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
             
             toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <i class="fas ${icons[type]} toast-icon"></i>
-                <div class="toast-content">${message}</div>
-            `;
-            
+            toast.innerHTML = `<i class="fas ${icons[type]} toast-icon"></i><div class="toast-content">${message}</div>`;
             container.appendChild(toast);
             
-            // Auto remove after 4 seconds
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100%)';
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
-            
-            // Remove on click
-            toast.addEventListener('click', () => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                setTimeout(() => toast.remove(), 300);
-            });
         }
 
-        // Make functions globally accessible
+        // Make functions globally accessible for inline HTML calls
         window.updateQuantity = updateQuantity;
         window.removeItem = removeItem;
     </script>
