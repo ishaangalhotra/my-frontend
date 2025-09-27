@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 QuickLocal - Enhanced Login</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -286,8 +286,15 @@
             handleLoginSuccess(result) {
                 const user = result.user || { name: 'User' };
                 this.showMessage(`✨ Welcome back, ${user.name}! Redirecting...`, 'success');
-                // Use replace() to remove login page from browser history
-                setTimeout(() => window.location.replace('marketplace.html?login=success'), 2000);
+                
+                // Ensure user data is stored before redirect
+                localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                
+                // Use replace to remove login page from history
+                setTimeout(() => {
+                    // Force reload to ensure auth state is detected
+                    window.location.replace('marketplace.html?login=success&t=' + Date.now());
+                }, 1500);
             }
 
             handleLoginError(error) {

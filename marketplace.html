@@ -223,6 +223,10 @@
             align-items: center;
             gap: 1rem;
         }
+        
+        [data-auth-required] {
+            display: none; /* Initially hide auth-required elements */
+        }
 
         .action-btn {
             display: flex;
@@ -1417,7 +1421,7 @@
                     <li><a href="#" class="nav-link"><i class="fas fa-tags"></i> Deals</a></li>
                 </ul>
                 <div class="user-actions">
-                    <a href="#" class="action-btn btn-secondary"><i class="fas fa-heart"></i> Wishlist</a>
+                    <a href="#" class="action-btn btn-secondary" data-auth-required="true"><i class="fas fa-heart"></i> Wishlist</a>
                     <a href="login.html" class="action-btn btn-secondary"><i class="fas fa-sign-in-alt"></i> Login</a>
                     <a href="cart.html" class="action-btn btn-primary">
                         <i class="fas fa-shopping-cart"></i> Cart
@@ -1654,41 +1658,97 @@
 
         console.log('🌐 Using hybrid auth backend:', appState.apiBaseUrl);
 
-        // Enhanced authentication utilities with better session detection
+        // ENHANCED AUTH UTILITIES
         const auth = {
-            // Check if user is logged in with multiple fallback methods
+            // More reliable login check
             isLoggedIn: () => {
-                // Method 1: Check HybridAuthClient
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    return window.HybridAuthClient.isAuthenticated();
-                }
+                // Check multiple indicators
+                const indicators = [
+                    () => appState.user !== null,
+                    () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser() !== null,
+                    () => localStorage.getItem('quicklocal_user') !== null,
+                    () => localStorage.getItem('supabase_access_token') !== null,
+                    () => localStorage.getItem('token') !== null
+                ];
                 
-                // Method 2: Check for stored tokens
-                const supabaseToken = localStorage.getItem('supabase_access_token');
-                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                
-                return !!(supabaseToken || legacyToken);
+                return indicators.some(indicator => {
+                    try {
+                        return indicator();
+                    } catch (error) {
+                        return false;
+                    }
+                });
             },
             
-            // Get current user with fallback methods
+            // More robust user retrieval
             getUser: () => {
-                // Try HybridAuthClient first
+                // Priority 1: App state
+                if (appState.user) return appState.user;
+                
+                // Priority 2: HybridAuthClient
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
                     const user = window.HybridAuthClient.getCurrentUser();
                     if (user) return user;
                 }
                 
-                // Fallback: Try to get user from stored data
+                // Priority 3: Local storage
                 try {
                     const storedUser = localStorage.getItem('quicklocal_user');
                     if (storedUser) {
                         return JSON.parse(storedUser);
                     }
                 } catch (error) {
-                    console.warn('Failed to parse stored user data:', error);
+                    console.warn('Failed to parse stored user:', error);
                 }
                 
                 return null;
+            },
+            
+            // Enhanced logout with better cleanup
+            logout: async () => {
+                try {
+                    // Try HybridAuthClient logout first
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
+                        const result = await window.HybridAuthClient.logout();
+                        if (!result.success) {
+                            console.warn('HybridAuthClient logout failed, forcing cleanup');
+                        }
+                    }
+                    
+                    // Force cleanup regardless
+                    auth.clearStoredData();
+                    appState.user = null;
+                    appState.cart = [];
+                    updateAuthUI();
+                    showToast('Logged out successfully', 'info');
+                    
+                    return { success: true };
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Force cleanup on error too
+                    auth.clearStoredData();
+                    appState.user = null;
+                    appState.cart = [];
+                    updateAuthUI();
+                    showToast('Logged out', 'info');
+                    return { success: false, message: error.message };
+                }
+            },
+            
+            // Clear all stored authentication data
+            clearStoredData: () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('quicklocal_access_token');
+                localStorage.removeItem('quicklocal_refresh_token');
+                localStorage.removeItem('quicklocal_user');
+                
+                // Also clear Supabase's own storage keys
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                        localStorage.removeItem(key);
+                    }
+                });
             },
             
             // Get auth header with multiple token sources
@@ -1710,65 +1770,6 @@
                 }
                 
                 return '';
-            },
-            
-            // Enhanced login method
-            login: async (identifier, password) => {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.login === 'function') {
-                    return await window.HybridAuthClient.login(identifier, password);
-                }
-                return { success: false, message: 'Auth client not available' };
-            },
-            
-            // Enhanced logout method
-            logout: async () => {
-                try {
-                    if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
-                        const result = await window.HybridAuthClient.logout();
-                        if (result.success) {
-                            // CORRECTED: Refer to the object directly
-                            auth.clearStoredData(); 
-                            appState.user = null;
-                            appState.cart = [];
-                            updateAuthUI();
-                            showToast('Logged out successfully', 'info');
-                        }
-                        return result;
-                    } else {
-                        // Manual logout fallback
-                        auth.clearStoredData(); // CORRECTED
-                        appState.user = null;
-                        appState.cart = [];
-                        updateAuthUI();
-                        showToast('Logged out successfully', 'info');
-                        return { success: true };
-                    }
-                } catch (error) {
-                    console.error('Logout error:', error);
-                    // Force logout even if API call fails
-                    auth.clearStoredData(); // CORRECTED
-                    appState.user = null;
-                    appState.cart = [];
-                    updateAuthUI();
-                    showToast('Logged out (forced)', 'warning');
-                    return { success: false, message: error.message }; // Return failure but still clean up
-                }
-            },
-            
-            // Clear all stored authentication data
-            clearStoredData: () => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('quicklocal_access_token');
-                localStorage.removeItem('quicklocal_refresh_token');
-                localStorage.removeItem('quicklocal_user');
-                
-                // Also clear Supabase's own storage keys
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('sb-') && key.includes('-auth-token')) {
-                        localStorage.removeItem(key);
-                    }
-                });
             },
             
             // Get headers for API calls
@@ -1863,7 +1864,7 @@
             }
         }
 
-        // CORRECTED INITIALIZATION LOGIC
+        // CORRECTED AUTHENTICATION DETECTION IN MARKETPLACE
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Initializing Enhanced QuickLocal Marketplace...');
             
@@ -1872,42 +1873,69 @@
             initializeScrollEffects();
             initializeFromURL();
 
-            // Wait for HybridAuthClient to load
+            // Enhanced auth initialization with better state detection
+            await initializeAuthState();
+            
+            // Load public data immediately
+            await loadProducts();
+            await populateCarousels();
+            
+            console.log('✅ QuickLocal Marketplace initialized');
+        });
+
+        // NEW: Enhanced auth initialization function
+        async function initializeAuthState() {
             let authClientLoaded = false;
             let attempts = 0;
-            const maxAttempts = 50; // Wait up to 5 seconds
+            const maxAttempts = 50;
             
+            // Wait for HybridAuthClient to load
             while (!authClientLoaded && attempts < maxAttempts) {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     authClientLoaded = true;
                     console.log('✅ HybridAuthClient detected');
                     
-                    // Set up the crucial auth state listener
-                    window.HybridAuthClient.onAuthStateChange((user) => {
-                        console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
-                        appState.user = user;
-                        
-                        // Update UI elements based on auth state
-                        updateAuthUI(); 
-
-                        if (user) {
-                            // User is confirmed logged in. NOW it's safe to load private data.
-                            localStorage.setItem('quicklocal_user', JSON.stringify(user));
-                            // The ?login=success param triggers a welcome toast
-                            if (new URLSearchParams(window.location.search).get('login') === 'success') {
-                                 showToast(`Welcome back, ${user.name}!`, 'success');
-                                 // Clean up the URL
-                                 history.replaceState(null, '', window.location.pathname);
+                    // Set up auth state listener FIRST
+                    if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                        window.HybridAuthClient.onAuthStateChange((user) => {
+                            console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
+                            appState.user = user;
+                            updateAuthUI();
+                            
+                            if (user) {
+                                localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                                // Show welcome message if redirected from login
+                                const urlParams = new URLSearchParams(window.location.search);
+                                if (urlParams.get('login') === 'success') {
+                                    showToast(`Welcome back, ${user.name}!`, 'success');
+                                    // Clean URL
+                                    window.history.replaceState({}, '', window.location.pathname);
+                                }
+                                loadCart();
+                            } else {
+                                localStorage.removeItem('quicklocal_user');
+                                appState.cart = [];
+                                updateCartUI();
                             }
-                            loadCart(); // Load cart only when user is confirmed
-                        } else {
-                            // User is logged out. Clear local user data and cart state.
-                            localStorage.removeItem('quicklocal_user');
-                            appState.cart = [];
-                            updateCartUI();
+                        });
+                    }
+                    
+                    // Force check current auth state immediately
+                    try {
+                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+                        if (isAuthenticated) {
+                            const user = window.HybridAuthClient.getCurrentUser();
+                            if (user) {
+                                console.log('✅ User already authenticated:', user.name);
+                                appState.user = user;
+                                updateAuthUI();
+                                loadCart();
+                            }
                         }
-                    });
-                    break; // Exit the loop
+                    } catch (error) {
+                        console.warn('Auth check failed:', error);
+                    }
+                    break;
                 } else {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
@@ -1915,31 +1943,38 @@
             }
             
             if (!authClientLoaded) {
-                console.warn('⚠️ HybridAuthClient not loaded. Proceeding in logged-out state.');
-                updateAuthUI(); // Ensure UI is in logged-out state
+                console.warn('⚠️ HybridAuthClient not loaded. Checking local storage...');
+                // Fallback: Check localStorage for user data
+                try {
+                    const storedUser = localStorage.getItem('quicklocal_user');
+                    if (storedUser) {
+                        const user = JSON.parse(storedUser);
+                        appState.user = user;
+                        updateAuthUI();
+                        console.log('✅ User restored from localStorage:', user.name);
+                    }
+                } catch (error) {
+                    console.warn('Failed to restore user from storage:', error);
+                }
             }
-
-            // Immediately load public data that does not require authentication
-            await loadProducts();
-            await populateCarousels();
             
-            // The HybridAuthClient's own initialization will trigger the onAuthStateChange listener
-            // if a session already exists, which will then load the cart and update the UI.
-            
-            console.log('✅ QuickLocal Marketplace initialized. Waiting for auth state resolution...');
-        });
+            updateAuthUI(); // Ensure UI is updated regardless
+        }
 
-
-        // Enhanced updateAuthUI function with better user detection
+        // ENHANCED UI UPDATE FUNCTION
         function updateAuthUI() {
             const loginBtn = document.querySelector('a[href="login.html"]');
             const user = auth.getUser();
             const isLoggedIn = auth.isLoggedIn();
             
-            console.log('🔄 Updating auth UI:', { isLoggedIn, user: user?.name });
+            console.log('🔄 Updating auth UI:', { 
+                isLoggedIn, 
+                user: user?.name,
+                authMethod: window.HybridAuthClient?.getAuthMethod?.() 
+            });
             
             if (isLoggedIn && user) {
-                // User is logged in - show user menu
+                // User is logged in
                 if (loginBtn) {
                     loginBtn.innerHTML = `<i class="fas fa-user"></i> ${user.name}`;
                     loginBtn.href = '#';
@@ -1951,14 +1986,13 @@
                     };
                 }
                 
-                // Update other UI elements for logged-in state
-                const wishlistBtn = document.querySelector('a[href="#"] .fa-heart');
-                if (wishlistBtn && wishlistBtn.parentElement) {
-                    wishlistBtn.parentElement.style.display = 'flex';
-                }
+                // Show auth-dependent elements
+                document.querySelectorAll('[data-auth-required]').forEach(el => {
+                    el.style.display = 'flex';
+                });
                 
             } else {
-                // User is not logged in - show login button
+                // User is not logged in
                 if (loginBtn) {
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
                     loginBtn.href = 'login.html';
@@ -1967,11 +2001,10 @@
                     loginBtn.onclick = null;
                 }
                 
-                // Hide auth-required UI elements
-                const wishlistBtn = document.querySelector('a[href="#"] .fa-heart');
-                if (wishlistBtn && wishlistBtn.parentElement) {
-                    wishlistBtn.parentElement.style.display = 'none';
-                }
+                // Hide auth-dependent elements
+                document.querySelectorAll('[data-auth-required]').forEach(el => {
+                    el.style.display = 'none';
+                });
             }
             
             // Update footer login link
