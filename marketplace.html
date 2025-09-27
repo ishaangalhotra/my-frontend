@@ -1826,6 +1826,13 @@
                     body: JSON.stringify(data)
                 });
             },
+             
+            async patch(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data)
+                });
+            },
             
             async delete(endpoint) {
                 return this.request(endpoint, { method: 'DELETE' });
@@ -2239,7 +2246,7 @@
                     // Try hybrid auth client first
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                         console.log('🔐 Using HybridAuthClient.apiCall');
-                        const response = await window.HybridAuthClient.apiCall('/products');
+                        const response = await window.HybridAuthClient.apiCall('/api/v1/products');
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
@@ -2633,10 +2640,13 @@
             try {
                 console.log('🛒 Adding to cart:', product.name);
                 
-                const response = await api.post('/cart/add', {
+                // ================== FIX APPLIED HERE ==================
+                const response = await api.post('/api/v1/cart/add', {
                     productId: productId,
                     quantity: 1
                 });
+                // ======================================================
+
                 if (response.success) {
                     showToast(`${product.name} added to cart!`, 'success');
                     await loadCart();
@@ -2670,8 +2680,10 @@
             try {
                 console.log('🛒 Loading cart for authenticated user...');
                 
-                const response = await api.get('/cart');
-                
+                // ================== FIX APPLIED HERE ==================
+                const response = await api.get('/api/v1/cart');
+                // ======================================================
+
                 if (response.success && response.cart) {
                     // Convert backend cart format to frontend format
                     appState.cart = response.cart.items.map(item => ({
@@ -2709,8 +2721,10 @@
             }
 
             try {
-                const response = await api.delete(`/cart/remove/${productId}`);
-                
+                // ================== FIX APPLIED HERE ==================
+                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
+                // ======================================================
+
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
                     await loadCart();
@@ -2731,10 +2745,12 @@
             }
 
             try {
-                const response = await api.patch('/cart/update', {
+                // ================== FIX APPLIED HERE ==================
+                const response = await api.patch('/api/v1/cart/update', {
                  productId: productId,
                  quantity: newQuantity
                 });
+                // ======================================================
                 
                 if (response.success) {
                     await loadCart();
@@ -2756,8 +2772,10 @@
             }
 
             try {
-                const response = await api.delete('/cart/clear');
-                
+                // ================== FIX APPLIED HERE ==================
+                const response = await api.delete('/api/v1/cart/clear');
+                // ======================================================
+
                 if (response.success) {
                     appState.cart = [];
                     updateCartUI();

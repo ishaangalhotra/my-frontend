@@ -557,7 +557,6 @@
             },
             get: (endpoint) => api.request(endpoint, { method: 'GET' }),
             put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
-            // FIX: Added PATCH method to match the backend router
             patch: (endpoint, data) => api.request(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
             delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
@@ -615,8 +614,8 @@
             showLoading(true);
             
             try {
-                // The API endpoint should NOT include /api/v1 as the helper handles it.
-                const response = await api.get('/cart');
+                // FIX: Add the /api/v1 prefix to the cart endpoint
+                const response = await api.get('/api/v1/cart');
                 
                 if (response.success && response.cart) {
                     appState.cart = response.cart;
@@ -707,8 +706,8 @@
             }
             
             try {
-                // FIX: Changed from PUT to PATCH and corrected the endpoint path.
-                const response = await api.patch(`/cart/update`, { productId, quantity: newQuantity });
+                // FIX: Add the /api/v1 prefix to the cart update endpoint
+                const response = await api.patch(`/api/v1/cart/update`, { productId, quantity: newQuantity });
                 
                 if (response.success) {
                     await loadCart();
@@ -724,8 +723,8 @@
 
         async function removeItem(productId) {
             try {
-                // FIX: Corrected the endpoint path.
-                const response = await api.delete(`/cart/remove/${productId}`);
+                // FIX: Add the /api/v1 prefix to the cart remove endpoint
+                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
                 
                 if (response.success) {
                     await loadCart();
