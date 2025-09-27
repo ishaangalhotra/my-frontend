@@ -505,10 +505,7 @@
 
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Include Supabase (required for HybridAuthClient) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.7/supabase.min.js"></script>
-    <!-- Include HybridAuthClient -->
-    <script src="hybrid-auth-client.js"></script>
+    <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
         // Application state
@@ -541,6 +538,7 @@
                     throw new Error('Auth client not available');
                 }
                 try {
+                    // The HybridAuthClient is expected to prepend the API_BASE_URL
                     const response = await window.HybridAuthClient.apiCall(endpoint, options);
                     if (!response.ok) {
                         const errorData = await response.text();
@@ -559,6 +557,8 @@
             },
             get: (endpoint) => api.request(endpoint, { method: 'GET' }),
             put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
+            // FIX: Added PATCH method to match the backend router
+            patch: (endpoint, data) => api.request(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
             delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
 
@@ -568,42 +568,36 @@
             
             // Wait for the HybridAuthClient to be ready
             const waitForAuthClient = setInterval(() => {
-                if (window.HybridAuthClient) {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.initializeAuth === 'function') {
                     clearInterval(waitForAuthClient);
                     console.log('✅ HybridAuthClient detected on Cart Page.');
                     
                     // Set up a listener for auth state changes (login/logout)
                     window.HybridAuthClient.onAuthStateChange(user => {
                         if (user) {
-                            // User is logged in, load their cart
-                            console.log(`👤 User authenticated: ${user.name}. Loading cart...`);
-                            appState.user = user;
-                            loadCart();
+                            console.log(`👤 Auth state changed: Logged in as ${user.name}. Loading cart...`);
+                            if (!appState.user) { // Load cart only on initial login
+                                appState.user = user;
+                                loadCart();
+                            }
                         } else {
-                            // User is not logged in, redirect them
-                            console.log('👤 No user session found. Redirecting to login.');
+                            console.log('👤 Auth state changed: Logged out. Redirecting to login.');
                             auth.redirectToLogin();
                         }
                     });
 
-                    // Check current authentication status
-                    const currentUser = window.HybridAuthClient.getCurrentUser();
-                    if (currentUser) {
-                        console.log(`👤 User already authenticated: ${currentUser.name}. Loading cart...`);
-                        appState.user = currentUser;
-                        loadCart();
-                    } else {
-                        // Try to restore authentication
-                        window.HybridAuthClient.initializeAuth().then(() => {
-                            const user = window.HybridAuthClient.getCurrentUser();
-                            if (user) {
-                                appState.user = user;
-                                loadCart();
-                            } else {
-                                auth.redirectToLogin();
-                            }
-                        });
-                    }
+                    // Immediately try to initialize and check auth status
+                    window.HybridAuthClient.initializeAuth().then(() => {
+                        const currentUser = window.HybridAuthClient.getCurrentUser();
+                        if (currentUser) {
+                            console.log(`👤 User session restored: ${currentUser.name}. Loading cart...`);
+                            appState.user = currentUser;
+                            loadCart();
+                        } else {
+                            console.log('👤 No active user session. Redirecting to login.');
+                            auth.redirectToLogin();
+                        }
+                    });
                 }
             }, 100);
 
@@ -621,8 +615,8 @@
             showLoading(true);
             
             try {
-                // The API call now correctly uses the bearer token from HybridAuthClient
-                const response = await api.get('/api/v1/cart');
+                // The API endpoint should NOT include /api/v1 as the helper handles it.
+                const response = await api.get('/cart');
                 
                 if (response.success && response.cart) {
                     appState.cart = response.cart;
@@ -713,8 +707,8 @@
             }
             
             try {
-                // Corrected endpoint for updating quantity
-                const response = await api.put(`/api/v1/cart/update`, { productId, quantity: newQuantity });
+                // FIX: Changed from PUT to PATCH and corrected the endpoint path.
+                const response = await api.patch(`/cart/update`, { productId, quantity: newQuantity });
                 
                 if (response.success) {
                     await loadCart();
@@ -730,8 +724,8 @@
 
         async function removeItem(productId) {
             try {
-                // Corrected endpoint for removing an item
-                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
+                // FIX: Corrected the endpoint path.
+                const response = await api.delete(`/cart/remove/${productId}`);
                 
                 if (response.success) {
                     await loadCart();
