@@ -2584,7 +2584,7 @@
             });
         }
 
-        // Complete Fixed handleAddToCart Function
+        // UPDATED handleAddToCart function with the correct endpoint
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
@@ -2592,7 +2592,6 @@
                 return;
             }
 
-            // Enhanced auth check
             if (!auth.isLoggedIn()) {
                 showToast('Please login to add items to cart', 'warning');
                 setTimeout(() => {
@@ -2601,25 +2600,18 @@
                 return;
             }
 
-            // Add animation to product card
             const productCard = document.querySelector(`[data-product-id="${productId}"]`);
             productCard?.classList.add('adding');
             setTimeout(() => productCard?.classList.remove('adding'), 300);
 
             try {
-                console.log('🛒 Adding to cart:', product.name);
-                
-                // Get current auth header to verify token exists
-                const authHeader = auth.getAuthHeader();
-                console.log('🔐 Auth header for cart request:', authHeader ? 'Present' : 'Missing');
-                
-                if (!authHeader) {
+                if (!auth.getAuthHeader()) {
                     showToast('Authentication issue. Please log in again.', 'warning');
                     await auth.logout();
                     return;
                 }
 
-                // FIXED: Use the correct endpoint path with /api/v1/ and the correct payload for adding to cart
+                // Use the correct RESTful endpoint: POST /api/v1/cart
                 const response = await api.post('/api/v1/cart', {
                     productId: productId,
                     quantity: 1
@@ -2633,16 +2625,9 @@
                 }
             } catch (error) {
                 console.error('🛒 Add to cart error:', error);
-                
-                // Enhanced error handling
-                if (error.message.includes('404')) {
-                    showToast('Cart service temporarily unavailable. Please try again.', 'error');
-                } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
                     showToast('Your session may have expired. Please log in again.', 'warning');
                     await auth.logout();
-                    setTimeout(() => {
-                        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                    }, 2000);
                 } else {
                     showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
                 }
@@ -2650,22 +2635,18 @@
         }
 
 
-        // Enhanced loadCart function with better error handling
+        // UPDATED loadCart function with the correct endpoint
         async function loadCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
                 updateCartUI();
-                console.log('👤 Not logged in, cart cannot be loaded.');
                 return;
             }
             try {
-                console.log('🛒 Loading cart for authenticated user...');
-                
-                // FIXED: Use the correct endpoint path /api/v1/cart
+                // Use the correct RESTful endpoint: GET /api/v1/cart
                 const response = await api.get('/api/v1/cart');
 
                 if (response.success && response.cart) {
-                    // Convert backend cart format to frontend format
                     appState.cart = response.cart.items.map(item => ({
                         id: item.product._id || item.product.id,
                         name: item.product.name,
@@ -2673,26 +2654,21 @@
                         image: item.product.images?.[0]?.url || item.product.image,
                         quantity: item.quantity
                     }));
-                    
-                    console.log('✅ Cart loaded:', appState.cart.length, 'items');
                 } else {
                     appState.cart = [];
-                    console.log('ℹ️ Empty cart or no cart data');
                 }
-                
                 updateCartUI();
             } catch (error) {
                 console.error('🛒 Load cart error:', error);
                 appState.cart = [];
                 updateCartUI();
-                
-                if (!error.message.includes('401') && !error.message.includes('unauthorized')) {
+                if (!error.message.includes('401')) {
                     showToast('Could not load cart', 'warning');
                 }
             }
         }
 
-        // Remove item from cart
+        // UPDATED removeFromCart function with the correct endpoint
         async function removeFromCart(productId) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2700,7 +2676,7 @@
             }
 
             try {
-                // FIXED: Use the correct endpoint path /api/v1/cart/:productId
+                 // Use the correct RESTful endpoint: DELETE /api/v1/cart/:productId
                 const response = await api.delete(`/api/v1/cart/${productId}`);
 
                 if (response.success) {
@@ -2715,7 +2691,7 @@
             }
         }
 
-        // Update cart item quantity
+        // UPDATED updateCartItemQuantity function with the correct endpoint and method
         async function updateCartItemQuantity(productId, newQuantity) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2723,9 +2699,9 @@
             }
 
             try {
-                // FIXED: Use the correct endpoint path /api/v1/cart/:productId and PUT method
-                const response = await api.put(`/api/v1/cart/${productId}`, {
-                 quantity: newQuantity
+                // Use the correct RESTful endpoint: PATCH /api/v1/cart/:productId
+                const response = await api.patch(`/api/v1/cart/${productId}`, {
+                    quantity: newQuantity
                 });
                 
                 if (response.success) {
@@ -2739,7 +2715,7 @@
             }
         }
 
-        // Clear entire cart
+        // UPDATED clearCart function with the correct endpoint
         async function clearCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
@@ -2748,7 +2724,7 @@
             }
 
             try {
-                // FIXED: Use the correct endpoint path /api/v1/cart
+                // Use the correct RESTful endpoint: DELETE /api/v1/cart
                 const response = await api.delete('/api/v1/cart');
 
                 if (response.success) {
