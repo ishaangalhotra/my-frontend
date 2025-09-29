@@ -1615,8 +1615,9 @@
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     
     <script>
+        // FIXED: API_BASE_URL should not contain the /api/v1 prefix
         window.APP_CONFIG = {
-            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com',
             SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
             SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
             TOKEN_STORAGE_KEY: 'quicklocal_access_token',
@@ -1632,7 +1633,8 @@
             filteredProducts: [],
             categories: new Set(),
             cart: [],
-            apiBaseUrl: window.APP_CONFIG.API_BASE_URL, // Using hybrid auth backend
+            // FIXED: Set apiBaseUrl correctly from the updated APP_CONFIG
+            apiBaseUrl: window.APP_CONFIG.API_BASE_URL, 
             isLoading: false,
             user: null,
             hybridAuth: null, // Will hold hybrid auth instance
@@ -1656,9 +1658,9 @@
         // Make appState globally accessible for external scripts like marketplace-api-patch.js
         window.appState = appState;
 
-        console.log('🌐 Using hybrid auth backend:', appState.apiBaseUrl);
+        console.log('🌐 Using API Base URL:', appState.apiBaseUrl);
 
-        // ENHANCED auth object with robust token handling
+        // ENHANCED AUTH UTILITIES
         const auth = {
             // More reliable login check
             isLoggedIn: () => {
@@ -1679,48 +1681,7 @@
                     }
                 });
             },
-
-            // Enhanced auth header function
-            getAuthHeader: () => {
-                // Priority 1: HybridAuthClient method
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    const header = window.HybridAuthClient.getAuthHeader();
-                    if (header && header !== 'Bearer ') {
-                        console.log('🔐 Using HybridAuthClient auth header');
-                        return header;
-                    }
-                }
-                
-                // Priority 2: Manual token retrieval with better checking
-                const supabaseToken = localStorage.getItem('supabase_access_token');
-                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                
-                if (supabaseToken && supabaseToken !== 'undefined') {
-                    console.log('🔐 Using Supabase token from localStorage');
-                    return `Bearer ${supabaseToken}`;
-                } else if (legacyToken && legacyToken !== 'undefined') {
-                    console.log('🔐 Using legacy JWT token from localStorage');
-                    return `Bearer ${legacyToken}`;
-                }
-                
-                console.warn('⚠️ No valid auth token found');
-                return '';
-            },
-
-            // Get headers for API calls
-            getHeaders: () => {
-                const authHeader = auth.getAuthHeader();
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                
-                if (authHeader) {
-                    headers['Authorization'] = authHeader;
-                }
-                
-                return headers;
-            },
-
+            
             // More robust user retrieval
             getUser: () => {
                 // Priority 1: App state
@@ -1744,7 +1705,7 @@
                 
                 return null;
             },
-
+            
             // Enhanced logout with better cleanup
             logout: async () => {
                 try {
@@ -1775,7 +1736,7 @@
                     return { success: false, message: error.message };
                 }
             },
-
+            
             // Clear all stored authentication data
             clearStoredData: () => {
                 localStorage.removeItem('token');
@@ -1790,32 +1751,44 @@
                         localStorage.removeItem(key);
                     }
                 });
-            }
+            },
+            
+            // Get auth header with multiple token sources
+            getAuthHeader: () => {
+                // Try HybridAuthClient method first
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    const header = window.HybridAuthClient.getAuthHeader();
+                    if (header) return header;
+                }
+                
+                // Fallback: Manual token retrieval
+                const supabaseToken = localStorage.getItem('supabase_access_token');
+                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                
+                if (supabaseToken) {
+                    return `Bearer ${supabaseToken}`;
+                } else if (legacyToken) {
+                    return `Bearer ${legacyToken}`;
+                }
+                
+                return '';
+            },
+            
+            // Get headers for API calls
+            getHeaders: () => ({
+                'Content-Type': 'application/json',
+                'Authorization': auth.getAuthHeader()
+            })
         };
 
-        // ENHANCED API utility with proper auth headers
+        // API utilities using hybrid auth
         const api = {
             async request(endpoint, options = {}) {
                 try {
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        ...auth.getHeaders(),
-                        ...options.headers
-                    };
-
-                    // Log for debugging (remove in production)
-                    console.log(`🔐 API Call: ${endpoint}`, { 
-                        hasAuth: !!headers.Authorization,
-                        method: options.method || 'GET'
-                    });
-
                     // Use hybrid auth API call method if available
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                        const response = await window.HybridAuthClient.apiCall(endpoint, {
-                            ...options,
-                            headers: headers
-                        });
-                        
+                        // The hybrid client prepends the base URL itself, so we pass only the endpoint
+                        const response = await window.HybridAuthClient.apiCall(endpoint, options);
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
@@ -1824,11 +1797,13 @@
                     
                     // Fallback to direct fetch
                     const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
-                        ...options,
-                        headers: headers
+                        headers: auth.getHeaders(),
+                        ...options
                     });
                     
                     if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`API Error Response Text: ${errorText}`);
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
@@ -1838,37 +1813,36 @@
                     throw error;
                 }
             },
-
+            
             async get(endpoint) {
                 return this.request(endpoint, { method: 'GET' });
             },
-
+            
             async post(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'POST',
                     body: JSON.stringify(data)
                 });
             },
-
+            
             async put(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
             },
-
+             
             async patch(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'PATCH',
                     body: JSON.stringify(data)
                 });
             },
-
+            
             async delete(endpoint) {
                 return this.request(endpoint, { method: 'DELETE' });
             }
         };
-
 
         // Helper function for safe image URL handling
         function getSafeImageUrl(product, size = '300x220') {
@@ -2270,51 +2244,18 @@
             showLoading(true);
             
             try {
-                // Enhanced API call with multiple fallbacks
-                let data = null;
-                
-                try {
-                    // Try hybrid auth client first
-                    if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                        console.log('🔐 Using HybridAuthClient.apiCall');
-                        const response = await window.HybridAuthClient.apiCall('/api/v1/products');
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        data = await response.json();
-                    } else {
-                        throw new Error('HybridAuthClient not available');
-                    }
-                } catch (error) {
-                    console.warn('⚠️ HybridAuthClient failed, trying direct fetch:', error.message);
-                    
-                    // Fallback to direct fetch
-                    const response = await fetch(`${appState.apiBaseUrl}/products`, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': auth.getAuthHeader()
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    data = await response.json();
-                }
+                // Products endpoint now includes /api/v1/ prefix
+                const data = await api.get('/api/v1/products');
                 
                 console.log('✅ API response received:', data);
                 
                 // Handle different response formats from your backend
                 let products = [];
                 if (data.success && data.data && Array.isArray(data.data.products)) {
-                    // Your backend format: { success: true, data: { products: [...] } }
                     products = data.data.products;
                 } else if (data.success && Array.isArray(data.data)) {
-                    // Alternative format: { success: true, data: [...] }
                     products = data.data;
                 } else if (Array.isArray(data)) {
-                    // Direct array format: [...]
                     products = data;
                 } else {
                     console.warn('Unexpected API response format:', data);
@@ -2360,15 +2301,9 @@
             } catch (error) {
                 console.error('❌ Failed to load products:', error);
                 
-                // Try to get more detailed error information
                 let errorMessage = 'Could not load products from server.';
                 if (error.message.includes('500')) {
                     errorMessage = 'Server error (500) - Backend is having issues. Check server logs.';
-                    console.error('🔴 500 Server Error Details:', {
-                        url: `${appState.apiBaseUrl}/products`,
-                        error: error.message,
-                        suggestion: 'Check Render backend logs or restart the service'
-                    });
                 }
                 
                 showToast(errorMessage + ' Using demo data instead.', 'warning');
@@ -2649,7 +2584,7 @@
             });
         }
 
-        // FIXED handleAddToCart function with enhanced auth checking
+        // Complete Fixed handleAddToCart Function
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
@@ -2684,8 +2619,8 @@
                     return;
                 }
 
-                // Use the enhanced API utility that includes proper auth headers
-                const response = await api.post('/cart/add', {
+                // FIXED: Use the correct endpoint path with /api/v1/ and the correct payload for adding to cart
+                const response = await api.post('/api/v1/cart', {
                     productId: productId,
                     quantity: 1
                 });
@@ -2700,9 +2635,10 @@
                 console.error('🛒 Add to cart error:', error);
                 
                 // Enhanced error handling
-                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                if (error.message.includes('404')) {
+                    showToast('Cart service temporarily unavailable. Please try again.', 'error');
+                } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
                     showToast('Your session may have expired. Please log in again.', 'warning');
-                    // Clear auth data and redirect to login
                     await auth.logout();
                     setTimeout(() => {
                         window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
@@ -2714,19 +2650,19 @@
         }
 
 
-        // ENHANCED loadCart function with better error handling
+        // Enhanced loadCart function with better error handling
         async function loadCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
                 updateCartUI();
-                console.log('💤 Not logged in, cart cannot be loaded.');
+                console.log('👤 Not logged in, cart cannot be loaded.');
                 return;
             }
-
             try {
                 console.log('🛒 Loading cart for authenticated user...');
                 
-                const response = await api.get('/cart');
+                // FIXED: Use the correct endpoint path /api/v1/cart
+                const response = await api.get('/api/v1/cart');
 
                 if (response.success && response.cart) {
                     // Convert backend cart format to frontend format
@@ -2750,15 +2686,13 @@
                 appState.cart = [];
                 updateCartUI();
                 
-                // Only show error if it's not a 401 (user might not be logged in)
                 if (!error.message.includes('401') && !error.message.includes('unauthorized')) {
                     showToast('Could not load cart', 'warning');
                 }
             }
         }
 
-
-        // Additional cart management functions with proper auth
+        // Remove item from cart
         async function removeFromCart(productId) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2766,7 +2700,8 @@
             }
 
             try {
-                const response = await api.delete(`/cart/remove/${productId}`);
+                // FIXED: Use the correct endpoint path /api/v1/cart/:productId
+                const response = await api.delete(`/api/v1/cart/${productId}`);
 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2780,6 +2715,7 @@
             }
         }
 
+        // Update cart item quantity
         async function updateCartItemQuantity(productId, newQuantity) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2787,9 +2723,9 @@
             }
 
             try {
-                const response = await api.patch('/cart/update', {
-                    productId: productId,
-                    quantity: newQuantity
+                // FIXED: Use the correct endpoint path /api/v1/cart/:productId and PUT method
+                const response = await api.put(`/api/v1/cart/${productId}`, {
+                 quantity: newQuantity
                 });
                 
                 if (response.success) {
@@ -2803,6 +2739,7 @@
             }
         }
 
+        // Clear entire cart
         async function clearCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
@@ -2811,7 +2748,8 @@
             }
 
             try {
-                const response = await api.delete('/cart/clear');
+                // FIXED: Use the correct endpoint path /api/v1/cart
+                const response = await api.delete('/api/v1/cart');
 
                 if (response.success) {
                     appState.cart = [];
@@ -2825,6 +2763,7 @@
                 showToast(`Failed to clear cart: ${error.message}`, 'error');
             }
         }
+
 
         function handleCategoryPillClick(e) {
             const pill = e.target.closest('.category-item');
