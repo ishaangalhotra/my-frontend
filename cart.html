@@ -508,93 +508,81 @@
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
-        // Application state
         const appState = {
             cart: null,
             user: null,
             isLoading: false
         };
 
-        // Use the global HybridAuthClient instance that's auto-instantiated
+        // FIX: Re-implement auth and api helpers for consistency and robustness
         const auth = {
             isLoggedIn: () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser(),
-            getHeaders: () => ({
-                'Content-Type': 'application/json',
-                'Authorization': window.HybridAuthClient ? window.HybridAuthClient.getAuthHeader() : ''
-            }),
-            redirectToLogin: () => {
+            handleUnauthorized: () => {
                 showToast('Please login to view your cart', 'warning');
+                if (window.HybridAuthClient) {
+                    window.HybridAuthClient.logout();
+                }
                 setTimeout(() => {
-                    // Redirect to login, passing the current page for a redirect back
                     window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
                 }, 1500);
             }
         };
 
-        // API utilities using the HybridAuthClient's apiCall method
         const api = {
             async request(endpoint, options = {}) {
                 if (!window.HybridAuthClient) {
                     throw new Error('Auth client not available');
                 }
                 try {
-                    // The HybridAuthClient is expected to prepend the API_BASE_URL
                     const response = await window.HybridAuthClient.apiCall(endpoint, options);
+                    if (response.status === 401 || response.status === 403) {
+                        auth.handleUnauthorized();
+                        throw new Error('Unauthorized');
+                    }
                     if (!response.ok) {
-                        const errorData = await response.text();
-                        console.error('API Response Error Text:', errorData);
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     return await response.json();
                 } catch (error) {
-                    console.error(`API Error [${endpoint}]:`, error);
-                    // If unauthorized, redirect to login
-                    if (error.message.includes('401') || error.message.includes('403')) {
-                        auth.redirectToLogin();
+                    if (error.message !== 'Unauthorized') {
+                       console.error(`API Error [${endpoint}]:`, error);
                     }
                     throw error;
                 }
             },
             get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-            put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
             patch: (endpoint, data) => api.request(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
             delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
 
-        // Initialize application
+
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🛒 Initializing Cart Page with Hybrid Auth...');
             
-            // Wait for the HybridAuthClient to be ready
             const waitForAuthClient = setInterval(() => {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.initializeAuth === 'function') {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     clearInterval(waitForAuthClient);
                     console.log('✅ HybridAuthClient detected on Cart Page.');
                     
-                    // Set up a listener for auth state changes (login/logout)
                     window.HybridAuthClient.onAuthStateChange(user => {
                         if (user) {
-                            console.log(`👤 Auth state changed: Logged in as ${user.name}. Loading cart...`);
-                            if (!appState.user) { // Load cart only on initial login
+                             if (!appState.user) {
                                 appState.user = user;
                                 loadCart();
                             }
                         } else {
-                            console.log('👤 Auth state changed: Logged out. Redirecting to login.');
-                            auth.redirectToLogin();
+                            auth.handleUnauthorized();
                         }
                     });
 
-                    // Immediately try to initialize and check auth status
-                    window.HybridAuthClient.initializeAuth().then(() => {
-                        const currentUser = window.HybridAuthClient.getCurrentUser();
-                        if (currentUser) {
-                            console.log(`👤 User session restored: ${currentUser.name}. Loading cart...`);
-                            appState.user = currentUser;
+                    window.HybridAuthClient.isAuthenticated().then(isAuth => {
+                        if (isAuth) {
+                            appState.user = window.HybridAuthClient.getCurrentUser();
+                            console.log(`👤 User session found: ${appState.user.name}. Loading cart...`);
                             loadCart();
                         } else {
                             console.log('👤 No active user session. Redirecting to login.');
-                            auth.redirectToLogin();
+                            auth.handleUnauthorized();
                         }
                     });
                 }
@@ -609,26 +597,26 @@
 
         async function loadCart() {
             if (appState.isLoading) return;
-            
             appState.isLoading = true;
             showLoading(true);
             
             try {
-                // FIX: Add the /api/v1 prefix to the cart endpoint
+                // FIX: The backend uses a different response structure for getCart.
+                // It returns `{ success: true, data: { ...cartObject } }`.
                 const response = await api.get('/api/v1/cart');
                 
-                if (response.success && response.cart) {
-                    appState.cart = response.cart;
+                if (response.success && response.data) {
+                    appState.cart = response.data; // The whole data object is the cart
                     renderCart();
                 } else {
                     showEmptyCart();
                 }
             } catch (error) {
-                console.error('Load cart error:', error);
-                if (!error.message.includes('401')) { // Avoid double redirect message
+                if (error.message !== 'Unauthorized') {
+                    console.error('Load cart error:', error);
                     showToast(`Failed to load cart: ${error.message}`, 'error');
+                    showEmptyCart();
                 }
-                showEmptyCart(); // Show empty cart on any failure
             } finally {
                 appState.isLoading = false;
                 showLoading(false);
@@ -650,20 +638,18 @@
             
             cartItemsList.innerHTML = appState.cart.items.map(item => {
                 const product = item.product;
-                if (!product) return ''; // Skip item if product data is missing
-                const itemTotal = item.price * item.quantity;
+                if (!product) return '';
+                const itemTotal = (product.price || item.price) * item.quantity;
                 
                 return `
                     <div class="cart-item" data-product-id="${product._id || product.id}">
-                        <img src="${product.images?.[0]?.url || product.image || 'https://via.placeholder.com/100'}" 
+                        <img src="${product.images?.[0]?.url || 'https://via.placeholder.com/100'}" 
                              alt="${product.name}" class="item-image"
                              onerror="this.src='https://via.placeholder.com/100?text=No+Image';">
-                        
                         <div class="item-info">
                             <div class="item-name">${product.name}</div>
-                            <div class="item-price">₹${item.price.toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
+                            <div class="item-price">₹${(product.price || item.price).toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
                         </div>
-                        
                         <div class="item-actions">
                             <div class="quantity-controls">
                                 <button class="qty-btn" onclick="updateQuantity('${product._id || product.id}', ${item.quantity - 1})" 
@@ -671,12 +657,12 @@
                                     <i class="fas fa-minus"></i>
                                 </button>
                                 <span class="quantity">${item.quantity}</span>
-                                <button class="qty-btn" onclick="updateQuantity('${product._id || product.id}', ${item.quantity + 1})">
+                                <button class="qty-btn" onclick="updateQuantity('${product._id || product.id}', ${item.quantity + 1})"
+                                        ${item.quantity >= (product.stock || 100) ? 'disabled' : ''}>
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
-                            <button class="remove-btn" onclick="removeItem('${product._id || product.id}')" 
-                                    title="Remove from cart">
+                            <button class="remove-btn" onclick="removeItem('${product._id || product.id}')" title="Remove from cart">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -688,14 +674,12 @@
         }
 
         function updateCartSummary() {
-            if (!appState.cart || !appState.cart.pricing) return;
+            if (!appState.cart) return;
             
-            const pricing = appState.cart.pricing;
-            
-            document.getElementById('subtotal').textContent = `₹${pricing.subtotal.toLocaleString()}`;
-            document.getElementById('deliveryFee').textContent = `₹${pricing.deliveryFee.toLocaleString()}`;
-            document.getElementById('tax').textContent = `₹${pricing.tax.toLocaleString()}`;
-            document.getElementById('total').textContent = `₹${pricing.total.toLocaleString()}`;
+            document.getElementById('subtotal').textContent = `₹${(appState.cart.subtotal || 0).toLocaleString()}`;
+            document.getElementById('deliveryFee').textContent = `₹${(appState.cart.deliveryFee || 0).toLocaleString()}`;
+            document.getElementById('tax').textContent = `₹${(appState.cart.tax || 0).toLocaleString()}`;
+            document.getElementById('total').textContent = `₹${(appState.cart.total || 0).toLocaleString()}`;
             
             document.getElementById('checkoutBtn').disabled = !(appState.cart.items && appState.cart.items.length > 0);
         }
@@ -704,10 +688,12 @@
             if (newQuantity <= 0) {
                 return await removeItem(productId);
             }
-            
             try {
-                // FIX: Add the /api/v1 prefix to the cart update endpoint
-                const response = await api.patch(`/api/v1/cart/update`, { productId, quantity: newQuantity });
+                // The backend uses a PUT request for this
+                const response = await api.request(`/api/v1/cart/${productId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ quantity: newQuantity })
+                });
                 
                 if (response.success) {
                     await loadCart();
@@ -716,15 +702,13 @@
                     throw new Error(response.message || 'Failed to update quantity');
                 }
             } catch (error) {
-                console.error('Update quantity error:', error);
-                showToast(`Failed to update quantity: ${error.message}`, 'error');
+                if(error.message !== 'Unauthorized') showToast(`Failed to update quantity: ${error.message}`, 'error');
             }
         }
 
         async function removeItem(productId) {
             try {
-                // FIX: Add the /api/v1 prefix to the cart remove endpoint
-                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
+                const response = await api.delete(`/api/v1/cart/${productId}`);
                 
                 if (response.success) {
                     await loadCart();
@@ -733,8 +717,7 @@
                     throw new Error(response.message || 'Failed to remove item');
                 }
             } catch (error) {
-                console.error('Remove item error:', error);
-                showToast(`Failed to remove item: ${error.message}`, 'error');
+                if(error.message !== 'Unauthorized') showToast(`Failed to remove item: ${error.message}`, 'error');
             }
         }
 
@@ -755,7 +738,6 @@
             const loadingContainer = document.getElementById('loadingContainer');
             const cartContainer = document.getElementById('cartContainer');
             const emptyCart = document.getElementById('emptyCart');
-            
             if (isLoading) {
                 loadingContainer.style.display = 'flex';
                 cartContainer.style.display = 'none';
@@ -768,14 +750,11 @@
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             if (!container) return;
-            
             const toast = document.createElement('div');
             const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
-            
             toast.className = `toast ${type}`;
             toast.innerHTML = `<i class="fas ${icons[type]} toast-icon"></i><div class="toast-content">${message}</div>`;
             container.appendChild(toast);
-            
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100%)';
@@ -783,7 +762,6 @@
             }, 4000);
         }
 
-        // Make functions globally accessible for inline HTML calls
         window.updateQuantity = updateQuantity;
         window.removeItem = removeItem;
     </script>
