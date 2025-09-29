@@ -1091,6 +1091,26 @@
         .product-card.adding {
             animation: quickAdd 0.3s ease-in-out;
         }
+        
+        /* FIX 10: Add loading state for buttons */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-right-color: transparent;
+            animation: spin 1s linear infinite;
+        }
 
         /* Enhanced Mobile Responsiveness */
         @media (max-width: 1024px) {
@@ -1615,9 +1635,9 @@
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     
     <script>
-        // FIXED: API_BASE_URL should not contain the /api/v1 prefix
+        // FIX 1: API_BASE_URL now contains the /api/v1 prefix
         window.APP_CONFIG = {
-            API_BASE_URL: 'https://quicklocal-backend.onrender.com',
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
             SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
             SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
             TOKEN_STORAGE_KEY: 'quicklocal_access_token',
@@ -1633,7 +1653,7 @@
             filteredProducts: [],
             categories: new Set(),
             cart: [],
-            // FIXED: Set apiBaseUrl correctly from the updated APP_CONFIG
+            // Set apiBaseUrl correctly from the updated APP_CONFIG
             apiBaseUrl: window.APP_CONFIG.API_BASE_URL, 
             isLoading: false,
             user: null,
@@ -1753,22 +1773,36 @@
                 });
             },
             
-            // Get auth header with multiple token sources
+            // FIX 6: Improved getAuthHeader function
             getAuthHeader: () => {
-                // Try HybridAuthClient method first
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    const header = window.HybridAuthClient.getAuthHeader();
-                    if (header) return header;
-                }
+                // Try multiple token sources
+                const tokenSources = [
+                    () => window.HybridAuthClient?.getAuthHeader?.(), // Try client first
+                    () => localStorage.getItem('supabase_access_token'),
+                    () => localStorage.getItem('quicklocal_access_token'),
+                    () => localStorage.getItem('token'),
+                    () => {
+                        // Check for Supabase auth token in localStorage
+                        const keys = Object.keys(localStorage);
+                        const authKey = keys.find(key => key.includes('auth-token'));
+                        if (authKey) {
+                            const authData = JSON.parse(localStorage.getItem(authKey));
+                            return authData?.access_token;
+                        }
+                        return null;
+                    }
+                ];
                 
-                // Fallback: Manual token retrieval
-                const supabaseToken = localStorage.getItem('supabase_access_token');
-                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                
-                if (supabaseToken) {
-                    return `Bearer ${supabaseToken}`;
-                } else if (legacyToken) {
-                    return `Bearer ${legacyToken}`;
+                for (const getToken of tokenSources) {
+                    try {
+                        const token = getToken();
+                        if (token && typeof token === 'string' && token.length > 10) {
+                            // If it's already a full header, return it. Otherwise, format it.
+                            return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
                 }
                 
                 return '';
@@ -1783,11 +1817,12 @@
 
         // API utilities using hybrid auth
         const api = {
+            // FIX 2: Fixed API Request Function
             async request(endpoint, options = {}) {
                 try {
                     // Use hybrid auth API call method if available
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                        // The hybrid client prepends the base URL itself, so we pass only the endpoint
+                        // The hybrid client should prepend the base URL itself, so we pass only the endpoint
                         const response = await window.HybridAuthClient.apiCall(endpoint, options);
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1795,8 +1830,9 @@
                         return await response.json();
                     }
                     
-                    // Fallback to direct fetch
-                    const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
+                    // Fallback to direct fetch WITH the full URL
+                    const fullUrl = endpoint.startsWith('http') ? endpoint : `${appState.apiBaseUrl}${endpoint}`;
+                    const response = await fetch(fullUrl, {
                         headers: auth.getHeaders(),
                         ...options
                     });
@@ -1843,6 +1879,32 @@
                 return this.request(endpoint, { method: 'DELETE' });
             }
         };
+
+        // FIX 7: Add Request Retry Logic
+        async function apiCallWithRetry(endpoint, options = {}, maxRetries = 2) {
+            let lastError;
+            
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        console.log(`Retry attempt ${attempt} for ${endpoint}`);
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    }
+                    
+                    return await api.request(endpoint, options);
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`API call attempt ${attempt + 1} failed:`, error.message);
+                    
+                    // Don't retry on 4xx client errors (except 429 - too many requests)
+                    if (error.message.includes('40') && !error.message.includes('429')) {
+                        break;
+                    }
+                }
+            }
+            
+            throw lastError;
+        }
 
         // Helper function for safe image URL handling
         function getSafeImageUrl(product, size = '300x220') {
@@ -2244,18 +2306,23 @@
             showLoading(true);
             
             try {
-                // Products endpoint now includes /api/v1/ prefix
-                const data = await api.get('/api/v1/products');
+                // FIX 3: Products endpoint does not include /api/v1/ prefix
+                const data = await apiCallWithRetry('/products');
                 
+                // FIX 5: Better error handling for API responses
                 console.log('✅ API response received:', data);
                 
-                // Handle different response formats from your backend
+                // Handle different response formats more robustly
                 let products = [];
-                if (data.success && data.data && Array.isArray(data.data.products)) {
-                    products = data.data.products;
-                } else if (data.success && Array.isArray(data.data)) {
-                    products = data.data;
+                if (data && data.success !== undefined) {
+                    // Backend returns { success: true, data: [...] }
+                    if (data.data && Array.isArray(data.data)) {
+                        products = data.data;
+                    } else if (data.data && data.data.products && Array.isArray(data.data.products)) {
+                        products = data.data.products;
+                    }
                 } else if (Array.isArray(data)) {
+                    // Backend returns direct array
                     products = data;
                 } else {
                     console.warn('Unexpected API response format:', data);
@@ -2584,7 +2651,7 @@
             });
         }
 
-        // UPDATED handleAddToCart function with the correct endpoint
+        // FIX 4: Corrected cart endpoints
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
@@ -2611,8 +2678,8 @@
                     return;
                 }
 
-                // Use the correct RESTful endpoint: POST /api/v1/cart
-                const response = await api.post('/api/v1/cart', {
+                // Use the correct RESTful endpoint: POST /cart
+                const response = await api.post('/cart', {
                     productId: productId,
                     quantity: 1
                 });
@@ -2635,7 +2702,6 @@
         }
 
 
-        // UPDATED loadCart function with the correct endpoint
         async function loadCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
@@ -2643,8 +2709,8 @@
                 return;
             }
             try {
-                // Use the correct RESTful endpoint: GET /api/v1/cart
-                const response = await api.get('/api/v1/cart');
+                // Use the correct RESTful endpoint: GET /cart
+                const response = await api.get('/cart');
 
                 if (response.success && response.cart) {
                     appState.cart = response.cart.items.map(item => ({
@@ -2668,7 +2734,6 @@
             }
         }
 
-        // UPDATED removeFromCart function with the correct endpoint
         async function removeFromCart(productId) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2676,8 +2741,8 @@
             }
 
             try {
-                 // Use the correct RESTful endpoint: DELETE /api/v1/cart/:productId
-                const response = await api.delete(`/api/v1/cart/${productId}`);
+                 // Use the correct RESTful endpoint: DELETE /cart/:productId
+                const response = await api.delete(`/cart/${productId}`);
 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2691,7 +2756,6 @@
             }
         }
 
-        // UPDATED updateCartItemQuantity function with the correct endpoint and method
         async function updateCartItemQuantity(productId, newQuantity) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2699,8 +2763,8 @@
             }
 
             try {
-                // Use the correct RESTful endpoint: PATCH /api/v1/cart/:productId
-                const response = await api.patch(`/api/v1/cart/${productId}`, {
+                // Use the correct RESTful endpoint: PATCH /cart/:productId
+                const response = await api.patch(`/cart/${productId}`, {
                     quantity: newQuantity
                 });
                 
@@ -2715,7 +2779,6 @@
             }
         }
 
-        // UPDATED clearCart function with the correct endpoint
         async function clearCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
@@ -2724,8 +2787,8 @@
             }
 
             try {
-                // Use the correct RESTful endpoint: DELETE /api/v1/cart
-                const response = await api.delete('/api/v1/cart');
+                // Use the correct RESTful endpoint: DELETE /cart
+                const response = await api.delete('/cart');
 
                 if (response.success) {
                     appState.cart = [];
@@ -2993,16 +3056,18 @@
         }
 
         // ===== URL STATE MANAGEMENT =====
+        // FIX 8: Fixed URL State Management
         function initializeFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             
-            // Restore filters from URL
+            // Restore filters from URL with validation
             appState.currentFilters = {
-                search: urlParams.get('search') || '',
-                category: urlParams.get('category') || '',
-                priceRange: urlParams.get('price') || '',
-                sortBy: urlParams.get('sort') || 'name',
-                page: parseInt(urlParams.get('page')) || 1
+                search: validateInput(urlParams.get('search') || ''),
+                category: validateInput(urlParams.get('category') || ''),
+                priceRange: validateInput(urlParams.get('price') || ''),
+                sortBy: ['name', 'price-low', 'price-high', 'rating'].includes(urlParams.get('sort')) 
+                        ? urlParams.get('sort') : 'name',
+                page: Math.max(1, parseInt(urlParams.get('page')) || 1)
             };
             
             // Restore pagination state
@@ -3199,7 +3264,8 @@
                     return isNaN(price) || price < 0 ? 0 : Math.round(price * 100) / 100;
                 case 'text':
                 default:
-                    return escapeHTML(input.toString().trim());
+                    // Only escape for rendering, don't change the value for filtering
+                    return input.toString().trim();
             }
         }
         
@@ -3321,6 +3387,21 @@
                 observer.observe(card);
             });
         }, 100);
+
+        // FIX 9: Performance monitoring
+        window.addEventListener('load', () => {
+            if ('performance' in window) {
+                setTimeout(() => { // Use timeout to ensure all metrics are available
+                    const navTiming = performance.getEntriesByType('navigation')[0];
+                    const firstContentfulPaint = performance.getEntriesByName('first-contentful-paint')[0];
+                    console.log('🚀 Page Load Performance:', {
+                        domContentLoaded: (navTiming.domContentLoadedEventEnd - navTiming.navigationStart).toFixed(2) + 'ms',
+                        fullLoad: (navTiming.loadEventEnd - navTiming.navigationStart).toFixed(2) + 'ms',
+                        firstContentfulPaint: firstContentfulPaint ? firstContentfulPaint.startTime.toFixed(2) + 'ms' : 'N/A'
+                    });
+                }, 1000);
+            }
+        });
     </script>
     
     <script src="js/product-card-utils.js"></script>

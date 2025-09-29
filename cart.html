@@ -465,6 +465,9 @@
         <div id="cartContainer" class="cart-content" style="display: none;">
             <div class="cart-items">
                 <div id="cartItemsList"></div>
+                 <button onclick="clearCart()" style="margin-top: 2rem; padding: 0.5rem 1rem; background-color: var(--error); color: white; border: none; border-radius: var(--radius); cursor: pointer;">
+                    <i class="fas fa-trash"></i> Clear Entire Cart
+                </button>
             </div>
             
             <div class="cart-summary">
@@ -513,21 +516,27 @@
             user: null,
             isLoading: false
         };
-
-        // FIX: Re-implement auth and api helpers for consistency and robustness
+    
+        // Enhanced auth utilities
         const auth = {
-            isLoggedIn: () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser(),
+            isLoggedIn: () => {
+                return window.HybridAuthClient && 
+                       window.HybridAuthClient.getCurrentUser() !== null;
+            },
             handleUnauthorized: () => {
                 showToast('Please login to view your cart', 'warning');
-                if (window.HybridAuthClient) {
-                    window.HybridAuthClient.logout();
-                }
                 setTimeout(() => {
                     window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
                 }, 1500);
+            },
+            getAuthHeader: () => {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    return window.HybridAuthClient.getAuthHeader();
+                }
+                return '';
             }
         };
-
+    
         const api = {
             async request(endpoint, options = {}) {
                 if (!window.HybridAuthClient) {
@@ -551,69 +560,86 @@
                 }
             },
             get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-            patch: (endpoint, data) => api.request(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
+            // FIXED: Added POST method for completeness
+            post: (endpoint, data) => api.request(endpoint, { 
+                method: 'POST', 
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            // FIXED: Updated PATCH endpoint to use new route structure
+            patch: (endpoint, data) => api.request(endpoint, { 
+                method: 'PATCH', 
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            // FIXED: Updated DELETE endpoint to use new route structure
             delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
-
-
+    
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🛒 Initializing Cart Page with Hybrid Auth...');
+            console.log('🛒 Initializing Cart Page...');
             
             const waitForAuthClient = setInterval(() => {
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     clearInterval(waitForAuthClient);
                     console.log('✅ HybridAuthClient detected on Cart Page.');
                     
+                    // Set up auth state listener
                     window.HybridAuthClient.onAuthStateChange(user => {
+                        console.log('🔄 Auth state changed in cart:', user ? 'Logged in' : 'Logged out');
                         if (user) {
-                             if (!appState.user) {
-                                appState.user = user;
-                                loadCart();
-                            }
+                            appState.user = user;
+                            loadCart();
                         } else {
                             auth.handleUnauthorized();
                         }
                     });
-
+    
+                    // Check initial auth state
                     window.HybridAuthClient.isAuthenticated().then(isAuth => {
                         if (isAuth) {
                             appState.user = window.HybridAuthClient.getCurrentUser();
-                            console.log(`👤 User session found: ${appState.user.name}. Loading cart...`);
+                            console.log(`👤 User session found: ${appState.user?.name}. Loading cart...`);
                             loadCart();
                         } else {
-                            console.log('👤 No active user session. Redirecting to login.');
+                            console.log('👤 No active user session.');
                             auth.handleUnauthorized();
                         }
+                    }).catch(error => {
+                        console.error('Auth check failed:', error);
+                        auth.handleUnauthorized();
                     });
                 }
             }, 100);
-
+    
             initializeEventListeners();
         });
-
+    
         function initializeEventListeners() {
             document.getElementById('checkoutBtn')?.addEventListener('click', proceedToCheckout);
         }
-
+    
         async function loadCart() {
             if (appState.isLoading) return;
             appState.isLoading = true;
             showLoading(true);
             
             try {
-                // FIX: The backend uses a different response structure for getCart.
-                // It returns `{ success: true, data: { ...cartObject } }`.
+                console.log('🛒 Loading cart data...');
+                // CORRECT: This endpoint is correct - GET /api/v1/cart
                 const response = await api.get('/api/v1/cart');
                 
                 if (response.success && response.data) {
-                    appState.cart = response.data; // The whole data object is the cart
+                    appState.cart = response.data;
+                    console.log('✅ Cart loaded:', appState.cart);
                     renderCart();
                 } else {
+                    console.log('🛒 Cart is empty');
                     showEmptyCart();
                 }
             } catch (error) {
                 if (error.message !== 'Unauthorized') {
-                    console.error('Load cart error:', error);
+                    console.error('❌ Load cart error:', error);
                     showToast(`Failed to load cart: ${error.message}`, 'error');
                     showEmptyCart();
                 }
@@ -622,7 +648,7 @@
                 showLoading(false);
             }
         }
-
+    
         function renderCart() {
             const cartContainer = document.getElementById('cartContainer');
             const emptyCart = document.getElementById('emptyCart');
@@ -639,30 +665,33 @@
             cartItemsList.innerHTML = appState.cart.items.map(item => {
                 const product = item.product;
                 if (!product) return '';
-                const itemTotal = (product.price || item.price) * item.quantity;
+                
+                const itemPrice = product.price || item.price;
+                const itemTotal = itemPrice * item.quantity;
+                const productId = product._id || product.id;
                 
                 return `
-                    <div class="cart-item" data-product-id="${product._id || product.id}">
-                        <img src="${product.images?.[0]?.url || 'https://via.placeholder.com/100'}" 
+                    <div class="cart-item" data-product-id="${productId}">
+                        <img src="${getSafeImageUrl(product)}" 
                              alt="${product.name}" class="item-image"
                              onerror="this.src='https://via.placeholder.com/100?text=No+Image';">
                         <div class="item-info">
                             <div class="item-name">${product.name}</div>
-                            <div class="item-price">₹${(product.price || item.price).toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
+                            <div class="item-price">₹${itemPrice.toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
                         </div>
                         <div class="item-actions">
                             <div class="quantity-controls">
-                                <button class="qty-btn" onclick="updateQuantity('${product._id || product.id}', ${item.quantity - 1})" 
+                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity - 1})" 
                                         ${item.quantity <= 1 ? 'disabled' : ''}>
                                     <i class="fas fa-minus"></i>
                                 </button>
                                 <span class="quantity">${item.quantity}</span>
-                                <button class="qty-btn" onclick="updateQuantity('${product._id || product.id}', ${item.quantity + 1})"
+                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity + 1})"
                                         ${item.quantity >= (product.stock || 100) ? 'disabled' : ''}>
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
-                            <button class="remove-btn" onclick="removeItem('${product._id || product.id}')" title="Remove from cart">
+                            <button class="remove-btn" onclick="removeItem('${productId}')" title="Remove from cart">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -672,7 +701,21 @@
             
             updateCartSummary();
         }
-
+    
+        function getSafeImageUrl(product) {
+            if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string') {
+                    return product.images[0];
+                } else if (product.images[0].url) {
+                    return product.images[0].url;
+                }
+            }
+            if (product.image && typeof product.image === 'string') {
+                return product.image;
+            }
+            return 'https://via.placeholder.com/100?text=No+Image';
+        }
+    
         function updateCartSummary() {
             if (!appState.cart) return;
             
@@ -683,16 +726,16 @@
             
             document.getElementById('checkoutBtn').disabled = !(appState.cart.items && appState.cart.items.length > 0);
         }
-
+    
         async function updateQuantity(productId, newQuantity) {
             if (newQuantity <= 0) {
                 return await removeItem(productId);
             }
             try {
-                // The backend uses a PUT request for this
-                const response = await api.request(`/api/v1/cart/${productId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ quantity: newQuantity })
+                console.log(`🔄 Updating quantity for ${productId} to ${newQuantity}`);
+                // FIXED: Use the new endpoint structure
+                const response = await api.patch(`/api/v1/cart/items/${productId}`, {
+                    quantity: newQuantity
                 });
                 
                 if (response.success) {
@@ -702,13 +745,18 @@
                     throw new Error(response.message || 'Failed to update quantity');
                 }
             } catch (error) {
-                if(error.message !== 'Unauthorized') showToast(`Failed to update quantity: ${error.message}`, 'error');
+                if(error.message !== 'Unauthorized') {
+                    console.error('❌ Update quantity error:', error);
+                    showToast(`Failed to update quantity: ${error.message}`, 'error');
+                }
             }
         }
-
+    
         async function removeItem(productId) {
             try {
-                const response = await api.delete(`/api/v1/cart/${productId}`);
+                console.log(`🗑️ Removing item: ${productId}`);
+                // FIXED: Use the new endpoint structure
+                const response = await api.delete(`/api/v1/cart/items/${productId}`);
                 
                 if (response.success) {
                     await loadCart();
@@ -717,10 +765,31 @@
                     throw new Error(response.message || 'Failed to remove item');
                 }
             } catch (error) {
-                if(error.message !== 'Unauthorized') showToast(`Failed to remove item: ${error.message}`, 'error');
+                if(error.message !== 'Unauthorized') {
+                    console.error('❌ Remove item error:', error);
+                    showToast(`Failed to remove item: ${error.message}`, 'error');
+                }
             }
         }
-
+    
+        // NEW: Function to clear entire cart
+        async function clearCart() {
+            try {
+                console.log('🗑️ Clearing entire cart...');
+                const response = await api.delete('/api/v1/cart/clear');
+                
+                if (response.success) {
+                    await loadCart();
+                    showToast('Cart cleared successfully!', 'success');
+                } else {
+                    throw new Error(response.message || 'Failed to clear cart');
+                }
+            } catch (error) {
+                console.error('❌ Clear cart error:', error);
+                showToast(`Failed to clear cart: ${error.message}`, 'error');
+            }
+        }
+    
         function proceedToCheckout() {
             if (!appState.cart || !appState.cart.items || appState.cart.items.length === 0) {
                 showToast('Your cart is empty', 'warning');
@@ -728,16 +797,18 @@
             }
             window.location.href = 'checkout.html';
         }
-
+    
         function showEmptyCart() {
             document.getElementById('cartContainer').style.display = 'none';
             document.getElementById('emptyCart').style.display = 'block';
+            document.getElementById('loadingContainer').style.display = 'none';
         }
-
+    
         function showLoading(isLoading) {
             const loadingContainer = document.getElementById('loadingContainer');
             const cartContainer = document.getElementById('cartContainer');
             const emptyCart = document.getElementById('emptyCart');
+            
             if (isLoading) {
                 loadingContainer.style.display = 'flex';
                 cartContainer.style.display = 'none';
@@ -746,24 +817,44 @@
                 loadingContainer.style.display = 'none';
             }
         }
-
+    
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             if (!container) return;
+            
             const toast = document.createElement('div');
-            const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+            const icons = { 
+                success: 'fa-check-circle', 
+                error: 'fa-exclamation-circle', 
+                warning: 'fa-exclamation-triangle', 
+                info: 'fa-info-circle' 
+            };
+            
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fas ${icons[type]} toast-icon"></i><div class="toast-content">${message}</div>`;
+            toast.innerHTML = `
+                <i class="fas ${icons[type]} toast-icon"></i>
+                <div class="toast-content">${message}</div>
+            `;
+            
             container.appendChild(toast);
+            
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100%)';
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
+            
+            toast.addEventListener('click', () => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            });
         }
-
+    
+        // Make functions globally accessible
         window.updateQuantity = updateQuantity;
         window.removeItem = removeItem;
+        window.clearCart = clearCart;
     </script>
 </body>
 </html>
