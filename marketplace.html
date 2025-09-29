@@ -1658,7 +1658,7 @@
 
         console.log('🌐 Using hybrid auth backend:', appState.apiBaseUrl);
 
-        // ENHANCED AUTH UTILITIES
+        // ENHANCED auth object with robust token handling
         const auth = {
             // More reliable login check
             isLoggedIn: () => {
@@ -1679,7 +1679,48 @@
                     }
                 });
             },
-            
+
+            // Enhanced auth header function
+            getAuthHeader: () => {
+                // Priority 1: HybridAuthClient method
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    const header = window.HybridAuthClient.getAuthHeader();
+                    if (header && header !== 'Bearer ') {
+                        console.log('🔐 Using HybridAuthClient auth header');
+                        return header;
+                    }
+                }
+                
+                // Priority 2: Manual token retrieval with better checking
+                const supabaseToken = localStorage.getItem('supabase_access_token');
+                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                
+                if (supabaseToken && supabaseToken !== 'undefined') {
+                    console.log('🔐 Using Supabase token from localStorage');
+                    return `Bearer ${supabaseToken}`;
+                } else if (legacyToken && legacyToken !== 'undefined') {
+                    console.log('🔐 Using legacy JWT token from localStorage');
+                    return `Bearer ${legacyToken}`;
+                }
+                
+                console.warn('⚠️ No valid auth token found');
+                return '';
+            },
+
+            // Get headers for API calls
+            getHeaders: () => {
+                const authHeader = auth.getAuthHeader();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (authHeader) {
+                    headers['Authorization'] = authHeader;
+                }
+                
+                return headers;
+            },
+
             // More robust user retrieval
             getUser: () => {
                 // Priority 1: App state
@@ -1703,7 +1744,7 @@
                 
                 return null;
             },
-            
+
             // Enhanced logout with better cleanup
             logout: async () => {
                 try {
@@ -1734,7 +1775,7 @@
                     return { success: false, message: error.message };
                 }
             },
-            
+
             // Clear all stored authentication data
             clearStoredData: () => {
                 localStorage.removeItem('token');
@@ -1749,43 +1790,32 @@
                         localStorage.removeItem(key);
                     }
                 });
-            },
-            
-            // Get auth header with multiple token sources
-            getAuthHeader: () => {
-                // Try HybridAuthClient method first
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    const header = window.HybridAuthClient.getAuthHeader();
-                    if (header) return header;
-                }
-                
-                // Fallback: Manual token retrieval
-                const supabaseToken = localStorage.getItem('supabase_access_token');
-                const legacyToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                
-                if (supabaseToken) {
-                    return `Bearer ${supabaseToken}`;
-                } else if (legacyToken) {
-                    return `Bearer ${legacyToken}`;
-                }
-                
-                return '';
-            },
-            
-            // Get headers for API calls
-            getHeaders: () => ({
-                'Content-Type': 'application/json',
-                'Authorization': auth.getAuthHeader()
-            })
+            }
         };
 
-        // API utilities using hybrid auth
+        // ENHANCED API utility with proper auth headers
         const api = {
             async request(endpoint, options = {}) {
                 try {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        ...auth.getHeaders(),
+                        ...options.headers
+                    };
+
+                    // Log for debugging (remove in production)
+                    console.log(`🔐 API Call: ${endpoint}`, { 
+                        hasAuth: !!headers.Authorization,
+                        method: options.method || 'GET'
+                    });
+
                     // Use hybrid auth API call method if available
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                        const response = await window.HybridAuthClient.apiCall(endpoint, options);
+                        const response = await window.HybridAuthClient.apiCall(endpoint, {
+                            ...options,
+                            headers: headers
+                        });
+                        
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
@@ -1794,8 +1824,8 @@
                     
                     // Fallback to direct fetch
                     const response = await fetch(`${appState.apiBaseUrl}${endpoint}`, {
-                        headers: auth.getHeaders(),
-                        ...options
+                        ...options,
+                        headers: headers
                     });
                     
                     if (!response.ok) {
@@ -1808,36 +1838,37 @@
                     throw error;
                 }
             },
-            
+
             async get(endpoint) {
                 return this.request(endpoint, { method: 'GET' });
             },
-            
+
             async post(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'POST',
                     body: JSON.stringify(data)
                 });
             },
-            
+
             async put(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
             },
-             
+
             async patch(endpoint, data) {
                 return this.request(endpoint, {
                     method: 'PATCH',
                     body: JSON.stringify(data)
                 });
             },
-            
+
             async delete(endpoint) {
                 return this.request(endpoint, { method: 'DELETE' });
             }
         };
+
 
         // Helper function for safe image URL handling
         function getSafeImageUrl(product, size = '300x220') {
@@ -2618,14 +2649,15 @@
             });
         }
 
-        // Enhanced handleAddToCart with better auth checking
+        // FIXED handleAddToCart function with enhanced auth checking
         async function handleAddToCart(productId) {
             const product = appState.products.find(p => p.id === productId);
             if (!product) {
                 showToast('Product not found!', 'error');
                 return;
             }
-            // Check authentication with fallback methods
+
+            // Enhanced auth check
             if (!auth.isLoggedIn()) {
                 showToast('Please login to add items to cart', 'warning');
                 setTimeout(() => {
@@ -2633,19 +2665,30 @@
                 }, 1500);
                 return;
             }
+
             // Add animation to product card
             const productCard = document.querySelector(`[data-product-id="${productId}"]`);
             productCard?.classList.add('adding');
             setTimeout(() => productCard?.classList.remove('adding'), 300);
+
             try {
                 console.log('🛒 Adding to cart:', product.name);
                 
-                // ================== FIX APPLIED HERE ==================
-                const response = await api.post('/api/v1/cart/add', {
+                // Get current auth header to verify token exists
+                const authHeader = auth.getAuthHeader();
+                console.log('🔐 Auth header for cart request:', authHeader ? 'Present' : 'Missing');
+                
+                if (!authHeader) {
+                    showToast('Authentication issue. Please log in again.', 'warning');
+                    await auth.logout();
+                    return;
+                }
+
+                // Use the enhanced API utility that includes proper auth headers
+                const response = await api.post('/cart/add', {
                     productId: productId,
                     quantity: 1
                 });
-                // ======================================================
 
                 if (response.success) {
                     showToast(`${product.name} added to cart!`, 'success');
@@ -2656,33 +2699,34 @@
             } catch (error) {
                 console.error('🛒 Add to cart error:', error);
                 
-                // IMPROVED ERROR HANDLING
-                if (error.message.includes('401')) {
+                // Enhanced error handling
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
                     showToast('Your session may have expired. Please log in again.', 'warning');
-                    // Don't log out, just redirect to login
+                    // Clear auth data and redirect to login
+                    await auth.logout();
                     setTimeout(() => {
-                         window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+                        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
                     }, 2000);
                 } else {
-                     showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
+                    showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
                 }
             }
         }
 
-        // Enhanced loadCart function with better error handling
+
+        // ENHANCED loadCart function with better error handling
         async function loadCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
                 updateCartUI();
-                console.log('👤 Not logged in, cart cannot be loaded.');
+                console.log('💤 Not logged in, cart cannot be loaded.');
                 return;
             }
+
             try {
                 console.log('🛒 Loading cart for authenticated user...');
                 
-                // ================== FIX APPLIED HERE ==================
-                const response = await api.get('/api/v1/cart');
-                // ======================================================
+                const response = await api.get('/cart');
 
                 if (response.success && response.cart) {
                     // Convert backend cart format to frontend format
@@ -2713,7 +2757,8 @@
             }
         }
 
-        // Remove item from cart
+
+        // Additional cart management functions with proper auth
         async function removeFromCart(productId) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2721,9 +2766,7 @@
             }
 
             try {
-                // ================== FIX APPLIED HERE ==================
-                const response = await api.delete(`/api/v1/cart/remove/${productId}`);
-                // ======================================================
+                const response = await api.delete(`/cart/remove/${productId}`);
 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2737,7 +2780,6 @@
             }
         }
 
-        // Update cart item quantity
         async function updateCartItemQuantity(productId, newQuantity) {
             if (!auth.isLoggedIn()) {
                 showToast('Please login to manage cart', 'warning');
@@ -2745,12 +2787,10 @@
             }
 
             try {
-                // ================== FIX APPLIED HERE ==================
-                const response = await api.patch('/api/v1/cart/update', {
-                 productId: productId,
-                 quantity: newQuantity
+                const response = await api.patch('/cart/update', {
+                    productId: productId,
+                    quantity: newQuantity
                 });
-                // ======================================================
                 
                 if (response.success) {
                     await loadCart();
@@ -2763,7 +2803,6 @@
             }
         }
 
-        // Clear entire cart
         async function clearCart() {
             if (!auth.isLoggedIn()) {
                 appState.cart = [];
@@ -2772,9 +2811,7 @@
             }
 
             try {
-                // ================== FIX APPLIED HERE ==================
-                const response = await api.delete('/api/v1/cart/clear');
-                // ======================================================
+                const response = await api.delete('/cart/clear');
 
                 if (response.success) {
                     appState.cart = [];
