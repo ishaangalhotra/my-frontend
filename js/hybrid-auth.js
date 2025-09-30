@@ -388,14 +388,14 @@ class QuickLocalHybridAuth {
   // Add to cart
   async addToCart(productId, quantity = 1) {
     try {
-      const response = await this.apiCall('/api/v1/cart/add', {
+      const response = await this.apiCall('/api/v1/cart/items', {
         method: 'POST',
         body: JSON.stringify({ productId, quantity })
       });
       
       if (response.ok) {
         const data = await response.json();
-        return { success: true, cart: data.cart };
+        return { success: true, data: data.data, itemCount: data.data?.itemCount };
       } else {
         const data = await response.json();
         return { success: false, message: data.message };
