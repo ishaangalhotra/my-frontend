@@ -1890,13 +1890,18 @@
             }
 
             try {
-                // This endpoint correctly fetches the entire cart details
+                // Try the correct cart endpoint
                 const response = await api.get('/cart');
                 
                 if (response.success && response.data) {
                     // We only need the total item count for the marketplace page
-                    const itemCount = response.data.itemCount || 0;
+                    const itemCount = response.data.itemCount || (response.data.items ? response.data.items.length : 0);
                     appState.cart = response.data.items || [];
+                    updateCartCount(itemCount);
+                } else if (response.cart) {
+                    // Handle different response format
+                    const itemCount = response.cart.items ? response.cart.items.length : 0;
+                    appState.cart = response.cart.items || [];
                     updateCartCount(itemCount);
                 } else {
                     // Handle empty cart or minor errors gracefully
@@ -2709,17 +2714,30 @@
 			try {
 				console.log('🛒 Adding to cart:', { productId, productName: product.name });
 
-				// FIX: Include all required fields that match the backend schema
-				const response = await api.post('/cart/items', {
-					productId: productId,
-					quantity: 1,
-					priceAtAdd: product.price, // REQUIRED FIELD - Add current product price
-					selectedVariant: null,
-					customizations: [],
-					giftWrap: false,
-					giftMessage: '',
-					addedAt: new Date().toISOString()
-				});
+				// Use the hybrid auth client's addToCart method if available
+				let response;
+				if (window.quickLocalAuth && typeof window.quickLocalAuth.addToCart === 'function') {
+					response = await window.quickLocalAuth.addToCart(productId, 1);
+				} else if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+					// Fallback to hybrid client API call
+					const apiResponse = await window.HybridAuthClient.apiCall('/cart/add', {
+						method: 'POST',
+						body: JSON.stringify({ productId: productId, quantity: 1 })
+					});
+					if (apiResponse.ok) {
+						const data = await apiResponse.json();
+						response = { success: true, cart: data.cart };
+					} else {
+						const data = await apiResponse.json();
+						response = { success: false, message: data.message };
+					}
+				} else {
+					// Final fallback to direct API call
+					response = await api.post('/cart/add', {
+						productId: productId,
+						quantity: 1
+					});
+				}
 
 				if (response.success) {
 					showToast(`${product.name} added to cart!`, 'success');
@@ -2771,8 +2789,8 @@
                 return;
             }
             try {
-                // CORRECTED ENDPOINT: Use '/cart/items/:productId'
-                const response = await api.delete(`/cart/items/${productId}`);
+                // CORRECTED ENDPOINT: Use '/cart/remove/:productId'
+                const response = await api.delete(`/cart/remove/${productId}`);
 
                 if (response.success) {
                     showToast('Item removed from cart', 'success');
@@ -2793,8 +2811,8 @@
                 return;
             }
             try {
-                // CORRECTED ENDPOINT: Use '/cart/items/:productId'
-                const response = await api.patch(`/cart/items/${productId}`, {
+                // CORRECTED ENDPOINT: Use '/cart/update/:productId'
+                const response = await api.patch(`/cart/update/${productId}`, {
                     quantity: newQuantity
                 });
                 
