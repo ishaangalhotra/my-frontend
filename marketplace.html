@@ -2683,8 +2683,7 @@
         }
         
         // ===== START: FIX - MODIFIED handleAddToCart FUNCTION =====
-        // This version simplifies the success logic by calling the new, reliable loadCart() function.
-        async function handleAddToCart(productId) {
+		async function handleAddToCart(productId) {
 			const product = appState.products.find(p => p.id === productId);
 			if (!product) {
 				showToast('Product not found!', 'error');
@@ -2694,7 +2693,7 @@
 			if (!auth.isLoggedIn()) {
 				showToast('Please login to add items to cart', 'warning');
 				setTimeout(() => {
-				    window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+					window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
 				}, 1500);
 				return;
 			}
@@ -2710,41 +2709,47 @@
 			try {
 				console.log('🛒 Adding to cart:', { productId, productName: product.name });
 
+				// FIX: Include all required fields that match the backend schema
 				const response = await api.post('/cart/items', {
-				    productId: productId,
-				    quantity: 1
+					productId: productId,
+					quantity: 1,
+					priceAtAdd: product.price, // REQUIRED FIELD - Add current product price
+					selectedVariant: null,
+					customizations: [],
+					giftWrap: false,
+					giftMessage: '',
+					addedAt: new Date().toISOString()
 				});
 
 				if (response.success) {
-                    showToast(`${product.name} added to cart!`, 'success');
-                    
-                    // RELIABLE UPDATE: Simply reload the cart state. This is the key fix.
-                    await loadCart();
-                    
-                    productCard?.classList.add('adding');
-                    setTimeout(() => productCard?.classList.remove('adding'), 300);
+					showToast(`${product.name} added to cart!`, 'success');
+					
+					// RELIABLE UPDATE: Simply reload the cart state
+					await loadCart();
+					
+					productCard?.classList.add('adding');
+					setTimeout(() => productCard?.classList.remove('adding'), 300);
 				
 				} else {
-				    throw new Error(response.message || 'Failed to add item to cart');
+					throw new Error(response.message || 'Failed to add item to cart');
 				}
 			} catch (error) {
 				console.error('🛒 Add to cart error:', error);
 				let errorMessage = `Failed to add ${product.name} to cart.`;
 				if (error.message.includes('401')) {
-                    errorMessage = 'Your session has expired. Please log in again.';
-                    // The auth client will handle the logout, but we can prompt the user.
-                } else {
-                    errorMessage = error.message;
-                }
+					errorMessage = 'Your session has expired. Please log in again.';
+				} else {
+					errorMessage = error.message;
+				}
 				showToast(errorMessage, 'error');
 			} finally {
 				if (addButton) {
-				    addButton.disabled = false;
-				    addButton.classList.remove('btn-loading');
+					addButton.disabled = false;
+					addButton.classList.remove('btn-loading');
 				}
 			}
 		}
-        // ===== END: FIX - MODIFIED handleAddToCart FUNCTION =====
+		// ===== END: FIX - MODIFIED handleAddToCart FUNCTION =====
 		
         // ===== START: CORRECTED CODE BLOCK =====
         function updateCartCount(count) {
