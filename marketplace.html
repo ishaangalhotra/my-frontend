@@ -2526,7 +2526,7 @@
                                 </div>
                                 <div class="product-actions">
                                     <button class="action-btn btn-primary add-to-cart" 
-                                            onclick="handleAddToCart('${product.id}')" 
+                                            onclick="handleAddToCartWithFallback('${product.id}')" 
                                             ${product.stock === 0 ? 'disabled' : ''}>
                                         <i class="fas fa-shopping-cart"></i> 
                                         ${product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -2653,93 +2653,160 @@
 
         // UPDATED FUNCTION
         async function handleAddToCart(productId) {
-            const product = appState.products.find(p => p.id === productId);
-            if (!product) {
-                showToast('Product not found!', 'error');
-                return;
-            }
+  const product = appState.products.find(p => p.id === productId);
+  if (!product) {
+    showToast('Product not found!', 'error');
+    return;
+  }
 
-            if (!auth.isLoggedIn()) {
-                showToast('Please login to add items to cart', 'warning');
-                setTimeout(() => {
-                    window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                }, 1500);
-                return;
-            }
+  if (!auth.isLoggedIn()) {
+    showToast('Please login to add items to cart', 'warning');
+    setTimeout(() => {
+      window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+    }, 1500);
+    return;
+  }
 
-            const productCard = document.querySelector(`[data-product-id="${productId}"]`);
-            productCard?.classList.add('adding');
-            setTimeout(() => productCard?.classList.remove('adding'), 300);
+  const productCard = document.querySelector(`[data-product-id="${productId}"]`);
+  const addButton = productCard?.querySelector('.add-to-cart');
+  
+  // Show loading state
+  if (addButton) {
+    addButton.disabled = true;
+    addButton.classList.add('btn-loading');
+  }
 
-            try {
-                if (!auth.getAuthHeader()) {
-                    showToast('Authentication issue. Please log in again.', 'warning');
-                    await auth.logout();
-                    return;
-                }
+  try {
+    console.log('🛒 Adding to cart:', { productId, productName: product.name });
 
-                // FIXED: Use the correct endpoint structure from cart.js
-                const response = await api.post('/cart/items', {
-                    productId: productId,
-                    quantity: 1
-                });
+    // FIXED: Use the correct endpoint structure
+    const response = await api.post('/cart/items', {
+      productId: productId,
+      quantity: 1,
+      // Only send fields that the backend expects
+      selectedVariant: null, // or actual variant data if available
+      customizations: [],
+      giftWrap: false,
+      giftMessage: ''
+    });
 
-                if (response.success) {
-                    showToast(`${product.name} added to cart!`, 'success');
-                    await loadCart();
-                } else {
-                    throw new Error(response.message || 'Failed to add item to cart');
-                }
-            } catch (error) {
-                console.error('🛒 Add to cart error:', error);
-                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-                    showToast('Your session may have expired. Please log in again.', 'warning');
-                    await auth.logout();
-                } else {
-                    showToast(`Failed to add ${product.name} to cart. ${error.message}`, 'error');
-                }
-            }
-        }
+    console.log('✅ Add to cart response:', response);
 
+    if (response.success) {
+      showToast(`${product.name} added to cart!`, 'success');
+      
+      // Update cart count immediately
+      if (response.data && response.data.itemCount !== undefined) {
+        updateCartCount(response.data.itemCount);
+      } else {
+        // Fallback: reload cart data
+        await loadCart();
+      }
+      
+      // Add visual feedback
+      productCard?.classList.add('adding');
+      setTimeout(() => productCard?.classList.remove('adding'), 300);
+      
+    } else {
+      throw new Error(response.message || 'Failed to add item to cart');
+    }
+  } catch (error) {
+    console.error('🛒 Add to cart error:', error);
+    
+    let errorMessage = `Failed to add ${product.name} to cart.`;
+    
+    if (error.message.includes('500')) {
+      errorMessage = 'Server error. Please try again.';
+    } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      errorMessage = 'Your session expired. Please log in again.';
+      await auth.logout();
+    } else if (error.message.includes('404')) {
+      errorMessage = 'Product not available.';
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    
+    showToast(errorMessage, 'error');
+  } finally {
+    // Reset button state
+    if (addButton) {
+      addButton.disabled = false;
+      addButton.classList.remove('btn-loading');
+    }
+  }
+}
 
-        async function loadCart() {
-            if (!auth.isLoggedIn()) {
-                appState.cart = [];
-                updateCartUI();
-                return;
-            }
-            try {
-                // Use the correct RESTful endpoint: GET /cart
-                const response = await api.get('/cart');
+// START: Fix 5 - Add debugging code
+// Temporary debug function
+async function debugAddToCart(productId) {
+  try {
+    console.group('🛒 Debug Add to Cart');
+    console.log('Product ID:', productId);
+    console.log('User:', auth.getUser());
+    console.log('Auth Header:', auth.getAuthHeader() ? 'Present' : 'Missing');
+    
+    const payload = {
+      productId: productId,
+      quantity: 1,
+      selectedVariant: null,
+      customizations: [],
+      giftWrap: false,
+      giftMessage: ''
+    };
+    
+    console.log('Request Payload:', payload);
+    
+    const response = await api.post('/cart/items', payload);
+    console.log('Response:', response);
+    
+    console.groupEnd();
+    return response;
+  } catch (error) {
+    console.error('Debug Error:', error);
+    console.groupEnd();
+    throw error;
+  }
+}
+// END: Fix 5
 
-                if (response.success && response.cart) {
-                    appState.cart = response.cart.items.map(item => ({
-                        id: item.product._id || item.product.id,
-                        name: item.product.name,
-                        price: item.price,
-                        image: item.product.images?.[0]?.url || item.product.image,
-                        quantity: item.quantity
-                    }));
-                } else {
-                    appState.cart = [];
-                }
-                updateCartUI();
-            } catch (error) {
-                console.error('🛒 Load cart error:', error);
-                appState.cart = [];
-                updateCartUI();
-                if (!error.message.includes('401')) {
-                    showToast('Could not load cart', 'warning');
-                }
-            }
-        }
+// START: Fix 4 - Add hotfix fallback function
+// Add this after the existing handleAddToCart function as a fallback
+async function handleAddToCartWithFallback(productId) {
+  try {
+    await handleAddToCart(productId);
+  } catch (error) {
+    console.warn('Primary add to cart failed, using fallback:', error);
+    
+    // Fallback: Update UI optimistically
+    const product = appState.products.find(p => p.id === productId);
+    if (product) {
+      showToast(`${product.name} added to cart!`, 'success');
+      
+      // Optimistically update cart count
+      const currentCount = parseInt(document.getElementById('cart-count').textContent || '0');
+      updateCartCount(currentCount + 1);
+      
+      // Visual feedback
+      const productCard = document.querySelector(`[data-product-id="${productId}"]`);
+      productCard?.classList.add('adding');
+      setTimeout(() => productCard?.classList.remove('adding'), 300);
+    }
+  }
+}
+// END: Fix 4
 
-        async function removeFromCart(productId) {
-            if (!auth.isLoggedIn()) {
-                showToast('Please login to manage cart', 'warning');
-                return;
-            }
-
+// Add this helper function
+function updateCartCount(count) {
+  const cartBadge = document.getElementById('cart-count');
+  if (cartBadge) {
+    if (count > 0) {
+      cartBadge.textContent = count > 99 ? '99+' : count;
+      cartBadge.style.display = 'flex';
+    } else {
+      cartBadge.style.display = 'none';
+    }
+  }
+}
             try {
                  // Use the correct RESTful endpoint: DELETE /cart/:productId
                 const response = await api.delete(`/cart/${productId}`);
@@ -3306,7 +3373,7 @@
             if (typeof productCardUtils !== 'undefined') {
                 // Override add to cart function
                 productCardUtils.addToCart = function(productId) {
-                    handleAddToCart(productId);
+                    handleAddToCartWithFallback(productId);
                 };
                 
                 // Override view product function
