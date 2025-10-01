@@ -517,7 +517,6 @@
             isLoading: false
         };
     
-        // Enhanced auth utilities
         const auth = {
             isLoggedIn: () => {
                 return window.HybridAuthClient && 
@@ -549,6 +548,8 @@
                         throw new Error('Unauthorized');
                     }
                     if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error("API response error text:", errorText);
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     return await response.json();
@@ -560,19 +561,16 @@
                 }
             },
             get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-            // FIXED: Added POST method for completeness
             post: (endpoint, data) => api.request(endpoint, { 
                 method: 'POST', 
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' }
             }),
-            // FIXED: Updated PATCH endpoint to use new route structure
             patch: (endpoint, data) => api.request(endpoint, { 
                 method: 'PATCH', 
                 body: JSON.stringify(data),
                 headers: { 'Content-Type': 'application/json' }
             }),
-            // FIXED: Updated DELETE endpoint to use new route structure
             delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
         };
     
@@ -584,7 +582,6 @@
                     clearInterval(waitForAuthClient);
                     console.log('✅ HybridAuthClient detected on Cart Page.');
                     
-                    // Set up auth state listener
                     window.HybridAuthClient.onAuthStateChange(user => {
                         console.log('🔄 Auth state changed in cart:', user ? 'Logged in' : 'Logged out');
                         if (user) {
@@ -595,7 +592,6 @@
                         }
                     });
     
-                    // Check initial auth state
                     window.HybridAuthClient.isAuthenticated().then(isAuth => {
                         if (isAuth) {
                             appState.user = window.HybridAuthClient.getCurrentUser();
@@ -626,7 +622,6 @@
             
             try {
                 console.log('🛒 Loading cart data...');
-                // CORRECT: This endpoint is correct - GET /api/v1/cart
                 const response = await api.get('/api/v1/cart');
                 
                 if (response.success && response.data) {
@@ -649,6 +644,24 @@
             }
         }
     
+        function getSafeImageUrl(product) {
+            // ✅ FIX: Use a reliable inline SVG data URI as the final fallback.
+            // This requires no network request and will always render.
+            const fallbackImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e2e8f0'%3E%3Cpath d='M10 10h80v80H10z'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+
+            if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string' && product.images[0].startsWith('http')) {
+                    return product.images[0];
+                } else if (product.images[0].url && product.images[0].url.startsWith('http')) {
+                    return product.images[0].url;
+                }
+            }
+            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                return product.image;
+            }
+            return fallbackImage;
+        }
+
         function renderCart() {
             const cartContainer = document.getElementById('cartContainer');
             const emptyCart = document.getElementById('emptyCart');
@@ -662,6 +675,9 @@
             cartContainer.style.display = 'grid';
             emptyCart.style.display = 'none';
             
+            // ✅ FIX: Use the same reliable data URI for the onerror handler.
+            const fallbackImageOnError = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e2e8f0'%3E%3Cpath d='M10 10h80v80H10z'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+            
             cartItemsList.innerHTML = appState.cart.items.map(item => {
                 const product = item.product;
                 if (!product) return '';
@@ -674,7 +690,7 @@
                     <div class="cart-item" data-product-id="${productId}">
                         <img src="${getSafeImageUrl(product)}" 
                              alt="${product.name}" class="item-image"
-                             onerror="this.src='https://via.placeholder.com/100?text=No+Image';">
+                             onerror="this.onerror=null;this.src='${fallbackImageOnError}';">
                         <div class="item-info">
                             <div class="item-name">${product.name}</div>
                             <div class="item-price">₹${itemPrice.toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
@@ -702,24 +718,8 @@
             updateCartSummary();
         }
     
-        function getSafeImageUrl(product) {
-            if (product.images && product.images.length > 0) {
-                if (typeof product.images[0] === 'string') {
-                    return product.images[0];
-                } else if (product.images[0].url) {
-                    return product.images[0].url;
-                }
-            }
-            if (product.image && typeof product.image === 'string') {
-                return product.image;
-            }
-            return 'https://via.placeholder.com/100?text=No+Image';
-        }
-    
         function updateCartSummary() {
-            // Check for the cart and the nested pricing object
             if (!appState.cart || !appState.cart.pricing) {
-                // If pricing doesn't exist, set summary to 0 to avoid errors
                 document.getElementById('subtotal').textContent = `₹0`;
                 document.getElementById('deliveryFee').textContent = `₹0`;
                 document.getElementById('tax').textContent = `₹0`;
@@ -727,10 +727,8 @@
                 return;
             }
 
-            // ✅ FIX: Destructure the 'pricing' object from the app state.
             const { pricing } = appState.cart;
 
-            // Now, access properties from the 'pricing' object.
             document.getElementById('subtotal').textContent = `₹${(pricing.subtotal || 0).toLocaleString()}`;
             document.getElementById('deliveryFee').textContent = `₹${(pricing.deliveryFee || 0).toLocaleString()}`;
             document.getElementById('tax').textContent = `₹${(pricing.tax || 0).toLocaleString()}`;
@@ -745,7 +743,6 @@
             }
             try {
                 console.log(`🔄 Updating quantity for ${productId} to ${newQuantity}`);
-                // FIXED: Use the correct endpoint structure
                 const response = await api.patch(`/api/v1/cart/items/${productId}`, {
                     quantity: newQuantity
                 });
@@ -767,7 +764,6 @@
         async function removeItem(productId) {
             try {
                 console.log(`🗑️ Removing item: ${productId}`);
-                // FIXED: Use the correct endpoint structure
                 const response = await api.delete(`/api/v1/cart/items/${productId}`);
                 
                 if (response.success) {
@@ -784,7 +780,6 @@
             }
         }
     
-        // NEW: Function to clear entire cart
         async function clearCart() {
             try {
                 console.log('🗑️ Clearing entire cart...');
