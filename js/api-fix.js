@@ -22,6 +22,39 @@ waitForConfig(() => {
         base: window.APP_CONFIG.API_BASE_URL_BASE
     });
     
+    // Fix 5: Override auth-protected API calls to handle 404s gracefully
+    if (window.api && window.api.request) {
+        const originalRequest = window.api.request;
+        window.api.request = async function(endpoint, options = {}) {
+            console.log('🔧 API Fix - Intercepting request:', endpoint);
+            
+            try {
+                return await originalRequest.call(this, endpoint, options);
+            } catch (error) {
+                // Handle auth-required endpoints that return 404 when not authenticated
+                if (error.message.includes('404') && ['/cart', '/cart/items'].some(path => endpoint.includes(path))) {
+                    console.log('🔒 Cart endpoint requires authentication, user not logged in');
+                    
+                    // For cart endpoints, return empty cart structure
+                    if (endpoint.includes('/cart') && !endpoint.includes('/cart/items')) {
+                        return {
+                            success: true,
+                            data: {
+                                id: null,
+                                items: [],
+                                itemCount: 0,
+                                pricing: { subtotal: 0, tax: 0, deliveryFee: 0, discount: 0, total: 0 },
+                                isEmpty: true
+                            }
+                        };
+                    }
+                }
+                
+                throw error;
+            }
+        };
+    }
+    
     // Fix 2: Override enhanced API to handle auth better
     if (window.enhancedAPI) {
         const originalRequest = window.enhancedAPI.request;
@@ -130,4 +163,35 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+    
+    // Fix 6: Override API request after it's available to handle cart 404s
+    setTimeout(() => {
+        if (window.api && window.api.request) {
+            const originalRequest = window.api.request;
+            window.api.request = async function(endpoint, options = {}) {
+                try {
+                    return await originalRequest.call(this, endpoint, options);
+                } catch (error) {
+                    // Handle auth-required endpoints that return 404 when not authenticated
+                    if (error.message.includes('404') && endpoint.includes('/cart') && !endpoint.includes('/cart/items')) {
+                        console.log('🔒 Cart endpoint requires authentication, returning empty cart');
+                        
+                        return {
+                            success: true,
+                            data: {
+                                id: null,
+                                items: [],
+                                itemCount: 0,
+                                pricing: { subtotal: 0, tax: 0, deliveryFee: 0, discount: 0, total: 0 },
+                                isEmpty: true
+                            }
+                        };
+                    }
+                    
+                    throw error;
+                }
+            };
+            console.log('✅ Cart API error handling enabled');
+        }
+    }, 1000);
 });

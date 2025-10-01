@@ -1911,7 +1911,17 @@
                 }
             } catch (error) {
                 console.warn('Could not load cart data for header:', error.message);
-                // Don't log out the user, just fail gracefully by showing 0 items.
+                
+                // Handle 404 errors gracefully (cart requires authentication)
+                if (error.message.includes('404')) {
+                    console.log('🔒 Cart endpoint requires authentication - showing empty cart');
+                    appState.cart = [];
+                    updateCartCount(0);
+                    return;
+                }
+                
+                // For other errors, also fail gracefully
+                appState.cart = [];
                 updateCartCount(0);
             }
         }
@@ -2703,6 +2713,27 @@
 				}, 1500);
 				return;
 			}
+			
+			// Additional check for valid auth token
+			if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+				try {
+					const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+					if (!isAuthenticated) {
+						showToast('Your session has expired. Please login again.', 'warning');
+						setTimeout(() => {
+							window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+						}, 1500);
+						return;
+					}
+				} catch (error) {
+					console.warn('Could not verify authentication:', error.message);
+					showToast('Please login to add items to cart', 'warning');
+					setTimeout(() => {
+						window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+					}, 1500);
+					return;
+				}
+			}
 
 			const productCard = document.querySelector(`[data-product-id="${productId}"]`);
 			const addButton = productCard?.querySelector('.add-to-cart');
@@ -2753,13 +2784,21 @@
 					throw new Error(response.message || 'Failed to add item to cart');
 				}
 			} catch (error) {
-				console.error('🛒 Add to cart error:', error);
+				console.error('🛍️ Add to cart error:', error);
 				let errorMessage = `Failed to add ${product.name} to cart.`;
+				
 				if (error.message.includes('401')) {
 					errorMessage = 'Your session has expired. Please log in again.';
+					// Redirect to login
+					setTimeout(() => {
+						window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+					}, 2000);
+				} else if (error.message.includes('404')) {
+					errorMessage = 'Cart service unavailable. Please try again later.';
 				} else {
-					errorMessage = error.message;
+					errorMessage = error.message || 'Unknown error occurred';
 				}
+				
 				showToast(errorMessage, 'error');
 			} finally {
 				if (addButton) {
