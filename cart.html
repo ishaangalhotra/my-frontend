@@ -717,13 +717,25 @@
         }
     
         function updateCartSummary() {
-            if (!appState.cart) return;
-            
-            document.getElementById('subtotal').textContent = `₹${(appState.cart.subtotal || 0).toLocaleString()}`;
-            document.getElementById('deliveryFee').textContent = `₹${(appState.cart.deliveryFee || 0).toLocaleString()}`;
-            document.getElementById('tax').textContent = `₹${(appState.cart.tax || 0).toLocaleString()}`;
-            document.getElementById('total').textContent = `₹${(appState.cart.total || 0).toLocaleString()}`;
-            
+            // Check for the cart and the nested pricing object
+            if (!appState.cart || !appState.cart.pricing) {
+                // If pricing doesn't exist, set summary to 0 to avoid errors
+                document.getElementById('subtotal').textContent = `₹0`;
+                document.getElementById('deliveryFee').textContent = `₹0`;
+                document.getElementById('tax').textContent = `₹0`;
+                document.getElementById('total').textContent = `₹0`;
+                return;
+            }
+
+            // ✅ FIX: Destructure the 'pricing' object from the app state.
+            const { pricing } = appState.cart;
+
+            // Now, access properties from the 'pricing' object.
+            document.getElementById('subtotal').textContent = `₹${(pricing.subtotal || 0).toLocaleString()}`;
+            document.getElementById('deliveryFee').textContent = `₹${(pricing.deliveryFee || 0).toLocaleString()}`;
+            document.getElementById('tax').textContent = `₹${(pricing.tax || 0).toLocaleString()}`;
+            document.getElementById('total').textContent = `₹${(pricing.total || 0).toLocaleString()}`;
+
             document.getElementById('checkoutBtn').disabled = !(appState.cart.items && appState.cart.items.length > 0);
         }
     
