@@ -693,17 +693,15 @@
                              onerror="this.onerror=null;this.src='${fallbackImageOnError}';">
                         <div class="item-info">
                             <div class="item-name">${product.name}</div>
-                            <div class="item-price">₹${itemPrice.toLocaleString()} × ${item.quantity} = ₹${itemTotal.toLocaleString()}</div>
+                            <div class="item-price">₹${itemPrice.toLocaleString()} × ${item.quantity} = <strong>₹${itemTotal.toLocaleString()}</strong></div>
                         </div>
                         <div class="item-actions">
                             <div class="quantity-controls">
-                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity - 1})" 
-                                        ${item.quantity <= 1 ? 'disabled' : ''}>
+                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity - 1})">
                                     <i class="fas fa-minus"></i>
                                 </button>
                                 <span class="quantity">${item.quantity}</span>
-                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity + 1})"
-                                        ${item.quantity >= (product.stock || 100) ? 'disabled' : ''}>
+                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity + 1})">
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
@@ -715,26 +713,36 @@
                 `;
             }).join('');
             
-            updateCartSummary();
+            updateCartSummary(appState.cart.pricing);
         }
     
-        function updateCartSummary() {
-            if (!appState.cart || !appState.cart.pricing) {
-                document.getElementById('subtotal').textContent = `₹0`;
-                document.getElementById('deliveryFee').textContent = `₹0`;
-                document.getElementById('tax').textContent = `₹0`;
-                document.getElementById('total').textContent = `₹0`;
+        function updateCartSummary(pricingData) {
+            // Handle both direct pricing data and full cart response from appState
+            const pricing = pricingData ? pricingData : (appState.cart ? appState.cart.pricing : null);
+
+            if (!pricing) {
+                console.warn('No pricing data available to update cart summary.');
+                document.getElementById('subtotal').textContent = '₹0';
+                document.getElementById('deliveryFee').textContent = '₹0';
+                document.getElementById('tax').textContent = '₹0';
+                document.getElementById('total').textContent = '₹0';
+                const checkoutBtn = document.getElementById('checkoutBtn');
+                if(checkoutBtn) checkoutBtn.disabled = true;
                 return;
             }
-
-            const { pricing } = appState.cart;
 
             document.getElementById('subtotal').textContent = `₹${(pricing.subtotal || 0).toLocaleString()}`;
             document.getElementById('deliveryFee').textContent = `₹${(pricing.deliveryFee || 0).toLocaleString()}`;
             document.getElementById('tax').textContent = `₹${(pricing.tax || 0).toLocaleString()}`;
             document.getElementById('total').textContent = `₹${(pricing.total || 0).toLocaleString()}`;
 
-            document.getElementById('checkoutBtn').disabled = !(appState.cart.items && appState.cart.items.length > 0);
+            // Update checkout button state
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            if (checkoutBtn) {
+                checkoutBtn.disabled = !(pricing.subtotal > 0);
+            }
+            
+            console.log('🔄 Cart summary updated:', pricing);
         }
     
         async function updateQuantity(productId, newQuantity) {
@@ -748,8 +756,36 @@
                 });
                 
                 if (response.success) {
-                    await loadCart();
-                    showToast('Quantity updated!', 'success');
+                     // ✅ CRITICAL: Update the local cart state with the fresh data from response
+                    if (response.data && response.data.pricing) {
+                        // Update the cart summary immediately with fresh data
+                        updateCartSummary(response.data.pricing);
+                        
+                        // Also update the specific item in the UI
+                        const quantityElement = document.querySelector(`[data-product-id="${productId}"] .quantity`);
+                        if (quantityElement) {
+                        quantityElement.textContent = newQuantity;
+                        }
+                        
+                        // Update item total price if displayed
+                        const itemTotalElement = document.querySelector(`[data-product-id="${productId}"] .item-price`);
+                        if (itemTotalElement && response.data.items) {
+                            const updatedItem = response.data.items.find(item => 
+                                item.product._id === productId || item.product.id === productId
+                            );
+                            if (updatedItem) {
+                                const itemPrice = updatedItem.product.price || updatedItem.priceAtAdd;
+                                const itemTotal = itemPrice * newQuantity;
+                                itemTotalElement.innerHTML = `₹${itemPrice.toLocaleString()} × ${newQuantity} = <strong>₹${itemTotal.toLocaleString()}</strong>`;
+                            }
+                        }
+                        
+                        showToast('Quantity updated!', 'success');
+                    } else {
+                        // Fallback: reload entire cart if pricing not in response
+                        await loadCart();
+                        showToast('Quantity updated!', 'success');
+                    }
                 } else {
                     throw new Error(response.message || 'Failed to update quantity');
                 }
@@ -757,6 +793,8 @@
                 if(error.message !== 'Unauthorized') {
                     console.error('❌ Update quantity error:', error);
                     showToast(`Failed to update quantity: ${error.message}`, 'error');
+                     // Reload cart to ensure UI is in sync
+                    await loadCart();
                 }
             }
         }
