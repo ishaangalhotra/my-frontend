@@ -361,17 +361,28 @@
                     clearInterval(waitForAuthClient);
                     window.HybridAuthClient.isAuthenticated().then(isAuth => {
                         if (isAuth) {
+                            console.log('✅ User authenticated, loading cart...');
                             loadCheckoutData();
-                            loadSavedAddress(); // Load address after authentication
+                            loadSavedAddress();
                         } else {
+                            console.log('❌ User not authenticated');
                             auth.handleUnauthorized();
                         }
                     }).catch(error => {
                         console.error('Auth check failed:', error);
+                        showToast('Authentication check failed', 'error');
                         auth.handleUnauthorized();
                     });
                 }
             }, 100);
+
+            // Set a timeout in case auth client never loads
+            setTimeout(() => {
+                if (!window.HybridAuthClient) {
+                    console.error('Auth client failed to load');
+                    showToast('Authentication service unavailable', 'error');
+                }
+            }, 5000);
 
             initializeEventListeners();
             initializePaymentMethods();
@@ -403,7 +414,9 @@
             showLoading(true);
             try {
                 const response = await api.get('/api/v1/cart');
-                if (response.success && response.data && response.data.items.length > 0) {
+                console.log('📦 Cart API Response:', response); // Debug log
+                
+                if (response.success && response.data && response.data.items && response.data.items.length > 0) {
                     checkoutState.cart = response.data;
                     renderCartSummary();
                     showCheckoutContent();
@@ -411,6 +424,7 @@
                     showEmptyCheckout();
                 }
             } catch (error) {
+                console.error('❌ Cart load error:', error);
                 if (error.message !== 'Unauthorized') {
                     showToast('Failed to load your cart. Please try again.', 'error');
                     showEmptyCheckout();
@@ -422,38 +436,74 @@
 
         function getSafeImageUrl(product) {
             const fallbackImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
-            if (product.images && product.images.length > 0 && product.images[0].url) {
-                return product.images[0].url;
+            
+            if (!product) return fallbackImage;
+            
+            // Handle different image data structures
+            if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string') {
+                    return product.images[0];
+                } else if (product.images[0].url) {
+                    return product.images[0].url;
+                }
             }
+            
+            // Check for direct image property
+            if (product.image) {
+                return product.image;
+            }
+            
             return fallbackImage;
         }
 
         function renderCartSummary() {
-            const { items, pricing } = checkoutState.cart;
-            const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-
-            document.getElementById('cartItemsList').innerHTML = items.map(item => `
-                <div class="cart-item">
-                    <img src="${getSafeImageUrl(item.product)}" alt="${item.product.name}" class="item-image">
-                    <div class="item-details">
-                        <div class="item-name">${item.product.name}</div>
-                        <div class="item-quantity">Qty: ${item.quantity}</div>
-                    </div>
-                    <div class="item-price">₹${(item.product.price * item.quantity).toLocaleString()}</div>
-                </div>
-            `).join('');
-
-            document.getElementById('itemCount').textContent = itemCount;
-            document.getElementById('subtotal').textContent = `₹${pricing.subtotal.toLocaleString()}`;
-            document.getElementById('discount').textContent = `-₹${(pricing.discount || 0).toLocaleString()}`;
-            document.getElementById('deliveryFee').textContent = pricing.deliveryFee > 0 ? `₹${pricing.deliveryFee}` : 'FREE';
-            document.getElementById('tax').textContent = `₹${pricing.tax.toLocaleString()}`;
-            document.getElementById('total').textContent = `₹${pricing.total.toLocaleString()}`;
-
-            if (pricing.deliveryFee === 0) {
-                document.getElementById('deliveryFee').style.color = 'var(--accent)';
-                document.getElementById('deliveryFee').style.fontWeight = '700';
+            if (!checkoutState.cart || !checkoutState.cart.items) {
+                console.error('❌ No cart items found');
+                document.getElementById('cartItemsList').innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
+                return;
             }
+
+            const { items, pricing, itemCount } = checkoutState.cart;
+            console.log('🛒 Rendering cart items:', items); // Debug log
+
+            const cartItemsContainer = document.getElementById('cartItemsList');
+            
+            if (!items || items.length === 0) {
+                cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
+                return;
+            }
+
+            cartItemsContainer.innerHTML = items.map(item => {
+                // Handle both available and unavailable items structure
+                const product = item.product || item;
+                const quantity = item.quantity || 1;
+                const price = product.price || item.priceAtAdd || 0;
+                const productName = product.name || 'Unknown Product';
+                
+                return `
+                    <div class="cart-item">
+                        <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
+                        <div class="item-details">
+                            <div class="item-name">${productName}</div>
+                            <div class="item-quantity">Qty: ${quantity}</div>
+                        </div>
+                        <div class="item-price">₹${(price * quantity).toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Update pricing information
+            document.getElementById('itemCount').textContent = itemCount || items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            document.getElementById('subtotal').textContent = `₹${(pricing?.subtotal || 0).toLocaleString()}`;
+            document.getElementById('discount').textContent = `-₹${(pricing?.discount || 0).toLocaleString()}`;
+            
+            const deliveryFee = pricing?.deliveryFee || 0;
+            document.getElementById('deliveryFee').textContent = deliveryFee > 0 ? `₹${deliveryFee}` : 'FREE';
+            document.getElementById('deliveryFee').style.color = deliveryFee === 0 ? 'var(--accent)' : 'inherit';
+            document.getElementById('deliveryFee').style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
+            
+            document.getElementById('tax').textContent = `₹${(pricing?.tax || 0).toLocaleString()}`;
+            document.getElementById('total').textContent = `₹${(pricing?.total || 0).toLocaleString()}`;
         }
 
         function validateField(field) {
@@ -536,9 +586,36 @@
             }
         }
 
+        function validateCartBeforeCheckout() {
+            if (!checkoutState.cart || !checkoutState.cart.items || checkoutState.cart.items.length === 0) {
+                showToast('Your cart is empty', 'error');
+                setTimeout(() => {
+                    window.location.href = 'cart.html';
+                }, 2000);
+                return false;
+            }
+
+            // Check if any items are unavailable
+            const unavailableItems = checkoutState.cart.unavailableItems || [];
+            if (unavailableItems.length > 0) {
+                showToast('Some items in your cart are no longer available', 'error');
+                setTimeout(() => {
+                    window.location.href = 'cart.html';
+                }, 2000);
+                return false;
+            }
+
+            return true;
+        }
 
         async function handlePlaceOrder() {
             if (checkoutState.isProcessing) return;
+            
+            // Add cart validation
+            if (!validateCartBeforeCheckout()) {
+                return;
+            }
+            
             if (!validateForm()) {
                 showToast('Please fill in all required fields correctly', 'error');
                 return;
