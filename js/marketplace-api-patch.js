@@ -10,12 +10,20 @@ window.enhancedAPI = {
     async request(endpoint, options = {}) {
         console.log(`📡 API Request: ${endpoint}`, options);
         
-        // Ensure endpoint starts with /
-        if (!endpoint.startsWith('/')) {
-            endpoint = '/' + endpoint;
+        // Clean up endpoint to avoid duplication
+        let cleanEndpoint = endpoint;
+        
+        // Remove /api/v1 prefix if it exists in endpoint since baseURL already has it
+        if (cleanEndpoint.startsWith('/api/v1/')) {
+            cleanEndpoint = cleanEndpoint.replace('/api/v1', '');
         }
         
-        const url = this.baseURL + endpoint;
+        // Ensure endpoint starts with /
+        if (!cleanEndpoint.startsWith('/')) {
+            cleanEndpoint = '/' + cleanEndpoint;
+        }
+        
+        const url = this.baseURL + cleanEndpoint;
         console.log(`🌐 Full URL: ${url}`);
         
         // Default headers
@@ -24,11 +32,20 @@ window.enhancedAPI = {
             ...options.headers
         };
         
-        // Add auth header if available
-        if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-            const authHeader = window.HybridAuthClient.getAuthHeader();
-            if (authHeader) {
-                headers['Authorization'] = authHeader;
+        // Add auth header if available and token is not expired
+        if (window.HybridAuthClient) {
+            try {
+                // Check if authenticated before adding auth header
+                const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+                if (isAuthenticated && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    const authHeader = window.HybridAuthClient.getAuthHeader();
+                    if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
+                        headers['Authorization'] = authHeader;
+                    }
+                }
+            } catch (error) {
+                console.warn('Auth header check failed, proceeding without auth:', error.message);
+                // Continue without auth header for public endpoints
             }
         }
         
@@ -114,7 +131,8 @@ window.enhancedLoadProducts = async function() {
             async () => {
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                     console.log('🔐 Trying HybridAuthClient.apiCall...');
-                    const response = await window.HybridAuthClient.apiCall('/api/v1/products');
+                    // Use clean endpoint without /api/v1 prefix
+                    const response = await window.HybridAuthClient.apiCall('/products');
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
@@ -126,7 +144,7 @@ window.enhancedLoadProducts = async function() {
             // Attempt 2: Use enhanced API helper
             async () => {
                 console.log('🚀 Trying enhancedAPI...');
-                return await window.enhancedAPI.get('/api/v1/products');
+                return await window.enhancedAPI.get('/products');
             },
             
             // Attempt 3: Direct fetch with manual auth
@@ -134,10 +152,19 @@ window.enhancedLoadProducts = async function() {
                 console.log('📡 Trying direct fetch...');
                 const headers = { 'Content-Type': 'application/json' };
                 
-                // Add auth if available
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    const authHeader = window.HybridAuthClient.getAuthHeader();
-                    if (authHeader) headers['Authorization'] = authHeader;
+                // Add auth if available and valid
+                if (window.HybridAuthClient) {
+                    try {
+                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+                        if (isAuthenticated && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                            const authHeader = window.HybridAuthClient.getAuthHeader();
+                            if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
+                                headers['Authorization'] = authHeader;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Auth check failed for direct fetch, continuing without auth');
+                    }
                 }
                 
                 const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
