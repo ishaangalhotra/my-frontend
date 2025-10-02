@@ -420,7 +420,6 @@
         get: (endpoint) => api.request(endpoint, { method: 'GET' }),
         post: (endpoint, data) => api.request(endpoint, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     };
-    // Address autocomplete data (sample data for demonstration)
     const addressSuggestions = [
         "123 Main Street, Mumbai, Maharashtra 400001",
         "456 Park Avenue, Delhi, Delhi 110001", 
@@ -452,11 +451,9 @@
             input.addEventListener('blur', (e) => validateField(e.target));
             input.addEventListener('input', (e) => clearFieldError(e.target));
         });
-        // Card input formatting
         document.getElementById('cardNumber')?.addEventListener('input', formatCardNumber);
         document.getElementById('cardExpiry')?.addEventListener('input', formatCardExpiry);
         document.getElementById('cardCvv')?.addEventListener('input', formatCardCvv);
-        // Save address checkbox
         document.getElementById('saveAddress')?.addEventListener('change', (e) => {
             checkoutState.saveAddress = e.target.checked;
         });
@@ -468,7 +465,6 @@
                 option.classList.add('selected');
                 option.querySelector('input[type="radio"]').checked = true;
                 checkoutState.selectedPayment = option.dataset.payment;
-                // Show/hide card payment form
                 const cardForm = document.getElementById('cardPaymentForm');
                 if (cardForm) {
                     if (checkoutState.selectedPayment === 'card') {
@@ -502,7 +498,6 @@
                     div.addEventListener('click', () => {
                         addressInput.value = suggestion;
                         autocompleteContainer.style.display = 'none';
-                        // You could also parse the address and fill other fields
                     });
                     autocompleteContainer.appendChild(div);
                 });
@@ -511,14 +506,12 @@
                 autocompleteContainer.style.display = 'none';
             }
         });
-        // Hide autocomplete when clicking outside
         document.addEventListener('click', (e) => {
             if (!addressInput.contains(e.target) && !autocompleteContainer.contains(e.target)) {
                 autocompleteContainer.style.display = 'none';
             }
         });
     }
-    // Card input formatting functions
     function formatCardNumber(e) {
         let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
         let matches = value.match(/\d{4,16}/g);
@@ -548,8 +541,7 @@
             console.log('🛒 Loading checkout cart data...');
             const response = await api.get('/api/v1/cart');
             console.log('📦 Cart API Response:', response);
-
-            // ✅ FIXED: Backend returns items at root level, not inside .data
+            // ✅ FIXED: Use root-level items, not response.data
             if (response.success && response.items) {
                 checkoutState.cart = response; // ← assign full response
                 if (response.items.length > 0) {
@@ -592,11 +584,10 @@
             cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
             return;
         }
-
-        // ✅ Handle both item formats: { product: {...}, quantity } OR flat { _id, name, price, quantity }
+        // ✅ Handle both { product: {...}, quantity } and flat item formats
         const itemsHtml = items.map((item, index) => {
             if (!item) return '';
-            const product = item.product || item; // ← fallback to item itself if no .product
+            const product = item.product || item; // ← key fix
             const quantity = item.quantity || 1;
             const price = product.price ?? item.priceAtAdd ?? item.price ?? 0;
             const productName = product.name || 'Product';
@@ -613,7 +604,6 @@
                 </div>
             `;
         }).filter(html => html).join('');
-
         cartItemsContainer.innerHTML = itemsHtml;
         updatePricingDisplay(items, pricing);
     }
@@ -677,7 +667,6 @@
         document.querySelectorAll('#checkoutForm .form-input[required]').forEach(input => {
             if (!validateField(input)) isFormValid = false;
         });
-        // Additional validation for card payment
         if (checkoutState.selectedPayment === 'card') {
             const cardFields = ['cardNumber', 'cardName', 'cardExpiry', 'cardCvv'];
             cardFields.forEach(fieldName => {
@@ -745,14 +734,12 @@
         const formData = new FormData(document.getElementById('checkoutForm'));
         const shippingAddress = Object.fromEntries(formData.entries());
         // ==========================================================
-        // == START: CRITICAL FIX
+        // == START: CRITICAL FIX — Robust product ID extraction
         // ==========================================================
         const orderPayload = { 
             shippingAddress, 
             paymentMethod: checkoutState.selectedPayment,
             saveAddress: checkoutState.saveAddress,
-            // ✅ FIX: Add the items from the cart state to the payload.
-            // The backend expects an array of objects with the product ID and quantity.
             items: checkoutState.cart.items.map(item => ({
                 product: (item.product?._id || item._id || item.id),
                 quantity: item.quantity || 1
@@ -761,7 +748,6 @@
         // ==========================================================
         // == END: CRITICAL FIX
         // ==========================================================
-        // Add card details if paying by card
         if (checkoutState.selectedPayment === 'card') {
             orderPayload.cardDetails = {
                 number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
@@ -787,7 +773,6 @@
     }
     function showOrderSuccess(orderId) {
         document.getElementById('orderNumber').textContent = orderId;
-        // Update email preview
         updateEmailPreview();
         document.getElementById('successModal').classList.add('active');
         checkoutState.cart = null;
