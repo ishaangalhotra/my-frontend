@@ -33,6 +33,7 @@
             --border-light: #f1f5f9;
             
             --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
             --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.05), 0 4px 16px rgba(99, 102, 241, 0.12);
@@ -79,7 +80,7 @@
         .checkout-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 3rem; align-items: start; }
         
         .checkout-form, .order-summary { background: white; border-radius: var(--radius-2xl); padding: 2rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
-        .order-summary { position: sticky; top: 2rem; height: fit-content; }
+        .order-summary { position: sticky; top: 2rem; }
         
         .form-section { margin-bottom: 2.5rem; }
         .section-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
@@ -102,15 +103,42 @@
         .payment-desc { color: var(--text-secondary); font-size: 0.9rem; }
         .payment-icon { font-size: 1.5rem; color: var(--primary); }
         
+        /* Card Payment Form */
+        .card-payment-form { 
+            margin-top: 1.5rem; 
+            padding: 1.5rem; 
+            background: var(--bg-secondary); 
+            border-radius: var(--radius-lg); 
+            border: 1px solid var(--border);
+            display: none;
+        }
+        .card-payment-form.active { display: block; }
+        .card-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+        .checkbox-group input[type="checkbox"] { width: 1.25rem; height: 1.25rem; accent-color: var(--primary); }
+        .checkbox-group label { font-weight: 500; color: var(--text-secondary); }
+        
         .summary-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
-        .cart-items { margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem; }
-        .cart-item { display: flex; align-items: center; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--border-light); }
+        .cart-items { 
+            margin-bottom: 1.5rem; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            padding-right: 0.5rem;
+        }
+        .cart-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem; 
+            padding: 1rem 0; 
+            border-bottom: 1px solid var(--border-light);
+        }
         .cart-item:last-child { border-bottom: none; }
-        .item-image { width: 60px; height: 60px; border-radius: var(--radius-lg); object-fit: cover; }
-        .item-details { flex: 1; }
+        .item-image { width: 60px; height: 60px; border-radius: var(--radius-lg); object-fit: cover; background: var(--bg-tertiary); }
+        .item-details { flex: 1; min-width: 0; }
         .item-name { font-weight: 600; font-size: 0.9rem; }
-        .item-quantity { color: var(--text-secondary); font-size: 0.8rem; }
-        .item-price { font-weight: 700; color: var(--primary); }
+        .item-quantity { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem; }
+        .item-price { font-weight: 700; color: var(--primary); white-space: nowrap; }
         
         .summary-totals { border-top: 2px solid var(--border-light); padding-top: 1.5rem; }
         .total-row { display: flex; justify-content: space-between; padding: 0.5rem 0; font-weight: 500; }
@@ -138,12 +166,62 @@
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 10000; opacity: 0; visibility: hidden; transition: var(--transition); }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .success-modal { background: white; border-radius: var(--radius-2xl); padding: 3rem; max-width: 500px; text-align: center; box-shadow: var(--shadow-xl); transform: scale(0.8); transition: var(--transition-bounce); }
+        .success-modal { background: white; border-radius: var(--radius-2xl); padding: 3rem; max-width: 600px; text-align: center; box-shadow: var(--shadow-xl); transform: scale(0.8); transition: var(--transition-bounce); }
         .modal-overlay.active .success-modal { transform: scale(1); }
         .success-icon { width: 80px; height: 80px; background: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: white; font-size: 2rem; }
         .success-title { font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem; }
         .success-message { color: var(--text-secondary); margin-bottom: 2rem; }
-        .order-id { background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); font-family: 'Courier New', monospace; font-weight: 700; color: var(--primary); margin-bottom: 2rem; }
+        .order-id { background: var(--bg-secondary); padding: 1rem; border-radius: var(--radius-lg); font-family: 'Courier New', monospace; font-weight: 700; color: var(--primary); margin-bottom: 1rem; }
+        
+        /* Email Preview in Success Modal */
+        .email-preview { 
+            background: var(--bg-secondary); 
+            border-radius: var(--radius-lg); 
+            padding: 1.5rem; 
+            margin: 1.5rem 0; 
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+        .email-preview-title { 
+            font-weight: 700; 
+            margin-bottom: 1rem; 
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .email-items { margin-bottom: 1rem; }
+        .email-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .email-item:last-child { border-bottom: none; }
+        
+        /* Address Autocomplete Dropdown */
+        .address-autocomplete { 
+            position: absolute; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            background: white; 
+            border: 1px solid var(--border); 
+            border-radius: var(--radius-lg); 
+            box-shadow: var(--shadow-lg); 
+            z-index: 100; 
+            max-height: 200px; 
+            overflow-y: auto; 
+            display: none;
+        }
+        .address-suggestion { 
+            padding: 0.75rem 1rem; 
+            cursor: pointer; 
+            border-bottom: 1px solid var(--border-light);
+            transition: var(--transition);
+        }
+        .address-suggestion:hover { background: var(--bg-secondary); }
+        .address-suggestion:last-child { border-bottom: none; }
 
         @media (max-width: 1024px) {
             .checkout-layout { grid-template-columns: 1fr; }
@@ -153,7 +231,9 @@
             .checkout-page { padding: 1rem; }
             .checkout-title { font-size: 2rem; }
             .form-row { grid-template-columns: 1fr; }
+            .card-row { grid-template-columns: 1fr; }
             .checkout-form, .order-summary { padding: 1.5rem; }
+            .success-modal { padding: 2rem; margin: 1rem; }
         }
     </style>
 </head>
@@ -162,7 +242,7 @@
         <div class="nav-container">
             <nav class="nav">
                 <a href="marketplace.html" class="logo"><i class="fas fa-rocket"></i> QuickLocal</a>
-                <a href="cart.html" class="action-btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Cart</a>
+                <a href="cart.html" class="action-btn btn-secondary" style="text-decoration: none; color: var(--primary); font-weight: 600;"><i class="fas fa-arrow-left"></i> Back to Cart</a>
             </nav>
         </div>
     </header>
@@ -192,7 +272,10 @@
             <i class="fas fa-shopping-cart" style="font-size: 4rem; color: var(--text-light); margin-bottom: 1rem;"></i>
             <h2>Your cart is empty</h2>
             <p>Add some items to your cart before proceeding to checkout.</p>
-            <a href="marketplace.html" class="place-order-btn" style="width: auto; padding: 1rem 2rem;"><i class="fas fa-shopping-bag"></i> Start Shopping</a>
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; flex-wrap: wrap;">
+                <a href="marketplace.html" class="place-order-btn" style="width: auto; padding: 1rem 2rem;"><i class="fas fa-shopping-bag"></i> Start Shopping</a>
+                <a href="cart.html" class="place-order-btn" style="width: auto; padding: 1rem 2rem; background: linear-gradient(135deg, var(--primary), var(--primary-dark));"><i class="fas fa-arrow-left"></i> Back to Cart</a>
+            </div>
         </div>
 
         <div id="checkoutContent" class="checkout-layout" style="display: none;">
@@ -217,37 +300,44 @@
                             <input type="email" id="email" name="email" class="form-input" required>
                             <div class="field-error"></div>
                         </div>
-                        <div class="form-group full-width" style="margin-bottom: 1.5rem;">
+                        <div class="form-group full-width" style="margin-bottom: 1.5rem; position: relative;">
                             <label class="form-label" for="address">Street Address *</label>
-                            <input type="text" id="address" name="address" class="form-input" required>
+                            <input type="text" id="address" name="address" class="form-input" required autocomplete="street-address">
+                            <div class="address-autocomplete" id="addressAutocomplete"></div>
                             <div class="field-error"></div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label" for="city">City *</label>
-                                <input type="text" id="city" name="city" class="form-input" required>
+                                <input type="text" id="city" name="city" class="form-input" required autocomplete="address-level2">
                                 <div class="field-error"></div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="state">State/Province *</label>
-                                <input type="text" id="state" name="state" class="form-input" required>
+                                <input type="text" id="state" name="state" class="form-input" required autocomplete="address-level1">
                                 <div class="field-error"></div>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label" for="pincode">PIN/ZIP Code *</label>
-                                <input type="text" id="pincode" name="pincode" class="form-input" required>
+                                <input type="text" id="pincode" name="pincode" class="form-input" required autocomplete="postal-code">
                                 <div class="field-error"></div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="country">Country *</label>
-                                <select id="country" name="country" class="form-input" required>
+                                <select id="country" name="country" class="form-input" required autocomplete="country">
                                     <option value="India" selected>India</option>
                                     <option value="USA">United States</option>
                                 </select>
                                 <div class="field-error"></div>
                             </div>
+                        </div>
+                        
+                        <!-- Save Address Checkbox -->
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="saveAddress" name="saveAddress" checked>
+                            <label for="saveAddress">Save this address for future orders</label>
                         </div>
                     </div>
 
@@ -270,6 +360,32 @@
                                 </div>
                                 <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
                             </label>
+                        </div>
+                        
+                        <!-- Card Payment Form -->
+                        <div class="card-payment-form" id="cardPaymentForm">
+                            <div class="form-group full-width">
+                                <label class="form-label" for="cardNumber">Card Number *</label>
+                                <input type="text" id="cardNumber" name="cardNumber" class="form-input" placeholder="1234 5678 9012 3456" maxlength="19">
+                                <div class="field-error"></div>
+                            </div>
+                            <div class="form-row card-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="cardName">Name on Card *</label>
+                                    <input type="text" id="cardName" name="cardName" class="form-input" placeholder="John Doe">
+                                    <div class="field-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="cardExpiry">Expiry Date *</label>
+                                    <input type="text" id="cardExpiry" name="cardExpiry" class="form-input" placeholder="MM/YY" maxlength="5">
+                                    <div class="field-error"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="cardCvv">CVV *</label>
+                                    <input type="text" id="cardCvv" name="cardCvv" class="form-input" placeholder="123" maxlength="4">
+                                    <div class="field-error"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -302,33 +418,37 @@
             <h3 class="success-title">Order Placed Successfully!</h3>
             <p class="success-message">Your order has been confirmed. You will receive an email with the details shortly.</p>
             <div class="order-id">Order ID: <span id="orderNumber">#QL000000</span></div>
+            
+            <!-- Email Preview -->
+            <div class="email-preview">
+                <div class="email-preview-title"><i class="fas fa-envelope"></i> Order Summary</div>
+                <div class="email-items" id="emailPreviewItems"></div>
+                <div class="email-item">
+                    <span>Total Amount:</span>
+                    <span id="emailPreviewTotal">₹0</span>
+                </div>
+            </div>
+            
             <button onclick="closeSuccessModal()" class="place-order-btn" style="width: auto; padding: 0.75rem 1.5rem;"><i class="fas fa-home"></i> Continue Shopping</button>
         </div>
     </div>
 
     <div id="toastContainer"></div>
-    
-    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 10000;">
-        <button onclick="debugRefreshCart()" style="background: #ef4444; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">
-            🔧 Debug Cart
-        </button>
-    </div>
 
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     
     <script>
-    const checkoutState = {
-        cart: null,
-        isProcessing: false,
-        selectedPayment: 'card'
+    const checkoutState = { 
+        cart: null, 
+        isProcessing: false, 
+        selectedPayment: 'card',
+        saveAddress: true
     };
 
     const auth = {
         handleUnauthorized: () => {
             showToast('Please login to proceed to checkout', 'warning');
-            setTimeout(() => {
-                window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
-            }, 1500);
+            setTimeout(() => { window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`; }, 1500);
         }
     };
 
@@ -337,14 +457,8 @@
             if (!window.HybridAuthClient) throw new Error('Auth client not available');
             try {
                 const response = await window.HybridAuthClient.apiCall(endpoint, options);
-                if (response.status === 401 || response.status === 403) {
-                    auth.handleUnauthorized();
-                    throw new Error('Unauthorized');
-                }
-                if (!response.ok) {
-                     const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
-                     throw new Error(errorData.message || `HTTP ${response.status}`);
-                }
+                if (response.status === 401 || response.status === 403) { auth.handleUnauthorized(); throw new Error('Unauthorized'); }
+                if (!response.ok) { const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` })); throw new Error(errorData.message || `HTTP ${response.status}`); }
                 return await response.json();
             } catch (error) {
                 if (error.message !== 'Unauthorized') console.error(`API Error [${endpoint}]:`, error);
@@ -352,59 +466,55 @@
             }
         },
         get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-        post: (endpoint, data) => api.request(endpoint, {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: { 'Content-Type': 'application/json' }
-        }),
+        post: (endpoint, data) => api.request(endpoint, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     };
+
+    // Address autocomplete data (sample data for demonstration)
+    const addressSuggestions = [
+        "123 Main Street, Mumbai, Maharashtra 400001",
+        "456 Park Avenue, Delhi, Delhi 110001", 
+        "789 MG Road, Bangalore, Karnataka 560001",
+        "321 Churchgate, Mumbai, Maharashtra 400020",
+        "654 Connaught Place, Delhi, Delhi 110001"
+    ];
 
     document.addEventListener('DOMContentLoaded', () => {
         console.log('🔒 Initializing Secure Checkout...');
-        
         const waitForAuthClient = setInterval(() => {
             if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                 clearInterval(waitForAuthClient);
                 window.HybridAuthClient.isAuthenticated().then(isAuth => {
-                    if (isAuth) {
-                        console.log('✅ User authenticated, loading cart...');
-                        loadCheckoutData();
-                        loadSavedAddress();
-                    } else {
-                        console.log('❌ User not authenticated');
-                        auth.handleUnauthorized();
-                    }
-                }).catch(error => {
-                    console.error('Auth check failed:', error);
-                    showToast('Authentication check failed', 'error');
-                    auth.handleUnauthorized();
-                });
+                    if (isAuth) { console.log('✅ User authenticated, loading cart...'); loadCheckoutData(); loadSavedAddress(); }
+                    else { console.log('❌ User not authenticated'); auth.handleUnauthorized(); }
+                }).catch(error => { console.error('Auth check failed:', error); showToast('Authentication check failed', 'error'); auth.handleUnauthorized(); });
             }
         }, 100);
-
-        // Set a timeout in case auth client never loads
-        setTimeout(() => {
-            if (!window.HybridAuthClient) {
-                console.error('Auth client failed to load');
-                showToast('Authentication service unavailable', 'error');
-            }
-        }, 5000);
-
+        setTimeout(() => { if (!window.HybridAuthClient) { console.error('Auth client failed to load'); showToast('Authentication service unavailable', 'error'); } }, 5000);
         initializeEventListeners();
         initializePaymentMethods();
+        initializeAddressAutocomplete();
     });
-
+    
     function initializeEventListeners() {
         const form = document.getElementById("checkoutForm");
         form.addEventListener('submit', (e) => e.preventDefault());
         document.getElementById('placeOrderBtn').addEventListener('click', handlePlaceOrder);
-        
         form.querySelectorAll('.form-input').forEach(input => {
             input.addEventListener('blur', (e) => validateField(e.target));
             input.addEventListener('input', (e) => clearFieldError(e.target));
         });
-    }
 
+        // Card input formatting
+        document.getElementById('cardNumber')?.addEventListener('input', formatCardNumber);
+        document.getElementById('cardExpiry')?.addEventListener('input', formatCardExpiry);
+        document.getElementById('cardCvv')?.addEventListener('input', formatCardCvv);
+
+        // Save address checkbox
+        document.getElementById('saveAddress')?.addEventListener('change', (e) => {
+            checkoutState.saveAddress = e.target.checked;
+        });
+    }
+    
     function initializePaymentMethods() {
         document.querySelectorAll('.payment-option').forEach(option => {
             option.addEventListener('click', () => {
@@ -412,232 +522,166 @@
                 option.classList.add('selected');
                 option.querySelector('input[type="radio"]').checked = true;
                 checkoutState.selectedPayment = option.dataset.payment;
+                
+                // Show/hide card payment form
+                const cardForm = document.getElementById('cardPaymentForm');
+                if (cardForm) {
+                    if (checkoutState.selectedPayment === 'card') {
+                        cardForm.classList.add('active');
+                    } else {
+                        cardForm.classList.remove('active');
+                    }
+                }
             });
         });
     }
 
+    function initializeAddressAutocomplete() {
+        const addressInput = document.getElementById('address');
+        const autocompleteContainer = document.getElementById('addressAutocomplete');
+
+        if (!addressInput || !autocompleteContainer) return;
+
+        addressInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            autocompleteContainer.innerHTML = '';
+            
+            if (value.length < 2) {
+                autocompleteContainer.style.display = 'none';
+                return;
+            }
+
+            const filteredSuggestions = addressSuggestions.filter(addr => 
+                addr.toLowerCase().includes(value.toLowerCase())
+            );
+
+            if (filteredSuggestions.length > 0) {
+                filteredSuggestions.forEach(suggestion => {
+                    const div = document.createElement('div');
+                    div.className = 'address-suggestion';
+                    div.textContent = suggestion;
+                    div.addEventListener('click', () => {
+                        addressInput.value = suggestion;
+                        autocompleteContainer.style.display = 'none';
+                        // You could also parse the address and fill other fields
+                    });
+                    autocompleteContainer.appendChild(div);
+                });
+                autocompleteContainer.style.display = 'block';
+            } else {
+                autocompleteContainer.style.display = 'none';
+            }
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!addressInput.contains(e.target) && !autocompleteContainer.contains(e.target)) {
+                autocompleteContainer.style.display = 'none';
+            }
+        });
+    }
+
+    // Card input formatting functions
+    function formatCardNumber(e) {
+        let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        let matches = value.match(/\d{4,16}/g);
+        let match = matches && matches[0] || '';
+        let parts = [];
+        
+        for (let i = 0; i < match.length; i += 4) {
+            parts.push(match.substring(i, i + 4));
+        }
+        
+        if (parts.length) {
+            e.target.value = parts.join(' ');
+        } else {
+            e.target.value = value;
+        }
+    }
+
+    function formatCardExpiry(e) {
+        let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        if (value.length >= 2) {
+            e.target.value = value.substring(0, 2) + '/' + value.substring(2, 4);
+        }
+    }
+
+    function formatCardCvv(e) {
+        e.target.value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    }
+    
     async function loadCheckoutData() {
         showLoading(true);
         try {
             console.log('🛒 Loading checkout cart data...');
             const response = await api.get('/api/v1/cart');
-            console.log('📦 Full Cart API Response:', response);
+            console.log('📦 Cart API Response:', response);
             
             if (response.success && response.data) {
                 checkoutState.cart = response.data;
-                
-                // ✅ DEEP DEBUG: Log everything about the cart
-                console.log('🔍 CART DEBUG ANALYSIS:', {
-                    hasData: !!response.data,
-                    hasItems: !!response.data.items,
-                    itemsCount: response.data.items ? response.data.items.length : 0,
-                    itemsType: typeof response.data.items,
-                    itemsArray: Array.isArray(response.data.items),
-                    cartStructure: Object.keys(response.data),
-                    firstItem: response.data.items && response.data.items[0] ? {
-                        keys: Object.keys(response.data.items[0]),
-                        hasProduct: !!response.data.items[0].product,
-                        productType: typeof response.data.items[0].product,
-                        productKeys: response.data.items[0].product ? Object.keys(response.data.items[0].product) : 'NO PRODUCT',
-                        quantity: response.data.items[0].quantity,
-                        priceAtAdd: response.data.items[0].priceAtAdd
-                    } : 'NO ITEMS'
-                });
-
                 if (response.data.items && response.data.items.length > 0) {
-                    console.log('🎯 ALL ITEMS DETAIL:');
-                    response.data.items.forEach((item, index) => {
-                        console.log(`Item ${index}:`, {
-                            itemExists: !!item,
-                            quantity: item.quantity,
-                            priceAtAdd: item.priceAtAdd,
-                            productExists: !!item.product,
-                            productData: item.product ? {
-                                name: item.product.name,
-                                price: item.product.price,
-                                id: item.product._id || item.product.id,
-                                hasImages: !!item.product.images,
-                                imageCount: item.product.images ? item.product.images.length : 0
-                            } : 'NO PRODUCT OBJECT'
-                        });
-                    });
-                    
                     renderCartSummary();
                     showCheckoutContent();
-                } else {
-                    console.log('🛒 Cart has no items');
-                    showEmptyCheckout();
-                }
-            } else {
-                console.log('🛒 Cart response not successful or no data');
-                showEmptyCheckout();
-            }
+                } else { showEmptyCheckout(); }
+            } else { showEmptyCheckout(); }
         } catch (error) {
             console.error('❌ Cart load error:', error);
-            if (error.message !== 'Unauthorized') {
-                showToast('Failed to load your cart. Please try again.', 'error');
-                showEmptyCheckout();
-            }
-        } finally {
-            showLoading(false);
-        }
+            if (error.message !== 'Unauthorized') { showToast('Failed to load your cart. Please try again.', 'error'); showEmptyCheckout(); }
+        } finally { showLoading(false); }
     }
-
+    
     function getSafeImageUrl(product) {
-        const fallbackImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
-        
-        if (!product || typeof product !== 'object') {
-            console.warn('❌ Invalid product for image:', product);
-            return fallbackImage;
-        }
-        
-        console.log('🖼️ Getting image for product:', { 
-            hasImages: !!product.images, 
-            imagesType: typeof product.images,
-            imagesLength: product.images ? product.images.length : 0,
-            hasImageProp: !!product.image 
-        });
-
-        // Handle different image data structures
+        const fallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+        if (!product || typeof product !== 'object') return fallback;
         if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-            const firstImage = product.images[0];
-            console.log('🖼️ First image data:', firstImage);
-            
-            if (typeof firstImage === 'string' && firstImage.startsWith('http')) {
-                console.log('✅ Using string image URL');
-                return firstImage;
-            } else if (firstImage && typeof firstImage === 'object' && firstImage.url && firstImage.url.startsWith('http')) {
-                console.log('✅ Using object image URL');
-                return firstImage.url;
-            }
+            const img = product.images[0];
+            if (typeof img === 'string' && img.startsWith('http')) return img;
+            if (img && typeof img === 'object' && img.url && img.url.startsWith('http')) return img.url;
         }
-        
-        // Check for direct image property
-        if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
-            console.log('✅ Using direct image property');
-            return product.image;
-        }
-        
-        // Check for primary image
-        if (product.primaryImage && product.primaryImage.startsWith('http')) {
-            console.log('✅ Using primary image');
-            return product.primaryImage;
-        }
-        
-        console.log('❌ No valid image found, using fallback');
-        return fallbackImage;
+        if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) return product.image;
+        if (product.primaryImage && product.primaryImage.startsWith('http')) return product.primaryImage;
+        return fallback;
     }
-
+    
     function renderCartSummary() {
-        console.log('🎨 Starting to render cart summary...');
-        
-        if (!checkoutState.cart) {
-            console.error('❌ Cannot render: checkoutState.cart is null');
-            document.getElementById('cartItemsList').innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">Cart data not loaded</p>';
-            return;
-        }
+        console.log('Rendering cart summary...');
+        if (!checkoutState.cart) return;
 
         const { items, pricing } = checkoutState.cart;
         const cartItemsContainer = document.getElementById('cartItemsList');
         
-        console.log('🛒 Rendering items:', {
-            itemsExists: !!items,
-            itemsType: typeof items,
-            itemsArray: Array.isArray(items),
-            itemsLength: items ? items.length : 0,
-            containerExists: !!cartItemsContainer
-        });
-
         if (!items || !Array.isArray(items) || items.length === 0) {
-            console.log('🛒 No items to render');
             cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
-        } else {
-            console.log('🎯 Rendering', items.length, 'items');
-            
-            const validItemsHtml = items.map((item, index) => {
-                console.log(`🛒 Processing item ${index}:`, {
-                    itemExists: !!item,
-                    quantity: item.quantity,
-                    priceAtAdd: item.priceAtAdd,
-                    productExists: !!item.product,
-                    productData: item.product
-                });
-
-                if (!item) {
-                    console.warn(`❌ Skipping null item at index ${index}`);
-                    return '';
-                }
-
-                // Handle different product data structures
-                const product = item.product || {};
-                const quantity = item.quantity || 1;
-                
-                // Get price from multiple possible sources
-                let price = 0;
-                if (product.price !== undefined && product.price !== null) {
-                    price = product.price;
-                } else if (item.priceAtAdd !== undefined && item.priceAtAdd !== null) {
-                    price = item.priceAtAdd;
-                } else if (item.price !== undefined && item.price !== null) {
-                    price = item.price;
-                }
-                
-                // Get product name
-                const productName = product.name || 'Product';
-                const productId = product._id || product.id || `item-${index}`;
-                
-                // Calculate item total
-                const itemTotal = price * quantity;
-                
-                console.log(`💰 Item ${index} final:`, {
-                    name: productName,
-                    price: price,
-                    quantity: quantity,
-                    total: itemTotal,
-                    hasImage: !!getSafeImageUrl(product)
-                });
-
-                return `
-                    <div class="cart-item" data-product-id="${productId}">
-                        <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image"
-                             onerror="console.log('🖼️ Image failed to load for ${productName}')">
-                        <div class="item-details">
-                            <div class="item-name">${productName}</div>
-                            <div class="item-quantity">Qty: ${quantity}</div>
-                            <div style="font-size: 0.8rem; color: var(--text-light);">
-                                Unit: ₹${price} | Total: ₹${itemTotal}
-                            </div>
-                        </div>
-                        <div class="item-price">₹${itemTotal.toLocaleString()}</div>
-                    </div>
-                `;
-            }).join('');
-
-            console.log('📝 Generated HTML length:', validItemsHtml.length);
-            console.log('📝 HTML preview:', validItemsHtml.substring(0, 200) + '...');
-            
-            cartItemsContainer.innerHTML = validItemsHtml;
-            
-            // Verify rendering
-            setTimeout(() => {
-                const renderedItems = cartItemsContainer.querySelectorAll('.cart-item');
-                console.log('✅ Rendered items count:', renderedItems.length);
-                if (renderedItems.length === 0) {
-                    console.error('❌ NO ITEMS RENDERED despite having HTML!');
-                    cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--error); padding: 2rem;">Rendering failed - please refresh</p>';
-                }
-            }, 100);
+            return;
         }
 
-        // Update pricing information
-        updatePricingDisplay(items, pricing);
-        
-        console.log('🎉 Cart summary rendering completed');
-    }
+        const itemsHtml = items.map((item, index) => {
+            if (!item) return '';
+            
+            const product = item.product || {};
+            const quantity = item.quantity || 1;
+            const price = product.price ?? item.priceAtAdd ?? item.price ?? 0;
+            const productName = product.name || 'Product';
+            const productId = product._id || product.id || `item-${index}`;
+            const itemTotal = price * quantity;
 
+            return `
+                <div class="cart-item" data-product-id="${productId}">
+                    <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
+                    <div class="item-details">
+                        <div class="item-name">${productName}</div>
+                        <div class="item-quantity">Qty: ${quantity}</div>
+                    </div>
+                    <div class="item-price">₹${itemTotal.toLocaleString()}</div>
+                </div>
+            `;
+        }).filter(html => html).join('');
+
+        cartItemsContainer.innerHTML = itemsHtml;
+        updatePricingDisplay(items, pricing);
+    }
+    
     function updatePricingDisplay(items, pricing) {
-        console.log('💰 Updating pricing display:', { items, pricing });
-        
         const itemCount = items ? items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
         const subtotal = pricing?.subtotal || 0;
         const discount = pricing?.discount || 0;
@@ -652,7 +696,6 @@
         document.getElementById('tax').textContent = `₹${tax.toLocaleString()}`;
         document.getElementById('total').textContent = `₹${total.toLocaleString()}`;
 
-        // Style delivery fee if free
         const deliveryElement = document.getElementById('deliveryFee');
         deliveryElement.style.color = deliveryFee === 0 ? 'var(--accent)' : 'inherit';
         deliveryElement.style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
@@ -675,6 +718,18 @@
         } else if (field.name === 'pincode' && value && !/^[1-9][0-9]{5}$/.test(value)) {
             isValid = false;
             errorMessage = 'Please enter a valid 6-digit pincode';
+        } else if (field.name === 'cardNumber' && checkoutState.selectedPayment === 'card' && value && !/^\d{4}\s\d{4}\s\d{4}\s\d{4}$/.test(value)) {
+            isValid = false;
+            errorMessage = 'Please enter a valid 16-digit card number';
+        } else if (field.name === 'cardExpiry' && checkoutState.selectedPayment === 'card' && value && !/^(0[1-9]|1[0-2])\/\d{2}$/.test(value)) {
+            isValid = false;
+            errorMessage = 'Please enter a valid expiry date (MM/YY)';
+        } else if (field.name === 'cardCvv' && checkoutState.selectedPayment === 'card' && value && !/^\d{3,4}$/.test(value)) {
+            isValid = false;
+            errorMessage = 'Please enter a valid CVV';
+        } else if (field.name === 'cardName' && checkoutState.selectedPayment === 'card' && value && value.length < 2) {
+            isValid = false;
+            errorMessage = 'Please enter the name on your card';
         }
         
         showFieldError(field, isValid ? '' : errorMessage);
@@ -684,20 +739,26 @@
     function showFieldError(field, message) {
         field.classList.toggle('error', !!message);
         const errorDiv = field.parentNode.querySelector('.field-error');
-        if (errorDiv) {
-            errorDiv.textContent = message;
-        }
+        if (errorDiv) errorDiv.textContent = message;
     }
 
-    function clearFieldError(field) {
-        showFieldError(field, '');
-    }
+    function clearFieldError(field) { showFieldError(field, ''); }
 
     function validateForm() {
         let isFormValid = true;
         document.querySelectorAll('#checkoutForm .form-input[required]').forEach(input => {
             if (!validateField(input)) isFormValid = false;
         });
+
+        // Additional validation for card payment
+        if (checkoutState.selectedPayment === 'card') {
+            const cardFields = ['cardNumber', 'cardName', 'cardExpiry', 'cardCvv'];
+            cardFields.forEach(fieldName => {
+                const field = document.getElementById(fieldName);
+                if (field && !validateField(field)) isFormValid = false;
+            });
+        }
+
         return isFormValid;
     }
     
@@ -706,14 +767,14 @@
         if (user && user.address) {
             Object.keys(user.address).forEach(field => {
                 const input = document.getElementById(field);
-                if (input && user.address[field]) {
-                    input.value = user.address[field];
-                }
+                if (input && user.address[field]) input.value = user.address[field];
             });
         }
     }
 
     async function saveAddress() {
+        if (!checkoutState.saveAddress) return;
+        
         const form = document.getElementById("checkoutForm");
         const address = {
             name: form.querySelector("#name").value,
@@ -727,44 +788,30 @@
         };
         
         try {
-            await api.request('/api/v1/auth/profile', {
-                method: 'PUT',
-                body: JSON.stringify({ address })
-            });
-            console.log('Address saved successfully.');
+            await api.request('/api/v1/auth/profile', { method: 'PUT', body: JSON.stringify({ address }) });
         } catch (error) {
-            console.warn('Could not save address to profile:', error.message);
+            console.warn('Could not save address:', error.message);
         }
     }
 
     function validateCartBeforeCheckout() {
         if (!checkoutState.cart || !checkoutState.cart.items || checkoutState.cart.items.length === 0) {
             showToast('Your cart is empty', 'error');
-            setTimeout(() => {
-                window.location.href = 'cart.html';
-            }, 2000);
+            setTimeout(() => { window.location.href = 'cart.html'; }, 2000);
             return false;
         }
-
         const unavailableItems = checkoutState.cart.unavailableItems || [];
         if (unavailableItems.length > 0) {
             showToast('Some items in your cart are no longer available', 'error');
-            setTimeout(() => {
-                window.location.href = 'cart.html';
-            }, 2000);
+            setTimeout(() => { window.location.href = 'cart.html'; }, 2000);
             return false;
         }
-
         return true;
     }
 
     async function handlePlaceOrder() {
         if (checkoutState.isProcessing) return;
-        
-        if (!validateCartBeforeCheckout()) {
-            return;
-        }
-        
+        if (!validateCartBeforeCheckout()) return;
         if (!validateForm()) {
             showToast('Please fill in all required fields correctly', 'error');
             return;
@@ -780,11 +827,21 @@
         
         const formData = new FormData(document.getElementById('checkoutForm'));
         const shippingAddress = Object.fromEntries(formData.entries());
-
-        const orderPayload = {
-            shippingAddress,
-            paymentMethod: checkoutState.selectedPayment
+        const orderPayload = { 
+            shippingAddress, 
+            paymentMethod: checkoutState.selectedPayment,
+            saveAddress: checkoutState.saveAddress
         };
+
+        // Add card details if paying by card
+        if (checkoutState.selectedPayment === 'card') {
+            orderPayload.cardDetails = {
+                number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+                name: document.getElementById('cardName').value,
+                expiry: document.getElementById('cardExpiry').value,
+                cvv: document.getElementById('cardCvv').value
+            };
+        }
 
         try {
             const response = await api.post('/api/v1/orders', orderPayload);
@@ -804,9 +861,44 @@
 
     function showOrderSuccess(orderId) {
         document.getElementById('orderNumber').textContent = orderId;
-        document.getElementById('successModal').classList.add('active');
         
+        // Update email preview
+        updateEmailPreview();
+        
+        document.getElementById('successModal').classList.add('active');
         checkoutState.cart = null;
+    }
+
+    function updateEmailPreview() {
+        if (!checkoutState.cart) return;
+        
+        const { items, pricing } = checkoutState.cart;
+        const emailPreviewContainer = document.getElementById('emailPreviewItems');
+        const emailPreviewTotal = document.getElementById('emailPreviewTotal');
+        
+        if (!items || !Array.isArray(items)) return;
+        
+        const itemsHtml = items.map((item, index) => {
+            if (!item) return '';
+            
+            const product = item.product || {};
+            const quantity = item.quantity || 1;
+            const price = product.price ?? item.priceAtAdd ?? item.price ?? 0;
+            const productName = product.name || 'Product';
+            const itemTotal = price * quantity;
+
+            return `
+                <div class="email-item">
+                    <span>${productName} × ${quantity}</span>
+                    <span>₹${itemTotal.toLocaleString()}</span>
+                </div>
+            `;
+        }).filter(html => html).join('');
+
+        emailPreviewContainer.innerHTML = itemsHtml;
+        
+        const total = pricing?.total || 0;
+        emailPreviewTotal.textContent = `₹${total.toLocaleString()}`;
     }
 
     function closeSuccessModal() {
@@ -845,12 +937,6 @@
     }
 
     window.closeSuccessModal = closeSuccessModal;
-
-    // Add manual refresh function for testing
-    window.debugRefreshCart = function() {
-        console.log('🔄 Manual cart refresh triggered');
-        loadCheckoutData();
-    };
     </script>
 </body>
 </html>
