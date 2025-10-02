@@ -455,56 +455,63 @@
             
             return fallbackImage;
         }
-
+        
+        // ✅ =================== ROBUST FIX STARTS HERE ===================
         function renderCartSummary() {
             if (!checkoutState.cart || !checkoutState.cart.items) {
-                console.error('❌ No cart items found');
+                console.error('❌ Cannot render summary: No cart data available.');
                 document.getElementById('cartItemsList').innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
                 return;
             }
 
             const { items, pricing, itemCount } = checkoutState.cart;
-            console.log('🛒 Rendering cart items:', items); // Debug log
-
             const cartItemsContainer = document.getElementById('cartItemsList');
             
             if (!items || items.length === 0) {
                 cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
-                return;
+            } else {
+                // Filter out any invalid items before rendering to prevent errors
+                const validItemsHtml = items.map(item => {
+                    // DEFENSIVE CHECK: Ensure item and product data exist
+                    if (!item || typeof item.product !== 'object' || item.product === null) {
+                        console.warn('Skipping invalid item in cart:', item);
+                        return ''; // Return an empty string for invalid items
+                    }
+                    
+                    const product = item.product;
+                    const quantity = item.quantity || 1;
+                    const price = product.price || item.priceAtAdd || 0;
+                    const productName = product.name || 'Unknown Product';
+                    
+                    return `
+                        <div class="cart-item">
+                            <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
+                            <div class="item-details">
+                                <div class="item-name">${productName}</div>
+                                <div class="item-quantity">Qty: ${quantity}</div>
+                            </div>
+                            <div class="item-price">₹${(price * quantity).toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                cartItemsContainer.innerHTML = validItemsHtml;
             }
 
-            cartItemsContainer.innerHTML = items.map(item => {
-                // Handle both available and unavailable items structure
-                const product = item.product || item;
-                const quantity = item.quantity || 1;
-                const price = product.price || item.priceAtAdd || 0;
-                const productName = product.name || 'Unknown Product';
-                
-                return `
-                    <div class="cart-item">
-                        <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
-                        <div class="item-details">
-                            <div class="item-name">${productName}</div>
-                            <div class="item-quantity">Qty: ${quantity}</div>
-                        </div>
-                        <div class="item-price">₹${(price * quantity).toLocaleString()}</div>
-                    </div>
-                `;
-            }).join('');
-
-            // Update pricing information
-            document.getElementById('itemCount').textContent = itemCount || items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            // Update pricing information (this part is safe because of null checks)
+            document.getElementById('itemCount').textContent = pricing?.itemCount || items.reduce((sum, item) => sum + (item.quantity || 1), 0);
             document.getElementById('subtotal').textContent = `₹${(pricing?.subtotal || 0).toLocaleString()}`;
             document.getElementById('discount').textContent = `-₹${(pricing?.discount || 0).toLocaleString()}`;
             
             const deliveryFee = pricing?.deliveryFee || 0;
-            document.getElementById('deliveryFee').textContent = deliveryFee > 0 ? `₹${deliveryFee}` : 'FREE';
+            document.getElementById('deliveryFee').textContent = deliveryFee > 0 ? `₹${deliveryFee.toLocaleString()}` : 'FREE';
             document.getElementById('deliveryFee').style.color = deliveryFee === 0 ? 'var(--accent)' : 'inherit';
             document.getElementById('deliveryFee').style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
             
             document.getElementById('tax').textContent = `₹${(pricing?.tax || 0).toLocaleString()}`;
             document.getElementById('total').textContent = `₹${(pricing?.total || 0).toLocaleString()}`;
         }
+        // ✅ =================== ROBUST FIX ENDS HERE ===================
 
         function validateField(field) {
             const value = field.value.trim();
