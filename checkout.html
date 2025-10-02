@@ -414,21 +414,27 @@
             showLoading(true);
             try {
                 const response = await api.get('/api/v1/cart');
-                console.log('📦 Cart API Response:', response); // Debug log
+                console.log('📦 Cart API Response:', response);
                 
                 if (response.success && response.data && response.data.items && response.data.items.length > 0) {
                     checkoutState.cart = response.data;
                     
-                    // ✅ ADDED: Debug cart structure
-                    console.log('🛒 Cart items structure:', {
+                    // ✅ COMPREHENSIVE DEBUG: Log the actual cart structure
+                    console.log('🛒 Cart Debug Info:', {
                         totalItems: response.data.items.length,
-                        items: response.data.items.map(item => ({
-                            product: item.product,
+                        itemsStructure: response.data.items.map((item, index) => ({
+                            index,
+                            hasProduct: !!item.product,
+                            productType: typeof item.product,
+                            productKeys: item.product ? Object.keys(item.product) : 'NO PRODUCT',
                             quantity: item.quantity,
                             priceAtAdd: item.priceAtAdd,
-                            productName: item.product?.name,
-                            productPrice: item.product?.price
-                        }))
+                            productName: item.product?.name || 'NO NAME',
+                            productPrice: item.product?.price || 'NO PRICE',
+                            rawItem: item // Include the raw item for complete inspection
+                        })),
+                        pricing: response.data.pricing,
+                        rawCartData: response.data // Include complete cart data
                     });
                     
                     renderCartSummary();
@@ -453,26 +459,31 @@
             
             if (!product || typeof product !== 'object') return fallbackImage;
             
-            // Handle different image data structures
-            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                if (typeof product.images[0] === 'string') {
-                    return product.images[0];
-                } else if (product.images[0] && typeof product.images[0] === 'object' && product.images[0].url) {
-                    return product.images[0].url;
+            try {
+                // Handle different image data structures
+                if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                    if (typeof product.images[0] === 'string') {
+                        return product.images[0];
+                    } else if (product.images[0] && typeof product.images[0] === 'object' && product.images[0].url) {
+                        return product.images[0].url;
+                    }
                 }
+                
+                // Check for direct image property
+                if (product.image && typeof product.image === 'string') {
+                    return product.image;
+                }
+                
+                // Check for primary image
+                if (product.primaryImage) {
+                    return product.primaryImage;
+                }
+                
+                return fallbackImage;
+            } catch (error) {
+                console.error('Error getting image URL for product:', product, error);
+                return fallbackImage;
             }
-            
-            // Check for direct image property
-            if (product.image && typeof product.image === 'string') {
-                return product.image;
-            }
-            
-            // Check for primary image
-            if (product.primaryImage) {
-                return product.primaryImage;
-            }
-            
-            return fallbackImage;
         }
         
         function renderCartSummary() {
@@ -482,67 +493,121 @@
                 return;
             }
 
-            const { items, pricing, itemCount } = checkoutState.cart;
+            const { items, pricing } = checkoutState.cart;
             const cartItemsContainer = document.getElementById('cartItemsList');
+            
+            console.log('🎯 Rendering cart with items:', items);
             
             if (!items || items.length === 0) {
                 cartItemsContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No items in cart</p>';
             } else {
-                // ✅ IMPROVED: Better handling of product data structure
-                const validItemsHtml = items.map(item => {
-                    // DEFENSIVE CHECK: Ensure item exists and has product data
+                // ✅ IMPROVED: Handle various product data structures with better error handling
+                const validItemsHtml = items.map((item, index) => {
+                    console.log(`🛒 Processing item ${index}:`, item);
+                    
                     if (!item) {
-                        console.warn('Skipping invalid item:', item);
+                        console.warn('Skipping null item at index:', index);
                         return '';
                     }
                     
-                    // Handle different product data structures
-                    const product = item.product || {};
-                    const quantity = item.quantity || 1;
-                    
-                    // Get price from multiple possible sources
-                    let price = 0;
-                    if (product.price !== undefined) {
-                        price = product.price;
-                    } else if (item.priceAtAdd !== undefined) {
-                        price = item.priceAtAdd;
-                    } else if (item.price !== undefined) {
-                        price = item.price;
-                    }
-                    
-                    // Get product name
-                    const productName = product.name || 'Unknown Product';
-                    
-                    // Calculate item total
-                    const itemTotal = price * quantity;
-                    
-                    return `
-                        <div class="cart-item">
-                            <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
-                            <div class="item-details">
-                                <div class="item-name">${productName}</div>
-                                <div class="item-quantity">Qty: ${quantity}</div>
+                    try {
+                        // Handle different product data structures
+                        const product = item.product || {};
+                        const quantity = item.quantity || 1;
+                        
+                        // Get price from multiple possible sources
+                        let price = 0;
+                        let priceSource = 'unknown';
+                        
+                        if (product.price !== undefined && product.price !== null) {
+                            price = Number(product.price);
+                            priceSource = 'product.price';
+                        } else if (item.priceAtAdd !== undefined && item.priceAtAdd !== null) {
+                            price = Number(item.priceAtAdd);
+                            priceSource = 'priceAtAdd';
+                        } else if (item.price !== undefined && item.price !== null) {
+                            price = Number(item.price);
+                            priceSource = 'item.price';
+                        } else {
+                            console.warn('No price found for item:', item);
+                            price = 0;
+                            priceSource = 'fallback';
+                        }
+                        
+                        // Validate price
+                        if (isNaN(price) || price < 0) {
+                            console.warn('Invalid price for item:', item, 'Setting to 0');
+                            price = 0;
+                        }
+                        
+                        // Get product name
+                        const productName = product.name || 'Product';
+                        const productId = product._id || product.id || `item-${index}`;
+                        
+                        // Calculate item total
+                        const itemTotal = price * quantity;
+                        
+                        console.log(`💰 Item ${index} price: ${price} (source: ${priceSource}), total: ${itemTotal}`);
+                        
+                        return `
+                            <div class="cart-item" data-product-id="${productId}">
+                                <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image">
+                                <div class="item-details">
+                                    <div class="item-name">${productName}</div>
+                                    <div class="item-quantity">Qty: ${quantity}</div>
+                                </div>
+                                <div class="item-price">₹${itemTotal.toLocaleString()}</div>
                             </div>
-                            <div class="item-price">₹${itemTotal.toLocaleString()}</div>
-                        </div>
-                    `;
+                        `;
+                    } catch (error) {
+                        console.error(`Error rendering item ${index}:`, error, item);
+                        return `<div class="cart-item" style="color: var(--error);">
+                            <div class="item-details">
+                                <div class="item-name">Error loading product</div>
+                            </div>
+                        </div>`;
+                    }
                 }).join('');
 
-                cartItemsContainer.innerHTML = validItemsHtml;
+                cartItemsContainer.innerHTML = validItemsHtml || '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No valid items to display</p>';
             }
 
-            // ✅ IMPROVED: Better pricing fallbacks
-            const itemCountValue = pricing?.itemCount || items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-            const subtotalValue = pricing?.subtotal || items.reduce((sum, item) => {
-                const product = item.product || {};
-                const price = product.price || item.priceAtAdd || item.price || 0;
-                return sum + (price * (item.quantity || 1));
-            }, 0);
+            // ✅ IMPROVED: Better pricing fallbacks with validation
+            let subtotalValue = 0;
+            let itemCountValue = 0;
+
+            if (pricing?.subtotal !== undefined && !isNaN(pricing.subtotal)) {
+                subtotalValue = Number(pricing.subtotal);
+            } else {
+                // Calculate from items
+                subtotalValue = items.reduce((sum, item) => {
+                    try {
+                        const product = item.product || {};
+                        const price = product.price || item.priceAtAdd || item.price || 0;
+                        const quantity = item.quantity || 1;
+                        return sum + (Number(price) * quantity);
+                    } catch (error) {
+                        console.error('Error calculating subtotal for item:', item, error);
+                        return sum;
+                    }
+                }, 0);
+            }
+
+            // Calculate item count
+            itemCountValue = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
             
-            const discountValue = pricing?.discount || 0;
-            const deliveryFeeValue = pricing?.deliveryFee || 0;
-            const taxValue = pricing?.tax || 0;
-            const totalValue = pricing?.total || (subtotalValue - discountValue + deliveryFeeValue + taxValue);
+            const discountValue = pricing?.discount ? Number(pricing.discount) : 0;
+            const deliveryFeeValue = pricing?.deliveryFee !== undefined ? Number(pricing.deliveryFee) : (subtotalValue >= 500 ? 0 : 25);
+            
+            // Tax calculation
+            let taxValue = 0;
+            if (pricing?.tax !== undefined && !isNaN(pricing.tax)) {
+                taxValue = Number(pricing.tax);
+            } else {
+                taxValue = Math.round(subtotalValue * 0.05 * 100) / 100; // 5% tax fallback
+            }
+            
+            const totalValue = pricing?.total ? Number(pricing.total) : (subtotalValue - discountValue + deliveryFeeValue + taxValue);
 
             // Update pricing information
             document.getElementById('itemCount').textContent = itemCountValue;
@@ -554,7 +619,7 @@
             document.getElementById('deliveryFee').style.fontWeight = deliveryFeeValue === 0 ? '700' : 'inherit';
             
             document.getElementById('tax').textContent = `₹${taxValue.toLocaleString()}`;
-            document.getElementById('total').textContent = `₹${totalValue.toLocaleString()}`;
+            document.getElementById('total').textContent = `₹${Math.max(0, totalValue).toLocaleString()}`;
             
             console.log('🛒 Cart summary rendered:', {
                 itemCount: itemCountValue,
