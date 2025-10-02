@@ -334,7 +334,6 @@
                             </div>
                         </div>
                         
-                        <!-- Save Address Checkbox -->
                         <div class="checkbox-group">
                             <input type="checkbox" id="saveAddress" name="saveAddress" checked>
                             <label for="saveAddress">Save this address for future orders</label>
@@ -362,7 +361,6 @@
                             </label>
                         </div>
                         
-                        <!-- Card Payment Form -->
                         <div class="card-payment-form" id="cardPaymentForm">
                             <div class="form-group full-width">
                                 <label class="form-label" for="cardNumber">Card Number *</label>
@@ -419,7 +417,6 @@
             <p class="success-message">Your order has been confirmed. You will receive an email with the details shortly.</p>
             <div class="order-id">Order ID: <span id="orderNumber">#QL000000</span></div>
             
-            <!-- Email Preview -->
             <div class="email-preview">
                 <div class="email-preview-title"><i class="fas fa-envelope"></i> Order Summary</div>
                 <div class="email-items" id="emailPreviewItems"></div>
@@ -827,11 +824,24 @@
         
         const formData = new FormData(document.getElementById('checkoutForm'));
         const shippingAddress = Object.fromEntries(formData.entries());
+        
+        // ==========================================================
+        // == START: CRITICAL FIX
+        // ==========================================================
         const orderPayload = { 
             shippingAddress, 
             paymentMethod: checkoutState.selectedPayment,
-            saveAddress: checkoutState.saveAddress
+            saveAddress: checkoutState.saveAddress,
+            // ✅ FIX: Add the items from the cart state to the payload.
+            // The backend expects an array of objects with the product ID and quantity.
+            items: checkoutState.cart.items.map(item => ({
+                product: item.product._id,
+                quantity: item.quantity
+            }))
         };
+        // ==========================================================
+        // == END: CRITICAL FIX
+        // ==========================================================
 
         // Add card details if paying by card
         if (checkoutState.selectedPayment === 'card') {
