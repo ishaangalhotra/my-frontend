@@ -302,7 +302,6 @@
 
     <div id="toastContainer"></div>
 
-    <!-- Your Hybrid Auth client (server-hosted) -->
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
@@ -334,10 +333,13 @@
     }
 
     // -------------------------
-    // API wrapper with fallback (tries HybridAuthClient then falls back to fetch)
+    // API wrapper with fallback and timeout
     // -------------------------
     const api = {
         async request(endpoint, options = {}) {
+            // Destructure timeout from options, with a default of 30 seconds
+            const { timeout = 30000, ...fetchOptions } = options;
+
             // Try HybridAuthClient if available
             if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                 try {
@@ -354,15 +356,23 @@
                 }
             }
 
-            // Fallback: fetch with credentials (allows cookie-based sessions)
+            // Fallback: fetch with AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
             try {
                 const base = (new URL(endpoint, window.location.href)).href;
                 const res = await fetch(base, {
+                    ...fetchOptions, // Pass the rest of the fetch options
                     method: options.method || 'GET',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {}),
                     credentials: 'include',
-                    body: options.body || undefined
+                    body: options.body || undefined,
+                    signal: controller.signal // Link the abort controller to the request
                 });
+
+                clearTimeout(timeoutId); // Important: clear the timeout if the request completes
+
                 if (res.status === 401 || res.status === 403) { handleUnauthorized(); throw new Error('Unauthorized'); }
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
@@ -370,13 +380,20 @@
                 }
                 return await res.json();
             } catch (err) {
+                clearTimeout(timeoutId); // Also clear the timeout if an error occurs
+                if (err.name === 'AbortError') {
+                    const errorMsg = `Request timed out after ${timeout / 1000}s.`;
+                    console.error(`API Error [fetch ${endpoint}]: ${errorMsg}`);
+                    showToast('The server is taking too long to respond. Please try again later.', 'error');
+                    throw new Error(errorMsg);
+                }
                 console.error(`API Error [fetch ${endpoint}]:`, err);
                 throw err;
             }
         },
-        get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-        post: (endpoint, data) => api.request(endpoint, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
-        put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } })
+        get: (endpoint, options) => api.request(endpoint, { ...options, method: 'GET' }),
+        post: (endpoint, data, options) => api.request(endpoint, { ...options, method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+        put: (endpoint, data, options) => api.request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } })
     };
 
     // -------------------------
@@ -770,7 +787,9 @@
         }
 
         try {
-            const response = await api.post('/api/v1/orders', orderPayload);
+            // Call post with a longer, 60-second timeout
+            const response = await api.post('/api/v1/orders', orderPayload, { timeout: 60000 });
+            
             if (response.success && (response.order || response.data)) {
                 const order = response.order || response.data?.order || response.data || {};
                 showOrderSuccess(order.orderId || order._id || order.id || '#');
@@ -779,7 +798,10 @@
             }
         } catch (err) {
             console.error('Order error:', err);
-            showToast(`Order failed: ${err.message}`, 'error');
+            // The API wrapper will show a toast on timeout, but we can also show one for other errors.
+            if (err.name !== 'AbortError') {
+                 showToast(`Order failed: ${err.message}`, 'error');
+            }
         } finally {
             checkoutState.isProcessing = false;
             placeOrderBtn.disabled = false;
