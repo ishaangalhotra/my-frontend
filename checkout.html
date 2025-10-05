@@ -79,12 +79,20 @@
         .address-suggestion { padding:0.75rem 1rem; cursor:pointer; border-bottom:1px solid var(--border-light); }
         .address-suggestion:hover { background:var(--bg-secondary); }
         #toastContainer { position:fixed; top:2rem; right:2rem; z-index:9999; }
+        .toast { background:white; padding:1rem 1.5rem; border-radius:var(--radius-lg); box-shadow:var(--shadow-xl); margin-bottom:1rem; display:flex; align-items:center; gap:1rem; min-width:300px; transition:var(--transition); }
+        .toast-icon { font-size:1.25rem; }
         .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter: blur(10px); display:flex; align-items:center; justify-content:center; z-index:10000; opacity:0; visibility:hidden; transition:var(--transition); }
         .modal-overlay.active { opacity:1; visibility:visible; }
         .success-modal { background:white; border-radius:var(--radius-2xl); padding:3rem; max-width:600px; text-align:center; box-shadow:var(--shadow-xl); transform:scale(0.8); transition:var(--transition-bounce); }
         .modal-overlay.active .success-modal { transform: scale(1); }
         .success-icon { width:80px; height:80px; background:var(--success); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; color:white; font-size:2rem; }
-        .order-id { background:var(--bg-secondary); padding:1rem; border-radius:var(--radius-lg); font-family:'Courier New', monospace; font-weight:700; color:var(--primary); margin-bottom:1rem; }
+        .success-title { font-size:1.875rem; font-weight:900; margin-bottom:1rem; }
+        .success-message { color:var(--text-secondary); margin-bottom:1.5rem; }
+        .order-id { background:var(--bg-secondary); padding:1rem; border-radius:var(--radius-lg); font-family:'Courier New', monospace; font-weight:700; color:var(--primary); margin-bottom:1.5rem; font-size:1.125rem; }
+        .email-preview { background:var(--bg-secondary); padding:1.5rem; border-radius:var(--radius-lg); margin-bottom:1.5rem; }
+        .email-preview-title { font-weight:700; margin-bottom:1rem; display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+        .email-item { display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border-light); }
+        .email-item:last-child { border:none; font-weight:700; margin-top:0.5rem; }
         @media (max-width:1024px) { .checkout-layout { grid-template-columns:1fr; } .order-summary { position:static; order:-1; } }
         @media (max-width:768px) { .checkout-page { padding:1rem; } .checkout-title { font-size:2rem; } .form-row { grid-template-columns:1fr; } .card-row { grid-template-columns:1fr; } .checkout-form, .order-summary { padding:1.5rem; } .success-modal { padding:2rem; margin:1rem; } }
     </style>
@@ -117,7 +125,7 @@
 
         <div id="loadingState" class="loading-container">
             <div class="loading-spinner"></div>
-            <p>Loading your cart.</p>
+            <p>Loading your cart...</p>
         </div>
 
         <div id="emptyCheckoutState" class="empty-checkout" style="display:none;">
@@ -272,10 +280,10 @@
 
                 <button id="placeOrderBtn" class="place-order-btn"><i class="fas fa-lock"></i> Place Order</button>
 
-                <div class="security-info">
-                    <div class="security-badges">
-                        <div class="security-badge"><i class="fas fa-shield-alt"></i> SSL Secured</div>
-                        <div class="security-badge"><i class="fas fa-lock"></i> Safe Payment</div>
+                <div class="security-info" style="margin-top:1.5rem;">
+                    <div class="security-badges" style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+                        <div class="security-badge" style="display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary); font-size:0.875rem;"><i class="fas fa-shield-alt"></i> SSL Secured</div>
+                        <div class="security-badge" style="display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary); font-size:0.875rem;"><i class="fas fa-lock"></i> Safe Payment</div>
                     </div>
                 </div>
             </aside>
@@ -305,9 +313,7 @@
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
-    // -------------------------
     // State
-    // -------------------------
     const checkoutState = {
         cart: null,
         isProcessing: false,
@@ -315,9 +321,7 @@
         saveAddress: true
     };
 
-    // -------------------------
-    // Lightweight helpers
-    // -------------------------
+    // Toast notifications
     function showToast(message, type = 'success') {
         const container = document.getElementById('toastContainer');
         if (!container) return;
@@ -332,15 +336,11 @@
         }, 4000);
     }
 
-    // -------------------------
-    // API wrapper with fallback and timeout
-    // -------------------------
+    // API wrapper with timeout
     const api = {
         async request(endpoint, options = {}) {
-            // Destructure timeout from options, with a default of 30 seconds
             const { timeout = 30000, ...fetchOptions } = options;
 
-            // Try HybridAuthClient if available
             if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
                 try {
                     const response = await window.HybridAuthClient.apiCall(endpoint, options);
@@ -356,22 +356,21 @@
                 }
             }
 
-            // Fallback: fetch with AbortController for timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
 
             try {
                 const base = (new URL(endpoint, window.location.href)).href;
                 const res = await fetch(base, {
-                    ...fetchOptions, // Pass the rest of the fetch options
+                    ...fetchOptions,
                     method: options.method || 'GET',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {}),
                     credentials: 'include',
                     body: options.body || undefined,
-                    signal: controller.signal // Link the abort controller to the request
+                    signal: controller.signal
                 });
 
-                clearTimeout(timeoutId); // Important: clear the timeout if the request completes
+                clearTimeout(timeoutId);
 
                 if (res.status === 401 || res.status === 403) { handleUnauthorized(); throw new Error('Unauthorized'); }
                 if (!res.ok) {
@@ -380,7 +379,7 @@
                 }
                 return await res.json();
             } catch (err) {
-                clearTimeout(timeoutId); // Also clear the timeout if an error occurs
+                clearTimeout(timeoutId);
                 if (err.name === 'AbortError') {
                     const errorMsg = `Request timed out after ${timeout / 1000}s.`;
                     console.error(`API Error [fetch ${endpoint}]: ${errorMsg}`);
@@ -396,17 +395,11 @@
         put: (endpoint, data, options) => api.request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } })
     };
 
-    // -------------------------
-    // Auth helper / unauthorized handler
-    // -------------------------
     function handleUnauthorized() {
         showToast('Please login to proceed to checkout', 'warning');
         setTimeout(() => { window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`; }, 1300);
     }
 
-    // -------------------------
-    // Utilities for images/pricing
-    // -------------------------
     function getSafeImageUrl(product) {
         const fallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
         if (!product || typeof product !== 'object') return fallback;
@@ -424,9 +417,6 @@
         return `₹${Number(num || 0).toLocaleString()}`;
     }
 
-    // -------------------------
-    // Rendering
-    // -------------------------
     function renderCartSummary() {
         console.log('Rendering cart summary.');
         if (!checkoutState.cart) return;
@@ -484,9 +474,6 @@
         deliveryElement.style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
     }
 
-    // -------------------------
-    // Input formatting
-    // -------------------------
     function formatCardNumber(e) {
         let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
         let parts = [];
@@ -502,9 +489,6 @@
         e.target.value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '').substring(0,4);
     }
 
-    // -------------------------
-    // UI state toggles — FIXED: only spinner here
-    // -------------------------
     function showLoading(isLoading) {
         const spinner = document.getElementById('loadingState');
         if (!spinner) return;
@@ -521,9 +505,6 @@
         document.getElementById('emptyCheckoutState').style.display = 'none';
     }
 
-    // -------------------------
-    // Initialize payment UI + address autocomplete + event listeners
-    // -------------------------
     function initializeEventListeners() {
         const form = document.getElementById('checkoutForm');
         if (form) form.addEventListener('submit', (e) => e.preventDefault());
@@ -539,7 +520,6 @@
     }
 
     function initializePaymentMethods() {
-        // Ensure there's always a visible payment method and the right card form visibility
         const options = document.querySelectorAll('.payment-option');
         if (!options || options.length === 0) return;
         options.forEach(opt => {
@@ -557,7 +537,6 @@
             });
         });
 
-        // default select first if nothing selected
         const initiallySelected = document.querySelector('.payment-option.selected') || options[0];
         initiallySelected.classList.add('selected');
         checkoutState.selectedPayment = initiallySelected.dataset.payment || 'card';
@@ -568,9 +547,6 @@
         }
     }
 
-    // -------------------------
-    // Address autocomplete (small static suggestions for now)
-    // -------------------------
     const addressSuggestions = [
         "123 Main Street, Mumbai, Maharashtra 400001",
         "456 Park Avenue, Delhi, Delhi 110001",
@@ -607,9 +583,6 @@
         });
     }
 
-    // -------------------------
-    // Validation helpers
-    // -------------------------
     function clearFieldError(field) {
         const fe = field.parentElement.querySelector('.field-error');
         if (fe) fe.textContent = '';
@@ -645,17 +618,13 @@
         return ok;
     }
 
-    // -------------------------
-    // Loading checkout data — DEFENSIVE (fixed)
-    // -------------------------
     async function loadCheckoutData() {
         showLoading(true);
         try {
-            console.log('🛒 Loading checkout cart data...');
+            console.log('Loading checkout cart data...');
             const response = await api.get('/api/v1/cart');
-            console.log('📦 Cart API Response:', response);
+            console.log('Cart API Response:', response);
 
-            // Defensive parsing: backend might return { items } or { data: { items } }
             const items = response?.items || response?.data?.items || [];
             const pricing = response?.pricing || response?.data?.pricing || response?.pricing_details || {};
 
@@ -667,7 +636,7 @@
                 showEmptyCheckout();
             }
         } catch (err) {
-            console.error('❌ Cart load error:', err);
+            console.error('Cart load error:', err);
             if (err.message === 'Unauthorized') {
                 handleUnauthorized();
             } else {
@@ -675,17 +644,12 @@
                 showEmptyCheckout();
             }
         } finally {
-            // only hide spinner, don't override content (showLoading no longer hides content)
             showLoading(false);
         }
     }
 
-    // -------------------------
-    // Save address to profile (optional)
-    // -------------------------
     async function loadSavedAddress() {
         try {
-            // Try to get current user via hybrid client if available
             if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
                 const user = await window.HybridAuthClient.getCurrentUser();
                 if (user && user.address) {
@@ -695,7 +659,6 @@
                     });
                 }
             } else {
-                // Fallback: try profile endpoint
                 const profile = await api.get('/api/v1/auth/me').catch(() => null);
                 if (profile && profile.user && profile.user.address) {
                     Object.keys(profile.user.address).forEach(k => {
@@ -744,9 +707,6 @@
         return true;
     }
 
-    // -------------------------
-    // Place order flow
-    // -------------------------
     async function handlePlaceOrder() {
         if (checkoutState.isProcessing) return;
         if (!validateCartBeforeCheckout()) return;
@@ -763,7 +723,7 @@
         const formData = new FormData(document.getElementById('checkoutForm'));
         const shippingAddress = Object.fromEntries(formData.entries());
 
-        // Extract product IDs defensively (critical fix)
+        // FIXED: Extract product IDs correctly
         const items = checkoutState.cart.items.map(item => {
             const productObj = item.product || item;
             const pid = productObj?._id || productObj?.id || productObj;
@@ -774,7 +734,8 @@
             shippingAddress,
             paymentMethod: checkoutState.selectedPayment,
             saveAddress: checkoutState.saveAddress,
-            items
+            items,
+            orderItems: items  // ✅ FIXED: Added for backend compatibility
         };
 
         if (checkoutState.selectedPayment === 'card') {
@@ -787,19 +748,16 @@
         }
 
         try {
-            // Call post with a longer, 60-second timeout
             const response = await api.post('/api/v1/orders', orderPayload, { timeout: 60000 });
             
             if (response.success && (response.order || response.data)) {
                 const order = response.order || response.data?.order || response.data || {};
-                // FIXED: Prioritize the user-friendly orderNumber for display
                 showOrderSuccess(order.orderNumber || order.id || '#');
             } else {
                 throw new Error(response.message || 'Failed to place order.');
             }
         } catch (err) {
             console.error('Order error:', err);
-            // The API wrapper will show a toast on timeout, but we can also show one for other errors.
             if (err.name !== 'AbortError') {
                  showToast(`Order failed: ${err.message}`, 'error');
             }
@@ -815,7 +773,6 @@
         updateEmailPreview();
         document.getElementById('successModal').classList.add('active');
         checkoutState.cart = null;
-        // update UI totals
         document.getElementById('cartItemsList').innerHTML = '';
         updatePricingDisplay([], { subtotal:0, discount:0, deliveryFee:0, tax:0, total:0 });
     }
@@ -841,38 +798,32 @@
         window.location.href = 'marketplace.html';
     }
 
-    // -------------------------
-    // DomContentLoaded boot
-    // -------------------------
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('🔒 Initializing Secure Checkout.');
+        console.log('Initializing Secure Checkout.');
         initializeEventListeners();
         initializePaymentMethods();
         initializeAddressAutocomplete();
 
-        // Wait for HybridAuthClient but don't block longer than 5s
         const waitForAuthClient = setInterval(() => {
             if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                 clearInterval(waitForAuthClient);
                 window.HybridAuthClient.isAuthenticated().then(isAuth => {
                     if (isAuth) {
-                        console.log('✅ User authenticated, loading cart.');
+                        console.log('User authenticated, loading cart.');
                         loadCheckoutData();
                         loadSavedAddress();
                     } else {
-                        console.log('❌ User not authenticated');
+                        console.log('User not authenticated');
                         handleUnauthorized();
                     }
                 }).catch(err => {
                     console.error('Auth check failed:', err);
                     showToast('Authentication check failed', 'error');
-                    // try still loading cart with fallback (fetch) - will redirect on 401 if needed
                     loadCheckoutData().catch(() => {});
                 });
             }
         }, 100);
 
-        // after 4s, if hybrid client still not loaded, try fallback to load cart via fetch
         setTimeout(() => {
             if (!window.HybridAuthClient) {
                 console.warn('Auth client failed to load; attempting fallback cart load');
@@ -881,8 +832,4 @@
         }, 4000);
     });
 
-    // Expose close function to inline onclick
     window.closeSuccessModal = closeSuccessModal;
-    </script>
-</body>
-</html>
