@@ -547,6 +547,7 @@
                     item.classList.add('selected');
                     selectedCategory = item.dataset.categoryId;
                     categoryInput.value = selectedCategory;
+                    console.log('Selected category:', selectedCategory);
                 });
             });
         }
@@ -605,6 +606,7 @@
             form.addEventListener('submit', handleFormSubmit);
         }
 
+        // 🔥 FIXED: Form submission with proper category handling
         async function handleFormSubmit(e) {
             e.preventDefault();
             
@@ -613,21 +615,31 @@
                 return;
             }
 
+            // Validate we have a proper category ID (not a name)
+            if (selectedCategory.length < 10 || selectedCategory.includes(' ')) {
+                showAlert('Invalid category selected. Please refresh and try again.', 'error');
+                return;
+            }
+
             const formData = new FormData();
             
-            // Basic product data
+            // Basic product data - USE THE CATEGORY ID DIRECTLY
             formData.append('name', document.getElementById('name').value);
             formData.append('description', document.getElementById('description').value);
             formData.append('price', document.getElementById('price').value);
-            formData.append('category', selectedCategory);
+            formData.append('category', selectedCategory); // This should be the ObjectId
             formData.append('stock', document.getElementById('stock').value);
             formData.append('unit', document.getElementById('unit').value);
             
             // Optional fields
             const originalPrice = document.getElementById('originalPrice').value;
             if (originalPrice) {
-                const discountPercentage = ((originalPrice - document.getElementById('price').value) / originalPrice) * 100;
-                formData.append('discountPercentage', discountPercentage);
+                const price = parseFloat(document.getElementById('price').value);
+                const original = parseFloat(originalPrice);
+                if (original > price) {
+                    const discountPercentage = ((original - price) / original) * 100;
+                    formData.append('discountPercentage', discountPercentage.toFixed(2));
+                }
             }
             
             const brand = document.getElementById('brand').value;
@@ -648,12 +660,15 @@
             showLoading(true);
 
             try {
+                console.log('Submitting product with category ID:', selectedCategory);
+                
                 const response = await fetch(`${API_BASE_URL}/products`, {
                     method: 'POST',
                     body: formData
                 });
 
                 const result = await response.json();
+                console.log('Product creation response:', result);
 
                 if (result.success) {
                     showAlert('Product added successfully! 🎉', 'success');
