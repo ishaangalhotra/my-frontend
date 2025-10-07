@@ -2,7 +2,7 @@
 const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
 
 // Development mode flag - set to false for production
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 // Sample product data for development/testing
 const sampleProduct = {
