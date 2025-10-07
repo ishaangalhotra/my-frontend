@@ -1419,6 +1419,16 @@
             outline: 2px solid var(--primary);
             outline-offset: -2px;
         }
+        
+        /* === ADDED CSS FOR INTEGRATION === */
+        .product-card:active {
+            transform: translateY(-8px) scale(1.01);
+        }
+        /* Prevent action buttons from triggering card click */
+        .product-actions button {
+            position: relative;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="page-transition">
@@ -2550,7 +2560,7 @@
                     const stars = generateStars(product.rating);
                     
                     return `
-                        <div class="product-card" data-product-id="${product.id}">
+                        <div class="product-card" data-product-id="${product.id}" onclick="handleCardClick('${product.id}')">
                             <div class="product-image-container">
                                 <img loading="lazy" src="${getSafeImageUrl(product)}" 
                                      alt="${product.name}" class="product-image"
@@ -2573,7 +2583,7 @@
                                 </div>
                                 <div class="product-actions">
                                     <button class="action-btn btn-primary add-to-cart" 
-                                            onclick="handleAddToCart('${product.id}')" 
+                                            onclick="event.stopPropagation(); handleAddToCart('${product.id}')" 
                                             ${product.stock === 0 ? 'disabled' : ''}>
                                         <i class="fas fa-shopping-cart"></i> 
                                         ${product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -2907,9 +2917,10 @@
             applyAllFilters();
         }
 
+        // === MODIFIED FOR INTEGRATION ===
         function handleCardClick(productId) {
-            showToast(`Opening product details for ${productId}...`, 'info');
-            // Future: Navigate to product detail page
+            // Navigate to product detail page with product ID
+            window.location.href = `product.html?id=${productId}`;
         }
 
         function handleSearchInput(e) {
