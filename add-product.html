@@ -236,6 +236,18 @@
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
         .loading {
             display: none;
             text-align: center;
@@ -426,76 +438,57 @@
     </div>
 
     <script>
-        // Configuration
         const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
         
         let selectedCategory = '';
         let selectedFiles = [];
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
             setupImageUpload();
             setupForm();
         });
 
-        // ==========================================================
-        // CHANGE 1: REMOVED THE API CALL
-        // This function no longer tries to fetch from the server.
-        // It directly loads the hardcoded default categories.
-        // ==========================================================
-        function loadCategories() {
-            console.log('Loading hardcoded categories as requested.');
-            loadDefaultCategories();
-        }
-
-        // Load your specific categories as the default
-        function loadDefaultCategories() {
+        async function loadCategories() {
+            console.log('Fetching real categories from the API...');
             const categoryGrid = document.getElementById('categoryGrid');
             
-            // ==========================================================
-            // CHANGE 2: UPDATED THE CATEGORY LIST
-            // This list now contains your specific categories plus "Bedsheet".
-            // I've used mock MongoDB IDs to ensure the form submission is valid.
-            // ==========================================================
-            const defaultCategories = [
-                { _id: '60d5f2f5c7b5a61f8c8a4a21', name: 'Electronics' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a22', name: 'Fashion' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a23', name: 'Groceries' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a24', name: 'Fruits' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a25', name: 'Vegetables' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a26', name: 'Dairy' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a27', name: 'Bakery' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a28', name: 'Meat & Fish' },
-                { _id: '60d5f2f5c7b5a61f8c8a4a29', name: 'Bedsheet' } // <-- Added Bedsheet
-            ];
-            
-            // ==========================================================
-            // CHANGE 3: ADDED AN ICON FOR THE NEW CATEGORY
-            // ==========================================================
-            const categoryIcons = {
-                'Fruits': 'fas fa-apple-alt',
-                'Vegetables': 'fas fa-carrot', 
-                'Dairy': 'fas fa-glass-whiskey',
-                'Bakery': 'fas fa-bread-slice',
-                'Meat & Fish': 'fas fa-fish',
-                'Groceries': 'fas fa-shopping-basket',
-                'Electronics': 'fas fa-mobile-alt',
-                'Fashion': 'fas fa-tshirt',
-                'Bedsheet': 'fas fa-bed' // <-- Icon for Bedsheet
-            };
-            
-            categoryGrid.innerHTML = defaultCategories.map(category => `
-                <div class="category-item" data-category-id="${category._id}" data-category-name="${category.name}">
-                    <i class="${categoryIcons[category.name] || 'fas fa-tag'}"></i><br>
-                    ${category.name}
-                </div>
-            `).join('');
-            
-            setupCategorySelection();
+            try {
+                const response = await fetch(`${API_BASE_URL}/categories?limit=50`);
+                const result = await response.json();
+
+                if (result.success && result.data.categories.length > 0) {
+                    const categories = result.data.categories;
+                    
+                    const categoryIcons = {
+                        'Fruits': 'fas fa-apple-alt',
+                        'Vegetables': 'fas fa-carrot',
+                        'Dairy': 'fas fa-glass-whiskey',
+                        'Bakery': 'fas fa-bread-slice',
+                        'Meat & Fish': 'fas fa-fish',
+                        'Groceries': 'fas fa-shopping-basket',
+                        'Electronics': 'fas fa-mobile-alt',
+                        'Fashion': 'fas fa-tshirt',
+                        'Bedsheet': 'fas fa-bed'
+                    };
+
+                    categoryGrid.innerHTML = categories.map(category => `
+                        <div class="category-item" data-category-id="${category._id}" data-category-name="${category.name}">
+                            <i class="${categoryIcons[category.name] || 'fas fa-tag'}"></i><br>
+                            ${category.name}
+                        </div>
+                    `).join('');
+
+                    setupCategorySelection();
+                } else {
+                    categoryGrid.innerHTML = '<p>No categories found. Please add categories in the admin panel first.</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                categoryGrid.innerHTML = '<p class="alert alert-error" style="display: block; grid-column: 1 / -1;">Error loading categories. Please check the API connection and make sure categories exist in your database.</p>';
+            }
         }
 
-        // Category selection
         function setupCategorySelection() {
             const categoryItems = document.querySelectorAll('.category-item');
             const categoryInput = document.getElementById('category');
@@ -511,7 +504,6 @@
             });
         }
 
-        // Image upload handling
         function setupImageUpload() {
             const imageInput = document.getElementById('images');
             const imagePreview = document.getElementById('imagePreview');
@@ -558,7 +550,6 @@
             document.getElementById('images').files = dt.files;
         }
 
-        // Form handling
         function setupForm() {
             const form = document.getElementById('productForm');
             form.addEventListener('submit', handleFormSubmit);
@@ -604,6 +595,12 @@
                 formData.append('images', file);
             });
 
+            // Log what we're sending
+            console.log('=== FORM DATA BEING SENT ===');
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + (pair[1] instanceof File ? `[File: ${pair[1].name}]` : pair[1]));
+            }
+
             showLoading(true);
 
             try {
@@ -614,24 +611,61 @@
                     body: formData
                 });
 
-                const result = await response.json();
-                console.log('Product creation response:', result);
+                // CRITICAL: Get the response text first to see what the server is sending
+                const responseText = await response.text();
+                console.log('=== RAW SERVER RESPONSE ===');
+                console.log('Status:', response.status);
+                console.log('Response Text:', responseText);
+
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Failed to parse response as JSON:', parseError);
+                    throw new Error(`Server returned non-JSON response: ${responseText.substring(0, 200)}`);
+                }
+
+                console.log('=== PARSED SERVER RESPONSE ===');
+                console.log(JSON.stringify(result, null, 2));
 
                 if (result.success) {
                     showAlert('Product added successfully! 🎉', 'success');
                     resetForm();
                 } else {
-                    // Display a more helpful error from the backend
-                    let errorMessage = result.error || 'Failed to add product.';
-                    if (result.details) {
-                        errorMessage += ' ' + result.details.map(d => d.msg).join(', ');
+                    // Enhanced error display
+                    let errorMessage = result.message || result.error || 'Failed to add product.';
+                    
+                    if (result.errors) {
+                        const errorList = result.errors.map(err => `• ${err.msg || err.message || err}`).join('\n');
+                        errorMessage += '\n\nValidation Errors:\n' + errorList;
                     }
+                    
+                    if (result.details) {
+                        const detailList = result.details.map(d => `• ${d.msg || d.message || d}`).join('\n');
+                        errorMessage += '\n\nDetails:\n' + detailList;
+                    }
+
+                    console.error('=== FULL ERROR DETAILS ===');
+                    console.error(JSON.stringify(result, null, 2));
+                    
                     throw new Error(errorMessage);
                 }
 
             } catch (error) {
-                console.error('Error adding product:', error);
-                showAlert(`Failed to add product: ${error.message}`, 'error');
+                console.error('=== FULL ERROR OBJECT ===');
+                console.error(error);
+                
+                const errorDetails = document.createElement('div');
+                errorDetails.className = 'debug-info';
+                errorDetails.innerHTML = `
+                    <strong>Debug Information:</strong><br>
+                    ${error.message.replace(/\n/g, '<br>')}
+                    <br><br>
+                    Check the browser console (F12) for more details.
+                `;
+                
+                showAlert(`Failed to add product. See details below.`, 'error');
+                document.getElementById('alertContainer').appendChild(errorDetails);
             } finally {
                 showLoading(false);
             }
@@ -654,6 +688,8 @@
 
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alertContainer');
+            alertContainer.innerHTML = '';
+            
             const alert = document.createElement('div');
             alert.className = `alert alert-${type}`;
             alert.innerHTML = `
@@ -661,13 +697,14 @@
                 ${message}
             `;
             
-            alertContainer.innerHTML = '';
             alertContainer.appendChild(alert);
             alert.style.display = 'block';
             
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 5000);
+            if (type === 'success') {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
         }
 
         document.getElementById('originalPrice').addEventListener('input', function() {
