@@ -125,7 +125,69 @@ function populateProductUI(product) {
     document.title = `${productName} - QuickLocal`;
 }
 
-// Load product from API
+// Add fallback function to try alternative product loading
+async function tryAlternativeProductLoad(productId) {
+    try {
+        // Try to get from products list and filter
+        const response = await fetch(`${API_BASE_URL}/products`);
+        if (response.ok) {
+            const result = await response.json();
+            let products = [];
+            
+            if (result.success && result.data) {
+                products = result.data;
+            } else if (Array.isArray(result)) {
+                products = result;
+            }
+            
+            const foundProduct = products.find(p => p.id === productId || p._id === productId);
+            if (foundProduct) {
+                populateProductUI(foundProduct);
+                document.getElementById('productLoading').classList.add('hidden');
+                document.getElementById('productContent').classList.remove('hidden');
+                return;
+            }
+        }
+    } catch (fallbackError) {
+        console.error('Fallback product load also failed:', fallbackError);
+    }
+    
+    // Final fallback to sample data
+    console.log('Using sample product data as fallback');
+    populateProductUI(sampleProduct);
+    document.getElementById('productLoading').classList.add('hidden');
+    document.getElementById('productContent').classList.remove('hidden');
+}
+
+// Enhanced error handling function
+function handleProductLoadError(error, productId) {
+    const loadingEl = document.getElementById('productLoading');
+    
+    // More user-friendly error handling
+    loadingEl.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #f59e0b; margin-bottom: 20px;"></i>
+            <h3 style="color: #333; margin-bottom: 10px;">Product Temporarily Unavailable</h3>
+            <p style="color: #666; margin-bottom: 20px;">We're having trouble loading this product. You can:</p>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="tryAlternativeProductLoad('${productId}')" 
+                        style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Try Again
+                </button>
+                <button onclick="window.location.href='marketplace.html'" 
+                        style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Browse Marketplace
+                </button>
+                <button onclick="loadProduct()" 
+                        style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Use Sample Data
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Load product from API with enhanced error handling
 async function loadProduct() {
     const productId = getProductIdFromURL();
     const loadingEl = document.getElementById('productLoading');
@@ -145,20 +207,26 @@ async function loadProduct() {
             
             if (!response.ok) {
                 if (response.status === 404) {
-                    throw new Error('Product not found');
+                    // Try alternative endpoints or fallback
+                    console.warn(`Product ${productId} not found, trying products list`);
+                    await tryAlternativeProductLoad(productId);
+                    return;
                 }
                 throw new Error(`Failed to load product (Status: ${response.status})`);
             }
             
             const result = await response.json();
             
-            // Handle different API response structures
+            // Enhanced response format handling
             if (result.success && result.data) {
                 product = result.data;
             } else if (result.product) {
                 product = result.product;
             } else if (result.id) {
                 product = result;
+            } else if (Array.isArray(result) && result.length > 0) {
+                // Handle array response
+                product = result[0];
             } else {
                 throw new Error('Invalid API response format');
             }
@@ -173,18 +241,7 @@ async function loadProduct() {
 
     } catch (error) {
         console.error("Failed to load product:", error);
-        // === MODIFIED FOR INTEGRATION ===
-        loadingEl.innerHTML = `
-            <div style="text-align: center; padding: 40px;">
-                <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #e74c3c; margin-bottom: 20px;"></i>
-                <h3 style="color: #333; margin-bottom: 10px;">Unable to Load Product</h3>
-                <p style="color: #666;">${error.message}</p>
-                <button onclick="window.history.back()" 
-                        style="margin-top: 20px; padding: 12px 24px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                    ← Back to Marketplace
-                </button>
-            </div>
-        `;
+        handleProductLoadError(error, productId);
     }
 }
 
@@ -337,6 +394,10 @@ window.addEventListener('scroll', () => {
 scrollBtn.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+// Make functions globally accessible for error handling buttons
+window.tryAlternativeProductLoad = tryAlternativeProductLoad;
+window.loadProduct = loadProduct;
 
 // Initialize the page when DOM is fully loaded
 loadProduct();
