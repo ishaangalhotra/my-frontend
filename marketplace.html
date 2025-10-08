@@ -10,8 +10,1416 @@
     
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
-    <link rel="stylesheet" href="css/marketplace.css">
+    <link rel="stylesheet" href="css/product-cards.css">
     
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4338ca;
+            --primary-light: #a5b4fc;
+            --secondary: #f59e0b;
+            --accent: #10b981;
+            --accent-dark: #059669;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-light: #94a3b8;
+            --text-inverse: #ffffff;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            --bg-glass: rgba(255, 255, 255, 0.1);
+            
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+            
+            --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.05), 0 4px 16px rgba(99, 102, 241, 0.12);
+            --shadow-glow-lg: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 8px 32px rgba(99, 102, 241, 0.2);
+            
+            --radius-sm: 0.375rem;
+            --radius: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+            --radius-2xl: 2rem;
+            --radius-full: 9999px;
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Enhanced Header */
+        .header {
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            transition: var(--transition);
+        }
+        .header.scrolled {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: var(--shadow-lg);
+            border-bottom-color: var(--border-dark);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.875rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition-bounce);
+        }
+        .logo:hover {
+            transform: scale(1.05);
+        }
+        .logo i {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(2px 2px 4px rgba(99, 102, 241, 0.2));
+        }
+
+        /* Enhanced Search */
+        .search-container {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-wrapper {
+            position: relative;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-full);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            overflow: hidden;
+        }
+        .search-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-2px);
+        }
+
+        .search-input {
+            width: 100%;
+            height: 3.5rem;
+            padding: 0 5rem 0 1.5rem;
+            border: none;
+            border-radius: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            background: transparent;
+            outline: none;
+            color: var(--text-primary);
+        }
+        .search-input::placeholder {
+            color: var(--text-light);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-sm);
+        }
+        .search-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Enhanced Navigation */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-lg);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+        }
+        .nav-link:hover {
+            background: var(--bg-tertiary);
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Enhanced User Actions */
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        [data-auth-required] {
+            display: none; /* Initially hide auth-required elements */
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            position: relative;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-xs);
+        }
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-dark);
+            transform: translateY(-1px);
+        }
+
+        .badge {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            background: linear-gradient(135deg, var(--error), #dc2626);
+            color: white;
+            border-radius: var(--radius-full);
+            width: 1.25rem;
+            height: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Enhanced Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+
+        .hero-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .hero-content {
+            color: white;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, white, rgba(255, 255, 255, 0.8));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: slideInLeft 1s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            font-weight: 400;
+            opacity: 0.9;
+            margin-bottom: 2.5rem;
+            animation: slideInLeft 1s ease-out 0.2s both;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            animation: slideInLeft 1s ease-out 0.4s both;
+        }
+
+        .hero-btn {
+            padding: 1rem 2rem;
+            border-radius: var(--radius-xl);
+            font-size: 1.125rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            border: none;
+        }
+
+        .hero-btn-primary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        .hero-btn-primary:hover {
+            background: white;
+            color: var(--primary);
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .hero-btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        .hero-btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .hero-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: slideInRight 1s ease-out 0.6s both;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .hero-graphic {
+            width: 100%;
+            max-width: 500px;
+            height: 400px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: var(--radius-2xl);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-graphic::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shine 3s ease-in-out infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+            100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        }
+
+        .hero-graphic i {
+            font-size: 8rem;
+            color: rgba(255, 255, 255, 0.3);
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* Enhanced Products Section */
+        .products-section {
+            padding: 6rem 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Enhanced Filter Panel */
+        .filter-panel {
+            background: white;
+            border-radius: var(--radius-2xl);
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .filter-panel:hover {
+            box-shadow: var(--shadow-xl);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 2rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .filter-label {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input, .filter-select {
+            height: 3.5rem;
+            padding: 0 1.25rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            font-weight: 500;
+            transition: var(--transition);
+            background: white;
+            color: var(--text-primary);
+        }
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-1px);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        /* Enhanced Category Pills */
+        #categoryList {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding: 1rem 0 2rem;
+            margin-bottom: 2rem;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        #categoryList::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.5rem;
+            border-radius: var(--radius-full);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            white-space: nowrap;
+            transition: var(--transition);
+            flex-shrink: 0;
+            cursor: pointer;
+            border: 2px solid var(--border);
+            background: white;
+            box-shadow: var(--shadow-xs);
+        }
+        .category-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+        .category-item.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* Enhanced Products Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: var(--radius-2xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            transition: var(--transition-slow);
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .product-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-light);
+        }
+
+        .product-image-container {
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            transition: var(--transition-slow);
+        }
+        .product-card:hover .product-image {
+            transform: scale(1.1);
+        }
+
+        .product-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .product-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .product-category {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
+            color: var(--primary);
+            padding: 0.375rem 1rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .product-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .product-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.5;
+        }
+
+        .product-rating {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stars {
+            color: #fbbf24;
+            font-size: 0.9rem;
+        }
+
+        .rating-text {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .product-price {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .price-current {
+            font-size: 1.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .price-original {
+            color: var(--text-light);
+            text-decoration: line-through;
+            font-weight: 500;
+        }
+
+        .price-discount {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 700;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .add-to-cart {
+            flex: 1;
+            font-weight: 600;
+        }
+
+        /* Enhanced Loading & Empty States */
+        .loading-container, .empty-state {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            color: var(--text-light);
+        }
+
+        /* Enhanced Carousels */
+        .carousel-section {
+            padding: 4rem 0;
+            background: white;
+            border-radius: var(--radius-2xl);
+            margin: 3rem 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .carousel-container {
+            position: relative;
+            overflow: hidden;
+            padding: 2rem 0;
+        }
+
+        .carousel-track {
+            display: flex;
+            gap: 1.5rem;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 1rem 2rem;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .carousel-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .carousel-card {
+            flex: 0 0 280px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            transition: var(--transition-bounce);
+            cursor: pointer;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+        .carousel-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-light);
+        }
+
+        .carousel-card .p-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1rem;
+        }
+
+        .p-name {
+            font-size: 1rem;
+            font-weight: 700;
+            min-height: 48px;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .price-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .p-price {
+            font-weight: 900;
+            font-size: 1.125rem;
+            color: var(--primary);
+        }
+
+        .p-original {
+            text-decoration: line-through;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .p-discount {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .rating {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--radius);
+            font-weight: 700;
+            font-size: 0.85rem;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 2;
+            opacity: 0;
+            transition: var(--transition-bounce);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow-lg);
+        }
+        .carousel-container:hover .carousel-btn {
+            opacity: 1;
+        }
+        .carousel-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: var(--shadow-xl);
+        }
+        .carousel-btn.left {
+            left: 1rem;
+        }
+        .carousel-btn.right {
+            right: 1rem;
+        }
+
+        /* Enhanced Toast Notifications */
+        #toastContainer {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-xl);
+            border-left: 4px solid var(--success);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: toastSlide 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+        }
+        .toast.error {
+            border-left-color: var(--error);
+        }
+        .toast.warning {
+            border-left-color: var(--warning);
+        }
+        .toast.info {
+            border-left-color: var(--info);
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+        .toast.error .toast-icon {
+            color: var(--error);
+        }
+        .toast.warning .toast-icon {
+            color: var(--warning);
+        }
+        .toast.info .toast-icon {
+            color: var(--info);
+        }
+
+        .toast-content {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        @keyframes toastSlide {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Enhanced Footer */
+        .footer {
+            background: linear-gradient(135deg, var(--bg-dark), #1e293b);
+            color: var(--text-inverse);
+            padding: 4rem 0 2rem;
+            margin-top: 6rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-section h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: white;
+            background: linear-gradient(135deg, white, var(--primary-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+        .footer-links a:hover {
+            color: var(--text-inverse);
+            transform: translateX(4px);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+            text-align: center;
+            color: var(--text-light);
+        }
+
+        /* Scroll to top button */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 3.5rem;
+            height: 3.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            transition: var(--transition-bounce);
+            opacity: 0;
+            visibility: hidden;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .scroll-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .scroll-to-top:hover {
+            transform: translateY(-4px) scale(1.1);
+            box-shadow: var(--shadow-xl);
+        }
+
+        /* Quick add animation */
+        @keyframes quickAdd {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        .product-card.adding {
+            animation: quickAdd 0.3s ease-in-out;
+        }
+        
+        /* FIX 10: Add loading state for buttons */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-right-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Enhanced Mobile Responsiveness */
+        @media (max-width: 1024px) {
+            .hero-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                text-align: center;
+            }
+            
+            .hero-visual {
+                order: -1;
+            }
+            
+            .hero-graphic {
+                max-width: 300px;
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
+            .nav {
+                gap: 1rem;
+            }
+            
+            .search-container {
+                max-width: 300px;
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .filter-buttons {
+                flex-direction: column;
+            }
+            
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-actions {
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            
+            .hero-btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+            
+            .products-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 1rem;
+            }
+            
+            .carousel-card {
+                flex: 0 0 240px;
+            }
+            
+            #toastContainer {
+                left: 1rem;
+                right: 1rem;
+                top: 1rem;
+            }
+            
+            .scroll-to-top {
+                bottom: 1rem;
+                right: 1rem;
+                width: 3rem;
+                height: 3rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-container {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .filter-panel {
+                padding: 1rem;
+            }
+            
+            .section-title {
+                font-size: 2rem;
+            }
+            
+            .hero-graphic {
+                max-width: 250px;
+                height: 200px;
+            }
+            
+            .hero-graphic i {
+                font-size: 4rem;
+            }
+        }
+
+        /* Enhanced Pagination Styles */
+        .pagination-container {
+            background: white;
+            border-radius: var(--radius-2xl);
+            padding: 2rem;
+            margin-top: 3rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .pagination-info {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pagination-btn {
+            padding: 0.75rem 1.25rem;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--text-primary);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .pagination-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pagination-numbers {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .page-number {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .page-number:hover {
+            background: var(--bg-tertiary);
+            color: var(--primary);
+        }
+        .page-number.active {
+            background: var(--primary);
+            color: white;
+        }
+        .page-number.ellipsis {
+            cursor: default;
+        }
+        .page-number.ellipsis:hover {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .items-per-page {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .items-per-page select {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .items-per-page select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Loading Skeletons */
+        .skeleton-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            margin: 20px 0;
+        }
+
+        .skeleton-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            animation: skeletonLoading 1.5s ease-in-out infinite alternate;
+        }
+
+        .skeleton-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeletonShimmer 1.5s infinite;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeletonShimmer 1.5s infinite;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-text.title {
+            height: 20px;
+            width: 80%;
+        }
+
+        .skeleton-text.price {
+            height: 18px;
+            width: 40%;
+        }
+
+        .skeleton-text.description {
+            height: 14px;
+            width: 90%;
+        }
+
+        @keyframes skeletonShimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes skeletonLoading {
+            0% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: var(--radius);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+
+        /* Focus styles for accessibility */
+        .action-btn:focus,
+        .filter-btn:focus,
+        .hero-btn:focus,
+        .search-btn:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        .filter-input:focus,
+        .filter-select:focus,
+        .search-input:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: -2px;
+        }
+    </style>
 </head>
 <body class="page-transition">
 
@@ -129,19 +1537,94 @@
                 </div>
                 
                 <div class="pagination-container" id="paginationContainer" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="paginationInfo">Showing 1-20 of 100 products</span>
                     </div>
+                    <div class="pagination-controls" id="paginationControls">
+                        <button class="pagination-btn" id="prevPageBtn" onclick="goToPage(appState.pagination.currentPage - 1)">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <div class="pagination-numbers" id="paginationNumbers"></div>
+                        <button class="pagination-btn" id="nextPageBtn" onclick="goToPage(appState.pagination.currentPage + 1)">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="items-per-page">
+                        <label for="itemsPerPage">Items per page:</label>
+                        <select id="itemsPerPage" onchange="changeItemsPerPage(this.value)">
+                            <option value="12">12</option>
+                            <option value="20" selected>20</option>
+                            <option value="40">40</option>
+                            <option value="60">60</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
     <section id="trending-products" class="carousel-section">
-        </section>
+        <div class="container">
+            <h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">🔥 Trending Products</h2>
+            <div class="carousel-container">
+                <button class="carousel-btn left">&#10094;</button>
+                <div id="trending-list" class="carousel-track"></div>
+                <button class="carousel-btn right">&#10095;</button>
+            </div>
+        </div>
+    </section>
 
     <section id="recommended-products" class="carousel-section">
-        </section>
+        <div class="container">
+            <h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">✨ Recommended for You</h2>
+            <div class="carousel-container">
+                <button class="carousel-btn left">&#10094;</button>
+                <div id="recommended-list" class="carousel-track"></div>
+                <button class="carousel-btn right">&#10095;</button>
+            </div>
+        </div>
+    </section>
 
     <footer class="footer">
-        </footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>QuickLocal</h3>
+                    <p>Your premium local marketplace connecting you with trusted vendors and high-quality products.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Shop</h3>
+                    <ul class="footer-links">
+                        <li><a href="#products">All Products</a></li>
+                        <li><a href="#trending-products">Trending</a></li>
+                        <li><a href="#">Categories</a></li>
+                        <li><a href="#">Deals & Offers</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Account</h3>
+                    <ul class="footer-links">
+                        <li><a href="login.html" id="login-btn">Login</a></li>
+                        <li><a href="#">Register</a></li>
+                        <li><a href="#">My Orders</a></li>
+                        <li><a href="#">Wishlist</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">Return Policy</a></li>
+                        <li><a href="#">Shipping Info</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 QuickLocal. All rights reserved. Made with ❤️ for local communities.</p>
+            </div>
+        </div>
+    </footer>
 
     <button class="scroll-to-top" id="scrollToTop">
         <i class="fas fa-arrow-up"></i>
@@ -150,8 +1633,1869 @@
     <div id="toastContainer"></div>
 
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    <script src="js/api-fix.js"></script>
     
-    <script type="module" src="js/marketplace.js"></script>
+    <script>
+        // FIX 1: API_BASE_URL now contains the /api/v1 prefix
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+    </script>
 
+    <script>
+        // Enhanced Application State with Authentication
+        const appState = {
+            products: [],
+            filteredProducts: [],
+            categories: new Set(),
+            cart: [],
+            // Set apiBaseUrl correctly from the updated APP_CONFIG
+            apiBaseUrl: window.APP_CONFIG.API_BASE_URL, 
+            isLoading: false,
+            user: null,
+            hybridAuth: null, // Will hold hybrid auth instance
+            
+            // Enhanced pagination and filtering
+            pagination: {
+                currentPage: 1,
+                itemsPerPage: 20,
+                totalItems: 0,
+                totalPages: 0
+            },
+            currentFilters: {
+                search: '',
+                category: '',
+                priceRange: '',
+                sortBy: 'name',
+                page: 1
+            }
+        };
+
+        // Make appState globally accessible for external scripts like marketplace-api-patch.js
+        window.appState = appState;
+
+        console.log('🌐 Using API Base URL:', appState.apiBaseUrl);
+
+        // ENHANCED AUTH UTILITIES
+        const auth = {
+            // More reliable login check
+            isLoggedIn: () => {
+                // Check multiple indicators
+                const indicators = [
+                    () => appState.user !== null,
+                    () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser() !== null,
+                    () => localStorage.getItem('quicklocal_user') !== null,
+                    () => localStorage.getItem('supabase_access_token') !== null,
+                    () => localStorage.getItem('token') !== null
+                ];
+                
+                return indicators.some(indicator => {
+                    try {
+                        return indicator();
+                    } catch (error) {
+                        return false;
+                    }
+                });
+            },
+            
+            // More robust user retrieval
+            getUser: () => {
+                // Priority 1: App state
+                if (appState.user) return appState.user;
+                
+                // Priority 2: HybridAuthClient
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    const user = window.HybridAuthClient.getCurrentUser();
+                    if (user) return user;
+                }
+                
+                // Priority 3: Local storage
+                try {
+                    const storedUser = localStorage.getItem('quicklocal_user');
+                    if (storedUser) {
+                        return JSON.parse(storedUser);
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse stored user:', error);
+                }
+                
+                return null;
+            },
+            
+            // Enhanced logout with better cleanup
+            logout: async () => {
+                try {
+                    // Try HybridAuthClient logout first
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
+                        const result = await window.HybridAuthClient.logout();
+                        if (!result.success) {
+                            console.warn('HybridAuthClient logout failed, forcing cleanup');
+                        }
+                    }
+                    
+                    // Force cleanup regardless
+                    auth.clearStoredData();
+                    appState.user = null;
+                    appState.cart = [];
+                    updateAuthUI();
+                    showToast('Logged out successfully', 'info');
+                    
+                    return { success: true };
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Force cleanup on error too
+                    auth.clearStoredData();
+                    appState.user = null;
+                    appState.cart = [];
+                    updateAuthUI();
+                    showToast('Logged out', 'info');
+                    return { success: false, message: error.message };
+                }
+            },
+            
+            // Clear all stored authentication data
+            clearStoredData: () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('quicklocal_access_token');
+                localStorage.removeItem('quicklocal_refresh_token');
+                localStorage.removeItem('quicklocal_user');
+                
+                // Also clear Supabase's own storage keys
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-') && key.includes('-auth-token')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            },
+            
+            // FIX 6: Improved getAuthHeader function
+            getAuthHeader: () => {
+                // Try multiple token sources
+                const tokenSources = [
+                    () => window.HybridAuthClient?.getAuthHeader?.(), // Try client first
+                    () => localStorage.getItem('supabase_access_token'),
+                    () => localStorage.getItem('quicklocal_access_token'),
+                    () => localStorage.getItem('token'),
+                    () => {
+                        // Check for Supabase auth token in localStorage
+                        const keys = Object.keys(localStorage);
+                        const authKey = keys.find(key => key.includes('auth-token'));
+                        if (authKey) {
+                            const authData = JSON.parse(localStorage.getItem(authKey));
+                            return authData?.access_token;
+                        }
+                        return null;
+                    }
+                ];
+                
+                for (const getToken of tokenSources) {
+                    try {
+                        const token = getToken();
+                        if (token && typeof token === 'string' && token.length > 10) {
+                            // If it's already a full header, return it. Otherwise, format it.
+                            return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+                
+                return '';
+            },
+            
+            // Get headers for API calls
+            getHeaders: () => ({
+                'Content-Type': 'application/json',
+                'Authorization': auth.getAuthHeader()
+            })
+        };
+
+        // API utilities using hybrid auth
+        const api = {
+            // FIX 2: Fixed API Request Function
+            async request(endpoint, options = {}) {
+                try {
+                    // Use hybrid auth API call method if available
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+                        // The hybrid client should prepend the base URL itself, so we pass only the endpoint
+                        const response = await window.HybridAuthClient.apiCall(endpoint, options);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return await response.json();
+                    }
+                    
+                    // Fallback to direct fetch WITH the full URL
+                    const fullUrl = endpoint.startsWith('http') ? endpoint : `${appState.apiBaseUrl}${endpoint}`;
+                    const response = await fetch(fullUrl, {
+                        headers: auth.getHeaders(),
+                        ...options
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`API Error Response Text: ${errorText}`);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error(`API Error [${endpoint}]:`, error);
+                    throw error;
+                }
+            },
+            
+            async get(endpoint) {
+                return this.request(endpoint, { method: 'GET' });
+            },
+            
+            async post(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            },
+            
+            async put(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            },
+             
+            async patch(endpoint, data) {
+                return this.request(endpoint, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data)
+                });
+            },
+            
+            async delete(endpoint) {
+                return this.request(endpoint, { method: 'DELETE' });
+            }
+        };
+
+        // ===== START: FIX - ADDED loadCart FUNCTION =====
+        // This function is essential for the marketplace page to get the cart count
+        // without causing a ReferenceError.
+        async function loadCart() {
+            if (!auth.isLoggedIn()) {
+                updateCartCount(0); // Ensure cart count is 0 if not logged in
+                return;
+            }
+
+            try {
+                // Use clean cart endpoint without /api/v1 prefix
+                const response = await api.get('/cart');
+                
+                if (response.success && response.data) {
+                    // We only need the total item count for the marketplace page
+                    const itemCount = response.data.itemCount || (response.data.items ? response.data.items.length : 0);
+                    appState.cart = response.data.items || [];
+                    updateCartCount(itemCount);
+                } else if (response.cart) {
+                    // Handle different response format
+                    const itemCount = response.cart.items ? response.cart.items.length : 0;
+                    appState.cart = response.cart.items || [];
+                    updateCartCount(itemCount);
+                } else {
+                    // Handle empty cart or minor errors gracefully
+                    appState.cart = [];
+                    updateCartCount(0);
+                }
+            } catch (error) {
+                console.warn('Could not load cart data for header:', error.message);
+                
+                // Handle 404 errors gracefully (cart requires authentication)
+                if (error.message.includes('404')) {
+                    console.log('🔒 Cart endpoint requires authentication - showing empty cart');
+                    appState.cart = [];
+                    updateCartCount(0);
+                    return;
+                }
+                
+                // For other errors, also fail gracefully
+                appState.cart = [];
+                updateCartCount(0);
+            }
+        }
+        // ===== END: FIX - ADDED loadCart FUNCTION =====
+
+        // FIX 7: Add Request Retry Logic
+        async function apiCallWithRetry(endpoint, options = {}, maxRetries = 2) {
+            let lastError;
+            
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        console.log(`Retry attempt ${attempt} for ${endpoint}`);
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                    }
+                    
+                    return await api.request(endpoint, options);
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`API call attempt ${attempt + 1} failed:`, error.message);
+                    
+                    // Don't retry on 4xx client errors (except 429 - too many requests)
+                    if (error.message.includes('40') && !error.message.includes('429')) {
+                        break;
+                    }
+                }
+            }
+            
+            throw lastError;
+        }
+
+        // Helper function for safe image URL handling
+        function getSafeImageUrl(product, size = '300x220') {
+            // Try to get image URL from various possible formats
+            let imageUrl = null;
+            
+            // Check new API format with 'image' field
+            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                imageUrl = product.image;
+            }
+            // Check images array format
+            else if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string' && product.images[0].startsWith('http')) {
+                    imageUrl = product.images[0];
+                } else if (product.images[0] && product.images[0].url && product.images[0].url.startsWith('http')) {
+                    imageUrl = product.images[0].url;
+                }
+            }
+            // Check legacy primaryImage format
+            else if (product.primaryImage && product.primaryImage.url && product.primaryImage.url.startsWith('http')) {
+                imageUrl = product.primaryImage.url;
+            }
+            
+            // Return valid URL or placeholder
+            if (imageUrl && imageUrl.startsWith('http')) {
+                return imageUrl;
+            } else {
+                // Create a safe placeholder with product name
+                const safeName = encodeURIComponent(product.name || 'Product').replace(/%20/g, '+');
+                return `https://placehold.co/${size}/e6e6e6/666666?text=${safeName}`;
+            }
+        }
+
+        // CORRECTED AUTHENTICATION DETECTION IN MARKETPLACE
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Initializing Enhanced QuickLocal Marketplace...');
+            
+            // Initialize components that don't need auth state
+            initializeEventListeners();
+            initializeScrollEffects();
+            initializeFromURL();
+
+            // Enhanced auth initialization with better state detection
+            await initializeAuthState();
+            
+            // Load public data immediately
+            await loadProducts();
+            await populateCarousels();
+            
+            console.log('✅ QuickLocal Marketplace initialized');
+        });
+
+        // NEW: Enhanced auth initialization function
+        async function initializeAuthState() {
+            let authClientLoaded = false;
+            let attempts = 0;
+            const maxAttempts = 50;
+            
+            // Wait for HybridAuthClient to load
+            while (!authClientLoaded && attempts < maxAttempts) {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+                    authClientLoaded = true;
+                    console.log('✅ HybridAuthClient detected');
+                    
+                    // Set up auth state listener FIRST
+                    if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                        window.HybridAuthClient.onAuthStateChange((user) => {
+                            console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
+                            appState.user = user;
+                            updateAuthUI();
+                            
+                            if (user) {
+                                localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                                // Show welcome message if redirected from login
+                                const urlParams = new URLSearchParams(window.location.search);
+                                if (urlParams.get('login') === 'success') {
+                                    showToast(`Welcome back, ${user.name}!`, 'success');
+                                    // Clean URL
+                                    window.history.replaceState({}, '', window.location.pathname);
+                                }
+                                loadCart(); // CRITICAL: This now calls the defined function
+                            } else {
+                                localStorage.removeItem('quicklocal_user');
+                                appState.cart = [];
+                                updateCartUI();
+                            }
+                        });
+                    }
+                    
+                    // Force check current auth state immediately
+                    try {
+                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+                        if (isAuthenticated) {
+                            const user = window.HybridAuthClient.getCurrentUser();
+                            if (user) {
+                                console.log('✅ User already authenticated:', user.name);
+                                appState.user = user;
+                                updateAuthUI();
+                                loadCart(); // CRITICAL: This now calls the defined function
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Auth check failed:', error);
+                    }
+                    break;
+                } else {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+            }
+            
+            if (!authClientLoaded) {
+                console.warn('⚠️ HybridAuthClient not loaded. Checking local storage...');
+                // Fallback: Check localStorage for user data
+                try {
+                    const storedUser = localStorage.getItem('quicklocal_user');
+                    if (storedUser) {
+                        const user = JSON.parse(storedUser);
+                        appState.user = user;
+                        updateAuthUI();
+                        console.log('✅ User restored from localStorage:', user.name);
+                    }
+                } catch (error) {
+                    console.warn('Failed to restore user from storage:', error);
+                }
+            }
+            
+            updateAuthUI(); // Ensure UI is updated regardless
+        }
+
+        // ENHANCED UI UPDATE FUNCTION
+        function updateAuthUI() {
+            const loginBtn = document.querySelector('a[href="login.html"]');
+            const user = auth.getUser();
+            const isLoggedIn = auth.isLoggedIn();
+            
+            console.log('🔄 Updating auth UI:', { 
+                isLoggedIn, 
+                user: user?.name,
+                authMethod: window.HybridAuthClient?.getAuthMethod?.() 
+            });
+            
+            if (isLoggedIn && user) {
+                // User is logged in
+                if (loginBtn) {
+                    loginBtn.innerHTML = `<i class="fas fa-user"></i> ${user.name}`;
+                    loginBtn.href = '#';
+                    loginBtn.classList.remove('btn-secondary');
+                    loginBtn.classList.add('btn-primary');
+                    loginBtn.onclick = (e) => {
+                        e.preventDefault();
+                        showUserMenu();
+                    };
+                }
+                
+                // Show auth-dependent elements
+                document.querySelectorAll('[data-auth-required]').forEach(el => {
+                    el.style.display = 'flex';
+                });
+                
+            } else {
+                // User is not logged in
+                if (loginBtn) {
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    loginBtn.href = 'login.html';
+                    loginBtn.classList.remove('btn-primary');
+                    loginBtn.classList.add('btn-secondary');
+                    loginBtn.onclick = null;
+                }
+                
+                // Hide auth-dependent elements
+                document.querySelectorAll('[data-auth-required]').forEach(el => {
+                    el.style.display = 'none';
+                });
+            }
+            
+            // Update footer login link
+            const footerLoginBtn = document.getElementById('login-btn');
+            if (footerLoginBtn) {
+                if (isLoggedIn && user) {
+                    footerLoginBtn.textContent = 'My Account';
+                    footerLoginBtn.href = '#';
+                    footerLoginBtn.onclick = (e) => {
+                        e.preventDefault();
+                        showUserMenu();
+                    };
+                } else {
+                    footerLoginBtn.textContent = 'Login';
+                    footerLoginBtn.href = 'login.html';
+                    footerLoginBtn.onclick = null;
+                }
+            }
+        }
+
+        // Show user menu (dropdown)
+        function showUserMenu() {
+            const userMenu = document.createElement('div');
+            userMenu.className = 'user-menu';
+            userMenu.innerHTML = `
+                <div class="user-menu-content">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <div>
+                            <div class="user-name">${auth.getUser().name}</div>
+                            <div class="user-email">${auth.getUser().email}</div>
+                        </div>
+                    </div>
+                    <div class="user-menu-divider"></div>
+                    <a href="#" onclick="window.location.href='profile.html'"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="#" onclick="window.location.href='orders.html'"><i class="fas fa-box"></i> My Orders</a>
+                    <a href="#" onclick="window.location.href='cart.html'"><i class="fas fa-shopping-cart"></i> My Cart</a>
+                    <div class="user-menu-divider"></div>
+                    <a href="#" onclick="auth.logout(); closeUserMenu();"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            `;
+            
+            // Add styles for user menu
+            if (!document.getElementById('userMenuStyles')) {
+                const styles = document.createElement('style');
+                styles.id = 'userMenuStyles';
+                styles.textContent = `
+                    .user-menu {
+                        position: fixed;
+                        top: 80px;
+                        right: 2rem;
+                        background: white;
+                        border-radius: var(--radius-xl);
+                        box-shadow: var(--shadow-xl);
+                        border: 1px solid var(--border);
+                        z-index: 10000;
+                        min-width: 250px;
+                        animation: userMenuSlide 0.3s ease-out;
+                    }
+                    .user-menu-content {
+                        padding: 1rem;
+                    }
+                    .user-info {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        margin-bottom: 1rem;
+                    }
+                    .user-info i {
+                        font-size: 2rem;
+                        color: var(--primary);
+                    }
+                    .user-name {
+                        font-weight: 700;
+                        color: var(--text-primary);
+                    }
+                    .user-email {
+                        font-size: 0.85rem;
+                        color: var(--text-light);
+                    }
+                    .user-menu-divider {
+                        height: 1px;
+                        background: var(--border);
+                        margin: 0.75rem 0;
+                    }
+                    .user-menu a {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        padding: 0.75rem;
+                        color: var(--text-secondary);
+                        text-decoration: none;
+                        border-radius: var(--radius);
+                        transition: var(--transition);
+                        font-weight: 500;
+                    }
+                    .user-menu a:hover {
+                        background: var(--bg-tertiary);
+                        color: var(--primary);
+                    }
+                    @keyframes userMenuSlide {
+                        from {
+                            opacity: 0;
+                            transform: translateY(-10px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                `;
+                document.head.appendChild(styles);
+            }
+            
+            // Close menu on click outside
+            setTimeout(() => {
+                document.addEventListener('click', (e) => {
+                    if (!userMenu.contains(e.target)) {
+                        closeUserMenu();
+                    }
+                }, { once: true });
+            }, 100);
+            
+            document.body.appendChild(userMenu);
+        }
+
+        function closeUserMenu() {
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu) {
+                userMenu.style.opacity = '0';
+                userMenu.style.transform = 'translateY(-10px)';
+                setTimeout(() => userMenu.remove(), 200);
+            }
+        }
+
+        // Enhanced Event Listeners
+        function initializeEventListeners() {
+            // Filter events
+            document.getElementById('applyFilters')?.addEventListener('click', applyAllFilters);
+            document.getElementById('clearFilters')?.addEventListener('click', clearAllFilters);
+            document.getElementById('categoryList')?.addEventListener('click', handleCategoryPillClick);
+            
+            // Search events with debouncing for better performance
+            const searchInput = document.getElementById('search-input');
+            const globalSearchInput = document.getElementById('globalSearchInput');
+            
+            searchInput?.addEventListener('input', debounce(handleSearchInput, 300));
+            globalSearchInput?.addEventListener('input', debounce(handleGlobalSearch, 300));
+            
+            // Pagination events
+            document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+                if (appState.pagination.currentPage > 1) {
+                    goToPage(appState.pagination.currentPage - 1);
+                }
+            });
+            
+            document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+                if (appState.pagination.currentPage < appState.pagination.totalPages) {
+                    goToPage(appState.pagination.currentPage + 1);
+                }
+            });
+            
+            document.getElementById('itemsPerPage')?.addEventListener('change', (e) => {
+                changeItemsPerPage(e.target.value);
+            });
+            
+            // Filter change events with URL updates
+            document.getElementById('category-filter')?.addEventListener('change', () => {
+                appState.pagination.currentPage = 1;
+                appState.currentFilters.page = 1;
+                applyAllFilters();
+            });
+            
+            document.getElementById('price-filter')?.addEventListener('change', () => {
+                appState.pagination.currentPage = 1;
+                appState.currentFilters.page = 1;
+                applyAllFilters();
+            });
+            
+            document.getElementById('sort-select')?.addEventListener('change', () => {
+                applyAllFilters();
+            });
+            
+            // Carousel events
+            document.querySelectorAll('.carousel-container').forEach(initializeCarousel);
+            
+            // Header scroll effect
+            window.addEventListener('scroll', handleScroll);
+            
+            // Scroll to top button
+            document.getElementById('scrollToTop')?.addEventListener('click', scrollToTop);
+            
+            console.log('✅ Event listeners initialized with pagination support');
+        }
+
+        // Enhanced scroll effects
+        function initializeScrollEffects() {
+            const header = document.getElementById('header');
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+            
+            window.addEventListener('scroll', () => {
+                const scrollY = window.scrollY;
+                
+                // Header effect
+                if (scrollY > 100) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+                
+                // Scroll to top button
+                if (scrollY > 300) {
+                    scrollToTopBtn.classList.add('visible');
+                } else {
+                    scrollToTopBtn.classList.remove('visible');
+                }
+            });
+        }
+
+        // Enhanced product loading with better error handling
+        async function loadProducts() {
+            if (appState.isLoading) return;
+            
+            appState.isLoading = true;
+            showLoading(true);
+            
+            try {
+                // FIX 3: Products endpoint does not include /api/v1/ prefix
+                const data = await apiCallWithRetry('/products');
+                
+                // FIX 5: Better error handling for API responses
+                console.log('✅ API response received:', data);
+                
+                // Handle different response formats more robustly
+                let products = [];
+                if (data && data.success !== undefined) {
+                    // Backend returns { success: true, data: [...] }
+                    if (data.data && Array.isArray(data.data)) {
+                        products = data.data;
+                    } else if (data.data && data.data.products && Array.isArray(data.data.products)) {
+                        products = data.data.products;
+                    }
+                } else if (Array.isArray(data)) {
+                    // Backend returns direct array
+                    products = data;
+                } else {
+                    console.warn('Unexpected API response format:', data);
+                    products = [];
+                }
+                
+                // Enhanced product processing
+                appState.products = products.map(product => ({
+                    ...product,
+                    id: product._id || product.id,
+                    rating: product.rating || (3.5 + Math.random() * 1.5), // Mock rating if not provided
+                    reviews: product.reviews || Math.floor(Math.random() * 500) + 10,
+                    originalPrice: product.originalPrice || (product.price * (1 + Math.random() * 0.5)),
+                    stock: product.stock !== undefined ? product.stock : Math.floor(Math.random() * 50) + 5
+                }));
+                
+                // Extract categories
+                appState.products.forEach(product => {
+                    if (product.category) {
+                        appState.categories.add(product.category);
+                    }
+                });
+                
+                // Store all products for pagination
+                appState.allProducts = [...appState.products];
+                appState.filteredProducts = [...appState.products];
+                
+                // Apply initial filters from URL if any
+                if (Object.values(appState.currentFilters).some(v => v && v !== '' && v !== 'name' && v !== 1)) {
+                    applyAllFilters();
+                } else {
+                    // Update pagination for initial load
+                    appState.pagination.totalItems = appState.products.length;
+                    appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
+                    
+                    // Render first page
+                    const firstPageProducts = appState.products.slice(0, appState.pagination.itemsPerPage);
+                    renderAll();
+                    updatePagination();
+                    updateProductCount(appState.products.length);
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to load products:', error);
+                
+                let errorMessage = 'Could not load products from server.';
+                if (error.message.includes('500')) {
+                    errorMessage = 'Server error (500) - Backend is having issues. Check server logs.';
+                }
+                
+                showToast(errorMessage + ' Using demo data instead.', 'warning');
+                
+                // Fallback to demo data
+                appState.products = generateDemoProducts();
+                appState.allProducts = [...appState.products];
+                appState.filteredProducts = [...appState.products];
+                appState.products.forEach(p => appState.categories.add(p.category));
+                
+                // Setup pagination for demo data
+                appState.pagination.totalItems = appState.products.length;
+                appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
+                renderAll();
+                updatePagination();
+                updateProductCount(appState.products.length);
+                
+            } finally {
+                appState.isLoading = false;
+                showLoading(false);
+            }
+        }
+
+        // Generate demo products for fallback
+        function generateDemoProducts() {
+            const demoProducts = [
+                {
+                    id: '1',
+                    name: 'Leather Messenger Bag',
+                    description: 'Handcrafted leather messenger bag perfect for work and travel.',
+                    price: 3499,
+                    originalPrice: 4999,
+                    category: 'Fashion',
+                    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=200&fit=crop',
+                    rating: 4.4,
+                    reviews: 78,
+                    stock: 12
+                }
+            ];
+            
+            return demoProducts;
+        }
+
+        // Enhanced rendering functions
+        function renderAll() {
+            renderCategories();
+            renderProducts();
+            updateCartUI();
+        }
+
+        function renderProducts(productsToRender = null) {
+            const container = document.getElementById('products-container');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (!container) return;
+
+            // Use provided products or fallback to filtered products
+            const products = productsToRender || appState.filteredProducts || [];
+
+            if (products.length === 0) {
+                container.innerHTML = '';
+                if (emptyState) emptyState.style.display = 'flex';
+                return;
+            }
+            
+            if (emptyState) emptyState.style.display = 'none';
+
+            // Check if enhanced product card utilities are available
+            if (typeof productCardUtils !== 'undefined') {
+                // Use enhanced product cards system
+                const enhancedProducts = products.map(product => ({
+                    ...product,
+                    // Map existing fields to enhanced card format
+                    finalPrice: product.price,
+                    discountPercentage: product.originalPrice ? 
+                        Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0,
+                    savings: product.originalPrice ? (product.originalPrice - product.price) : 0,
+                    isOnSale: product.originalPrice && product.originalPrice > product.price,
+                    images: product.images || [{ url: product.image }],
+                    primaryImage: { url: product.images?.[0]?.url || product.image },
+                    isInStock: product.stock > 0,
+                    isLowStock: product.stock > 0 && product.stock <= 10,
+                    stockStatus: product.stock === 0 ? 'out_of_stock' : 
+                                 product.stock <= 10 ? 'low_stock' : 'in_stock',
+                    unit: 'piece',
+                    averageRating: product.rating,
+                    totalReviews: product.reviews,
+                    category: { name: product.category },
+                    seller: { name: 'Local Seller' },
+                    tags: [],
+                    features: [],
+                    colors: [],
+                    sizes: [],
+                    deliveryConfig: {
+                        isLocalDeliveryEnabled: true,
+                        preparationTime: Math.floor(Math.random() * 30) + 10,
+                        deliveryFee: product.price > 500 ? 0 : 50,
+                        freeDeliveryThreshold: 500,
+                        expressDeliveryAvailable: true,
+                        codAvailable: true
+                    },
+                    sellerLocation: {
+                        city: 'Local',
+                        locality: 'Nearby'
+                    },
+                    isFeatured: product.rating >= 4.5,
+                    isNewArrival: Math.random() > 0.8,
+                    isBestSeller: product.rating >= 4.0 && product.reviews >= 100
+                }));
+
+                // Use the enhanced product card utilities to render
+                const cardsHtml = enhancedProducts.map(product => {
+                    return productCardUtils.generateProductCard(product);
+                }).join('');
+                
+                container.innerHTML = `<div class="products-grid">${cardsHtml}</div>`;
+                
+                // Attach event listeners for enhanced functionality
+                setTimeout(() => {
+                    productCardUtils.attachVariantListeners();
+                }, 100);
+            } else {
+                // Fallback to original card rendering
+                console.warn('Enhanced product card utilities not loaded, using fallback rendering');
+                
+                container.innerHTML = products.map(product => {
+                    const discount = product.originalPrice ? 
+                        Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+                    
+                    const stars = generateStars(product.rating);
+                    
+                    return `
+                        <div class="product-card" data-product-id="${product.id}">
+                            <div class="product-image-container">
+                                <img loading="lazy" src="${getSafeImageUrl(product)}" 
+                                     alt="${product.name}" class="product-image"
+                                     onerror="this.onerror=null; this.src='https://placehold.co/300x220/e6e6e6/666666?text=Image+Error';">
+                                ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
+                            </div>
+                            <div class="product-content">
+                                <div class="product-category">${product.category}</div>
+                                <h3 class="product-name">${product.name}</h3>
+                                <p class="product-description">${product.description || ''}</p>
+                                <div class="product-rating">
+                                    <div class="stars">${stars}</div>
+                                    <span class="rating-text">(${product.reviews || 0} reviews)</span>
+                                </div>
+                                <div class="product-price">
+                                    <span class="price-current">₹${product.price.toLocaleString()}</span>
+                                    ${product.originalPrice ? 
+                                        `<span class="price-original">₹${product.originalPrice.toLocaleString()}</span>` : ''}
+                                    ${discount > 0 ? `<span class="price-discount">${discount}% OFF</span>` : ''}
+                                </div>
+                                <div class="product-actions">
+                                    <button class="action-btn btn-primary add-to-cart" 
+                                            onclick="handleAddToCart('${product.id}')" 
+                                            ${product.stock === 0 ? 'disabled' : ''}>
+                                        <i class="fas fa-shopping-cart"></i> 
+                                        ${product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function updateProductCount(count) {
+            const elements = document.querySelectorAll('.product-count, #totalProductsCount');
+            elements.forEach(el => {
+                if (el) {
+                    el.textContent = `${count.toLocaleString()} products found`;
+                }
+            });
+            
+            // Update page title with count
+            const titleSuffix = count > 0 ? ` (${count} products)` : ' (No products found)';
+            if (document.title && !document.title.includes('(')) {
+                document.title += titleSuffix;
+            }
+        }
+
+        function renderCategories() {
+            const catListContainer = document.getElementById('categoryList');
+            const catFilterSelect = document.getElementById('category-filter');
+
+            if (!catListContainer || !catFilterSelect) return;
+
+            const allPill = `<div class="category-item active" data-category="">🏪 All Products</div>`;
+            const categoryIcons = {
+                'Electronics': '📱',
+                'Clothing': '👕',
+                'Food & Beverages': '🍵',
+                'Fashion': '👜',
+                'Home & Garden': '🏠',
+                'Sports': '⚽',
+                'Books': '📚'
+            };
+            
+            const categoryPills = [...appState.categories].map(cat => 
+                `<div class="category-item" data-category="${cat}">
+                    ${categoryIcons[cat] || '🏷️'} ${cat}
+                </div>`).join('');
+            
+            catListContainer.innerHTML = allPill + categoryPills;
+
+            catFilterSelect.innerHTML = '<option value="">All Categories</option>' + 
+                [...appState.categories].map(cat => `<option value="${cat}">${cat}</option>`).join('');
+        }
+
+        // Enhanced carousel functionality
+        async function populateCarousels() {
+            await populateCarousel('trending-list', getTrendingProducts());
+            await populateCarousel('recommended-list', getRecommendedProducts());
+        }
+
+        function getTrendingProducts() {
+            return appState.products
+                .sort((a, b) => (b.rating * b.reviews) - (a.rating * a.reviews))
+                .slice(0, 8);
+        }
+
+        function getRecommendedProducts() {
+            return appState.products
+                .filter(p => p.rating >= 4.0)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 8);
+        }
+
+        async function populateCarousel(elementId, products) {
+            const list = document.getElementById(elementId);
+            if (!list || !products.length) return;
+
+            list.innerHTML = products.map(product => createCarouselCard(product)).join('');
+        }
+
+        function createCarouselCard(product) {
+            const discount = product.originalPrice ? 
+                Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+            
+            return `
+                <div class="carousel-card" onclick="handleCardClick('${product.id}')">
+                    <img class="p-image" loading="lazy" 
+                         src="${getSafeImageUrl(product, '280x160')}" 
+                         alt="${product.name}"
+                         onerror="this.onerror=null; this.src='https://placehold.co/280x160/e6e6e6/666666?text=Image+Error';">
+                    <div class="p-name">${product.name}</div>
+                    <div class="price-row">
+                        <div class="p-price">₹${product.price.toLocaleString()}</div>
+                        ${product.originalPrice ? 
+                            `<div class="p-original">₹${product.originalPrice.toLocaleString()}</div>` : ""}
+                        ${discount > 0 ? `<div class="p-discount">${discount}% OFF</div>` : ""}
+                    </div>
+                    <div class="rating">${product.rating.toFixed(1)} ⭐</div>
+                </div>
+            `;
+        }
+
+        function initializeCarousel(container) {
+            const track = container.querySelector('.carousel-track');
+            const leftBtn = container.querySelector('.carousel-btn.left');
+            const rightBtn = container.querySelector('.carousel-btn.right');
+            
+            leftBtn?.addEventListener('click', () => scrollCarousel(track, -1));
+            rightBtn?.addEventListener('click', () => scrollCarousel(track, 1));
+        }
+
+        function scrollCarousel(track, direction) {
+            if (!track) return;
+            
+            const cardWidth = track.querySelector('.carousel-card')?.offsetWidth || 280;
+            const scrollAmount = (cardWidth + 24) * 2; // Scroll 2 cards at a time
+            
+            track.scrollBy({
+                left: direction * scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+        
+        // ===== START: FIX - MODIFIED handleAddToCart FUNCTION =====
+		async function handleAddToCart(productId) {
+			const product = appState.products.find(p => p.id === productId);
+			if (!product) {
+				showToast('Product not found!', 'error');
+				return;
+			}
+
+			if (!auth.isLoggedIn()) {
+				showToast('Please login to add items to cart', 'warning');
+				setTimeout(() => {
+					window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+				}, 1500);
+				return;
+			}
+			
+			// Additional check for valid auth token
+			if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+				try {
+					const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+					if (!isAuthenticated) {
+						showToast('Your session has expired. Please login again.', 'warning');
+						setTimeout(() => {
+							window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+						}, 1500);
+						return;
+					}
+				} catch (error) {
+					console.warn('Could not verify authentication:', error.message);
+					showToast('Please login to add items to cart', 'warning');
+					setTimeout(() => {
+						window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+					}, 1500);
+					return;
+				}
+			}
+
+			const productCard = document.querySelector(`[data-product-id="${productId}"]`);
+			const addButton = productCard?.querySelector('.add-to-cart');
+			
+			if (addButton) {
+				addButton.disabled = true;
+				addButton.classList.add('btn-loading');
+			}
+
+			try {
+				console.log('🛒 Adding to cart:', { productId, productName: product.name });
+
+				// Use the hybrid auth client's addToCart method if available
+				let response;
+				if (window.quickLocalAuth && typeof window.quickLocalAuth.addToCart === 'function') {
+					response = await window.quickLocalAuth.addToCart(productId, 1);
+				} else if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+					// Fallback to hybrid client API call - USE CORRECT ENDPOINT
+					const apiResponse = await window.HybridAuthClient.apiCall('/cart/items', {
+						method: 'POST',
+						body: JSON.stringify({ productId: productId, quantity: 1 })
+					});
+					if (apiResponse.ok) {
+						const data = await apiResponse.json();
+						response = { success: true, data: data.data };
+					} else {
+						const data = await apiResponse.json();
+						response = { success: false, message: data.message };
+					}
+				} else {
+					// Final fallback to direct API call - USE CORRECT ENDPOINT
+					response = await api.post('/cart/items', {
+						productId: productId,
+						quantity: 1
+					});
+				}
+
+				if (response.success) {
+					showToast(`${product.name} added to cart!`, 'success');
+					
+					// RELIABLE UPDATE: Simply reload the cart state
+					await loadCart();
+					
+					productCard?.classList.add('adding');
+					setTimeout(() => productCard?.classList.remove('adding'), 300);
+				
+				} else {
+					throw new Error(response.message || 'Failed to add item to cart');
+				}
+			} catch (error) {
+				console.error('🛍️ Add to cart error:', error);
+				let errorMessage = `Failed to add ${product.name} to cart.`;
+				
+				if (error.message.includes('401')) {
+					errorMessage = 'Your session has expired. Please log in again.';
+					// Redirect to login
+					setTimeout(() => {
+						window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+					}, 2000);
+				} else if (error.message.includes('404')) {
+					errorMessage = 'Cart service unavailable. Please try again later.';
+				} else {
+					errorMessage = error.message || 'Unknown error occurred';
+				}
+				
+				showToast(errorMessage, 'error');
+			} finally {
+				if (addButton) {
+					addButton.disabled = false;
+					addButton.classList.remove('btn-loading');
+				}
+			}
+		}
+		// ===== END: FIX - MODIFIED handleAddToCart FUNCTION =====
+		
+        // ===== START: CORRECTED CODE BLOCK =====
+        function updateCartCount(count) {
+          const cartBadge = document.getElementById('cart-count');
+          if (cartBadge) {
+            if (count > 0) {
+              cartBadge.textContent = count > 99 ? '99+' : count;
+              cartBadge.style.display = 'flex';
+            } else {
+              cartBadge.style.display = 'none';
+            }
+          }
+        }
+
+        // FIX: Added the missing async function and corrected the API endpoint
+        async function removeFromCart(productId) {
+            if (!auth.isLoggedIn()) {
+                showToast('Please login to manage your cart', 'warning');
+                return;
+            }
+            try {
+				// CORRECTED ENDPOINT: Use '/cart/items/:productId'
+				const response = await api.delete(`/cart/items/${productId}`);
+
+                if (response.success) {
+                    showToast('Item removed from cart', 'success');
+                    await loadCart(); // Assumes loadCart() exists and reloads cart state
+                } else {
+                    throw new Error(response.message || 'Failed to remove item');
+                }
+            } catch (error) {
+                console.error('Remove from cart error:', error);
+                showToast(`Failed to remove item: ${error.message}`, 'error');
+            }
+        }
+
+        // FIX: Corrected the API endpoint
+        async function updateCartItemQuantity(productId, newQuantity) {
+            if (!auth.isLoggedIn()) {
+                showToast('Please login to manage cart', 'warning');
+                return;
+            }
+            try {
+				// CORRECTED ENDPOINT: Use '/cart/items/:productId'
+				const response = await api.patch(`/cart/items/${productId}`, {
+					quantity: newQuantity
+				});
+                
+                if (response.success) {
+                    await loadCart(); // Assumes loadCart() exists
+                } else {
+                    throw new Error(response.message || 'Failed to update quantity');
+                }
+            } catch (error) {
+                console.error('Update cart quantity error:', error);
+                showToast(`Failed to update quantity: ${error.message}`, 'error');
+            }
+        }
+
+        // FIX: Corrected the API endpoint
+        async function clearCart() {
+            if (!auth.isLoggedIn()) {
+                appState.cart = [];
+                updateCartUI();
+                return;
+            }
+            try {
+				// CORRECTED ENDPOINT: Use '/cart/clear'
+				const response = await api.delete('/cart/clear');
+
+                if (response.success) {
+                    appState.cart = [];
+                    updateCartUI();
+                    showToast('Cart cleared!', 'success');
+                } else {
+                    throw new Error(response.message || 'Failed to clear cart');
+                }
+            } catch (error) {
+                console.error('Clear cart error:', error);
+                showToast(`Failed to clear cart: ${error.message}`, 'error');
+            }
+        }
+        // ===== END: CORRECTED CODE BLOCK =====
+
+
+        function handleCategoryPillClick(e) {
+            const pill = e.target.closest('.category-item');
+            if (!pill) return;
+
+            document.querySelectorAll('#categoryList .category-item').forEach(p => 
+                p.classList.remove('active'));
+            pill.classList.add('active');
+            
+            document.getElementById('category-filter').value = pill.dataset.category;
+            appState.currentFilters.category = pill.dataset.category;
+            
+            applyAllFilters();
+        }
+
+        function handleCardClick(productId) {
+            showToast(`Opening product details for ${productId}...`, 'info');
+            // Future: Navigate to product detail page
+        }
+
+        function handleSearchInput(e) {
+            appState.currentFilters.search = e.target.value.toLowerCase();
+            applyAllFilters();
+        }
+
+        function handleGlobalSearch(e) {
+            const searchTerm = e.target.value;
+            document.getElementById('search-input').value = searchTerm;
+            handleSearchInput(e);
+            
+            if (searchTerm) {
+                document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function handleScroll() {
+            const scrollY = window.scrollY;
+            
+            // Parallax effect for hero section
+            const hero = document.getElementById('hero');
+            if (hero) {
+                hero.style.transform = `translateY(${scrollY * 0.5}px)`;
+            }
+        }
+
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Enhanced filtering with better performance, pagination, and security
+        function applyAllFilters() {
+            // Show loading skeleton while filtering
+            showSkeletonLoading(appState.pagination.itemsPerPage);
+            
+            // Small delay to show loading state
+            setTimeout(() => {
+                const filters = {
+                    search: validateInput(document.getElementById('search-input')?.value || '').toLowerCase(),
+                    category: document.getElementById('category-filter')?.value || '',
+                    priceRange: document.getElementById('price-filter')?.value || '',
+                    sortBy: document.getElementById('sort-select')?.value || 'name'
+                };
+
+                let filtered = [...(appState.allProducts || appState.products || [])];
+
+                // Apply search filter with sanitization
+                if (filters.search) {
+                    filtered = filtered.filter(product => 
+                        product.name.toLowerCase().includes(filters.search) ||
+                        (product.description && product.description.toLowerCase().includes(filters.search)) ||
+                        product.category.toLowerCase().includes(filters.search)
+                    );
+                }
+
+                // Apply category filter
+                if (filters.category) {
+                    filtered = filtered.filter(product => product.category === filters.category);
+                }
+
+                // Apply price range filter
+                if (filters.priceRange) {
+                    if (filters.priceRange === '5000+') {
+                        filtered = filtered.filter(product => validateInput(product.price, 'price') >= 5000);
+                    } else {
+                        const [min, max] = filters.priceRange.split('-').map(Number);
+                        filtered = filtered.filter(product => {
+                            const price = validateInput(product.price, 'price');
+                            return price >= min && price <= max;
+                        });
+                    }
+                }
+
+                // Apply sorting
+                switch (filters.sortBy) {
+                    case 'price-low':
+                        filtered.sort((a, b) => validateInput(a.price, 'price') - validateInput(b.price, 'price'));
+                        break;
+                    case 'price-high':
+                        filtered.sort((a, b) => validateInput(b.price, 'price') - validateInput(a.price, 'price'));
+                        break;
+                    case 'rating':
+                        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                        break;
+                    case 'name':
+                    default:
+                        filtered.sort((a, b) => a.name.localeCompare(b.name));
+                        break;
+                }
+
+                // Update pagination state
+                appState.pagination.totalItems = filtered.length;
+                appState.pagination.totalPages = Math.ceil(filtered.length / appState.pagination.itemsPerPage);
+                
+                // Ensure current page is valid
+                if (appState.pagination.currentPage > appState.pagination.totalPages && appState.pagination.totalPages > 0) {
+                    appState.pagination.currentPage = appState.pagination.totalPages;
+                    appState.currentFilters.page = appState.pagination.currentPage;
+                }
+
+                // Get paginated results
+                const startIndex = (appState.pagination.currentPage - 1) * appState.pagination.itemsPerPage;
+                const endIndex = startIndex + appState.pagination.itemsPerPage;
+                const paginatedProducts = filtered.slice(startIndex, endIndex);
+
+                // Update state
+                appState.filteredProducts = filtered;
+                appState.currentFilters = { ...filters, page: appState.pagination.currentPage };
+                
+                // Render products and update UI
+                renderProducts(paginatedProducts);
+                updateProductCount(filtered.length);
+                updatePagination();
+                
+                // Update URL with current state
+                updateURL();
+
+                // Show filter results message
+                const resultCount = filtered.length;
+                const totalCount = (appState.allProducts || appState.products || []).length;
+                
+                if (resultCount < totalCount) {
+                    showToast(`Found ${resultCount} products matching your criteria`, 'info');
+                }
+                
+                console.log('🔍 Applied filters:', appState.currentFilters, 'Total Results:', filtered.length, 'Page Results:', paginatedProducts.length);
+            }, 100);
+        }
+
+        function clearAllFilters() {
+            // Reset form inputs
+            document.getElementById('search-input').value = '';
+            document.getElementById('category-filter').value = '';
+            document.getElementById('price-filter').value = '';
+            document.getElementById('sort-select').value = 'name';
+            document.getElementById('itemsPerPage').value = '20';
+            
+            // Reset global search
+            document.getElementById('globalSearchInput').value = '';
+            
+            // Reset category pills
+            document.querySelectorAll('#categoryList .category-item').forEach(p => 
+                p.classList.remove('active'));
+            document.querySelector('#categoryList .category-item[data-category=""]')?.classList.add('active');
+            
+            // Reset state and pagination
+            appState.filteredProducts = [...(appState.allProducts || appState.products || [])];
+            appState.currentFilters = { search: '', category: '', priceRange: '', sortBy: 'name', page: 1 };
+            appState.pagination.currentPage = 1;
+            appState.pagination.itemsPerPage = 20;
+            
+            // Update URL to clear all parameters
+            updateURL(true);
+            
+            applyAllFilters();
+            
+            showToast('All filters cleared!', 'success');
+        }
+
+        // Enhanced UI functions
+        function showLoading(isLoading) {
+            const loadingContainer = document.getElementById('productsLoading');
+            const productsContainer = document.getElementById('products-container');
+            
+            if (loadingContainer && productsContainer) {
+                loadingContainer.style.display = isLoading ? 'flex' : 'none';
+                productsContainer.style.display = isLoading ? 'none' : 'grid';
+            }
+        }
+
+        function updateCartUI() {
+            const cartBadge = document.getElementById('cart-count');
+            const totalItems = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            if (totalItems > 0) {
+                cartBadge.textContent = totalItems > 99 ? '99+' : totalItems;
+                cartBadge.style.display = 'flex';
+            } else {
+                cartBadge.style.display = 'none';
+            }
+        }
+
+        function generateStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            
+            let stars = '';
+            for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star"></i>';
+            if (hasHalfStar) stars += '<i class="fas fa-star-half-alt"></i>';
+            for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star"></i>';
+            
+            return stars;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+            
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${icons[type]} toast-icon"></i>
+                <div class="toast-content">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+            
+            // Remove on click
+            toast.addEventListener('click', () => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            });
+        }
+
+        // ===== URL STATE MANAGEMENT =====
+        // FIX 8: Fixed URL State Management
+        function initializeFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Restore filters from URL with validation
+            appState.currentFilters = {
+                search: validateInput(urlParams.get('search') || ''),
+                category: validateInput(urlParams.get('category') || ''),
+                priceRange: validateInput(urlParams.get('price') || ''),
+                sortBy: ['name', 'price-low', 'price-high', 'rating'].includes(urlParams.get('sort')) 
+                        ? urlParams.get('sort') : 'name',
+                page: Math.max(1, parseInt(urlParams.get('page')) || 1)
+            };
+            
+            // Restore pagination state
+            appState.pagination.currentPage = appState.currentFilters.page;
+            appState.pagination.itemsPerPage = parseInt(urlParams.get('limit')) || 20;
+            
+            // Update form inputs
+            if (appState.currentFilters.search) {
+                document.getElementById('search-input').value = appState.currentFilters.search;
+                document.getElementById('globalSearchInput').value = appState.currentFilters.search;
+            }
+            if (appState.currentFilters.category) {
+                document.getElementById('category-filter').value = appState.currentFilters.category;
+            }
+            if (appState.currentFilters.priceRange) {
+                document.getElementById('price-filter').value = appState.currentFilters.priceRange;
+            }
+            if (appState.currentFilters.sortBy) {
+                document.getElementById('sort-select').value = appState.currentFilters.sortBy;
+            }
+            if (appState.pagination.itemsPerPage) {
+                document.getElementById('itemsPerPage').value = appState.pagination.itemsPerPage;
+            }
+            
+            console.log('🔗 Filters restored from URL:', appState.currentFilters);
+        }
+        
+        function updateURL(replaceState = false) {
+            const params = new URLSearchParams();
+            
+            // Add non-empty filter parameters
+            Object.keys(appState.currentFilters).forEach(key => {
+                const value = appState.currentFilters[key];
+                if (value && value !== '' && value !== 'name' && !(key === 'page' && value === 1)) {
+                    params.set(key === 'sortBy' ? 'sort' : key === 'priceRange' ? 'price' : key, value);
+                }
+            });
+            
+            // Add pagination parameters
+            if (appState.pagination.currentPage > 1) {
+                params.set('page', appState.pagination.currentPage);
+            }
+            if (appState.pagination.itemsPerPage !== 20) {
+                params.set('limit', appState.pagination.itemsPerPage);
+            }
+            
+            const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+            
+            if (replaceState) {
+                history.replaceState({}, '', newURL);
+            } else {
+                history.pushState({}, '', newURL);
+            }
+        }
+        
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', () => {
+            initializeFromURL();
+            applyAllFilters();
+        });
+        
+        // ===== PAGINATION FUNCTIONS =====
+        function updatePagination() {
+            const container = document.getElementById('paginationContainer');
+            const info = document.getElementById('paginationInfo');
+            const numbers = document.getElementById('paginationNumbers');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            
+            if (!container || appState.pagination.totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'flex';
+            
+            // Update pagination info
+            const start = (appState.pagination.currentPage - 1) * appState.pagination.itemsPerPage + 1;
+            const end = Math.min(start + appState.pagination.itemsPerPage - 1, appState.pagination.totalItems);
+            info.textContent = `Showing ${start}-${end} of ${appState.pagination.totalItems} products`;
+            
+            // Update navigation buttons
+            prevBtn.disabled = appState.pagination.currentPage <= 1;
+            nextBtn.disabled = appState.pagination.currentPage >= appState.pagination.totalPages;
+            
+            // Generate page numbers
+            numbers.innerHTML = generatePageNumbers();
+        }
+        
+        function generatePageNumbers() {
+            const current = appState.pagination.currentPage;
+            const total = appState.pagination.totalPages;
+            const delta = 2; // Number of pages to show on each side of current
+            
+            let pages = [];
+            
+            // Always include first page
+            pages.push(1);
+            
+            // Add ellipsis after first page if needed
+            if (current - delta > 2) {
+                pages.push('...');
+            }
+            
+            // Add pages around current page
+            const start = Math.max(2, current - delta);
+            const end = Math.min(total - 1, current + delta);
+            
+            for (let i = start; i <= end; i++) {
+                if (!pages.includes(i)) {
+                    pages.push(i);
+                }
+            }
+            
+            // Add ellipsis before last page if needed
+            if (current + delta < total - 1) {
+                pages.push('...');
+            }
+            
+            // Always include last page if there's more than one page
+            if (total > 1 && !pages.includes(total)) {
+                pages.push(total);
+            }
+            
+            return pages.map(page => {
+                if (page === '...') {
+                    return '<button class="page-number ellipsis" disabled>...</button>';
+                }
+                
+                const isActive = page === current;
+                return `<button class="page-number ${isActive ? 'active' : ''}" 
+                               onclick="goToPage(${page})">${page}</button>`;
+            }).join('');
+        }
+        
+        function goToPage(page) {
+            if (page < 1 || page > appState.pagination.totalPages) return;
+            
+            appState.pagination.currentPage = page;
+            appState.currentFilters.page = page;
+            
+            applyAllFilters();
+            updateURL();
+            
+            // Smooth scroll to top of products
+            document.getElementById('products').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+        
+        function changeItemsPerPage(newLimit) {
+            appState.pagination.itemsPerPage = parseInt(newLimit);
+            appState.pagination.currentPage = 1; // Reset to first page
+            appState.currentFilters.page = 1;
+            
+            applyAllFilters();
+            updateURL();
+        }
+        
+        // ===== XSS PROTECTION & SECURITY =====
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        function escapeHTML(str) {
+            if (!str) return '';
+            
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            
+            return str.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function validateInput(input, type = 'text') {
+            if (!input) return '';
+            
+            switch (type) {
+                case 'number':
+                    return parseFloat(input) || 0;
+                case 'integer':
+                    return parseInt(input) || 0;
+                case 'price':
+                    const price = parseFloat(input);
+                    return isNaN(price) || price < 0 ? 0 : Math.round(price * 100) / 100;
+                case 'text':
+                default:
+                    // Only escape for rendering, don't change the value for filtering
+                    return input.toString().trim();
+            }
+        }
+        
+        // ===== LOADING SKELETONS =====
+        function showSkeletonLoading(count = 8) {
+            const container = document.getElementById('products-container');
+            if (!container) return;
+            
+            const skeletons = Array.from({ length: count }, () => `
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-text title"></div>
+                    <div class="skeleton-text description"></div>
+                    <div class="skeleton-text price"></div>
+                    <div class="skeleton-text"></div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `<div class="skeleton-container">${skeletons}</div>`;
+        }
+        
+        // Utility functions
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Enhanced product card integration
+        window.addEventListener('load', () => {
+            // Override enhanced product card utilities to integrate with existing functionality
+            if (typeof productCardUtils !== 'undefined') {
+                // Override add to cart function
+                productCardUtils.addToCart = function(productId) {
+                    handleAddToCart(productId);
+                };
+                
+                // Override view product function
+                productCardUtils.viewProduct = function(productId) {
+                    handleCardClick(productId);
+                };
+                
+                // Override quick view function
+                productCardUtils.quickView = function(productId) {
+                    const product = appState.products.find(p => p.id === productId);
+                    if (product) {
+                        showToast(`Quick view: ${product.name}`, 'info');
+                        // Future: Show quick view modal
+                    }
+                };
+                
+                console.log('✅ Enhanced product cards integrated with marketplace functionality');
+            } else {
+                console.warn('⚠️ Enhanced product card utilities not available, using fallback rendering');
+            }
+        });
+        
+        // Add error handling for external scripts
+        let productCardUtilsLoaded = false;
+        setTimeout(() => {
+            if (typeof productCardUtils !== 'undefined') {
+                productCardUtilsLoaded = true;
+                console.log('✅ Enhanced product cards loaded successfully');
+            } else {
+                console.warn('⚠️ Enhanced product cards failed to load - falling back to standard cards');
+                showToast('Loading enhanced product features...', 'info');
+            }
+        }, 2000);
+        
+        // Make functions globally accessible
+        window.handleAddToCart = handleAddToCart;
+        window.handleCardClick = handleCardClick;
+
+        // Add some keyboard shortcuts for better UX
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('globalSearchInput').focus();
+            }
+            
+            // Escape to clear search
+            if (e.key === 'Escape') {
+                const searchInput = document.getElementById('globalSearchInput');
+                if (searchInput === document.activeElement) {
+                    searchInput.blur();
+                    clearAllFilters();
+                }
+            }
+        });
+
+        // Add intersection observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe product cards for animation
+        setTimeout(() => {
+            document.querySelectorAll('.product-card').forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+        }, 100);
+
+        // FIX 9: Performance monitoring
+        window.addEventListener('load', () => {
+            if ('performance' in window) {
+                setTimeout(() => { // Use timeout to ensure all metrics are available
+                    const navTiming = performance.getEntriesByType('navigation')[0];
+                    const firstContentfulPaint = performance.getEntriesByName('first-contentful-paint')[0];
+                    console.log('🚀 Page Load Performance:', {
+                        domContentLoaded: (navTiming.domContentLoadedEventEnd - navTiming.navigationStart).toFixed(2) + 'ms',
+                        fullLoad: (navTiming.loadEventEnd - navTiming.navigationStart).toFixed(2) + 'ms',
+                        firstContentfulPaint: firstContentfulPaint ? firstContentfulPaint.startTime.toFixed(2) + 'ms' : 'N/A'
+                    });
+                }, 1000);
+            }
+        });
+    </script>
+    
+    <script src="js/product-card-utils.js"></script>
+    <script src="js/advanced-pagination-system.js"></script>
+    <script src="js/advanced-ux-features.js"></script>
+    <script src="js/marketplace-api-patch.js"></script>
 </body>
 </html>

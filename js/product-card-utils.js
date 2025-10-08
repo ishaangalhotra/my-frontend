@@ -50,23 +50,20 @@ const productCardUtils = {
                     
                     <div class="product-actions">
                         <button class="action-btn btn-primary add-to-cart" 
-                                data-action="add-to-cart"
-                                data-product-id="${product.id}"
+                                onclick="productCardUtils.addToCart('${product.id}')" 
                                 ${!product.isInStock ? 'disabled' : ''}>
                             <i class="fas fa-shopping-cart"></i> 
                             ${!product.isInStock ? 'Out of Stock' : 'Add to Cart'}
                         </button>
                         
                         <button class="action-btn btn-secondary quick-view" 
-                                data-action="quick-view"
-                                data-product-id="${product.id}"
+                                onclick="productCardUtils.quickView('${product.id}')"
                                 title="Quick view">
                             <i class="fas fa-eye"></i>
                         </button>
                         
                         <button class="action-btn btn-secondary wishlist-btn" 
-                                data-action="toggle-wishlist"
-                                data-product-id="${product.id}"
+                                onclick="productCardUtils.toggleWishlist('${product.id}')"
                                 title="Add to wishlist">
                             <i class="far fa-heart"></i>
                         </button>
@@ -241,41 +238,6 @@ const productCardUtils = {
     }
 };
 
-// Add event delegation method to handle all product card interactions
-productCardUtils.init = function() {
-    // Add event delegation to handle all product card actions
-    document.addEventListener('click', (event) => {
-        // Find the closest button with a data-action attribute
-        const actionButton = event.target.closest('button[data-action]');
-        if (!actionButton) return;
-        
-        const action = actionButton.dataset.action;
-        const productId = actionButton.dataset.productId;
-        
-        if (!productId) return;
-        
-        // Call the appropriate method based on the action
-        switch (action) {
-            case 'add-to-cart':
-                this.addToCart(productId);
-                break;
-            case 'quick-view':
-                this.quickView(productId);
-                break;
-            case 'toggle-wishlist':
-                this.toggleWishlist(productId);
-                break;
-        }
-    });
-    
-    console.log('✅ Product card utils initialized with event delegation');
-    
-    // Still attach variant listeners for backward compatibility
-    if (this.attachVariantListeners) {
-        this.attachVariantListeners();
-    }
-};
-
 // Make globally available
 window.productCardUtils = productCardUtils;
 
@@ -283,6 +245,8 @@ window.productCardUtils = productCardUtils;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Product Card Utils (Fallback) loaded');
     
-    // Initialize with event delegation
-    productCardUtils.init();
+    // Auto-attach listeners after a short delay
+    setTimeout(() => {
+        productCardUtils.attachVariantListeners();
+    }, 1000);
 });
