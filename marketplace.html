@@ -1404,11 +1404,124 @@
             background: linear-gradient(135deg, var(--primary-dark), var(--primary));
         }
 
+        /* Personalized Banner Styles */
+        .personalized-banner {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .banner-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .welcome-message h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-message p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--radius-lg);
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+
+        .quick-action:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Enhanced Smart Search Suggestions */
+        .smart-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            margin-top: 0.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .suggestion-section {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .suggestion-section:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-section h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-primary);
+        }
+
+        .suggestion-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--primary);
+        }
+
+        .suggestion-item i {
+            color: var(--text-light);
+            width: 16px;
+        }
+
+        .suggestion-item:hover i {
+            color: var(--primary);
+        }
+
         /* Focus styles for accessibility */
         .action-btn:focus,
         .filter-btn:focus,
         .hero-btn:focus,
-        .search-btn:focus {
+        .search-btn:focus,
+        .quick-action:focus {
             outline: 2px solid var(--primary);
             outline-offset: 2px;
         }
@@ -1418,6 +1531,19 @@
         .search-input:focus {
             outline: 2px solid var(--primary);
             outline-offset: -2px;
+        }
+
+        /* Mobile optimizations for personalized banner */
+        @media (max-width: 768px) {
+            .banner-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .quick-actions {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -1433,6 +1559,10 @@
                     <div class="search-wrapper">
                         <input type="text" class="search-input" placeholder="Search for products, brands, and more..." id="globalSearchInput">
                         <button class="search-btn" id="globalSearchBtn"><i class="fas fa-search"></i></button>
+                        <!-- Smart suggestions dropdown -->
+                        <div class="smart-suggestions" id="smartSuggestions">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
                 </div>
                 <ul class="nav-links">
@@ -1452,11 +1582,33 @@
         </div>
     </header>
 
+    <!-- Personalized Welcome Banner -->
+    <section class="personalized-banner" id="personalizedBanner" style="display: none;">
+        <div class="container">
+            <div class="banner-content">
+                <div class="welcome-message">
+                    <h2 id="personalizedWelcome">Welcome back!</h2>
+                    <p id="personalizedSubtitle">Discover products tailored just for you</p>
+                </div>
+                <div class="quick-actions">
+                    <button class="quick-action" id="continueShoppingBtn">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Continue Shopping</span>
+                    </button>
+                    <button class="quick-action" id="viewRecommendationsBtn">
+                        <i class="fas fa-star"></i>
+                        <span>For You</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="hero" id="hero">
         <div class="hero-container">
             <div class="hero-content">
-                <h1 class="hero-title">Discover Local Excellence</h1>
-                <p class="hero-subtitle">Premium products from trusted local vendors, delivered with lightning-fast speed and unmatched quality.</p>
+                <h1 class="hero-title" id="heroTitle">Discover Local Excellence</h1>
+                <p class="hero-subtitle" id="heroSubtitle">Premium products from trusted local vendors, delivered with lightning-fast speed and unmatched quality.</p>
                 <div class="hero-actions">
                     <a href="#products" class="hero-btn hero-btn-primary">
                         <i class="fas fa-shopping-bag"></i> Start Shopping
@@ -1634,6 +1786,7 @@
 
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
     <script src="js/api-fix.js"></script>
+    <script src="js/personalization-engine.js"></script>
     
     <script>
         // FIX 1: API_BASE_URL now contains the /api/v1 prefix
@@ -3497,5 +3650,329 @@
     <script src="js/advanced-pagination-system.js"></script>
     <script src="js/advanced-ux-features.js"></script>
     <script src="js/marketplace-api-patch.js"></script>
+    <!-- Marketplace Personalization Integration -->
+    <script>
+        // Enhanced Marketplace Personalization Integration
+        class MarketplacePersonalization {
+            constructor() {
+                this.isInitialized = false;
+                this.personalizedData = null;
+                this.init();
+            }
+            
+            async init() {
+                console.log('🎯 Initializing Marketplace Personalization...');
+                
+                try {
+                    // Wait for personalization engine
+                    await this.waitForPersonalizationEngine();
+                    
+                    // Load personalized content
+                    this.loadPersonalizedContent();
+                    
+                    // Setup smart search
+                    this.setupSmartSearch();
+                    
+                    // Apply user preferences
+                    this.applyUserPreferences();
+                    
+                    // Handle incoming context from other pages
+                    this.handleIncomingContext();
+                    
+                    this.isInitialized = true;
+                    console.log('✅ Marketplace personalization initialized');
+                } catch (error) {
+                    console.error('❌ Failed to initialize personalization:', error);
+                }
+            }
+            
+            async waitForPersonalizationEngine() {
+                return new Promise((resolve) => {
+                    const checkEngine = () => {
+                        if (window.personalizationEngine) {
+                            this.personalizedData = window.personalizationEngine.getPersonalizationData();
+                            resolve();
+                        } else {
+                            setTimeout(checkEngine, 100);
+                        }
+                    };
+                    checkEngine();
+                });
+            }
+            
+            loadPersonalizedContent() {
+                if (!this.personalizedData) return;
+                
+                const userProfile = this.personalizedData.userProfile;
+                const user = auth.getUser();
+                
+                // Show personalized banner for logged-in users
+                if (user && userProfile) {
+                    this.showPersonalizedBanner(user, userProfile);
+                }
+                
+                // Update hero content
+                this.updateHeroContent(userProfile);
+            }
+            
+            showPersonalizedBanner(user, userProfile) {
+                const banner = document.getElementById('personalizedBanner');
+                const welcome = document.getElementById('personalizedWelcome');
+                const subtitle = document.getElementById('personalizedSubtitle');
+                
+                if (banner && welcome && subtitle) {
+                    // Personalize welcome message
+                    const timeGreeting = this.getTimeBasedGreeting();
+                    const topCategory = userProfile.preferences?.categories?.[0]?.name;
+                    
+                    welcome.textContent = `${timeGreeting}, ${user.name}!`;
+                    
+                    if (topCategory) {
+                        subtitle.textContent = `Fresh ${topCategory} picks and more, just for you`;
+                    } else {
+                        subtitle.textContent = 'Discover products tailored just for you';
+                    }
+                    
+                    banner.style.display = 'block';
+                    
+                    // Setup quick action buttons
+                    this.setupQuickActions();
+                }
+            }
+            
+            getTimeBasedGreeting() {
+                const hour = new Date().getHours();
+                if (hour < 12) return 'Good morning';
+                if (hour < 17) return 'Good afternoon';
+                return 'Good evening';
+            }
+            
+            setupQuickActions() {
+                const continueBtn = document.getElementById('continueShoppingBtn');
+                const recommendationsBtn = document.getElementById('viewRecommendationsBtn');
+                
+                if (continueBtn) {
+                    continueBtn.addEventListener('click', () => {
+                        this.showRecentlyViewed();
+                    });
+                }
+                
+                if (recommendationsBtn) {
+                    recommendationsBtn.addEventListener('click', () => {
+                        this.showRecommendations();
+                    });
+                }
+            }
+            
+            updateHeroContent(userProfile) {
+                if (!userProfile?.preferences) return;
+                
+                const heroTitle = document.getElementById('heroTitle');
+                const heroSubtitle = document.getElementById('heroSubtitle');
+                const topCategory = userProfile.preferences.categories?.[0];
+                
+                if (heroTitle && heroSubtitle && topCategory) {
+                    heroTitle.textContent = `Discover Amazing ${topCategory.name}`;
+                    heroSubtitle.textContent = `Premium ${topCategory.name.toLowerCase()} from trusted local vendors, delivered fast.`;
+                }
+            }
+            
+            setupSmartSearch() {
+                const searchInput = document.getElementById('globalSearchInput');
+                const suggestionsContainer = document.getElementById('smartSuggestions');
+                
+                if (searchInput && suggestionsContainer) {
+                    let searchTimeout;
+                    
+                    searchInput.addEventListener('input', (e) => {
+                        clearTimeout(searchTimeout);
+                        const query = e.target.value.trim();
+                        
+                        if (query.length >= 2) {
+                            searchTimeout = setTimeout(() => {
+                                this.showSmartSuggestions(query, suggestionsContainer);
+                            }, 300);
+                        } else {
+                            this.hideSmartSuggestions(suggestionsContainer);
+                        }
+                    });
+                    
+                    searchInput.addEventListener('focus', () => {
+                        if (searchInput.value.length >= 2) {
+                            this.showSmartSuggestions(searchInput.value, suggestionsContainer);
+                        }
+                    });
+                    
+                    searchInput.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            this.hideSmartSuggestions(suggestionsContainer);
+                        }, 200);
+                    });
+                }
+            }
+            
+            showSmartSuggestions(query, container) {
+                const suggestions = this.generateSmartSuggestions(query);
+                
+                if (suggestions.length === 0) {
+                    this.hideSmartSuggestions(container);
+                    return;
+                }
+                
+                let html = '';
+                const grouped = this.groupSuggestions(suggestions);
+                
+                Object.entries(grouped).forEach(([type, items]) => {
+                    if (items.length > 0) {
+                        html += `<div class="suggestion-section">`;
+                        html += `<h4>${this.getSectionTitle(type)}</h4>`;
+                        
+                        items.forEach(item => {
+                            html += `<div class="suggestion-item" onclick="performSearchFromSuggestion('${item.text}')">` +
+                                   `<i class="${this.getSuggestionIcon(type)}"></i>` +
+                                   `<span>${item.text}</span>` +
+                                   `</div>`;
+                        });
+                        
+                        html += `</div>`;
+                    }
+                });
+                
+                container.innerHTML = html;
+                container.style.display = 'block';
+            }
+            
+            hideSmartSuggestions(container) {
+                container.style.display = 'none';
+            }
+            
+            generateSmartSuggestions(query) {
+                if (!this.personalizedData) return [];
+                
+                const suggestions = [];
+                const userProfile = this.personalizedData.userProfile;
+                
+                // Add category-based suggestions
+                if (userProfile?.preferences?.categories) {
+                    userProfile.preferences.categories.forEach(category => {
+                        if (category.name.toLowerCase().includes(query.toLowerCase())) {
+                            suggestions.push({
+                                type: 'category',
+                                text: category.name,
+                                confidence: category.score || 0.8
+                            });
+                        }
+                    });
+                }
+                
+                // Add product suggestions
+                const productSuggestions = [`${query} headphones`, `${query} smartphone`, `${query} laptop`];
+                productSuggestions.forEach(product => {
+                    suggestions.push({ type: 'product', text: product, confidence: 0.7 });
+                });
+                
+                // Add recent searches
+                if (userProfile?.behavior?.searchHistory) {
+                    userProfile.behavior.searchHistory.forEach(search => {
+                        if (search.toLowerCase().includes(query.toLowerCase()) && 
+                            !suggestions.some(s => s.text.toLowerCase() === search.toLowerCase())) {
+                            suggestions.push({ type: 'recent', text: search, confidence: 0.6 });
+                        }
+                    });
+                }
+                
+                return suggestions.sort((a, b) => b.confidence - a.confidence).slice(0, 8);
+            }
+            
+            groupSuggestions(suggestions) {
+                return {
+                    category: suggestions.filter(s => s.type === 'category'),
+                    product: suggestions.filter(s => s.type === 'product'),
+                    recent: suggestions.filter(s => s.type === 'recent')
+                };
+            }
+            
+            getSectionTitle(type) {
+                const titles = { category: 'Categories', product: 'Products', recent: 'Recent Searches' };
+                return titles[type] || 'Suggestions';
+            }
+            
+            getSuggestionIcon(type) {
+                const icons = { category: 'fas fa-tag', product: 'fas fa-search', recent: 'fas fa-history' };
+                return icons[type] || 'fas fa-search';
+            }
+            
+            handleIncomingContext() {
+                // Handle context from other pages
+                const searchContext = this.getStoredContext('quicklocal_search_context');
+                const navigationContext = this.getStoredContext('quicklocal_navigation_context');
+                
+                if (searchContext) {
+                    const searchInput = document.getElementById('search-input') || document.getElementById('globalSearchInput');
+                    if (searchInput && searchContext.query) {
+                        searchInput.value = searchContext.query;
+                        setTimeout(() => {
+                            if (window.applyAllFilters) window.applyAllFilters();
+                        }, 100);
+                    }
+                    sessionStorage.removeItem('quicklocal_search_context');
+                }
+                
+                if (navigationContext?.source === 'personalized-homepage') {
+                    if (window.showToast) {
+                        showToast('Welcome to our full marketplace! Your personalized experience continues here.', 'info');
+                    }
+                    sessionStorage.removeItem('quicklocal_navigation_context');
+                }
+            }
+            
+            getStoredContext(key) {
+                try {
+                    const data = sessionStorage.getItem(key);
+                    return data ? JSON.parse(data) : null;
+                } catch (error) {
+                    return null;
+                }
+            }
+            
+            showRecentlyViewed() {
+                const section = document.getElementById('recommended-products');
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                    if (window.showToast) showToast('Showing your recently viewed items', 'info');
+                }
+            }
+            
+            showRecommendations() {
+                const section = document.getElementById('trending-products');
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                    if (window.showToast) showToast('Here are our top recommendations for you!', 'success');
+                }
+            }
+        }
+        
+        // Global function for search suggestions
+        function performSearchFromSuggestion(query) {
+            const searchInput = document.getElementById('search-input') || document.getElementById('globalSearchInput');
+            if (searchInput) {
+                searchInput.value = query;
+                if (window.personalizationEngine) {
+                    window.personalizationEngine.trackSearch(query);
+                }
+                if (window.applyAllFilters) {
+                    window.applyAllFilters();
+                }
+            }
+        }
+        
+        // Initialize marketplace personalization
+        document.addEventListener('DOMContentLoaded', () => {
+            // Small delay to ensure all other scripts are loaded
+            setTimeout(() => {
+                window.marketplacePersonalization = new MarketplacePersonalization();
+            }, 500);
+        });
+    </script>
 </body>
 </html>
