@@ -1,5 +1,9 @@
-// API Configuration
-const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
+// Import required modules
+import { APP_CONFIG } from './config.js';
+import { showToast, renderStars } from './utils.js';
+
+// Use API configuration from config
+const API_BASE_URL = APP_CONFIG.API_BASE_URL;
 
 // Development mode flag - set to false for production
 const DEV_MODE = false;
@@ -128,21 +132,24 @@ function populateProductUI(product) {
 // Add fallback function to try alternative product loading
 async function tryAlternativeProductLoad(productId) {
     try {
-        // Try to get from products list and filter
-        const response = await fetch(`${API_BASE_URL}/products`);
+        // Try to get the product by ID directly from a dedicated endpoint
+        const response = await fetch(`${API_BASE_URL}/products/by-id/${productId}`);
         if (response.ok) {
             const result = await response.json();
-            let products = [];
-            
             if (result.success && result.data) {
-                products = result.data;
-            } else if (Array.isArray(result)) {
-                products = result;
+                populateProductUI(result.data);
+                document.getElementById('productLoading').classList.add('hidden');
+                document.getElementById('productContent').classList.remove('hidden');
+                return;
             }
-            
-            const foundProduct = products.find(p => p.id === productId || p._id === productId);
-            if (foundProduct) {
-                populateProductUI(foundProduct);
+        }
+        
+        // If that fails, try the search endpoint with the ID as a parameter
+        const searchResponse = await fetch(`${API_BASE_URL}/products/search?id=${productId}`);
+        if (searchResponse.ok) {
+            const searchResult = await searchResponse.json();
+            if (searchResult.success && searchResult.data && searchResult.data.length > 0) {
+                populateProductUI(searchResult.data[0]);
                 document.getElementById('productLoading').classList.add('hidden');
                 document.getElementById('productContent').classList.remove('hidden');
                 return;

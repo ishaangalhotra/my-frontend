@@ -1,6 +1,9 @@
 // Frontend-Optimized Configuration for QuickLocal
 // Streamlined for browser environments and frontend frameworks
 
+// API Configuration
+export const API_BASE_URL = 'https://quicklocal-backend.onrender.com/api/v1';
+
 // Environment detection for frontend
 const detectEnvironment = () => {
   if (typeof window === 'undefined') return 'development';
