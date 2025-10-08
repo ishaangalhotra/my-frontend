@@ -2703,7 +2703,7 @@
                     const stars = generateStars(product.rating);
                     
                     return `
-                        <div class="product-card" data-product-id="${product.id}">
+                        <div class="product-card" data-product-id="${product.id}" onclick="handleCardClick('${product.id}')" style="cursor: pointer;">
                             <div class="product-image-container">
                                 <img loading="lazy" src="${getSafeImageUrl(product)}" 
                                      alt="${product.name}" class="product-image"
@@ -2726,7 +2726,7 @@
                                 </div>
                                 <div class="product-actions">
                                     <button class="action-btn btn-primary add-to-cart" 
-                                            onclick="handleAddToCart('${product.id}')" 
+                                            onclick="event.stopPropagation(); handleAddToCart('${product.id}')" 
                                             ${product.stock === 0 ? 'disabled' : ''}>
                                         <i class="fas fa-shopping-cart"></i> 
                                         ${product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -3061,8 +3061,21 @@
         }
 
         function handleCardClick(productId) {
-            showToast(`Opening product details for ${productId}...`, 'info');
-            // Future: Navigate to product detail page
+            const product = appState.products.find(p => p.id === productId);
+            if (!product) {
+                showToast('Product not found!', 'error');
+                return;
+            }
+            
+            // Store product data for product detail page
+            localStorage.setItem('current_product', JSON.stringify(product));
+            
+            showToast(`Opening ${product.name}...`, 'info');
+            
+            // Navigate to product detail page
+            setTimeout(() => {
+                window.location.href = `product-detail.html?id=${productId}`;
+            }, 500);
         }
 
         function handleSearchInput(e) {

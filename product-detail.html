@@ -762,10 +762,83 @@
         <span id="notificationText">Item added to cart!</span>
     </div>
 
+    <!-- Load necessary scripts first -->
+    <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    <script src="js/api-fix.js"></script>
+    
     <script>
+        // Configuration matching marketplace.html
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+        
         let currentProduct = null;
         let currentQuantity = 1;
         let isWishlisted = false;
+        let productId = null;
+
+        // Authentication utilities
+        const auth = {
+            isLoggedIn: () => {
+                return window.HybridAuthClient && window.HybridAuthClient.getCurrentUser() !== null;
+            },
+            
+            getUser: () => {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    return window.HybridAuthClient.getCurrentUser();
+                }
+                return null;
+            },
+            
+            getAuthHeader: () => {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    return window.HybridAuthClient.getAuthHeader();
+                }
+                return '';
+            }
+        };
+
+        // API utilities
+        const api = {
+            async request(endpoint, options = {}) {
+                try {
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+                        const response = await window.HybridAuthClient.apiCall(endpoint, options);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return await response.json();
+                    }
+                    
+                    const fullUrl = endpoint.startsWith('http') ? endpoint : `${window.APP_CONFIG.API_BASE_URL}${endpoint}`;
+                    const response = await fetch(fullUrl, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': auth.getAuthHeader()
+                        },
+                        ...options
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error(`API Error [${endpoint}]:`, error);
+                    throw error;
+                }
+            },
+            
+            async get(endpoint) {
+                return this.request(endpoint, { method: 'GET' });
+            }
+        };
 
         // Show loading overlay
         function showLoading() {
@@ -777,70 +850,172 @@
             document.getElementById('loadingOverlay').classList.remove('show');
         }
 
-        // Load product from URL parameters or localStorage
-        function loadProductDetails() {
+        // Load product details from backend
+        async function loadProductDetails() {
             showLoading();
             
-            // Try to get product from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const productId = urlParams.get('id');
-            
-            // Try to get product from localStorage (set by marketplace)
-            const storedProduct = localStorage.getItem('current_product');
-            
-            if (storedProduct) {
-                currentProduct = JSON.parse(storedProduct);
-            } else if (productId) {
-                // If we have a product ID but no stored product, redirect to marketplace
-                showNotification('Product not found. Redirecting to marketplace...', 'error');
-                setTimeout(() => {
-                    window.location.href = 'marketplace.html';
-                }, 2000);
-                return;
-            } else {
-                // No product data available
-                document.getElementById('productDetail').innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
-                        <i class="fas fa-box-open" style="font-size: 4em; color: #ccc; margin-bottom: 20px;"></i>
-                        <h2 style="color: #666; margin-bottom: 15px;">No Product Selected</h2>
-                        <p style="color: #999; margin-bottom: 30px;">Please select a product from our marketplace to view details.</p>
-                        <button class="btn add-to-cart" onclick="goToMarketplace()">
-                            <i class="fas fa-store"></i> Browse Products
-                        </button>
-                    </div>
-                `;
-                hideLoading();
-                return;
-            }
-            
-            if (!currentProduct) {
-                showNotification('Product not found. Redirecting...', 'error');
-                setTimeout(() => goToMarketplace(), 2000);
-                return;
-            }
-
-            // Update breadcrumb
-            document.getElementById('breadcrumbProduct').textContent = currentProduct.name || 'Product Details';
-
-            setTimeout(() => {
+            try {
+                // Try to get product ID from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                productId = urlParams.get('id') || urlParams.get('productId');
+                
+                // Try to get product from localStorage as fallback
+                const storedProduct = localStorage.getItem('current_product');
+                
+                if (productId) {
+                    console.log('Loading product with ID:', productId);
+                    
+                    // Fetch product from backend API
+                    try {
+                        const response = await api.get(`/products/${productId}`);
+                        
+                        if (response.success && response.data) {
+                            currentProduct = response.data;
+                        } else if (response.product) {
+                            currentProduct = response.product;
+                        } else {
+                            throw new Error('Product not found in response');
+                        }
+                        
+                        console.log('✅ Product loaded from API:', currentProduct);
+                        
+                    } catch (apiError) {
+                        console.error('❌ API Error:', apiError);
+                        
+                        // Fallback to stored product if API fails
+                        if (storedProduct) {
+                            console.log('📦 Using stored product as fallback');
+                            currentProduct = JSON.parse(storedProduct);
+                        } else {
+                            throw apiError;
+                        }
+                    }
+                    
+                } else if (storedProduct) {
+                    // Use stored product if no ID in URL
+                    currentProduct = JSON.parse(storedProduct);
+                    productId = currentProduct.id || currentProduct._id;
+                    console.log('📦 Using stored product:', currentProduct);
+                    
+                } else {
+                    // No product data available
+                    showNoProductMessage();
+                    return;
+                }
+                
+                if (!currentProduct) {
+                    throw new Error('No product data available');
+                }
+                
+                // Update page title and breadcrumb
+                document.title = `${currentProduct.name} - QuickLocal`;
+                document.getElementById('breadcrumbProduct').textContent = currentProduct.name || 'Product Details';
+                
+                // Render the product
                 renderProductDetails();
                 updateCartCount();
                 checkWishlistStatus();
+                
+            } catch (error) {
+                console.error('Failed to load product:', error);
+                showErrorMessage(error.message);
+            } finally {
                 hideLoading();
-            }, 500);
+            }
+        }
+        
+        function showNoProductMessage() {
+            document.getElementById('productDetail').innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-box-open" style="font-size: 4em; color: #ccc; margin-bottom: 20px;"></i>
+                    <h2 style="color: #666; margin-bottom: 15px;">No Product Selected</h2>
+                    <p style="color: #999; margin-bottom: 30px;">Please select a product from our marketplace to view details.</p>
+                    <button class="btn add-to-cart" onclick="goToMarketplace()">
+                        <i class="fas fa-store"></i> Browse Products
+                    </button>
+                </div>
+            `;
+        }
+        
+        function showErrorMessage(error) {
+            document.getElementById('productDetail').innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 4em; color: #ff6b6b; margin-bottom: 20px;"></i>
+                    <h2 style="color: #666; margin-bottom: 15px;">Product Not Found</h2>
+                    <p style="color: #999; margin-bottom: 30px;">${error}</p>
+                    <button class="btn add-to-cart" onclick="goToMarketplace()">
+                        <i class="fas fa-store"></i> Back to Marketplace
+                    </button>
+                </div>
+            `;
         }
 
+        // Helper function to get safe image URL
+        function getSafeImageUrl(product, size = '500x400') {
+            let imageUrl = null;
+            
+            // Check new API format with 'image' field
+            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                imageUrl = product.image;
+            }
+            // Check images array format
+            else if (product.images && product.images.length > 0) {
+                if (typeof product.images[0] === 'string' && product.images[0].startsWith('http')) {
+                    imageUrl = product.images[0];
+                } else if (product.images[0] && product.images[0].url && product.images[0].url.startsWith('http')) {
+                    imageUrl = product.images[0].url;
+                }
+            }
+            // Check legacy primaryImage format
+            else if (product.primaryImage && product.primaryImage.url && product.primaryImage.url.startsWith('http')) {
+                imageUrl = product.primaryImage.url;
+            }
+            
+            // Return valid URL or placeholder
+            if (imageUrl && imageUrl.startsWith('http')) {
+                return imageUrl;
+            } else {
+                const safeName = encodeURIComponent(product.name || 'Product').replace(/%20/g, '+');
+                return `https://placehold.co/${size}/667eea/white?text=${safeName}`;
+            }
+        }
+        
         function renderProductDetails() {
-            const discount = currentProduct.originalPrice && currentProduct.originalPrice > (currentProduct.finalPrice || currentProduct.price) 
-                ? Math.round(((currentProduct.originalPrice - (currentProduct.finalPrice || currentProduct.price)) / currentProduct.originalPrice) * 100)
+            // Handle price calculations with better fallbacks
+            const currentPrice = currentProduct.finalPrice || currentProduct.price || 0;
+            const originalPrice = currentProduct.originalPrice || currentPrice;
+            
+            const discount = originalPrice > currentPrice 
+                ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
                 : 0;
             
-            const savings = currentProduct.originalPrice && currentProduct.originalPrice > (currentProduct.finalPrice || currentProduct.price)
-                ? currentProduct.originalPrice - (currentProduct.finalPrice || currentProduct.price)
-                : 0;
+            const savings = originalPrice > currentPrice ? originalPrice - currentPrice : 0;
             
-            const images = currentProduct.images || [{ url: 'https://via.placeholder.com/500x400/667eea/white?text=No+Image+Available' }];
-            const mainImage = images[0]?.url || 'https://via.placeholder.com/500x400/667eea/white?text=No+Image+Available';
+            // Handle images with multiple fallback options
+            const images = [];
+            
+            // Try to build images array from different possible formats
+            if (currentProduct.images && Array.isArray(currentProduct.images)) {
+                currentProduct.images.forEach(img => {
+                    if (typeof img === 'string' && img.startsWith('http')) {
+                        images.push({ url: img });
+                    } else if (img && img.url && img.url.startsWith('http')) {
+                        images.push(img);
+                    }
+                });
+            } else if (currentProduct.image && currentProduct.image.startsWith('http')) {
+                images.push({ url: currentProduct.image });
+            } else if (currentProduct.primaryImage && currentProduct.primaryImage.url) {
+                images.push(currentProduct.primaryImage);
+            }
+            
+            // Fallback if no images found
+            if (images.length === 0) {
+                const safeName = encodeURIComponent(currentProduct.name || 'Product').replace(/%20/g, '+');
+                images.push({ url: `https://placehold.co/500x400/667eea/white?text=${safeName}` });
+            }
+            
+            const mainImage = images[0]?.url;
             
             document.getElementById('productDetail').innerHTML = `
                 <div class="product-gallery">
@@ -1080,7 +1255,7 @@
             }
         }
         
-        function addToCart() {
+        async function addToCart() {
             if (!currentProduct) {
                 showNotification('Product not found!', 'error');
                 return;
@@ -1088,26 +1263,55 @@
 
             showLoading();
 
-            // Simulate API call delay
-            setTimeout(() => {
-                // Get existing cart from localStorage
-                let cart = JSON.parse(localStorage.getItem('quicklocal_cart')) || [];
+            try {
+                // If user is logged in, try to add to backend cart
+                if (auth.isLoggedIn()) {
+                    try {
+                        const cartItem = {
+                            productId: currentProduct.id || currentProduct._id,
+                            quantity: currentQuantity,
+                            price: currentProduct.finalPrice || currentProduct.price
+                        };
+                        
+                        const response = await api.request('/cart/add', {
+                            method: 'POST',
+                            body: JSON.stringify(cartItem)
+                        });
+                        
+                        if (response.success) {
+                            showNotification(`${currentProduct.name} added to cart!`, 'success');
+                        } else {
+                            throw new Error('Failed to add to backend cart');
+                        }
+                    } catch (apiError) {
+                        console.warn('Backend cart failed, using localStorage:', apiError);
+                        // Fall through to localStorage handling
+                    }
+                }
                 
-                const existingItem = cart.find(item => item.id === currentProduct.id);
+                // Always update localStorage cart for consistency
+                let cart = JSON.parse(localStorage.getItem('quicklocal_cart')) || [];
+                const existingItem = cart.find(item => item.id === (currentProduct.id || currentProduct._id));
                 
                 if (existingItem) {
                     existingItem.quantity += currentQuantity;
                     showNotification(`Updated quantity in cart! (${existingItem.quantity} items)`, 'success');
                 } else {
                     cart.push({
-                        id: currentProduct.id,
+                        id: currentProduct.id || currentProduct._id,
                         title: currentProduct.name,
                         price: currentProduct.finalPrice || currentProduct.price,
                         quantity: currentQuantity,
-                        image: currentProduct.images?.[0]?.url || 'https://via.placeholder.com/100x100',
-                        originalPrice: currentProduct.originalPrice
+                        image: getSafeImageUrl(currentProduct, '100x100'),
+                        originalPrice: currentProduct.originalPrice,
+                        category: currentProduct.category || 'General',
+                        seller: currentProduct.seller || 'QuickLocal'
                     });
-                    showNotification(`${currentProduct.name} added to cart!`, 'success');
+                    
+                    // Only show notification if not already shown above
+                    if (!auth.isLoggedIn()) {
+                        showNotification(`${currentProduct.name} added to cart!`, 'success');
+                    }
                 }
                 
                 // Save cart to localStorage
@@ -1120,9 +1324,13 @@
                 if (document.getElementById('quantity')) {
                     document.getElementById('quantity').textContent = currentQuantity;
                 }
-
+                
+            } catch (error) {
+                console.error('Add to cart error:', error);
+                showNotification('Failed to add item to cart. Please try again.', 'error');
+            } finally {
                 hideLoading();
-            }, 800);
+            }
         }
         
         function buyNow() {
@@ -1247,31 +1455,103 @@
         });
     </script>
 
-<section class="related-products" id="relatedProductsSection">
-  <div class="container">
-    <h3>Related Products</h3>
-    <div class="products-grid" id="relatedProductsGrid"></div>
-  </div>
-</section>
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const prod = JSON.parse(localStorage.getItem('current_product') || '{}');
-  if (!prod || !prod.id) return;
-  try {
-    const res = await window.apiClient.get('/en.../products/related/' + prod.id);
-    const related = res.related || [];
-    const container = document.getElementById('relatedProductsGrid');
-    if (container) container.innerHTML = related.map(p => `
-      <div class="product-card" onclick="viewProduct('${p._id||p.id}')">
-        <img loading="lazy" src="${'${p.image}'}" alt="${'${p.name}'}">
-        <h4>${'${p.name}'}</h4>
-        <p>₹${'${p.price}'}</p>
-      </div>
-    `).join('');
-  } catch (err) {
-    console.warn('Related products failed', err);
-  }
-});
-</script>
+    <!-- Related Products Section -->
+    <section class="related-products" id="relatedProductsSection" style="margin-top: 40px; padding: 40px; background: #f8fafc; border-radius: 20px;">
+        <div class="container">
+            <h3 style="text-align: center; margin-bottom: 30px; font-size: 2rem; color: #333;">You might also like</h3>
+            <div class="products-grid" id="relatedProductsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;"></div>
+        </div>
+    </section>
+    
+    <script>
+        // Load related products
+        async function loadRelatedProducts() {
+            if (!currentProduct || !productId) return;
+            
+            try {
+                console.log('Loading related products for:', productId);
+                
+                // Try to fetch related products from API
+                const response = await api.get(`/products/related/${productId}`);
+                let relatedProducts = [];
+                
+                if (response.success && response.data) {
+                    relatedProducts = response.data;
+                } else if (response.related) {
+                    relatedProducts = response.related;
+                } else if (Array.isArray(response)) {
+                    relatedProducts = response;
+                }
+                
+                const container = document.getElementById('relatedProductsGrid');
+                if (container && relatedProducts.length > 0) {
+                    container.innerHTML = relatedProducts.slice(0, 6).map(product => {
+                        const productImage = getSafeImageUrl(product, '250x200');
+                        const productPrice = product.finalPrice || product.price || 0;
+                        const productId = product.id || product._id;
+                        
+                        return `
+                            <div class="product-card" onclick="viewRelatedProduct('${productId}')" style="
+                                background: white;
+                                border-radius: 12px;
+                                padding: 15px;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                transition: transform 0.2s ease;
+                                cursor: pointer;
+                            ">
+                                <img loading="lazy" src="${productImage}" alt="${product.name}" style="
+                                    width: 100%;
+                                    height: 150px;
+                                    object-fit: cover;
+                                    border-radius: 8px;
+                                    margin-bottom: 10px;
+                                ">
+                                <h4 style="font-size: 1rem; margin-bottom: 8px; color: #333; font-weight: 600;">${product.name}</h4>
+                                <p style="font-size: 1.1rem; font-weight: 700; color: #667eea;">₹${productPrice.toLocaleString()}</p>
+                                ${product.originalPrice && product.originalPrice > productPrice ? 
+                                    `<p style="font-size: 0.9rem; color: #999; text-decoration: line-through;">₹${product.originalPrice.toLocaleString()}</p>` : 
+                                    ''
+                                }
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    // Add hover effects
+                    container.querySelectorAll('.product-card').forEach(card => {
+                        card.addEventListener('mouseenter', () => {
+                            card.style.transform = 'translateY(-4px)';
+                        });
+                        card.addEventListener('mouseleave', () => {
+                            card.style.transform = 'translateY(0)';
+                        });
+                    });
+                } else {
+                    // Show fallback message or hide section
+                    document.getElementById('relatedProductsSection').style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.warn('Failed to load related products:', error);
+                // Hide related products section if it fails
+                document.getElementById('relatedProductsSection').style.display = 'none';
+            }
+        }
+        
+        // Function to view a related product
+        function viewRelatedProduct(relatedProductId) {
+            if (relatedProductId) {
+                // Navigate to product detail page with the new product ID
+                window.location.href = `product-detail.html?id=${relatedProductId}`;
+            }
+        }
+        
+        // Load related products after main product is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait a bit for the main product to load, then load related products
+            setTimeout(() => {
+                loadRelatedProducts();
+            }, 1000);
+        });
+    </script>
 </body>
 </html>
