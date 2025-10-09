@@ -739,12 +739,20 @@
             return { product: pid, quantity: item.quantity || 1 };
         });
 
+        // ✅ NEW: Updated payload structure for advanced order management
         const orderPayload = {
-            shippingAddress,
+            items: items, // New format: [{ product: "productId", quantity: number }]
+            shippingAddress: {
+                name: shippingAddress.name,
+                address: shippingAddress.address,
+                city: shippingAddress.city,
+                state: shippingAddress.state,
+                postalCode: shippingAddress.pincode,
+                phone: shippingAddress.phone,
+                country: shippingAddress.country || 'India'
+            },
             paymentMethod: checkoutState.selectedPayment,
-            saveAddress: checkoutState.saveAddress,
-            items,
-            orderItems: items  // ✅ FIXED: Added for backend compatibility
+            couponCode: null // Add coupon support later
         };
 
         if (checkoutState.selectedPayment === 'card') {
@@ -757,15 +765,37 @@
         }
 
         try {
+            console.log('🚀 Placing order with advanced processing...', orderPayload);
             const response = await api.post('/api/v1/orders', orderPayload, { timeout: 60000 });
             
-            if (response.success && (response.order || response.data)) {
-                const order = response.order || response.data?.order || response.data || {};
+            console.log('📦 Order response:', response);
+            
+            if (response.success && response.order) {
+                const order = response.order;
+                
+                // Store order info for success modal
+                checkoutState.lastOrder = {
+                    id: order.id,
+                    orderNumber: order.orderNumber,
+                    total: order.total,
+                    status: order.status,
+                    estimatedDelivery: order.estimatedDelivery,
+                    fraudScore: response.fraudScore,
+                    requiresVerification: response.requiresVerification
+                };
+                
                 showOrderSuccess(order.orderNumber || order.id || '#');
+                
+                // Show verification notice if needed
+                if (response.requiresVerification) {
+                    setTimeout(() => {
+                        showToast('Your order requires verification. Our team will review it shortly.', 'info');
+                    }, 2000);
+                }
             } else {
                 throw new Error(response.message || 'Failed to place order.');
             }
-        } catch (err) {
+        }
             console.error('Order error:', err);
             if (err.name !== 'AbortError') {
                  showToast(`Order failed: ${err.message}`, 'error');
@@ -780,6 +810,21 @@
     function showOrderSuccess(orderId) {
         document.getElementById('orderNumber').textContent = orderId || '#';
         updateEmailPreview();
+        
+        // Add enhanced order information to success modal
+        const successMessage = document.querySelector('.success-message');
+        if (checkoutState.lastOrder) {
+            const estimatedDate = checkoutState.lastOrder.estimatedDelivery ? 
+                new Date(checkoutState.lastOrder.estimatedDelivery).toLocaleDateString() : 'TBD';
+            
+            successMessage.innerHTML = `
+                Your order has been confirmed. You will receive an email with the details shortly.<br><br>
+                <strong>Status:</strong> ${checkoutState.lastOrder.status}<br>
+                <strong>Estimated Delivery:</strong> ${estimatedDate}<br>
+                ${checkoutState.lastOrder.requiresVerification ? '<br><span style="color: var(--warning);">⚠️ Order pending verification</span>' : ''}
+            `;
+        }
+        
         document.getElementById('successModal').classList.add('active');
         checkoutState.cart = null;
         document.getElementById('cartItemsList').innerHTML = '';
@@ -804,7 +849,13 @@
 
     function closeSuccessModal() {
         document.getElementById('successModal').classList.remove('active');
-        window.location.href = 'marketplace.html';
+        
+        // Redirect to orders page to track the new order
+        if (checkoutState.lastOrder && checkoutState.lastOrder.id) {
+            window.location.href = `orders.html?highlight=${checkoutState.lastOrder.id}`;
+        } else {
+            window.location.href = 'orders.html';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
