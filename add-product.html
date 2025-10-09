@@ -1061,6 +1061,9 @@
                         <button class="btn btn-small btn-danger" onclick="confirmDeleteProduct('${product._id || product.id}', '${escapeHtml(product.name)}')">
                             <i class="fas fa-trash"></i> Delete
                         </button>
+                        <button class="btn btn-small btn-secondary" onclick="debugDeleteProduct('${product._id || product.id}')" style="font-size: 0.7rem;">
+                            <i class="fas fa-bug"></i> Debug
+                        </button>
                         <a href="marketplace.html" class="btn btn-small btn-secondary" target="_blank">
                             <i class="fas fa-eye"></i> View
                         </a>
@@ -1344,25 +1347,103 @@
 
         async function deleteProduct(productId) {
             try {
+                console.log('🗑️ Attempting to delete product:', productId);
+                console.log('Delete URL:', `${API_BASE_URL}/products/${productId}`);
+                
+                // Prepare headers - some APIs might require authentication for DELETE
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add authorization if available (check for stored tokens)
+                const token = localStorage.getItem('token') || 
+                             localStorage.getItem('accessToken') || 
+                             localStorage.getItem('quicklocal_access_token');
+                             
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                    console.log('Adding auth header for delete request');
+                }
+                
                 const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: headers
                 });
 
-                const result = await response.json();
+                console.log('Delete response status:', response.status);
+                console.log('Delete response ok:', response.ok);
+                
+                // Get the response text first to see what the server is sending
+                const responseText = await response.text();
+                console.log('Delete response text:', responseText);
+                
+                let result;
+                try {
+                    // Try to parse as JSON if there's content
+                    if (responseText.trim()) {
+                        result = JSON.parse(responseText);
+                        console.log('Parsed delete result:', result);
+                    } else {
+                        // Empty response is okay for DELETE operations
+                        result = { success: true };
+                    }
+                } catch (parseError) {
+                    console.warn('Could not parse delete response as JSON:', parseError);
+                    // If we can't parse but the status is OK, consider it successful
+                    if (response.ok) {
+                        result = { success: true };
+                    } else {
+                        throw new Error(`Server returned non-JSON response: ${responseText}`);
+                    }
+                }
 
-                if (result.success || response.ok) {
+                // Check for success
+                if (result.success || response.ok || response.status === 204) {
+                    console.log('✅ Product deleted successfully');
                     showAlert('Product deleted successfully!', 'success');
+                    
                     // Remove from local arrays
+                    const initialCount = allProducts.length;
                     allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
                     filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
+                    
+                    console.log(`Products reduced from ${initialCount} to ${allProducts.length}`);
+                    
                     renderProducts();
                     loadStatistics(); // Refresh statistics
                 } else {
-                    throw new Error(result.message || 'Failed to delete product');
+                    console.error('❌ Delete failed:', result);
+                    throw new Error(result.message || result.error || `Failed to delete product (Status: ${response.status})`);
                 }
             } catch (error) {
-                console.error('Error deleting product:', error);
-                showAlert('Failed to delete product. Please try again.', 'error');
+                console.error('❌ Error deleting product:', error);
+                
+                // Show detailed error information
+                let errorMessage = 'Failed to delete product.';
+                if (error.message.includes('fetch')) {
+                    errorMessage += ' Network error - please check your connection.';
+                } else if (error.message.includes('404')) {
+                    errorMessage += ' Product not found on server.';
+                } else if (error.message.includes('500')) {
+                    errorMessage += ' Server error - please try again later.';
+                } else {
+                    errorMessage += ` ${error.message}`;
+                }
+                
+                showAlert(errorMessage, 'error');
+                
+                // Add debug info to the page
+                const debugInfo = document.createElement('div');
+                debugInfo.className = 'debug-info';
+                debugInfo.innerHTML = `
+                    <strong>Debug Information for Product Deletion:</strong><br>
+                    Product ID: ${productId}<br>
+                    Error: ${error.message}<br>
+                    API URL: ${API_BASE_URL}/products/${productId}<br>
+                    <br>
+                    Check the browser console (F12) for more details.
+                `;
+                document.getElementById('alertContainer').appendChild(debugInfo);
             }
         }
 
@@ -1519,6 +1600,85 @@
             div.textContent = text;
             return div.innerHTML;
         }
+        
+        // Debug function to test API endpoints
+        window.testDeleteAPI = async function(productId) {
+            console.log('🧪 Testing DELETE API endpoint...');
+            console.log('Product ID:', productId);
+            console.log('API Base URL:', API_BASE_URL);
+            console.log('Full URL:', `${API_BASE_URL}/products/${productId}`);
+            
+            try {
+                // Test if product exists first
+                console.log('1. Testing GET request first...');
+                const getResponse = await fetch(`${API_BASE_URL}/products/${productId}`);
+                console.log('GET response status:', getResponse.status);
+                
+                if (getResponse.ok) {
+                    const productData = await getResponse.json();
+                    console.log('Product exists:', productData);
+                } else {
+                    console.log('Product not found with GET request');
+                    return;
+                }
+                
+                // Now test DELETE
+                console.log('2. Testing DELETE request...');
+                const headers = { 'Content-Type': 'application/json' };
+                
+                const token = localStorage.getItem('token') || 
+                             localStorage.getItem('accessToken') || 
+                             localStorage.getItem('quicklocal_access_token');
+                             
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                    console.log('Auth token found and added');
+                } else {
+                    console.log('No auth token found');
+                }
+                
+                const deleteResponse = await fetch(`${API_BASE_URL}/products/${productId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                
+                console.log('DELETE response status:', deleteResponse.status);
+                console.log('DELETE response ok:', deleteResponse.ok);
+                
+                const responseText = await deleteResponse.text();
+                console.log('DELETE response text:', responseText);
+                
+                if (responseText) {
+                    try {
+                        const result = JSON.parse(responseText);
+                        console.log('DELETE result:', result);
+                    } catch (e) {
+                        console.log('Response is not JSON');
+                    }
+                }
+                
+                if (deleteResponse.ok || deleteResponse.status === 204) {
+                    console.log('✅ DELETE request successful');
+                } else {
+                    console.log('❌ DELETE request failed');
+                }
+                
+            } catch (error) {
+                console.error('🔴 Test failed:', error);
+            }
+        };
+        
+        // Add this function to global scope for easy testing
+        window.debugDeleteProduct = function(productId) {
+            console.log('🐛 Debug delete for product:', productId);
+            const product = allProducts.find(p => (p._id || p.id) === productId);
+            if (product) {
+                console.log('Product found in local array:', product);
+                testDeleteAPI(productId);
+            } else {
+                console.log('❌ Product not found in local array');
+            }
+        };
 
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'block' : 'none';
