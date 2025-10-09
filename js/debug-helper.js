@@ -91,6 +91,14 @@ window.QLDebug = {
     showDemo() {
         console.log('📝 Loading demo products...');
         
+        // Use ProductLoadingFix if available for better demo products
+        if (window.productLoadingFix && typeof window.productLoadingFix.reloadProducts === 'function') {
+            window.productLoadingFix.reloadProducts();
+            console.log('✅ Demo products loaded via ProductLoadingFix (20 products)');
+            return;
+        }
+        
+        // Fallback to original demo products
         const demoProducts = [
             {
                 id: 'debug_1',

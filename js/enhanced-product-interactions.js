@@ -10,6 +10,10 @@ class EnhancedProductInteractions {
         this.recentlyViewed = JSON.parse(localStorage.getItem('quicklocal_recently_viewed') || '[]');
         this.searchHistory = JSON.parse(localStorage.getItem('quicklocal_search_history') || '[]');
         
+        // Throttling for scroll events
+        this.lastScrollTrack = 0;
+        this.scrollThrottle = 2000; // Only track scroll once every 2 seconds
+        
         this.init();
     }
 
@@ -738,6 +742,12 @@ class EnhancedProductInteractions {
     }
 
     handleScroll() {
+        // Throttle scroll events to prevent spam
+        const now = Date.now();
+        if (now - this.lastScrollTrack < this.scrollThrottle) {
+            return;
+        }
+        
         // Implement infinite scroll or other scroll-based features
         const scrollPosition = window.scrollY + window.innerHeight;
         const documentHeight = document.documentElement.scrollHeight;
@@ -745,6 +755,7 @@ class EnhancedProductInteractions {
         if (scrollPosition > documentHeight - 1000) {
             // Near bottom - could trigger infinite loading
             this.trackEvent('scroll_near_bottom');
+            this.lastScrollTrack = now;
         }
     }
 
@@ -863,7 +874,7 @@ window.enhancedInteractions = new EnhancedProductInteractions();
 window.EnhancedProductInteractions = EnhancedProductInteractions;
 
 // Auto-enhance existing product cards when DOM changes
-const observer = new MutationObserver((mutations) => {
+const productCardObserver = new MutationObserver((mutations) => {
     let shouldEnhance = false;
     
     mutations.forEach((mutation) => {
@@ -887,7 +898,7 @@ const observer = new MutationObserver((mutations) => {
 });
 
 // Start observing
-observer.observe(document.body, {
+productCardObserver.observe(document.body, {
     childList: true,
     subtree: true
 });

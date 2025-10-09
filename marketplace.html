@@ -1793,6 +1793,7 @@
     <script src="js/enhanced-product-interactions.js"></script>
     <script src="js/mobile-interactions.js"></script>
     <script src="js/debug-helper.js"></script>
+    <script src="js/product-loading-fix.js"></script>
     
     <script>
         // FIX 1: API_BASE_URL now contains the /api/v1 prefix
@@ -1974,6 +1975,9 @@
                 'Authorization': auth.getAuthHeader()
             })
         };
+
+        // Make auth globally accessible for external scripts
+        window.auth = auth;
 
         // API utilities using hybrid auth
         const api = {
@@ -3723,7 +3727,7 @@
                 if (!this.personalizedData) return;
                 
                 const userProfile = this.personalizedData.userProfile;
-                const user = auth.getUser();
+                const user = window.auth ? window.auth.getUser() : null;
                 
                 // Show personalized banner for logged-in users
                 if (user && userProfile) {
