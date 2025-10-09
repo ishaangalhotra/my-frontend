@@ -21,7 +21,7 @@ const productCardUtils = {
                          src="${product.primaryImage?.url || product.image || 'https://placehold.co/300x200?text=' + encodeURIComponent(product.name)}"
                          alt="${this.escapeHtml(product.name)}" 
                          class="product-image"
-                         onerror="this.src='https://placehold.co/300x200?text=No+Image';"
+                         onerror="this.src='https://placehold.co/300x200?text=No+Image';">
                     ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
                     ${product.isNewArrival ? '<div class="product-badge new">NEW</div>' : ''}
                     ${product.isFeatured ? '<div class="product-badge featured">FEATURED</div>' : ''}

@@ -658,6 +658,65 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+        
+        /* Multiple badge positioning - stacked vertically */
+        .product-image-container .product-badge:nth-child(2) {
+            top: 1rem;
+            right: 1rem;
+        }
+        
+        .product-image-container .product-badge:nth-child(3) {
+            top: 3.2rem; /* Increased spacing */
+            right: 1rem;
+        }
+        
+        .product-image-container .product-badge:nth-child(4) {
+            top: 5.4rem; /* Increased spacing */
+            right: 1rem;
+        }
+        
+        /* Alternative: badges side by side if preferred */
+        .product-image-container.badges-horizontal .product-badge:nth-child(2) {
+            top: 1rem;
+            right: 1rem;
+        }
+        
+        .product-image-container.badges-horizontal .product-badge:nth-child(3) {
+            top: 1rem;
+            right: 6rem; /* Side by side */
+        }
+        
+        .product-image-container.badges-horizontal .product-badge:nth-child(4) {
+            top: 1rem;
+            right: 11rem; /* Further to the left */
+        }
+        
+        /* Carousel card badges (if needed) */
+        .carousel-card .p-badge {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+        
+        /* Specific badge styling */
+        .product-badge.new {
+            background: linear-gradient(135deg, var(--success), #059669);
+        }
+        
+        .product-badge.featured {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
         }
 
         .product-content {
@@ -837,6 +896,16 @@
             cursor: pointer;
             position: relative;
             border: 1px solid var(--border);
+            overflow: hidden; /* Prevent badge overflow */
+        }
+        
+        /* Carousel card image container positioning */
+        .carousel-card {
+            position: relative;
+        }
+        
+        .carousel-card .p-image {
+            position: relative; /* Ensure proper stacking context */
         }
         .carousel-card:hover {
             transform: translateY(-8px) scale(1.02);
@@ -2882,10 +2951,14 @@
             
             return `
                 <div class="carousel-card" data-product-id="${product.id}">
-                    <img class="p-image" loading="lazy" 
-                         src="${getSafeImageUrl(product, '280x160')}" 
-                         alt="${product.name}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/280x160/e6e6e6/666666?text=Image+Error';">
+                    <div style="position: relative;"> 
+                        <img class="p-image" loading="lazy" 
+                             src="${getSafeImageUrl(product, '280x160')}" 
+                             alt="${product.name}"
+                             onerror="this.onerror=null; this.src='https://placehold.co/280x160/e6e6e6/666666?text=Image+Error';">
+                        ${discount > 0 ? `<div class="p-badge">${discount}% OFF</div>` : ""}
+                        ${product.rating >= 4.5 ? '<div class="p-badge" style="top: 2.5rem;">⭐ FEATURED</div>' : ""}
+                    </div>
                     <div class="p-name">${product.name}</div>
                     <div class="price-row">
                         <div class="p-price">₹${product.price.toLocaleString()}</div>
