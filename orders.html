@@ -664,8 +664,22 @@
                     if (result.success && result.workflow) {
                         statusWorkflow = result.workflow;
                         console.log('✅ Status workflow loaded:', statusWorkflow);
+                        return;
                     }
                 }
+
+                // If endpoint is not available (404) or any non-OK, use defaults
+                console.warn('Status workflow endpoint not available, using defaults');
+                statusWorkflow = {
+                    statusMeta: {
+                        'pending': { label: 'Pending', color: 'orange', description: 'Order placed' },
+                        'confirmed': { label: 'Confirmed', color: 'blue', description: 'Order confirmed' },
+                        'preparing': { label: 'Preparing', color: 'purple', description: 'Being prepared' },
+                        'shipped': { label: 'Shipped', color: 'blue', description: 'On the way' },
+                        'delivered': { label: 'Delivered', color: 'green', description: 'Successfully delivered' },
+                        'cancelled': { label: 'Cancelled', color: 'red', description: 'Order cancelled' }
+                    }
+                };
             } catch (error) {
                 console.warn('Could not load status workflow:', error);
                 // Use fallback status configuration
@@ -690,11 +704,13 @@
                 console.log('Loading orders from API...');
                 
                 let response;
+                const endpoint = '/orders?limit=50&page=1'; // Advanced orders route filters by user automatically
+
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                    response = await window.HybridAuthClient.apiCall('/orders/my?limit=50&page=1', { method: 'GET' });
+                    response = await window.HybridAuthClient.apiCall(endpoint, { method: 'GET' });
                 } else {
                     const headers = getAuthHeaders();
-                    response = await fetch(`${API_BASE_URL}/orders/my?limit=50&page=1`, {
+                    response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'GET',
                         headers
                     });
@@ -704,38 +720,32 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ Enhanced orders API result:', result);
+                    console.log('✅ Orders API result:', result);
                     
-                    if (result.success && result.orders) {
-                        allOrders = result.orders;
-                        
-                        // Transform orders to match expected format
-                        allOrders = allOrders.map(order => ({
-                            _id: order._id || order.id,
-                            orderId: order.orderNumber || order.orderId || order._id,
-                            orderNumber: order.orderNumber,
-                            customer: {
-                                name: order.customerInfo?.name || order.customer?.name || 'Unknown',
-                                email: order.customerInfo?.email || order.customer?.email || 'N/A',
-                                phone: order.customerInfo?.phone || order.customer?.phone || 'N/A'
-                            },
-                            products: order.orderItems || order.items || [],
-                            totalAmount: order.pricing?.totalPrice || order.totalAmount || 0,
-                            status: order.status,
-                            orderDate: order.createdAt || order.orderDate,
-                            statusMeta: order.statusMeta,
-                            timeline: order.timeline,
-                            canCancel: order.canCancel,
-                            canReturn: order.canReturn,
-                            deliveryTracking: order.deliveryTracking,
-                            shippingAddress: order.shippingAddress
-                        }));
-                    } else {
-                        allOrders = result.orders || result.data || [];
-                    }
-                } else if (response.status === 404) {
-                    console.log('Orders endpoint not found');
-                    allOrders = [];
+                    const list = result.orders || result.data || result.results || [];
+                    allOrders = Array.isArray(list) ? list : [];
+
+                    // Transform orders to match expected format
+                    allOrders = allOrders.map(order => ({
+                        _id: order._id || order.id,
+                        orderId: order.orderNumber || order.orderId || order._id || order.id,
+                        orderNumber: order.orderNumber,
+                        customer: {
+                            name: order.customerInfo?.name || order.customer?.name || order.user?.name || 'You',
+                            email: order.customerInfo?.email || order.customer?.email || order.user?.email || '',
+                            phone: order.customerInfo?.phone || order.customer?.phone || order.user?.phone || ''
+                        },
+                        products: order.orderItems || order.items || [],
+                        totalAmount: order.pricing?.totalPrice || order.totalAmount || order.total || 0,
+                        status: order.status,
+                        orderDate: order.createdAt || order.orderDate || order.date,
+                        statusMeta: order.statusMeta,
+                        timeline: order.timeline,
+                        canCancel: order.canCancel,
+                        canReturn: order.canReturn,
+                        deliveryTracking: order.deliveryTracking,
+                        shippingAddress: order.shippingAddress
+                    }));
                 } else if (response.status === 401) {
                     console.log('User not authenticated');
                     allOrders = [];
