@@ -148,10 +148,16 @@ class ProductLoadingFix {
             container.innerHTML = products.map(product => this.generateBasicProductCard(product)).join('');
         }
         
-        // Trigger enhanced product card enhancements
+        // Trigger enhanced product card enhancements and attach event listeners
         setTimeout(() => {
+            // Enhance product cards with advanced features
             if (window.enhancedInteractions && typeof window.enhancedInteractions.enhanceProductCards === 'function') {
                 window.enhancedInteractions.enhanceProductCards();
+            }
+            
+            // Attach variant and click listeners
+            if (window.productCardUtils && typeof window.productCardUtils.attachVariantListeners === 'function') {
+                window.productCardUtils.attachVariantListeners();
             }
         }, 100);
     }
@@ -161,7 +167,8 @@ class ProductLoadingFix {
             `<div class="discount-badge">-${product.discount}%</div>` : '';
         
         return `
-            <div class="product-card" data-product-id="${product.id}" data-category="${product.category}">
+            <div class="product-card" data-product-id="${product.id}" data-category="${product.category}" 
+                 onclick="handleCardClick('${product.id}')" style="cursor: pointer;">
                 <div class="product-image-container">
                     <img src="${product.image}" alt="${product.name}" class="product-image">
                     ${discountBadge}

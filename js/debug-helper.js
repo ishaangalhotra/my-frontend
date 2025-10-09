@@ -290,6 +290,39 @@ window.QLDebug = {
         console.log('✅ Quick fixes applied');
     },
     
+    // Test product navigation
+    testNavigation() {
+        console.log('🎯 Testing product navigation...');
+        
+        const productCards = document.querySelectorAll('.product-card');
+        console.log(`Found ${productCards.length} product cards`);
+        
+        let workingCards = 0;
+        let brokenCards = 0;
+        
+        productCards.forEach((card, index) => {
+            const productId = card.dataset.productId;
+            const hasClickHandler = card.onclick || card.getAttribute('onclick') || card.classList.contains('clickable-attached');
+            
+            if (productId && hasClickHandler) {
+                workingCards++;
+            } else {
+                brokenCards++;
+                console.warn(`Card ${index + 1} missing navigation:`, { productId, hasClickHandler });
+            }
+        });
+        
+        console.log(`✅ Working cards: ${workingCards}`);
+        console.log(`❌ Broken cards: ${brokenCards}`);
+        
+        if (brokenCards > 0 && window.verifyProductNavigation) {
+            console.log('Attempting to fix broken cards...');
+            window.verifyProductNavigation();
+        }
+        
+        return { total: productCards.length, working: workingCards, broken: brokenCards };
+    },
+    
     // Help menu
     help() {
         console.group('📖 QuickLocal Debug Help');
@@ -298,6 +331,7 @@ window.QLDebug = {
         console.log('QLDebug.reloadProducts() - Force reload products');
         console.log('QLDebug.showDemo() - Load demo products');
         console.log('QLDebug.testRender() - Test product rendering');
+        console.log('QLDebug.testNavigation() - Test product navigation');
         console.log('QLDebug.testEnhancements() - Test enhancement modules');
         console.log('QLDebug.clearData() - Clear all product data');
         console.log('QLDebug.quickFix() - Apply common fixes');

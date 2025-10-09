@@ -14,7 +14,9 @@ const productCardUtils = {
         const originalPrice = product.originalPrice;
         
         return `
-            <div class="product-card enhanced-card" data-product-id="${product.id}">
+            <div class="product-card enhanced-card" data-product-id="${product.id}" 
+                 onclick="productCardUtils.viewProduct('${product.id}')" 
+                 style="cursor: pointer;">
                 <div class="product-image-container">
                     <img loading="lazy" 
                          src="${product.primaryImage?.url || product.image || 'https://placehold.co/300x200?text=' + encodeURIComponent(product.name)}"
@@ -50,20 +52,20 @@ const productCardUtils = {
                     
                     <div class="product-actions">
                         <button class="action-btn btn-primary add-to-cart" 
-                                onclick="productCardUtils.addToCart('${product.id}')" 
+                                onclick="event.stopPropagation(); productCardUtils.addToCart('${product.id}')" 
                                 ${!product.isInStock ? 'disabled' : ''}>
                             <i class="fas fa-shopping-cart"></i> 
                             ${!product.isInStock ? 'Out of Stock' : 'Add to Cart'}
                         </button>
                         
                         <button class="action-btn btn-secondary quick-view" 
-                                onclick="productCardUtils.quickView('${product.id}')"
+                                onclick="event.stopPropagation(); productCardUtils.quickView('${product.id}')"
                                 title="Quick view">
                             <i class="fas fa-eye"></i>
                         </button>
                         
                         <button class="action-btn btn-secondary wishlist-btn" 
-                                onclick="productCardUtils.toggleWishlist('${product.id}')"
+                                onclick="event.stopPropagation(); productCardUtils.toggleWishlist('${product.id}')"
                                 title="Add to wishlist">
                             <i class="far fa-heart"></i>
                         </button>
@@ -103,8 +105,9 @@ const productCardUtils = {
             .replace(/'/g, "&#039;");
     },
     
-    // Attach event listeners for variant selection
+    // Attach event listeners for variant selection and card navigation
     attachVariantListeners() {
+        // Variant selection listeners
         document.querySelectorAll('.variant-option').forEach(option => {
             option.addEventListener('click', (e) => {
                 const productCard = e.target.closest('.product-card');
@@ -115,6 +118,28 @@ const productCardUtils = {
                     this.selectVariant(productId, variant);
                 }
             });
+        });
+        
+        // Enhanced product card click listeners (fallback for missing onclick handlers)
+        document.querySelectorAll('.product-card.enhanced-card:not(.clickable-attached)').forEach(card => {
+            card.classList.add('clickable-attached');
+            
+            // Only attach if no onclick handler exists
+            if (!card.onclick) {
+                card.addEventListener('click', (e) => {
+                    // Don't trigger if clicking on buttons or interactive elements
+                    if (e.target.closest('.product-actions, .action-btn, button')) {
+                        return;
+                    }
+                    
+                    const productId = card.dataset.productId;
+                    if (productId) {
+                        this.viewProduct(productId);
+                    }
+                });
+                
+                card.style.cursor = 'pointer';
+            }
         });
         
         console.log('✅ Product card variant listeners attached');
