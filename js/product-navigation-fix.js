@@ -7,7 +7,7 @@ console.log('🔧 Loading Product Navigation Fix...');
 
 // Function to verify and fix product card navigation
 function verifyProductNavigation() {
-    const productCards = document.querySelectorAll('.product-card');
+    const productCards = document.querySelectorAll('.product-card, .carousel-card');
     let fixedCards = 0;
     
     productCards.forEach(card => {
@@ -63,7 +63,9 @@ const navigationObserver = new MutationObserver((mutations) => {
             mutation.addedNodes.forEach((node) => {
                 if (node.nodeType === Node.ELEMENT_NODE) {
                     if (node.classList?.contains('product-card') || 
-                        node.querySelector?.('.product-card')) {
+                        node.classList?.contains('carousel-card') ||
+                        node.querySelector?.('.product-card') ||
+                        node.querySelector?.('.carousel-card')) {
                         hasNewProducts = true;
                     }
                 }

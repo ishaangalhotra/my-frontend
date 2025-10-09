@@ -15,7 +15,6 @@ const productCardUtils = {
         
         return `
             <div class="product-card enhanced-card" data-product-id="${product.id}" 
-                 onclick="productCardUtils.viewProduct('${product.id}')" 
                  style="cursor: pointer;">
                 <div class="product-image-container">
                     <img loading="lazy" 
@@ -52,20 +51,22 @@ const productCardUtils = {
                     
                     <div class="product-actions">
                         <button class="action-btn btn-primary add-to-cart" 
-                                onclick="event.stopPropagation(); productCardUtils.addToCart('${product.id}')" 
+                                data-product-id="${product.id}"
                                 ${!product.isInStock ? 'disabled' : ''}>
                             <i class="fas fa-shopping-cart"></i> 
                             ${!product.isInStock ? 'Out of Stock' : 'Add to Cart'}
                         </button>
                         
                         <button class="action-btn btn-secondary quick-view" 
-                                onclick="event.stopPropagation(); productCardUtils.quickView('${product.id}')"
+                                data-product-id="${product.id}"
+                                data-action="quick-view"
                                 title="Quick view">
                             <i class="fas fa-eye"></i>
                         </button>
                         
                         <button class="action-btn btn-secondary wishlist-btn" 
-                                onclick="event.stopPropagation(); productCardUtils.toggleWishlist('${product.id}')"
+                                data-product-id="${product.id}"
+                                data-action="wishlist"
                                 title="Add to wishlist">
                             <i class="far fa-heart"></i>
                         </button>
@@ -139,6 +140,40 @@ const productCardUtils = {
                 });
                 
                 card.style.cursor = 'pointer';
+            }
+        });
+        
+        // Enhanced card action button listeners
+        document.querySelectorAll('.enhanced-card .action-btn[data-action]').forEach(btn => {
+            const action = btn.dataset.action;
+            const productId = btn.dataset.productId;
+            
+            if (!btn.hasAttribute('data-listener-attached')) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    if (action === 'quick-view') {
+                        this.quickView(productId);
+                    } else if (action === 'wishlist') {
+                        this.toggleWishlist(productId);
+                    }
+                });
+                
+                btn.setAttribute('data-listener-attached', 'true');
+            }
+        });
+        
+        // Enhanced card add-to-cart button listeners
+        document.querySelectorAll('.enhanced-card .add-to-cart[data-product-id]').forEach(btn => {
+            const productId = btn.dataset.productId;
+            
+            if (!btn.hasAttribute('data-listener-attached')) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.addToCart(productId);
+                });
+                
+                btn.setAttribute('data-listener-attached', 'true');
             }
         });
         
