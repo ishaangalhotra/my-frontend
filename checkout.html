@@ -304,7 +304,10 @@
                     <span id="emailPreviewTotal">₹0</span>
                 </div>
             </div>
-            <button onclick="closeSuccessModal()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem;"><i class="fas fa-home"></i> Continue Shopping</button>
+            <div style="display:flex; gap:1rem; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+                <button onclick="viewMyOrders()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem; background: linear-gradient(135deg, var(--primary), var(--primary-dark));"><i class="fas fa-list"></i> Track Order</button>
+                <button onclick="continueShopping()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem;"><i class="fas fa-shopping-bag"></i> Continue Shopping</button>
+            </div>
         </div>
     </div>
 
@@ -849,13 +852,20 @@
 
     function closeSuccessModal() {
         document.getElementById('successModal').classList.remove('active');
-        
-        // Redirect to orders page to track the new order
+        // Flipkart-style: Don't auto-redirect, let user choose
+    }
+    
+    function viewMyOrders() {
+        // Redirect to user's order page with highlight
         if (checkoutState.lastOrder && checkoutState.lastOrder.id) {
             window.location.href = `orders.html?highlight=${checkoutState.lastOrder.id}`;
         } else {
             window.location.href = 'orders.html';
         }
+    }
+    
+    function continueShopping() {
+        window.location.href = 'marketplace.html';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -904,6 +914,8 @@
     });
 
     window.closeSuccessModal = closeSuccessModal;
+    window.viewMyOrders = viewMyOrders;
+    window.continueShopping = continueShopping;
     </script>
 </body>
 </html>

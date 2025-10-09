@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Management - QuickLocal</title>
+    <title>My Orders - QuickLocal</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
@@ -461,8 +461,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-clipboard-list"></i> Order Management</h1>
-            <p>Track and manage all orders placed on your QuickLocal marketplace</p>
+            <h1><i class="fas fa-list-alt"></i> My Orders</h1>
+            <p>Track your orders and manage returns & cancellations</p>
         </div>
 
         <!-- Statistics Cards -->
@@ -552,9 +552,14 @@
             </div>
 
             <div id="emptyState" class="empty-state" style="display: none;">
-                <i class="fas fa-inbox"></i>
-                <h3>No orders found</h3>
-                <p>No orders match your current filters.</p>
+                <i class="fas fa-shopping-bag"></i>
+                <h3>No Orders Yet!</h3>
+                <p>Looks like you haven't placed any orders yet. Start shopping to see your orders here.</p>
+                <div style="margin-top: 2rem;">
+                    <a href="marketplace.html" class="btn btn-primary" style="text-decoration: none; padding: 0.75rem 2rem;">
+                        <i class="fas fa-shopping-cart"></i> Start Shopping
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -647,8 +652,8 @@
                 // Try to get auth headers for the request
                 const headers = getAuthHeaders();
                 
-                // ✅ NEW: Use enhanced orders API with filtering support
-                const response = await fetch(`${API_BASE_URL}/orders?limit=50&page=1`, {
+                // ✅ NEW: Fetch only current user's orders (Flipkart-style)
+                const response = await fetch(`${API_BASE_URL}/orders/my?limit=50&page=1`, {
                     method: 'GET',
                     headers: headers
                 });
@@ -687,8 +692,12 @@
                         allOrders = result.orders || result.data || [];
                     }
                 } else if (response.status === 404) {
-                    console.log('Orders endpoint not found - using mock data');
-                    allOrders = generateMockOrders();
+                    console.log('Orders endpoint not found');
+                    allOrders = [];
+                } else if (response.status === 401) {
+                    console.log('User not authenticated');
+                    allOrders = [];
+                    showToast('Please log in to view your orders', 'warning');
                 } else {
                     throw new Error(`Failed to load orders: ${response.status}`);
                 }
@@ -699,11 +708,11 @@
                 
             } catch (error) {
                 console.error('Error loading orders:', error);
-                showToast('Failed to load orders. Using sample data.', 'warning');
+                showToast('Unable to load orders. Please try again.', 'error');
                 
-                // Use mock data as fallback
-                allOrders = generateMockOrders();
-                filteredOrders = [...allOrders];
+                // No mock data - show empty state
+                allOrders = [];
+                filteredOrders = [];
                 renderOrders();
                 updateStatistics();
             } finally {
@@ -711,71 +720,7 @@
             }
         }
 
-        // Generate mock orders for demonstration
-        function generateMockOrders() {
-            const statuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-            const customers = [
-                { name: 'Rahul Sharma', email: 'rahul.sharma@email.com', phone: '+91 98765 43210' },
-                { name: 'Priya Patel', email: 'priya.patel@email.com', phone: '+91 87654 32109' },
-                { name: 'Amit Kumar', email: 'amit.kumar@email.com', phone: '+91 76543 21098' },
-                { name: 'Sneha Singh', email: 'sneha.singh@email.com', phone: '+91 65432 10987' },
-                { name: 'Rajesh Gupta', email: 'rajesh.gupta@email.com', phone: '+91 54321 09876' }
-            ];
-            
-            const products = [
-                { name: 'Fresh Apples', price: 150, quantity: 2 },
-                { name: 'Organic Rice', price: 120, quantity: 1 },
-                { name: 'Premium Headphones', price: 2999, quantity: 1 },
-                { name: 'Cotton T-Shirt', price: 599, quantity: 3 },
-                { name: 'Smartphone Case', price: 299, quantity: 1 }
-            ];
-
-            const mockOrders = [];
-            
-            for (let i = 0; i < 15; i++) {
-                const customer = customers[Math.floor(Math.random() * customers.length)];
-                const orderProducts = [];
-                const numProducts = Math.floor(Math.random() * 3) + 1;
-                let totalAmount = 0;
-                
-                for (let j = 0; j < numProducts; j++) {
-                    const product = products[Math.floor(Math.random() * products.length)];
-                    const quantity = Math.floor(Math.random() * 3) + 1;
-                    const productTotal = product.price * quantity;
-                    totalAmount += productTotal;
-                    
-                    orderProducts.push({
-                        ...product,
-                        quantity,
-                        total: productTotal
-                    });
-                }
-
-                const order = {
-                    _id: `ORD${String(1000 + i).slice(-3)}`,
-                    orderId: `QL-${Date.now()}-${i}`,
-                    customer: {
-                        name: customer.name,
-                        email: customer.email,
-                        phone: customer.phone
-                    },
-                    products: orderProducts,
-                    totalAmount: totalAmount,
-                    status: statuses[Math.floor(Math.random() * statuses.length)],
-                    orderDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    shippingAddress: {
-                        street: '123 Main Street',
-                        city: 'Mumbai',
-                        state: 'Maharashtra',
-                        pincode: '400001'
-                    }
-                };
-
-                mockOrders.push(order);
-            }
-
-            return mockOrders.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
-        }
+        // ✅ REMOVED: Mock orders function - now shows only real user orders
 
         // Filter orders based on search and filters
         function filterOrders() {
