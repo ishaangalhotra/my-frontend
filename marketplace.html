@@ -188,6 +188,60 @@
             box-shadow: var(--shadow-md);
         }
 
+        /* Order Tracking Widget */
+        .track-order-widget {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-full);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            overflow: hidden;
+            max-width: 250px;
+        }
+        
+        .track-order-widget:focus-within {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+        
+        .track-input {
+            flex: 1;
+            height: 2.5rem;
+            padding: 0 1rem;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .track-input::placeholder {
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+        
+        .track-btn {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, var(--secondary), #e97a00);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            box-shadow: var(--shadow-xs);
+        }
+        
+        .track-btn:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-sm);
+        }
+
         /* Enhanced Navigation */
         .nav-links {
             display: flex;
@@ -1636,6 +1690,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="track-order-widget">
+                    <input type="text" class="track-input" placeholder="Enter Order ID to track" id="quickTrackInput">
+                    <button class="track-btn" id="quickTrackBtn" title="Track Order">
+                        <i class="fas fa-search-location"></i>
+                    </button>
+                </div>
                 <ul class="nav-links">
                     <li><a href="#" class="nav-link active"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="#products" class="nav-link"><i class="fas fa-box"></i> Products</a></li>
@@ -2226,6 +2286,7 @@
             initializeEventListeners();
             initializeScrollEffects();
             initializeFromURL();
+            setupQuickOrderTracking();
 
             // Enhanced auth initialization with better state detection
             await initializeAuthState();
@@ -3696,6 +3757,34 @@
             };
         }
 
+        // Quick Order Tracking Functionality
+        function setupQuickOrderTracking() {
+            const trackInput = document.getElementById('quickTrackInput');
+            const trackBtn = document.getElementById('quickTrackBtn');
+            
+            if (trackInput && trackBtn) {
+                const handleTrack = () => {
+                    const orderId = trackInput.value.trim();
+                    if (orderId) {
+                        // Redirect to track-order page with the order ID
+                        window.location.href = `track-order.html?id=${encodeURIComponent(orderId)}`;
+                    } else {
+                        showToast('Please enter an Order ID to track', 'warning');
+                    }
+                };
+                
+                trackBtn.addEventListener('click', handleTrack);
+                trackInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleTrack();
+                    }
+                });
+                
+                console.log('✅ Quick order tracking widget initialized');
+            }
+        }
+        
         // Enhanced product card integration
         window.addEventListener('load', () => {
             // Override enhanced product card utilities to integrate with existing functionality
