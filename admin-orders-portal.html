@@ -1017,11 +1017,41 @@
             });
         }
 
-        // Initialize admin portal with authentication
-        async function initializeAdminPortal() {
-            showLoading(true);
-            
-            try {
+    // Dev mode detection
+    const params = new URLSearchParams(window.location.search);
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const devFlag = params.get('dev') === '1' || window.localStorage.getItem('ADMIN_DEV_MODE') === '1';
+    const isDevMode = isLocalHost && devFlag;
+
+    // Show dev mode banner
+    function showDevBanner() {
+        if (!isDevMode) return;
+        const banner = document.createElement('div');
+        banner.style = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#111;padding:8px 12px;font-weight:700;z-index:99999;text-align:center';
+        banner.innerHTML = '🔧 DEV MODE: Admin auth bypassed - DO NOT USE IN PRODUCTION';
+        document.body.appendChild(banner);
+    }
+
+    // Mock HybridAuth in dev mode
+    if (isDevMode) {
+        window.HybridAuthClient = {
+            isAuthenticated: async () => true,
+            getCurrentUser: () => ({ id: 'dev-admin', email: 'admin@local.dev', role: 'admin', name: 'Dev Admin' }),
+            apiCall: async (path, options = {}) => {
+                // Use relative API calls to your backend
+                const baseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
+                return fetch(`${baseUrl}${path}`, { ...options });
+            }
+        };
+        console.log('🔧 DEV MODE: Using mock HybridAuthClient');
+    }
+
+    // Initialize admin portal with authentication
+    async function initializeAdminPortal() {
+        showLoading(true);
+        
+        try {
+            if (!isDevMode) {
                 // Wait for HybridAuthClient to be ready
                 let attempts = 0;
                 while (!window.HybridAuthClient && attempts < 50) {
@@ -1032,34 +1062,43 @@
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     const isAuth = await window.HybridAuthClient.isAuthenticated();
                     if (!isAuth) {
+                        const loginUrl = (window.location.origin && window.location.origin !== 'null')
+                            ? `${window.location.origin}/login.html?redirect=${encodeURIComponent(window.location.href)}`
+                            : `./login.html?redirect=${encodeURIComponent(window.location.href)}`;
+                        
                         showToast('Admin access required. Please log in.', 'warning');
                         setTimeout(() => {
-                            window.location.href = '../login.html?redirect=' + encodeURIComponent(window.location.href);
+                            window.location.href = loginUrl;
                         }, 2000);
                         return;
                     }
 
-                    // Check if user is admin (you may need to implement this check)
+                    // Check if user is admin
                     const user = window.HybridAuthClient.getCurrentUser();
                     if (user && user.role !== 'admin') {
                         showToast('Admin privileges required.', 'error');
                         setTimeout(() => {
-                            window.location.href = '../marketplace.html';
+                            window.location.href = './marketplace.html';
                         }, 2000);
                         return;
                     }
                 }
-
-                await loadOrders();
-                await loadDashboardStats();
-            } catch (error) {
-                console.error('Admin portal initialization error:', error);
-                showToast('Failed to initialize admin portal', 'error');
-                showEmptyState();
-            } finally {
-                showLoading(false);
+            } else {
+                // Show dev mode banner
+                showDevBanner();
+                console.log('🔧 DEV MODE: Skipping authentication checks');
             }
+
+            await loadOrders();
+            await loadDashboardStats();
+        } catch (error) {
+            console.error('Admin portal initialization error:', error);
+            showToast('Failed to initialize admin portal', 'error');
+            showEmptyState();
+        } finally {
+            showLoading(false);
         }
+    }
 
         // Load all orders (admin endpoint)
         async function loadOrders() {
