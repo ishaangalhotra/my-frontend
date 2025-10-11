@@ -967,6 +967,64 @@
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
+        // Dev mode detection (MOVED TO TOP)
+        const params = new URLSearchParams(window.location.search);
+        const isLocalHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname) || window.location.hostname.endsWith('.local');
+        const devFlag = params.get('dev') === '1' || window.localStorage.getItem('ADMIN_DEV_MODE') === '1';
+        const isDevMode = isLocalHost && devFlag;
+        
+        console.log('🔍 Admin Portal Debug:', {
+            hostname: window.location.hostname,
+            isLocalHost,
+            devFlag,
+            isDevMode,
+            url: window.location.href
+        });
+
+        // Show dev mode banner
+        function showDevBanner() {
+            if (!isDevMode) return;
+            const banner = document.createElement('div');
+            banner.style = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#111;padding:8px 12px;font-weight:700;z-index:99999;text-align:center;font-family:monospace';
+            banner.innerHTML = '🔧 DEV MODE ACTIVE: Admin auth bypassed (localhost?dev=1)';
+            document.body.appendChild(banner);
+            console.log('🔧 DEV MODE BANNER: Displayed');
+        }
+
+        // Mock HybridAuth in dev mode (BEFORE DOMContentLoaded)
+        if (isDevMode) {
+            console.log('🔧 DEV MODE: Creating mock HybridAuthClient');
+            window.HybridAuthClient = {
+                isAuthenticated: async () => {
+                    console.log('🔧 DEV MODE: isAuthenticated() called - returning true');
+                    return true;
+                },
+                getCurrentUser: () => {
+                    const user = { id: 'dev-admin', email: 'admin@local.dev', role: 'admin', name: 'Dev Admin' };
+                    console.log('🔧 DEV MODE: getCurrentUser() called - returning:', user);
+                    return user;
+                },
+                apiCall: async (path, options = {}) => {
+                    console.log('🔧 DEV MODE: apiCall() called:', path, options);
+                    const baseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
+                    const url = `${baseUrl}${path}`;
+                    console.log('🔧 DEV MODE: Fetching from:', url);
+                    return fetch(url, { ...options, mode: 'cors' });
+                }
+            };
+            
+            // Show banner immediately
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showDevBanner);
+            } else {
+                showDevBanner();
+            }
+        } else {
+            console.log('⚠️ NOT in dev mode. To enable dev mode:');
+            console.log('1. Open: http://localhost:8000/admin-orders-portal.html?dev=1');
+            console.log('2. Or run: localStorage.setItem("ADMIN_DEV_MODE", "1")');
+        }
+        
         // Global state
         let allOrders = [];
         let filteredOrders = [];
@@ -976,11 +1034,13 @@
 
         // Initialize the admin portal
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOMContentLoaded - Setting up admin portal');
             setupEventListeners();
             initializeAdminPortal();
         });
 
         function setupEventListeners() {
+            console.log('🎛️ Setting up event listeners');
             // Search and filters
             document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('globalSearchInput').addEventListener('input', debounce(applyFilters, 300));
@@ -1017,88 +1077,82 @@
             });
         }
 
-    // Dev mode detection
-    const params = new URLSearchParams(window.location.search);
-    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const devFlag = params.get('dev') === '1' || window.localStorage.getItem('ADMIN_DEV_MODE') === '1';
-    const isDevMode = isLocalHost && devFlag;
+        // Initialize admin portal with authentication
+        async function initializeAdminPortal() {
+            console.log('🔐 Initializing admin portal, dev mode:', isDevMode);
+            showLoading(true);
+            
+            try {
+                if (isDevMode) {
+                    console.log('🔧 DEV MODE: Skipping authentication checks');
+                    showDevBanner();
+                    showToast('Dev Mode Active - Authentication Bypassed', 'info');
+                } else {
+                    console.log('🔐 Production mode: Checking authentication');
+                    
+                    // Wait for HybridAuthClient to be ready
+                    let attempts = 0;
+                    while (!window.HybridAuthClient && attempts < 50) {
+                        console.log(`⏳ Waiting for HybridAuthClient... attempt ${attempts + 1}`);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
 
-    // Show dev mode banner
-    function showDevBanner() {
-        if (!isDevMode) return;
-        const banner = document.createElement('div');
-        banner.style = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#111;padding:8px 12px;font-weight:700;z-index:99999;text-align:center';
-        banner.innerHTML = '🔧 DEV MODE: Admin auth bypassed - DO NOT USE IN PRODUCTION';
-        document.body.appendChild(banner);
-    }
+                    if (!window.HybridAuthClient) {
+                        throw new Error('HybridAuthClient failed to load');
+                    }
 
-    // Mock HybridAuth in dev mode
-    if (isDevMode) {
-        window.HybridAuthClient = {
-            isAuthenticated: async () => true,
-            getCurrentUser: () => ({ id: 'dev-admin', email: 'admin@local.dev', role: 'admin', name: 'Dev Admin' }),
-            apiCall: async (path, options = {}) => {
-                // Use relative API calls to your backend
-                const baseUrl = 'https://quicklocal-backend.onrender.com/api/v1';
-                return fetch(`${baseUrl}${path}`, { ...options });
-            }
-        };
-        console.log('🔧 DEV MODE: Using mock HybridAuthClient');
-    }
-
-    // Initialize admin portal with authentication
-    async function initializeAdminPortal() {
-        showLoading(true);
-        
-        try {
-            if (!isDevMode) {
-                // Wait for HybridAuthClient to be ready
-                let attempts = 0;
-                while (!window.HybridAuthClient && attempts < 50) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    attempts++;
-                }
-
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    const isAuth = await window.HybridAuthClient.isAuthenticated();
-                    if (!isAuth) {
-                        const loginUrl = (window.location.origin && window.location.origin !== 'null')
-                            ? `${window.location.origin}/login.html?redirect=${encodeURIComponent(window.location.href)}`
-                            : `./login.html?redirect=${encodeURIComponent(window.location.href)}`;
+                    console.log('✅ HybridAuthClient loaded, checking authentication...');
+                    
+                    if (typeof window.HybridAuthClient.isAuthenticated === 'function') {
+                        const isAuth = await window.HybridAuthClient.isAuthenticated();
+                        console.log('🔐 Authentication status:', isAuth);
                         
-                        showToast('Admin access required. Please log in.', 'warning');
-                        setTimeout(() => {
-                            window.location.href = loginUrl;
-                        }, 2000);
-                        return;
-                    }
+                        if (!isAuth) {
+                            const loginUrl = (window.location.origin && window.location.origin !== 'null')
+                                ? `${window.location.origin}/login.html?redirect=${encodeURIComponent(window.location.href)}`
+                                : `./login.html?redirect=${encodeURIComponent(window.location.href)}`;
+                            
+                            console.log('❌ Not authenticated, redirecting to:', loginUrl);
+                            showToast('Admin access required. Redirecting to login...', 'warning');
+                            setTimeout(() => {
+                                window.location.href = loginUrl;
+                            }, 2000);
+                            return;
+                        }
 
-                    // Check if user is admin
-                    const user = window.HybridAuthClient.getCurrentUser();
-                    if (user && user.role !== 'admin') {
-                        showToast('Admin privileges required.', 'error');
-                        setTimeout(() => {
-                            window.location.href = './marketplace.html';
-                        }, 2000);
-                        return;
+                        // Check if user is admin
+                        const user = window.HybridAuthClient.getCurrentUser();
+                        console.log('👤 Current user:', user);
+                        
+                        if (user && user.role !== 'admin') {
+                            console.log('❌ User is not admin, role:', user.role);
+                            showToast('Admin privileges required.', 'error');
+                            setTimeout(() => {
+                                window.location.href = './marketplace.html';
+                            }, 2000);
+                            return;
+                        }
+                        
+                        console.log('✅ Admin authentication successful');
+                    } else {
+                        throw new Error('HybridAuthClient.isAuthenticated is not a function');
                     }
                 }
-            } else {
-                // Show dev mode banner
-                showDevBanner();
-                console.log('🔧 DEV MODE: Skipping authentication checks');
-            }
 
-            await loadOrders();
-            await loadDashboardStats();
-        } catch (error) {
-            console.error('Admin portal initialization error:', error);
-            showToast('Failed to initialize admin portal', 'error');
-            showEmptyState();
-        } finally {
-            showLoading(false);
+                console.log('📊 Loading orders and dashboard stats...');
+                await loadOrders();
+                await loadDashboardStats();
+                console.log('✅ Admin portal initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Admin portal initialization error:', error);
+                showToast(`Failed to initialize admin portal: ${error.message}`, 'error');
+                showEmptyState();
+            } finally {
+                showLoading(false);
+            }
         }
-    }
 
         // Load all orders (admin endpoint)
         async function loadOrders() {
