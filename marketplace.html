@@ -1699,10 +1699,15 @@
                 <ul class="nav-links">
                     <li><a href="#" class="nav-link active"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="#products" class="nav-link"><i class="fas fa-box"></i> Products</a></li>
+                    <li><a href="my-orders.html" class="nav-link"><i class="fas fa-list-alt"></i> Orders</a></li>
                     <li><a href="#" class="nav-link"><i class="fas fa-tags"></i> Deals</a></li>
                 </ul>
                 <div class="user-actions">
                     <a href="#" class="action-btn btn-secondary" data-auth-required="true"><i class="fas fa-heart"></i> Wishlist</a>
+                    <a href="notification-preferences.html" class="action-btn btn-secondary" title="Manage notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+                    </a>
                     <a href="login.html" class="action-btn btn-secondary"><i class="fas fa-sign-in-alt"></i> Login</a>
                     <a href="cart.html" class="action-btn btn-primary">
                         <i class="fas fa-shopping-cart"></i> Cart
@@ -3766,8 +3771,10 @@
                 const handleTrack = () => {
                     const orderId = trackInput.value.trim();
                     if (orderId) {
-                        // Redirect to track-order page with the order ID
-                        window.location.href = `track-order.html?id=${encodeURIComponent(orderId)}`;
+                        // Use our new tracking system
+                        showToast('Opening order tracking...', 'info');
+                        window.open(`order-tracking.html?order=${encodeURIComponent(orderId)}`, '_blank');
+                        trackInput.value = ''; // Clear input after tracking
                     } else {
                         showToast('Please enter an Order ID to track', 'warning');
                     }
@@ -3781,7 +3788,7 @@
                     }
                 });
                 
-                console.log('✅ Quick order tracking widget initialized');
+                console.log('✅ Quick order tracking widget initialized with new tracking system');
             }
         }
         
@@ -4215,6 +4222,29 @@
             setTimeout(() => {
                 window.marketplacePersonalization = new MarketplacePersonalization();
             }, 500);
+        });
+    </script>
+    
+    <!-- Notification & Tracking Services -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="js/api/notification-service.js"></script>
+    <script src="js/api/tracking-service.js"></script>
+    <script src="js/api/push-notification-service.js"></script>
+    <script src="js/api/multi-channel-notification-service.js"></script>
+    
+    <script>
+        // Initialize notification system for marketplace
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if user wants to enable notifications after some browsing
+            setTimeout(() => {
+                if (window.pushNotificationService && 
+                    window.pushNotificationService.getPermissionStatus() === 'default') {
+                    // Show permission dialog after user has browsed for a bit
+                    setTimeout(() => {
+                        window.pushNotificationService.showPermissionDialog();
+                    }, 30000); // Show after 30 seconds
+                }
+            }, 5000);
         });
     </script>
 </body>

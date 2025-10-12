@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Management - Admin Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4338ca;
+            --primary-light: #a5b4fc;
+            --secondary: #f59e0b;
+            --accent: #10b981;
+            --accent-dark: #059669;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-light: #94a3b8;
+            --text-inverse: #ffffff;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+            
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            
+            --radius: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .admin-header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            height: fit-content;
+            position: sticky;
+            top: 120px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        /* Content Area */
+        .content-area {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            min-height: 80vh;
+        }
+
+        .content-header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .content-body {
+            padding: 2rem;
+        }
+
+        /* Notification Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+
+        .stat-card.success {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+        }
+
+        .stat-card.warning {
+            background: linear-gradient(135deg, var(--warning), #d97706);
+        }
+
+        .stat-card.info {
+            background: linear-gradient(135deg, var(--info), #1d4ed8);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-primary);
+            transition: var(--transition);
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Template Card */
+        .template-card {
+            background: var(--bg-tertiary);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1rem;
+            transition: var(--transition-bounce);
+        }
+
+        .template-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .template-title {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .template-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Send Form */
+        .send-notification-form {
+            background: var(--bg-tertiary);
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .recipient-options {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .radio-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Notification Preview */
+        .notification-preview {
+            background: var(--bg-dark);
+            color: var(--text-inverse);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-top: 1rem;
+            position: relative;
+        }
+
+        .preview-notification {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 1rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .preview-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .preview-content {
+            flex: 1;
+        }
+
+        .preview-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .preview-body {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Analytics Section */
+        .analytics-chart {
+            background: var(--bg-tertiary);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 2rem;
+        }
+
+        .chart-placeholder {
+            height: 300px;
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            font-size: 1.125rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 1rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Hidden sections */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Success/Error Messages */
+        .message {
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="header-content">
+            <div class="header-left">
+                <a href="/" class="logo">
+                    <i class="fas fa-bolt"></i>
+                    QuickLocal
+                </a>
+                <h1 class="page-title">Notification Management</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="testNotification()">
+                    <i class="fas fa-vial"></i>
+                    Test Push
+                </button>
+                <a href="admin-dashboard.html" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="#" class="menu-item active" data-section="send">
+                        <i class="fas fa-paper-plane"></i>
+                        Send Notification
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-section="templates">
+                        <i class="fas fa-file-alt"></i>
+                        Templates
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-section="schedule">
+                        <i class="fas fa-clock"></i>
+                        Scheduled
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-section="analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        Analytics
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="menu-item" data-section="settings">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Send Notification Section -->
+            <section class="content-section active" id="send-section">
+                <div class="content-header">
+                    <h2>Send Push Notification</h2>
+                    <p class="text-secondary">Send instant notifications to your users</p>
+                </div>
+                <div class="content-body">
+                    <!-- Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-subscribers">0</div>
+                            <div class="stat-label">Total Subscribers</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-value" id="active-users">0</div>
+                            <div class="stat-label">Active Users</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="delivery-rate">0%</div>
+                            <div class="stat-label">Delivery Rate</div>
+                        </div>
+                        <div class="stat-card info">
+                            <div class="stat-value" id="click-rate">0%</div>
+                            <div class="stat-label">Click Rate</div>
+                        </div>
+                    </div>
+
+                    <!-- Success/Error Messages -->
+                    <div id="success-message" class="message success">
+                        <i class="fas fa-check-circle"></i>
+                        Notification sent successfully!
+                    </div>
+                    <div id="error-message" class="message error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span id="error-text">Failed to send notification. Please try again.</span>
+                    </div>
+
+                    <!-- Send Form -->
+                    <form class="send-notification-form" id="send-notification-form">
+                        <div class="form-group">
+                            <label class="form-label">Recipients</label>
+                            <div class="recipient-options">
+                                <div class="radio-group">
+                                    <input type="radio" id="all-users" name="recipients" value="all" checked>
+                                    <label for="all-users">All Users</label>
+                                </div>
+                                <div class="radio-group">
+                                    <input type="radio" id="customers-only" name="recipients" value="customers">
+                                    <label for="customers-only">Customers Only</label>
+                                </div>
+                                <div class="radio-group">
+                                    <input type="radio" id="sellers-only" name="recipients" value="sellers">
+                                    <label for="sellers-only">Sellers Only</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="notification-title" class="form-label">Title</label>
+                                <input type="text" id="notification-title" class="form-input" placeholder="Notification title..." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="notification-type" class="form-label">Type</label>
+                                <select id="notification-type" class="form-select">
+                                    <option value="general">General</option>
+                                    <option value="promotion">Promotion</option>
+                                    <option value="order">Order Update</option>
+                                    <option value="system">System Alert</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notification-body" class="form-label">Message</label>
+                            <textarea id="notification-body" class="form-textarea" placeholder="Write your message here..." required></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="notification-url" class="form-label">Action URL (Optional)</label>
+                                <input type="url" id="notification-url" class="form-input" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label for="notification-image" class="form-label">Image URL (Optional)</label>
+                                <input type="url" id="notification-image" class="form-input" placeholder="https://...">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="radio-group">
+                                <input type="checkbox" id="require-interaction">
+                                <label for="require-interaction">Require user interaction</label>
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div class="notification-preview">
+                            <h4 style="color: var(--text-inverse); margin-bottom: 1rem;">Preview</h4>
+                            <div class="preview-notification">
+                                <div class="preview-icon">
+                                    <i class="fas fa-bell"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="preview-title" id="preview-title">Notification Title</div>
+                                    <div class="preview-body" id="preview-body">Your message will appear here...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                            <i class="fas fa-paper-plane"></i>
+                            Send Notification
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Templates Section -->
+            <section class="content-section" id="templates-section">
+                <div class="content-header">
+                    <h2>Notification Templates</h2>
+                    <p class="text-secondary">Manage reusable notification templates</p>
+                </div>
+                <div class="content-body">
+                    <button class="btn btn-primary" onclick="createTemplate()" style="margin-bottom: 2rem;">
+                        <i class="fas fa-plus"></i>
+                        New Template
+                    </button>
+                    
+                    <div id="templates-list">
+                        <!-- Templates will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics Section -->
+            <section class="content-section" id="analytics-section">
+                <div class="content-header">
+                    <h2>Notification Analytics</h2>
+                    <p class="text-secondary">Track notification performance and engagement</p>
+                </div>
+                <div class="content-body">
+                    <div class="analytics-chart">
+                        <h3 style="margin-bottom: 1rem;">Delivery Performance</h3>
+                        <div class="chart-placeholder">
+                            <i class="fas fa-chart-line" style="margin-right: 0.5rem;"></i>
+                            Chart will be rendered here
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Other sections placeholder -->
+            <section class="content-section" id="schedule-section">
+                <div class="content-header">
+                    <h2>Scheduled Notifications</h2>
+                    <p class="text-secondary">Manage scheduled notifications</p>
+                </div>
+                <div class="content-body">
+                    <p>Scheduled notifications feature coming soon...</p>
+                </div>
+            </section>
+
+            <section class="content-section" id="settings-section">
+                <div class="content-header">
+                    <h2>Notification Settings</h2>
+                    <p class="text-secondary">Configure notification preferences</p>
+                </div>
+                <div class="content-body">
+                    <p>Settings panel coming soon...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="js/api/notification-service.js"></script>
+    <script src="js/api/push-notification-service.js"></script>
+    <script>
+        // Navigation
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Update active menu item
+                document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Show corresponding section
+                const sectionId = item.dataset.section + '-section';
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+                document.getElementById(sectionId).classList.add('active');
+            });
+        });
+
+        // Load initial stats
+        async function loadStats() {
+            try {
+                const [subscribers, pushStats] = await Promise.all([
+                    window.pushNotificationService.getSubscriberCount(),
+                    window.pushNotificationService.getPushStats()
+                ]);
+
+                document.getElementById('total-subscribers').textContent = subscribers.count || 0;
+                document.getElementById('active-users').textContent = subscribers.activeCount || 0;
+                document.getElementById('delivery-rate').textContent = (pushStats.deliveryRate || 0) + '%';
+                document.getElementById('click-rate').textContent = (pushStats.clickRate || 0) + '%';
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        // Preview notification
+        function updatePreview() {
+            const title = document.getElementById('notification-title').value || 'Notification Title';
+            const body = document.getElementById('notification-body').value || 'Your message will appear here...';
+            
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-body').textContent = body;
+        }
+
+        // Event listeners for preview
+        document.getElementById('notification-title').addEventListener('input', updatePreview);
+        document.getElementById('notification-body').addEventListener('input', updatePreview);
+
+        // Send notification form
+        document.getElementById('send-notification-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const notificationData = {
+                title: formData.get('notification-title') || document.getElementById('notification-title').value,
+                body: formData.get('notification-body') || document.getElementById('notification-body').value,
+                recipients: document.querySelector('input[name="recipients"]:checked').value,
+                url: document.getElementById('notification-url').value,
+                image: document.getElementById('notification-image').value,
+                requireInteraction: document.getElementById('require-interaction').checked,
+                type: document.getElementById('notification-type').value
+            };
+
+            try {
+                await window.pushNotificationService.sendPushNotification(notificationData);
+                showMessage('success', 'Notification sent successfully!');
+                e.target.reset();
+                updatePreview();
+                loadStats(); // Refresh stats
+            } catch (error) {
+                console.error('Failed to send notification:', error);
+                showMessage('error', error.message || 'Failed to send notification');
+            }
+        });
+
+        // Show message
+        function showMessage(type, text) {
+            const successMsg = document.getElementById('success-message');
+            const errorMsg = document.getElementById('error-message');
+            
+            // Hide both messages first
+            successMsg.classList.remove('show');
+            errorMsg.classList.remove('show');
+            
+            if (type === 'success') {
+                successMsg.classList.add('show');
+                setTimeout(() => successMsg.classList.remove('show'), 5000);
+            } else {
+                document.getElementById('error-text').textContent = text;
+                errorMsg.classList.add('show');
+                setTimeout(() => errorMsg.classList.remove('show'), 5000);
+            }
+        }
+
+        // Test notification
+        async function testNotification() {
+            try {
+                await window.pushNotificationService.testPushNotification();
+                showMessage('success', 'Test notification sent!');
+            } catch (error) {
+                console.error('Test failed:', error);
+                showMessage('error', 'Test notification failed');
+            }
+        }
+
+        // Load templates (placeholder)
+        function loadTemplates() {
+            // This would load templates from the API
+            console.log('Loading templates...');
+        }
+
+        // Create template (placeholder)
+        function createTemplate() {
+            alert('Template creation feature coming soon!');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadTemplates();
+        });
+    </script>
+</body>
+</html>

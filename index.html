@@ -1625,5 +1625,38 @@
             Built with quantum computing principles 🌌
         `);
     </script>
+    
+    <!-- Notification & Tracking Services -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="js/api/notification-service.js"></script>
+    <script src="js/api/push-notification-service.js"></script>
+    
+    <script>
+        // Initialize basic notification system for homepage
+        document.addEventListener('DOMContentLoaded', () => {
+            // Show notification permission request after user has been on site for a bit
+            setTimeout(() => {
+                if (window.pushNotificationService && 
+                    window.pushNotificationService.getPermissionStatus() === 'default') {
+                    // Only show if user seems engaged (scrolled or clicked)
+                    let userEngaged = false;
+                    const handleEngagement = () => {
+                        userEngaged = true;
+                        document.removeEventListener('scroll', handleEngagement);
+                        document.removeEventListener('click', handleEngagement);
+                    };
+                    
+                    document.addEventListener('scroll', handleEngagement);
+                    document.addEventListener('click', handleEngagement);
+                    
+                    setTimeout(() => {
+                        if (userEngaged) {
+                            window.pushNotificationService.showPermissionDialog();
+                        }
+                    }, 45000); // Show after 45 seconds if engaged
+                }
+            }, 10000); // Wait 10 seconds before setting up
+        });
+    </script>
 </body>
 </html>
