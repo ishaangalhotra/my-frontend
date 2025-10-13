@@ -7,6 +7,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <!-- Advanced Cart System CSS -->
+    <link href="css/advanced-cart.css" rel="stylesheet">
+    
     <style>
         :root {
             --primary: #6366f1;
@@ -462,37 +465,9 @@
             <div class="loading-spinner"></div>
         </div>
 
-        <div id="cartContainer" class="cart-content" style="display: none;">
-            <div class="cart-items">
-                <div id="cartItemsList"></div>
-                 <button onclick="clearCart()" style="margin-top: 2rem; padding: 0.5rem 1rem; background-color: var(--error); color: white; border: none; border-radius: var(--radius); cursor: pointer;">
-                    <i class="fas fa-trash"></i> Clear Entire Cart
-                </button>
-            </div>
-            
-            <div class="cart-summary">
-                <h3 class="summary-title">Order Summary</h3>
-                <div class="summary-row">
-                    <span class="summary-label">Subtotal</span>
-                    <span class="summary-value" id="subtotal">₹0</span>
-                </div>
-                <div class="summary-row">
-                    <span class="summary-label">Delivery Fee</span>
-                    <span class="summary-value" id="deliveryFee">₹0</span>
-                </div>
-                <div class="summary-row">
-                    <span class="summary-label">Tax</span>
-                    <span class="summary-value" id="tax">₹0</span>
-                </div>
-                <div class="summary-row total">
-                    <span class="summary-label">Total</span>
-                    <span class="summary-value total" id="total">₹0</span>
-                </div>
-                <button class="checkout-btn" id="checkoutBtn">
-                    <i class="fas fa-credit-card"></i>
-                    Proceed to Checkout
-                </button>
-            </div>
+        <!-- Advanced Cart System Integration -->
+        <div id="cart-items-container">
+            <!-- This will be populated by the advanced cart system -->
         </div>
 
         <div id="emptyCart" class="empty-cart" style="display: none;">
@@ -508,361 +483,21 @@
 
     <div id="toastContainer" class="toast-container"></div>
 
+    <!-- Advanced Cart System Scripts -->
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
-
+    
     <script>
-        const appState = {
-            cart: null,
-            user: null,
-            isLoading: false
+        // App Configuration
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
         };
-    
-        const auth = {
-            isLoggedIn: () => {
-                return window.HybridAuthClient && 
-                       window.HybridAuthClient.getCurrentUser() !== null;
-            },
-            handleUnauthorized: () => {
-                showToast('Please login to view your cart', 'warning');
-                setTimeout(() => {
-                    window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
-                }, 1500);
-            },
-            getAuthHeader: () => {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    return window.HybridAuthClient.getAuthHeader();
-                }
-                return '';
-            }
-        };
-    
-        const api = {
-            async request(endpoint, options = {}) {
-                if (!window.HybridAuthClient) {
-                    throw new Error('Auth client not available');
-                }
-                try {
-                    const response = await window.HybridAuthClient.apiCall(endpoint, options);
-                    if (response.status === 401 || response.status === 403) {
-                        auth.handleUnauthorized();
-                        throw new Error('Unauthorized');
-                    }
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error("API response error text:", errorText);
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return await response.json();
-                } catch (error) {
-                    if (error.message !== 'Unauthorized') {
-                       console.error(`API Error [${endpoint}]:`, error);
-                    }
-                    throw error;
-                }
-            },
-            get: (endpoint) => api.request(endpoint, { method: 'GET' }),
-            post: (endpoint, data) => api.request(endpoint, { 
-                method: 'POST', 
-                body: JSON.stringify(data),
-                headers: { 'Content-Type': 'application/json' }
-            }),
-            patch: (endpoint, data) => api.request(endpoint, { 
-                method: 'PATCH', 
-                body: JSON.stringify(data),
-                headers: { 'Content-Type': 'application/json' }
-            }),
-            delete: (endpoint) => api.request(endpoint, { method: 'DELETE' })
-        };
-    
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🛒 Initializing Cart Page...');
-            
-            const waitForAuthClient = setInterval(() => {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    clearInterval(waitForAuthClient);
-                    console.log('✅ HybridAuthClient detected on Cart Page.');
-                    
-                    window.HybridAuthClient.onAuthStateChange(user => {
-                        console.log('🔄 Auth state changed in cart:', user ? 'Logged in' : 'Logged out');
-                        if (user) {
-                            appState.user = user;
-                            loadCart();
-                        } else {
-                            auth.handleUnauthorized();
-                        }
-                    });
-    
-                    window.HybridAuthClient.isAuthenticated().then(isAuth => {
-                        if (isAuth) {
-                            appState.user = window.HybridAuthClient.getCurrentUser();
-                            console.log(`👤 User session found: ${appState.user?.name}. Loading cart...`);
-                            loadCart();
-                        } else {
-                            console.log('👤 No active user session.');
-                            auth.handleUnauthorized();
-                        }
-                    }).catch(error => {
-                        console.error('Auth check failed:', error);
-                        auth.handleUnauthorized();
-                    });
-                }
-            }, 100);
-    
-            initializeEventListeners();
-        });
-    
-        function initializeEventListeners() {
-            document.getElementById('checkoutBtn')?.addEventListener('click', proceedToCheckout);
-        }
-    
-        async function loadCart() {
-            if (appState.isLoading) return;
-            appState.isLoading = true;
-            showLoading(true);
-            
-            try {
-                console.log('🛒 Loading cart data...');
-                const response = await api.get('/api/v1/cart');
-                
-                if (response.success && response.data) {
-                    appState.cart = response.data;
-                    console.log('✅ Cart loaded:', appState.cart);
-                    renderCart();
-                } else {
-                    console.log('🛒 Cart is empty');
-                    showEmptyCart();
-                }
-            } catch (error) {
-                if (error.message !== 'Unauthorized') {
-                    console.error('❌ Load cart error:', error);
-                    showToast(`Failed to load cart: ${error.message}`, 'error');
-                    showEmptyCart();
-                }
-            } finally {
-                appState.isLoading = false;
-                showLoading(false);
-            }
-        }
-    
-        function getSafeImageUrl(product) {
-            // ✅ FIX: Use a reliable inline SVG data URI as the final fallback.
-            // This requires no network request and will always render.
-            const fallbackImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e2e8f0'%3E%3Cpath d='M10 10h80v80H10z'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
 
-            if (product.images && product.images.length > 0) {
-                if (typeof product.images[0] === 'string' && product.images[0].startsWith('http')) {
-                    return product.images[0];
-                } else if (product.images[0].url && product.images[0].url.startsWith('http')) {
-                    return product.images[0].url;
-                }
-            }
-            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
-                return product.image;
-            }
-            return fallbackImage;
-        }
-
-        function renderCart() {
-            const cartContainer = document.getElementById('cartContainer');
-            const emptyCart = document.getElementById('emptyCart');
-            const cartItemsList = document.getElementById('cartItemsList');
-            
-            if (!appState.cart || !appState.cart.items || appState.cart.items.length === 0) {
-                showEmptyCart();
-                return;
-            }
-            
-            cartContainer.style.display = 'grid';
-            emptyCart.style.display = 'none';
-            
-            // ✅ FIX: Use the same reliable data URI for the onerror handler.
-            const fallbackImageOnError = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e2e8f0'%3E%3Cpath d='M10 10h80v80H10z'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
-            
-            cartItemsList.innerHTML = appState.cart.items.map(item => {
-                const product = item.product;
-                if (!product) return '';
-                
-                const itemPrice = product.price || item.price;
-                const itemTotal = itemPrice * item.quantity;
-                const productId = product._id || product.id;
-                
-                return `
-                    <div class="cart-item" data-product-id="${productId}">
-                        <img src="${getSafeImageUrl(product)}" 
-                             alt="${product.name}" class="item-image"
-                             onerror="this.onerror=null;this.src='${fallbackImageOnError}';">
-                        <div class="item-info">
-                            <div class="item-name">${product.name}</div>
-                            <div class="item-price">₹${itemPrice.toLocaleString()} × ${item.quantity} = <strong>₹${itemTotal.toLocaleString()}</strong></div>
-                        </div>
-                        <div class="item-actions">
-                            <div class="quantity-controls">
-                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity - 1})">
-                                    <i class="fas fa-minus"></i>
-                                </button>
-                                <span class="quantity">${item.quantity}</span>
-                                <button class="qty-btn" onclick="updateQuantity('${productId}', ${item.quantity + 1})">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <button class="remove-btn" onclick="removeItem('${productId}')" title="Remove from cart">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            updateCartSummary(appState.cart.pricing);
-        }
-    
-        function updateCartSummary(pricingData) {
-            // Handle both direct pricing data and full cart response from appState
-            const pricing = pricingData ? pricingData : (appState.cart ? appState.cart.pricing : null);
-
-            if (!pricing) {
-                console.warn('No pricing data available to update cart summary.');
-                document.getElementById('subtotal').textContent = '₹0';
-                document.getElementById('deliveryFee').textContent = '₹0';
-                document.getElementById('tax').textContent = '₹0';
-                document.getElementById('total').textContent = '₹0';
-                const checkoutBtn = document.getElementById('checkoutBtn');
-                if(checkoutBtn) checkoutBtn.disabled = true;
-                return;
-            }
-
-            document.getElementById('subtotal').textContent = `₹${(pricing.subtotal || 0).toLocaleString()}`;
-            document.getElementById('deliveryFee').textContent = `₹${(pricing.deliveryFee || 0).toLocaleString()}`;
-            document.getElementById('tax').textContent = `₹${(pricing.tax || 0).toLocaleString()}`;
-            document.getElementById('total').textContent = `₹${(pricing.total || 0).toLocaleString()}`;
-
-            // Update checkout button state
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            if (checkoutBtn) {
-                checkoutBtn.disabled = !(pricing.subtotal > 0);
-            }
-            
-            console.log('🔄 Cart summary updated:', pricing);
-        }
-    
-        async function updateQuantity(productId, newQuantity) {
-            if (newQuantity <= 0) {
-                return await removeItem(productId);
-            }
-            try {
-                console.log(`🔄 Updating quantity for ${productId} to ${newQuantity}`);
-                const response = await api.patch(`/api/v1/cart/items/${productId}`, {
-                    quantity: newQuantity
-                });
-                
-                if (response.success) {
-                     // ✅ CRITICAL: Update the local cart state with the fresh data from response
-                    if (response.data && response.data.pricing) {
-                        // Update the cart summary immediately with fresh data
-                        updateCartSummary(response.data.pricing);
-                        
-                        // Also update the specific item in the UI
-                        const quantityElement = document.querySelector(`[data-product-id="${productId}"] .quantity`);
-                        if (quantityElement) {
-                        quantityElement.textContent = newQuantity;
-                        }
-                        
-                        // Update item total price if displayed
-                        const itemTotalElement = document.querySelector(`[data-product-id="${productId}"] .item-price`);
-                        if (itemTotalElement && response.data.items) {
-                            const updatedItem = response.data.items.find(item => 
-                                item.product._id === productId || item.product.id === productId
-                            );
-                            if (updatedItem) {
-                                const itemPrice = updatedItem.product.price || updatedItem.priceAtAdd;
-                                const itemTotal = itemPrice * newQuantity;
-                                itemTotalElement.innerHTML = `₹${itemPrice.toLocaleString()} × ${newQuantity} = <strong>₹${itemTotal.toLocaleString()}</strong>`;
-                            }
-                        }
-                        
-                        showToast('Quantity updated!', 'success');
-                    } else {
-                        // Fallback: reload entire cart if pricing not in response
-                        await loadCart();
-                        showToast('Quantity updated!', 'success');
-                    }
-                } else {
-                    throw new Error(response.message || 'Failed to update quantity');
-                }
-            } catch (error) {
-                if(error.message !== 'Unauthorized') {
-                    console.error('❌ Update quantity error:', error);
-                    showToast(`Failed to update quantity: ${error.message}`, 'error');
-                     // Reload cart to ensure UI is in sync
-                    await loadCart();
-                }
-            }
-        }
-    
-        async function removeItem(productId) {
-            try {
-                console.log(`🗑️ Removing item: ${productId}`);
-                const response = await api.delete(`/api/v1/cart/items/${productId}`);
-                
-                if (response.success) {
-                    await loadCart();
-                    showToast('Item removed from cart!', 'success');
-                } else {
-                    throw new Error(response.message || 'Failed to remove item');
-                }
-            } catch (error) {
-                if(error.message !== 'Unauthorized') {
-                    console.error('❌ Remove item error:', error);
-                    showToast(`Failed to remove item: ${error.message}`, 'error');
-                }
-            }
-        }
-    
-        async function clearCart() {
-            try {
-                console.log('🗑️ Clearing entire cart...');
-                const response = await api.delete('/api/v1/cart/clear');
-                
-                if (response.success) {
-                    await loadCart();
-                    showToast('Cart cleared successfully!', 'success');
-                } else {
-                    throw new Error(response.message || 'Failed to clear cart');
-                }
-            } catch (error) {
-                console.error('❌ Clear cart error:', error);
-                showToast(`Failed to clear cart: ${error.message}`, 'error');
-            }
-        }
-    
-        function proceedToCheckout() {
-            if (!appState.cart || !appState.cart.items || appState.cart.items.length === 0) {
-                showToast('Your cart is empty', 'warning');
-                return;
-            }
-            window.location.href = 'checkout.html';
-        }
-    
-        function showEmptyCart() {
-            document.getElementById('cartContainer').style.display = 'none';
-            document.getElementById('emptyCart').style.display = 'block';
-            document.getElementById('loadingContainer').style.display = 'none';
-        }
-    
-        function showLoading(isLoading) {
-            const loadingContainer = document.getElementById('loadingContainer');
-            const cartContainer = document.getElementById('cartContainer');
-            const emptyCart = document.getElementById('emptyCart');
-            
-            if (isLoading) {
-                loadingContainer.style.display = 'flex';
-                cartContainer.style.display = 'none';
-                emptyCart.style.display = 'none';
-            } else {
-                loadingContainer.style.display = 'none';
-            }
-        }
-    
+        // Toast notification system
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             if (!container) return;
@@ -895,11 +530,125 @@
                 setTimeout(() => toast.remove(), 300);
             });
         }
-    
-        // Make functions globally accessible
-        window.updateQuantity = updateQuantity;
-        window.removeItem = removeItem;
-        window.clearCart = clearCart;
+
+        // Make it globally available
+        window.showToast = showToast;
+
+        // Demo function to add sample items for testing
+        function addDemoItems() {
+            if (window.advancedCart) {
+                const demoProducts = [
+                    {
+                        id: 'demo1',
+                        name: 'Fresh Organic Milk (1L)',
+                        price: 65,
+                        finalPrice: 58,
+                        discountPercentage: 10,
+                        image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&crop=center',
+                        stock: 50,
+                        seller: { name: 'Local Dairy Farm' },
+                        category: { name: 'Dairy' },
+                        deliveryInfo: { time: '15-20 mins', fee: 0 }
+                    },
+                    {
+                        id: 'demo2',
+                        name: 'Premium Basmati Rice (1kg)',
+                        price: 180,
+                        finalPrice: 162,
+                        discountPercentage: 10,
+                        image: 'https://images.unsplash.com/photo-1586201375761-83865001e6c8?w=400&h=400&fit=crop&crop=center',
+                        stock: 30,
+                        seller: { name: 'Grain Store' },
+                        category: { name: 'Groceries' },
+                        deliveryInfo: { time: '20-30 mins', fee: 25 }
+                    },
+                    {
+                        id: 'demo3',
+                        name: 'Fresh Tomatoes (500g)',
+                        price: 40,
+                        finalPrice: 35,
+                        discountPercentage: 12,
+                        image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&h=400&fit=crop&crop=center',
+                        stock: 20,
+                        seller: { name: 'Fresh Vegetables Co.' },
+                        category: { name: 'Vegetables' },
+                        deliveryInfo: { time: '15-25 mins', fee: 0 }
+                    }
+                ];
+
+                // Add demo items to cart
+                demoProducts.forEach(product => {
+                    const cartItem = {
+                        cartId: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        productId: product.id,
+                        name: product.name,
+                        price: product.finalPrice || product.price,
+                        originalPrice: product.price,
+                        discount: product.discountPercentage || 0,
+                        image: product.image,
+                        quantity: Math.floor(Math.random() * 3) + 1, // Random quantity 1-3
+                        variant: null,
+                        stock: product.stock,
+                        seller: product.seller,
+                        category: product.category,
+                        deliveryInfo: product.deliveryInfo,
+                        addedAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    window.advancedCart.cart.push(cartItem);
+                });
+
+                window.advancedCart.saveCart();
+                window.advancedCart.updateCartUI();
+                showToast('Demo items added to cart!', 'success');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add demo button for testing
+            const cartHeader = document.querySelector('.cart-header');
+            if (cartHeader) {
+                const demoButton = document.createElement('button');
+                demoButton.textContent = '+ Add Demo Items (for testing)';
+                demoButton.style.cssText = `
+                    background: linear-gradient(135deg, var(--primary), var(--secondary));
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: var(--radius-lg);
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-top: 10px;
+                    transition: var(--transition);
+                `;
+                demoButton.onclick = () => {
+                    if (window.advancedCart && window.advancedCart.cart.length === 0) {
+                        addDemoItems();
+                    } else if (window.advancedCart) {
+                        showToast('Cart already has items! Clear cart first to add demo items.', 'info');
+                    } else {
+                        showToast('Advanced cart system not loaded yet. Please wait.', 'warning');
+                    }
+                };
+                
+                cartHeader.appendChild(demoButton);
+            }
+
+            // Auto-add demo items if cart is empty
+            setTimeout(() => {
+                if (window.advancedCart && window.advancedCart.cart.length === 0) {
+                    addDemoItems();
+                }
+            }, 1500);
+
+            console.log('🛒 Enhanced Cart Page initialized!');
+        });
     </script>
+    
+    <!-- Load Advanced Cart System -->
+    <script src="js/advanced-cart.js"></script>
 </body>
 </html>

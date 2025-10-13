@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="css/product-cards.css">
     <link rel="stylesheet" href="css/enhanced-marketplace.css">
     <link rel="stylesheet" href="css/mobile-responsive.css">
+    <link rel="stylesheet" href="css/advanced-search.css">
+    <link rel="stylesheet" href="css/advanced-cart.css">
     
     <style>
         :root {
@@ -1681,12 +1683,115 @@
                     <i class="fas fa-rocket"></i> QuickLocal
                 </a>
                 <div class="search-container">
-                    <div class="search-wrapper">
-                        <input type="text" class="search-input" placeholder="Search for products, brands, and more..." id="globalSearchInput">
-                        <button class="search-btn" id="globalSearchBtn"><i class="fas fa-search"></i></button>
-                        <!-- Smart suggestions dropdown -->
-                        <div class="smart-suggestions" id="smartSuggestions">
-                            <!-- Populated dynamically -->
+                    <!-- Advanced Search System Integration -->
+                    <div class="advanced-search-wrapper">
+                        <div class="search-input-container">
+                            <input type="text" class="search-input" placeholder="Search for products, brands, and more..." autocomplete="off" id="globalSearchInput">
+                            <button class="voice-search-btn" aria-label="Voice Search">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="search-btn" aria-label="Search" id="globalSearchBtn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <div class="search-loader hidden">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Autocomplete Dropdown -->
+                        <div class="autocomplete-dropdown hidden">
+                            <div class="search-suggestions">
+                                <div class="suggestion-section">
+                                    <h4><i class="fas fa-clock"></i> Recent Searches</h4>
+                                    <div class="recent-searches"></div>
+                                </div>
+                                <div class="suggestion-section">
+                                    <h4><i class="fas fa-fire"></i> Popular Searches</h4>
+                                    <div class="popular-searches"></div>
+                                </div>
+                                <div class="suggestion-section auto-suggestions">
+                                    <h4><i class="fas fa-search"></i> Suggestions</h4>
+                                    <div class="suggestion-results"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Filters Panel -->
+                        <div class="filters-panel hidden" style="display: none;">
+                            <div class="filters-header">
+                                <h3><i class="fas fa-filter"></i> Advanced Filters</h3>
+                                <button class="close-filters">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="filters-content">
+                                <!-- Category Filter -->
+                                <div class="filter-group">
+                                    <h4>Category</h4>
+                                    <div class="category-filters">
+                                        <label><input type="checkbox" value="groceries"> <span>Groceries</span></label>
+                                        <label><input type="checkbox" value="electronics"> <span>Electronics</span></label>
+                                        <label><input type="checkbox" value="personal-care"> <span>Personal Care</span></label>
+                                        <label><input type="checkbox" value="home-kitchen"> <span>Home & Kitchen</span></label>
+                                        <label><input type="checkbox" value="fashion"> <span>Fashion</span></label>
+                                        <label><input type="checkbox" value="health"> <span>Health & Wellness</span></label>
+                                    </div>
+                                </div>
+
+                                <!-- Price Range Filter -->
+                                <div class="filter-group">
+                                    <h4>Price Range</h4>
+                                    <div class="price-range-container">
+                                        <div class="price-inputs">
+                                            <input type="number" class="price-min" placeholder="Min" value="0">
+                                            <span>to</span>
+                                            <input type="number" class="price-max" placeholder="Max" value="10000">
+                                        </div>
+                                        <div class="price-slider">
+                                            <input type="range" class="range-min" min="0" max="10000" value="0">
+                                            <input type="range" class="range-max" min="0" max="10000" value="10000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Rating Filter -->
+                                <div class="filter-group">
+                                    <h4>Customer Rating</h4>
+                                    <div class="rating-filters">
+                                        <label><input type="radio" name="rating" value="4"> <span class="stars">★★★★☆</span> 4 & above</label>
+                                        <label><input type="radio" name="rating" value="3"> <span class="stars">★★★☆☆</span> 3 & above</label>
+                                        <label><input type="radio" name="rating" value="2"> <span class="stars">★★☆☆☆</span> 2 & above</label>
+                                        <label><input type="radio" name="rating" value="0" checked> <span>All Ratings</span></label>
+                                    </div>
+                                </div>
+
+                                <!-- Delivery Time Filter -->
+                                <div class="filter-group">
+                                    <h4>Delivery Time</h4>
+                                    <div class="delivery-filters">
+                                        <label><input type="radio" name="delivery" value="20min"> <span>20 minutes</span></label>
+                                        <label><input type="radio" name="delivery" value="1hour"> <span>Within 1 hour</span></label>
+                                        <label><input type="radio" name="delivery" value="sameday"> <span>Same day</span></label>
+                                        <label><input type="radio" name="delivery" value="all" checked> <span>All delivery times</span></label>
+                                    </div>
+                                </div>
+
+                                <!-- Availability Filter -->
+                                <div class="filter-group">
+                                    <h4>Availability</h4>
+                                    <div class="availability-filters">
+                                        <label><input type="checkbox" class="in-stock-filter"> <span>In Stock Only</span></label>
+                                        <label><input type="checkbox" class="discount-filter"> <span>On Sale</span></label>
+                                        <label><input type="checkbox" class="new-arrivals-filter"> <span>New Arrivals</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="filters-actions">
+                                <button class="apply-filters-btn">Apply Filters</button>
+                                <button class="clear-filters-btn">Clear All</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4222,6 +4327,105 @@
             setTimeout(() => {
                 window.marketplacePersonalization = new MarketplacePersonalization();
             }, 500);
+        });
+    </script>
+    
+    <!-- Advanced Search System -->
+    <script src="js/advanced-search.js"></script>
+    
+    <!-- Advanced Cart System -->
+    <script src="js/advanced-cart.js"></script>
+    
+    <script>
+        // Integration bridge for Advanced Search System
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for advanced search to initialize
+            setTimeout(() => {
+                if (window.advancedSearch) {
+                    console.log('🔍 Advanced Search System initialized');
+                    
+                    // Listen for search results from advanced search
+                    document.addEventListener('searchResults', (event) => {
+                        const { results, query, loading, error } = event.detail;
+                        
+                        if (loading) {
+                            // Show loading state
+                            if (window.showToast) {
+                                showToast('Searching...', 'info');
+                            }
+                            return;
+                        }
+                        
+                        if (error) {
+                            if (window.showToast) {
+                                showToast(error, 'error');
+                            }
+                            return;
+                        }
+                        
+                        if (results) {
+                            // Update the current search in app state
+                            if (window.appState) {
+                                window.appState.currentFilters.search = query;
+                            }
+                            
+                            // Trigger the existing search functionality
+                            if (window.applyAllFilters) {
+                                window.applyAllFilters();
+                            } else if (window.loadProducts) {
+                                window.loadProducts();
+                            }
+                            
+                            // Scroll to products section
+                            const productsSection = document.getElementById('products');
+                            if (productsSection) {
+                                productsSection.scrollIntoView({ behavior: 'smooth' });
+                            }
+                            
+                            if (window.showToast) {
+                                showToast(`Found products for "${query}"`, 'success');
+                            }
+                        }
+                    });
+                    
+                    // Integrate with existing search input if it exists
+                    const existingSearchInput = document.getElementById('search-input') || document.getElementById('globalSearchInput');
+                    if (existingSearchInput && window.advancedSearch) {
+                        // Sync search queries between systems
+                        existingSearchInput.addEventListener('input', (e) => {
+                            if (window.advancedSearch.setSearchQuery) {
+                                window.advancedSearch.setSearchQuery(e.target.value);
+                            }
+                        });
+                    }
+                    
+                    // Add filters button to show advanced filters
+                    const searchContainer = document.querySelector('.search-container');
+                    if (searchContainer && window.advancedSearch) {
+                        const filtersBtn = document.createElement('button');
+                        filtersBtn.className = 'filters-toggle-btn';
+                        filtersBtn.innerHTML = '<i class="fas fa-filter"></i> Filters';
+                        filtersBtn.style.cssText = `
+                            margin-left: 10px;
+                            padding: 8px 16px;
+                            background: #007bff;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        `;
+                        
+                        filtersBtn.addEventListener('click', () => {
+                            if (window.advancedSearch.showFilters) {
+                                window.advancedSearch.showFilters();
+                            }
+                        });
+                        
+                        searchContainer.appendChild(filtersBtn);
+                    }
+                }
+            }, 1000);
         });
     </script>
     
