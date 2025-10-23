@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Your Order - QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4338ca;
+            --primary-light: #a5b4fc;
+            --secondary: #f59e0b;
+            --accent: #10b981;
+            --accent-dark: #059669;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-light: #94a3b8;
+            --text-inverse: #ffffff;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+            
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            
+            --radius: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .back-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+        }
+
+        /* Order Info */
+        .order-info {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .order-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .order-number {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .order-date {
+            opacity: 0.9;
+            font-size: 0.875rem;
+        }
+
+        /* Status Timeline */
+        .status-timeline {
+            padding: 2rem;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 40px;
+            bottom: -20px;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item:last-child::after {
+            display: none;
+        }
+
+        .timeline-item.active::after {
+            background: var(--primary);
+        }
+
+        .timeline-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+            color: var(--text-light);
+            border: 2px solid var(--border);
+        }
+
+        .timeline-item.completed .timeline-icon {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .timeline-item.active .timeline-icon {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .timeline-item.active .timeline-time {
+            color: var(--primary);
+        }
+
+        /* Tracking Map */
+        .tracking-section {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .tracking-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tracking-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .eta-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .eta-badge {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-full);
+            font-weight: 600;
+        }
+
+        .map-container {
+            height: 300px;
+            position: relative;
+        }
+
+        #delivery-map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .delivery-info {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .delivery-person {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .delivery-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-full);
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .delivery-details {
+            flex: 1;
+        }
+
+        .delivery-name {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .delivery-rating {
+            color: var(--secondary);
+            font-size: 0.875rem;
+        }
+
+        .contact-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            text-decoration: none;
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Order Summary */
+        .order-summary {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+        }
+
+        .summary-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .order-items {
+            list-style: none;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .order-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 500;
+        }
+
+        .item-quantity {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .item-price {
+            font-weight: 600;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin: 1.5rem 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: var(--radius-full);
+            transition: width 0.5s ease;
+        }
+
+        /* Live Status Badge */
+        .live-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--success);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-full);
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: var(--radius-full);
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .tracking-section {
+                order: -1;
+            }
+
+            .map-container {
+                height: 250px;
+            }
+        }
+
+        /* Notification styles */
+        .notification-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            border-radius: var(--radius);
+            padding: 1rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 1001;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .notification-toast.success {
+            border-left-color: var(--success);
+        }
+
+        .notification-toast.warning {
+            border-left-color: var(--warning);
+        }
+
+        .notification-toast.error {
+            border-left-color: var(--error);
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .toast-icon {
+            color: var(--primary);
+            margin-top: 0.125rem;
+        }
+
+        .toast-message {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .toast-body {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+
+        .toast-close:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <i class="fas fa-bolt"></i>
+                QuickLocal
+            </a>
+            <a href="javascript:history.back()" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Order Information -->
+        <div class="order-info">
+            <!-- Order Header -->
+            <div class="order-header">
+                <div class="order-number" id="order-number">Order #QL123456789</div>
+                <div class="order-date" id="order-date">Placed on March 15, 2024 at 2:30 PM</div>
+            </div>
+
+            <!-- Live Status -->
+            <div style="padding: 1.5rem 2rem 0;">
+                <div class="live-status">
+                    <div class="live-indicator"></div>
+                    Live Tracking Active
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Order Progress</span>
+                        <span id="progress-percentage">65%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 65%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Timeline -->
+            <div class="status-timeline" id="status-timeline">
+                <!-- Timeline items will be populated by JavaScript -->
+            </div>
+
+            <!-- Order Summary -->
+            <div class="order-summary">
+                <h3 class="summary-title">Order Summary</h3>
+                <ul class="order-items" id="order-items">
+                    <!-- Order items will be populated by JavaScript -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Tracking Section -->
+        <div class="tracking-section">
+            <!-- Tracking Header -->
+            <div class="tracking-header">
+                <h2 class="tracking-title">
+                    <i class="fas fa-map-marked-alt"></i>
+                    Live Delivery Tracking
+                </h2>
+                <div class="eta-info">
+                    <div class="eta-badge" id="eta-badge">ETA: 15 min</div>
+                    <span id="distance-info">2.3 km away</span>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="delivery-map"></div>
+            </div>
+
+            <!-- Delivery Person Info -->
+            <div class="delivery-info">
+                <div class="delivery-person">
+                    <div class="delivery-avatar" id="delivery-avatar">JD</div>
+                    <div class="delivery-details">
+                        <div class="delivery-name" id="delivery-name">John Doe</div>
+                        <div class="delivery-rating">
+                            <i class="fas fa-star"></i>
+                            <span id="delivery-rating">4.9 (234 reviews)</span>
+                        </div>
+                    </div>
+                    <div class="contact-buttons">
+                        <button class="btn btn-secondary" onclick="callDeliveryPerson()">
+                            <i class="fas fa-phone"></i>
+                        </button>
+                        <button class="btn btn-primary" onclick="messageDeliveryPerson()">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="js/api/tracking-service.js"></script>
+    <script src="js/api/notification-service.js"></script>
+    
+    <script>
+        // Global variables
+        let orderId = null;
+        let map = null;
+        let deliveryMarker = null;
+        let customerMarker = null;
+        let routeLine = null;
+        let trackingUnsubscribe = null;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get order ID from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            orderId = urlParams.get('order') || 'demo123';
+            
+            if (orderId) {
+                initializeTracking();
+            } else {
+                showNotification('Error', 'No order ID provided', 'error');
+            }
+        });
+
+        // Initialize tracking
+        async function initializeTracking() {
+            try {
+                // Load order data
+                await loadOrderData();
+                
+                // Initialize map
+                initializeMap();
+                
+                // Subscribe to real-time updates
+                subscribeToUpdates();
+                
+                // Load initial tracking data
+                await updateTrackingData();
+                
+            } catch (error) {
+                console.error('Failed to initialize tracking:', error);
+                showNotification('Error', 'Failed to load order tracking', 'error');
+            }
+        }
+
+        // Load order data
+        async function loadOrderData() {
+            // In a real implementation, this would fetch from the API
+            // For demo purposes, we'll use mock data
+            const mockOrderData = {
+                orderNumber: 'QL123456789',
+                date: new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                items: [
+                    { name: 'Fresh Vegetables Pack', quantity: 2, price: '$24.99' },
+                    { name: 'Organic Milk', quantity: 1, price: '$4.50' },
+                    { name: 'Whole Wheat Bread', quantity: 1, price: '$3.25' }
+                ],
+                deliveryPerson: {
+                    name: 'John Doe',
+                    rating: '4.9 (234 reviews)',
+                    avatar: 'JD',
+                    phone: '+1234567890'
+                }
+            };
+
+            // Update UI
+            document.getElementById('order-number').textContent = `Order #${mockOrderData.orderNumber}`;
+            document.getElementById('order-date').textContent = `Placed on ${mockOrderData.date}`;
+            document.getElementById('delivery-name').textContent = mockOrderData.deliveryPerson.name;
+            document.getElementById('delivery-rating').textContent = mockOrderData.deliveryPerson.rating;
+            document.getElementById('delivery-avatar').textContent = mockOrderData.deliveryPerson.avatar;
+
+            // Update order items
+            const itemsContainer = document.getElementById('order-items');
+            itemsContainer.innerHTML = mockOrderData.items.map(item => `
+                <li class="order-item">
+                    <div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-quantity">Qty: ${item.quantity}</div>
+                    </div>
+                    <div class="item-price">${item.price}</div>
+                </li>
+            `).join('');
+        }
+
+        // Initialize map
+        function initializeMap() {
+            // Initialize Leaflet map
+            map = L.map('delivery-map').setView([40.7128, -74.0060], 13); // NYC coordinates
+
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Customer location (destination)
+            customerMarker = L.marker([40.7128, -74.0060])
+                .addTo(map)
+                .bindPopup('<b>Delivery Address</b><br>Your location')
+                .openPopup();
+
+            // Delivery person location (will be updated in real-time)
+            deliveryMarker = L.marker([40.7589, -73.9851], {
+                icon: L.divIcon({
+                    className: 'delivery-marker',
+                    html: '<div style="background: #6366f1; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3);"><i class="fas fa-motorcycle" style="font-size: 12px;"></i></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(map).bindPopup('<b>Delivery Partner</b><br>John Doe');
+
+            // Draw route line
+            updateRoute();
+        }
+
+        // Update route on map
+        function updateRoute() {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            const deliveryPos = deliveryMarker.getLatLng();
+            const customerPos = customerMarker.getLatLng();
+
+            routeLine = L.polyline([deliveryPos, customerPos], {
+                color: '#6366f1',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            // Fit map to show both markers
+            const group = new L.featureGroup([deliveryMarker, customerMarker]);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+
+        // Subscribe to real-time updates
+        function subscribeToUpdates() {
+            if (window.trackingService) {
+                trackingUnsubscribe = window.trackingService.subscribeToOrderTracking(orderId, (data) => {
+                    handleTrackingUpdate(data);
+                });
+            }
+        }
+
+        // Handle tracking updates
+        function handleTrackingUpdate(data) {
+            console.log('Tracking update received:', data);
+
+            if (data.type === 'location') {
+                // Update delivery person location
+                updateDeliveryLocation(data.latitude, data.longitude);
+            } else if (data.type === 'eta') {
+                // Update ETA
+                updateETA(data.eta, data.distance);
+            } else if (data.type === 'status') {
+                // Update order status
+                updateOrderStatus(data.status, data.timestamp);
+            }
+
+            // Show notification for important updates
+            if (data.showNotification) {
+                showNotification(data.title || 'Order Update', data.message, data.type || 'info');
+            }
+        }
+
+        // Update delivery location on map
+        function updateDeliveryLocation(lat, lng) {
+            if (deliveryMarker && map) {
+                deliveryMarker.setLatLng([lat, lng]);
+                updateRoute();
+                
+                // Update distance
+                const customerPos = customerMarker.getLatLng();
+                const distance = map.distance([lat, lng], customerPos);
+                document.getElementById('distance-info').textContent = `${(distance / 1000).toFixed(1)} km away`;
+            }
+        }
+
+        // Update ETA display
+        function updateETA(eta, distance) {
+            if (eta) {
+                const etaText = window.trackingService ? window.trackingService.formatETA(eta) : eta;
+                document.getElementById('eta-badge').textContent = `ETA: ${etaText}`;
+            }
+            
+            if (distance) {
+                document.getElementById('distance-info').textContent = `${distance} away`;
+            }
+        }
+
+        // Update order status
+        function updateOrderStatus(status, timestamp) {
+            updateTimeline(status, timestamp);
+            updateProgress(status);
+        }
+
+        // Update timeline
+        function updateTimeline(currentStatus, timestamp) {
+            const timeline = window.trackingService ? window.trackingService.getStatusTimeline() : getDefaultTimeline();
+            const timelineContainer = document.getElementById('status-timeline');
+            
+            timelineContainer.innerHTML = timeline.map(item => {
+                const isCompleted = timeline.findIndex(t => t.status === currentStatus) >= timeline.findIndex(t => t.status === item.status);
+                const isActive = item.status === currentStatus;
+                
+                return `
+                    <div class="timeline-item ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}">
+                        <div class="timeline-icon" style="color: ${item.color}">
+                            <i class="${item.icon}"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">${item.title}</div>
+                            <div class="timeline-description">${item.description}</div>
+                            <div class="timeline-time">${isActive && timestamp ? new Date(timestamp).toLocaleTimeString() : ''}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update progress bar
+        function updateProgress(status) {
+            let progress = 0;
+            if (window.trackingService) {
+                progress = window.trackingService.calculateProgress(status);
+            } else {
+                // Default progress calculation
+                const statusMap = {
+                    'pending': 10,
+                    'confirmed': 20,
+                    'preparing': 40,
+                    'ready_for_pickup': 50,
+                    'picked_up': 65,
+                    'out_for_delivery': 85,
+                    'delivered': 100
+                };
+                progress = statusMap[status] || 0;
+            }
+            
+            document.getElementById('progress-fill').style.width = progress + '%';
+            document.getElementById('progress-percentage').textContent = progress + '%';
+        }
+
+        // Default timeline for demo
+        function getDefaultTimeline() {
+            return [
+                {
+                    status: 'pending',
+                    title: 'Order Received',
+                    description: 'Your order has been received and is being processed',
+                    icon: 'fas fa-clock',
+                    color: '#f59e0b'
+                },
+                {
+                    status: 'confirmed',
+                    title: 'Order Confirmed',
+                    description: 'Your order has been confirmed by the seller',
+                    icon: 'fas fa-check-circle',
+                    color: '#3b82f6'
+                },
+                {
+                    status: 'preparing',
+                    title: 'Preparing',
+                    description: 'Your order is being prepared for pickup',
+                    icon: 'fas fa-box-open',
+                    color: '#8b5cf6'
+                },
+                {
+                    status: 'out_for_delivery',
+                    title: 'Out for Delivery',
+                    description: 'Your order is on its way to you',
+                    icon: 'fas fa-shipping-fast',
+                    color: '#f97316'
+                },
+                {
+                    status: 'delivered',
+                    title: 'Delivered',
+                    description: 'Your order has been successfully delivered',
+                    icon: 'fas fa-check-double',
+                    color: '#22c55e'
+                }
+            ];
+        }
+
+        // Load initial tracking data
+        async function updateTrackingData() {
+            // Simulate real-time data for demo
+            setTimeout(() => {
+                updateOrderStatus('out_for_delivery', new Date().toISOString());
+                updateETA('15 min', '2.3 km');
+            }, 1000);
+
+            // Simulate location updates
+            let lat = 40.7589;
+            let lng = -73.9851;
+            
+            const locationInterval = setInterval(() => {
+                // Move delivery person closer to customer
+                lat += (40.7128 - lat) * 0.1;
+                lng += (-74.0060 - lng) * 0.1;
+                
+                updateDeliveryLocation(lat, lng);
+                
+                // Stop when close enough
+                if (Math.abs(lat - 40.7128) < 0.001 && Math.abs(lng + 74.0060) < 0.001) {
+                    clearInterval(locationInterval);
+                    updateOrderStatus('delivered', new Date().toISOString());
+                    showNotification('Order Delivered!', 'Your order has been successfully delivered', 'success');
+                }
+            }, 3000);
+        }
+
+        // Contact functions
+        function callDeliveryPerson() {
+            // In a real app, this would initiate a call
+            showNotification('Calling...', 'Connecting you with your delivery partner', 'info');
+            // window.open('tel:+1234567890');
+        }
+
+        function messageDeliveryPerson() {
+            // In a real app, this would open a chat interface
+            showNotification('Chat Feature', 'Chat functionality coming soon!', 'info');
+        }
+
+        // Show notification
+        function showNotification(title, message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification-toast ${type}`;
+            notification.innerHTML = `
+                <div class="toast-content">
+                    <div class="toast-icon">
+                        <i class="fas fa-${getNotificationIcon(type)}"></i>
+                    </div>
+                    <div class="toast-message">
+                        <div class="toast-title">${title}</div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Get notification icon
+        function getNotificationIcon(type) {
+            const icons = {
+                success: 'check-circle',
+                warning: 'exclamation-triangle',
+                error: 'exclamation-circle',
+                info: 'info-circle'
+            };
+            return icons[type] || 'bell';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (trackingUnsubscribe) {
+                trackingUnsubscribe();
+            }
+        });
+
+        // Listen for tracking updates from notifications
+        document.addEventListener('trackingUpdate', (event) => {
+            handleTrackingUpdate(event.detail);
+        });
+    </script>
+</body>
+</html>

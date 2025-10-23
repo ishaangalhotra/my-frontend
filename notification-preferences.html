@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Preferences - QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4338ca;
+            --primary-light: #a5b4fc;
+            --secondary: #f59e0b;
+            --accent: #10b981;
+            --accent-dark: #059669;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-light: #94a3b8;
+            --text-inverse: #ffffff;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-dark: #0f172a;
+            
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+            
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            
+            --radius: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .back-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+        }
+
+        /* Preferences Card */
+        .preferences-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .card-header {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+            background-opacity: 0.1;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-description {
+            color: var(--text-secondary);
+            font-size: 0.975rem;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        /* Notification Types */
+        .notification-type {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .notification-type:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .type-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .type-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .type-icon.order {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: white;
+        }
+
+        .type-icon.delivery {
+            background: linear-gradient(135deg, var(--info), #1d4ed8);
+            color: white;
+        }
+
+        .type-icon.promotion {
+            background: linear-gradient(135deg, var(--secondary), #d97706);
+            color: white;
+        }
+
+        .type-icon.system {
+            background: linear-gradient(135deg, var(--error), #dc2626);
+            color: white;
+        }
+
+        .type-content {
+            flex: 1;
+        }
+
+        .type-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .type-description {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Channel Options */
+        .channel-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .channel-option {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            transition: var(--transition-bounce);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .channel-option:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-light);
+        }
+
+        .channel-option.enabled {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            background-opacity: 0.1;
+        }
+
+        .channel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .channel-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: var(--border);
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-switch.enabled {
+            background: var(--primary);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: var(--radius-full);
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .toggle-switch.enabled .toggle-slider {
+            transform: translateX(24px);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-bounce);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Status Messages */
+        .status-message {
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .status-message.show {
+            display: flex;
+        }
+
+        /* Device Settings */
+        .device-settings {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .device-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .device-info {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .device-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .device-details {
+            flex: 1;
+        }
+
+        .device-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .device-status {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .device-status.active {
+            color: var(--success);
+        }
+
+        /* Privacy Notice */
+        .privacy-notice {
+            background: var(--bg-tertiary);
+            border-left: 4px solid var(--info);
+            padding: 1rem;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            margin-top: 2rem;
+        }
+
+        .privacy-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--info);
+        }
+
+        .privacy-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .channel-options {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions {
+                flex-direction: column;
+            }
+
+            .type-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+
+            .type-icon {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <i class="fas fa-bolt"></i>
+                QuickLocal
+            </a>
+            <a href="javascript:history.back()" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Notification Preferences</h1>
+            <p class="page-subtitle">Customize how and when you receive notifications from QuickLocal</p>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="success-message" class="status-message success">
+            <i class="fas fa-check-circle"></i>
+            <span>Your preferences have been saved successfully!</span>
+        </div>
+        <div id="error-message" class="status-message error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="error-text">Failed to save preferences. Please try again.</span>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="btn btn-primary" onclick="enableAllNotifications()">
+                <i class="fas fa-bell"></i>
+                Enable All
+            </button>
+            <button class="btn btn-secondary" onclick="disableAllNotifications()">
+                <i class="fas fa-bell-slash"></i>
+                Disable All
+            </button>
+            <button class="btn btn-secondary" onclick="testNotification()">
+                <i class="fas fa-vial"></i>
+                Send Test
+            </button>
+        </div>
+
+        <!-- Order Notifications -->
+        <div class="preferences-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-shopping-bag"></i>
+                    Order Notifications
+                </h2>
+                <p class="card-description">Get updates about your order status, confirmations, and delivery progress</p>
+            </div>
+            <div class="card-body">
+                <div class="notification-type">
+                    <div class="type-header">
+                        <div class="type-icon order">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="type-content">
+                            <h3 class="type-title">Order Updates</h3>
+                            <p class="type-description">Receive notifications when your order status changes</p>
+                        </div>
+                    </div>
+                    <div class="channel-options">
+                        <div class="channel-option enabled" data-type="order" data-channel="push">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <span class="channel-name">Push Notifications</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Instant notifications on your device</p>
+                        </div>
+                        <div class="channel-option enabled" data-type="order" data-channel="email">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-envelope"></i>
+                                    <span class="channel-name">Email</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Detailed order information via email</p>
+                        </div>
+                        <div class="channel-option" data-type="order" data-channel="sms">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-sms"></i>
+                                    <span class="channel-name">SMS</span>
+                                </div>
+                                <div class="toggle-switch">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Text message updates to your phone</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Notifications -->
+        <div class="preferences-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-truck"></i>
+                    Delivery Notifications
+                </h2>
+                <p class="card-description">Live tracking updates and delivery notifications for your orders</p>
+            </div>
+            <div class="card-body">
+                <div class="notification-type">
+                    <div class="type-header">
+                        <div class="type-icon delivery">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="type-content">
+                            <h3 class="type-title">Real-time Tracking</h3>
+                            <p class="type-description">Get live updates about your delivery location and ETA</p>
+                        </div>
+                    </div>
+                    <div class="channel-options">
+                        <div class="channel-option enabled" data-type="delivery" data-channel="push">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <span class="channel-name">Push Notifications</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Live tracking updates on your device</p>
+                        </div>
+                        <div class="channel-option" data-type="delivery" data-channel="email">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-envelope"></i>
+                                    <span class="channel-name">Email</span>
+                                </div>
+                                <div class="toggle-switch">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Delivery confirmations via email</p>
+                        </div>
+                        <div class="channel-option enabled" data-type="delivery" data-channel="sms">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-sms"></i>
+                                    <span class="channel-name">SMS</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Critical delivery updates via SMS</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Promotional Notifications -->
+        <div class="preferences-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-gift"></i>
+                    Promotional Notifications
+                </h2>
+                <p class="card-description">Special offers, discounts, and promotional content from QuickLocal</p>
+            </div>
+            <div class="card-body">
+                <div class="notification-type">
+                    <div class="type-header">
+                        <div class="type-icon promotion">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                        <div class="type-content">
+                            <h3 class="type-title">Deals & Offers</h3>
+                            <p class="type-description">Exclusive deals, discounts, and special promotions</p>
+                        </div>
+                    </div>
+                    <div class="channel-options">
+                        <div class="channel-option" data-type="promotion" data-channel="push">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <span class="channel-name">Push Notifications</span>
+                                </div>
+                                <div class="toggle-switch">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Flash sales and time-sensitive offers</p>
+                        </div>
+                        <div class="channel-option enabled" data-type="promotion" data-channel="email">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-envelope"></i>
+                                    <span class="channel-name">Email</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Weekly newsletter with deals and offers</p>
+                        </div>
+                        <div class="channel-option" data-type="promotion" data-channel="sms">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-sms"></i>
+                                    <span class="channel-name">SMS</span>
+                                </div>
+                                <div class="toggle-switch">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Exclusive SMS-only deals</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Notifications -->
+        <div class="preferences-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-cog"></i>
+                    System Notifications
+                </h2>
+                <p class="card-description">Important system updates, security alerts, and account notifications</p>
+            </div>
+            <div class="card-body">
+                <div class="notification-type">
+                    <div class="type-header">
+                        <div class="type-icon system">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="type-content">
+                            <h3 class="type-title">Security & Updates</h3>
+                            <p class="type-description">Critical security alerts and important system updates</p>
+                        </div>
+                    </div>
+                    <div class="channel-options">
+                        <div class="channel-option enabled" data-type="system" data-channel="push">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-mobile-alt"></i>
+                                    <span class="channel-name">Push Notifications</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Critical security alerts (Cannot be disabled)</p>
+                        </div>
+                        <div class="channel-option enabled" data-type="system" data-channel="email">
+                            <div class="channel-header">
+                                <div class="channel-info">
+                                    <i class="fas fa-envelope"></i>
+                                    <span class="channel-name">Email</span>
+                                </div>
+                                <div class="toggle-switch enabled">
+                                    <div class="toggle-slider"></div>
+                                </div>
+                            </div>
+                            <p class="channel-description">Account security notifications (Cannot be disabled)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Settings -->
+        <div class="preferences-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-devices"></i>
+                    Device Settings
+                </h2>
+                <p class="card-description">Manage notification settings for your devices</p>
+            </div>
+            <div class="card-body">
+                <div class="device-settings">
+                    <h3 class="device-title">
+                        <i class="fas fa-laptop"></i>
+                        Connected Devices
+                    </h3>
+                    <div class="device-info">
+                        <div class="device-icon">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        <div class="device-details">
+                            <div class="device-name">Chrome on Windows</div>
+                            <div class="device-status active">Active • Push notifications enabled</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="manageDeviceNotifications(this)">
+                            Manage
+                        </button>
+                    </div>
+                    <div class="device-info">
+                        <div class="device-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div class="device-details">
+                            <div class="device-name">Mobile Browser</div>
+                            <div class="device-status">Inactive • Enable push notifications</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="enablePushNotifications()">
+                            Enable
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Privacy Notice -->
+        <div class="privacy-notice">
+            <h3 class="privacy-title">Privacy & Data</h3>
+            <p class="privacy-text">
+                We respect your privacy. Notification preferences are stored securely and used only to deliver the notifications you've requested. 
+                You can change these settings at any time. Some security-related notifications cannot be disabled for account protection.
+            </p>
+        </div>
+
+        <!-- Save Button -->
+        <div style="text-align: center; margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="savePreferences()" style="padding: 1rem 2rem; font-size: 1.125rem;">
+                <i class="fas fa-save"></i>
+                Save Preferences
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="js/api/notification-service.js"></script>
+    <script src="js/api/push-notification-service.js"></script>
+
+    <script>
+        // Initialize preferences
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPreferences();
+            setupEventListeners();
+            checkPushNotificationStatus();
+        });
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Channel option clicks
+            document.querySelectorAll('.channel-option').forEach(option => {
+                // Skip system notifications (they cannot be disabled)
+                if (option.dataset.type === 'system') return;
+                
+                option.addEventListener('click', () => {
+                    toggleChannelOption(option);
+                });
+            });
+        }
+
+        // Toggle channel option
+        function toggleChannelOption(option) {
+            const toggle = option.querySelector('.toggle-switch');
+            const isEnabled = option.classList.contains('enabled');
+
+            if (isEnabled) {
+                option.classList.remove('enabled');
+                toggle.classList.remove('enabled');
+            } else {
+                option.classList.add('enabled');
+                toggle.classList.add('enabled');
+            }
+        }
+
+        // Load user preferences
+        async function loadPreferences() {
+            try {
+                if (window.notificationService) {
+                    const settings = await window.notificationService.getNotificationSettings();
+                    applySettings(settings);
+                }
+            } catch (error) {
+                console.error('Failed to load preferences:', error);
+            }
+        }
+
+        // Apply settings to UI
+        function applySettings(settings) {
+            if (!settings) return;
+
+            Object.keys(settings).forEach(type => {
+                Object.keys(settings[type]).forEach(channel => {
+                    const option = document.querySelector(`[data-type="${type}"][data-channel="${channel}"]`);
+                    if (option) {
+                        const toggle = option.querySelector('.toggle-switch');
+                        if (settings[type][channel]) {
+                            option.classList.add('enabled');
+                            toggle.classList.add('enabled');
+                        } else {
+                            option.classList.remove('enabled');
+                            toggle.classList.remove('enabled');
+                        }
+                    }
+                });
+            });
+        }
+
+        // Get current preferences from UI
+        function getCurrentPreferences() {
+            const preferences = {};
+
+            document.querySelectorAll('.channel-option').forEach(option => {
+                const type = option.dataset.type;
+                const channel = option.dataset.channel;
+                const isEnabled = option.classList.contains('enabled');
+
+                if (!preferences[type]) {
+                    preferences[type] = {};
+                }
+                preferences[type][channel] = isEnabled;
+            });
+
+            return preferences;
+        }
+
+        // Save preferences
+        async function savePreferences() {
+            try {
+                const preferences = getCurrentPreferences();
+                
+                if (window.notificationService) {
+                    await window.notificationService.updateNotificationSettings(preferences);
+                }
+                
+                showMessage('success', 'Your preferences have been saved successfully!');
+            } catch (error) {
+                console.error('Failed to save preferences:', error);
+                showMessage('error', 'Failed to save preferences. Please try again.');
+            }
+        }
+
+        // Enable all notifications
+        function enableAllNotifications() {
+            document.querySelectorAll('.channel-option').forEach(option => {
+                const toggle = option.querySelector('.toggle-switch');
+                option.classList.add('enabled');
+                toggle.classList.add('enabled');
+            });
+            showMessage('success', 'All notifications have been enabled!');
+        }
+
+        // Disable all notifications (except system)
+        function disableAllNotifications() {
+            document.querySelectorAll('.channel-option').forEach(option => {
+                // Don't disable system notifications
+                if (option.dataset.type === 'system') return;
+                
+                const toggle = option.querySelector('.toggle-switch');
+                option.classList.remove('enabled');
+                toggle.classList.remove('enabled');
+            });
+            showMessage('success', 'All optional notifications have been disabled!');
+        }
+
+        // Test notification
+        async function testNotification() {
+            try {
+                if (window.pushNotificationService) {
+                    await window.pushNotificationService.testPushNotification();
+                    showMessage('success', 'Test notification sent! Check your device.');
+                } else {
+                    // Fallback browser notification
+                    if ('Notification' in window) {
+                        const permission = await Notification.requestPermission();
+                        if (permission === 'granted') {
+                            new Notification('Test Notification', {
+                                body: 'This is a test notification from QuickLocal!',
+                                icon: '/images/notification-icon.png'
+                            });
+                            showMessage('success', 'Test notification sent!');
+                        } else {
+                            showMessage('error', 'Notification permission denied. Please enable notifications in your browser.');
+                        }
+                    } else {
+                        showMessage('error', 'Notifications are not supported in this browser.');
+                    }
+                }
+            } catch (error) {
+                console.error('Test notification failed:', error);
+                showMessage('error', 'Failed to send test notification.');
+            }
+        }
+
+        // Enable push notifications
+        async function enablePushNotifications() {
+            try {
+                if (window.pushNotificationService) {
+                    await window.pushNotificationService.subscribe();
+                    showMessage('success', 'Push notifications enabled successfully!');
+                    updateDeviceStatus();
+                } else {
+                    showMessage('error', 'Push notification service not available.');
+                }
+            } catch (error) {
+                console.error('Failed to enable push notifications:', error);
+                showMessage('error', 'Failed to enable push notifications. Please try again.');
+            }
+        }
+
+        // Check push notification status
+        async function checkPushNotificationStatus() {
+            try {
+                if (window.pushNotificationService) {
+                    const status = await window.pushNotificationService.getSubscriptionStatus();
+                    updateDeviceStatus(status);
+                }
+            } catch (error) {
+                console.error('Failed to check push notification status:', error);
+            }
+        }
+
+        // Update device status display
+        function updateDeviceStatus(status = null) {
+            const deviceInfos = document.querySelectorAll('.device-info');
+            
+            if (status && status.subscribed) {
+                deviceInfos.forEach(info => {
+                    const statusElement = info.querySelector('.device-status');
+                    const button = info.querySelector('button');
+                    
+                    if (statusElement.textContent.includes('Mobile Browser')) {
+                        statusElement.textContent = 'Active • Push notifications enabled';
+                        statusElement.classList.add('active');
+                        button.textContent = 'Manage';
+                        button.className = 'btn btn-secondary';
+                        button.onclick = () => manageDeviceNotifications(button);
+                    }
+                });
+            }
+        }
+
+        // Manage device notifications
+        function manageDeviceNotifications(button) {
+            showMessage('success', 'Device notification management coming soon!');
+        }
+
+        // Show status message
+        function showMessage(type, text) {
+            const successMsg = document.getElementById('success-message');
+            const errorMsg = document.getElementById('error-message');
+            
+            // Hide both messages first
+            successMsg.classList.remove('show');
+            errorMsg.classList.remove('show');
+            
+            if (type === 'success') {
+                successMsg.querySelector('span').textContent = text;
+                successMsg.classList.add('show');
+                setTimeout(() => successMsg.classList.remove('show'), 5000);
+            } else {
+                document.getElementById('error-text').textContent = text;
+                errorMsg.classList.add('show');
+                setTimeout(() => errorMsg.classList.remove('show'), 5000);
+            }
+        }
+    </script>
+</body>
+</html>

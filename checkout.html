@@ -6,6 +6,9 @@
     <title>🔒 Secure Checkout - QuickLocal</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Advanced Cart System CSS -->
+    <link href="css/advanced-cart.css" rel="stylesheet">
     <style>
         :root {
             --primary: #6366f1;
@@ -304,21 +307,37 @@
                     <span id="emailPreviewTotal">₹0</span>
                 </div>
             </div>
-            <button onclick="closeSuccessModal()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem;"><i class="fas fa-home"></i> Continue Shopping</button>
+            <div style="display:flex; gap:1rem; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+                <button onclick="viewMyOrders()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem; background: linear-gradient(135deg, var(--primary), var(--primary-dark));"><i class="fas fa-list"></i> Track Order</button>
+                <button onclick="continueShopping()" class="place-order-btn" style="width:auto; padding:0.75rem 1.5rem;"><i class="fas fa-shopping-bag"></i> Continue Shopping</button>
+            </div>
         </div>
     </div>
 
     <div id="toastContainer"></div>
 
+    <!-- Advanced Cart System Scripts -->
     <script src="https://quicklocal-backend.onrender.com/hybrid-auth-client.js"></script>
+    <script src="js/advanced-cart.js"></script>
 
     <script>
-    // State
+        // App Configuration
+        window.APP_CONFIG = {
+            API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
+            SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg',
+            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
+            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            ENVIRONMENT: 'production'
+        };
+
+    // Enhanced Checkout State
     const checkoutState = {
         cart: null,
         isProcessing: false,
         selectedPayment: 'card',
-        saveAddress: true
+        saveAddress: true,
+        advancedCart: null
     };
 
     // Toast notifications
@@ -418,60 +437,136 @@
     }
 
     function renderCartSummary() {
-        console.log('Rendering cart summary.');
-        if (!checkoutState.cart) return;
-        const { items, pricing } = checkoutState.cart;
-        const cartItemsContainer = document.getElementById('cartItemsList');
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            cartItemsContainer.innerHTML = '<p style="text-align:center; color:var(--text-light); padding:2rem;">No items in cart</p>';
+        console.log('🛒 Rendering enhanced cart summary with advanced cart system');
+        
+        // Get cart data from advanced cart system
+        const advancedCartData = checkoutState.advancedCart ? checkoutState.advancedCart.getCart() : null;
+        
+        if (!advancedCartData || !advancedCartData.items || advancedCartData.items.length === 0) {
+            console.log('⚠️ No cart data available from advanced cart system');
+            showEmptyCheckout();
             return;
         }
-
+        
+        const { items, totals } = advancedCartData;
+        const cartItemsContainer = document.getElementById('cartItemsList');
+        
+        // Render cart items with enhanced styling
         const itemsHtml = items.map((item, index) => {
-            if (!item) return '';
-            const product = item.product || item;
+            const productName = item.name || 'Product';
             const quantity = item.quantity || 1;
-            const price = (product && (product.price ?? item.priceAtAdd ?? item.price)) || 0;
-            const productName = product?.name || 'Product';
-            const productId = product?._id || product?.id || `item-${index}`;
+            const price = item.price || 0;
+            const originalPrice = item.originalPrice || price;
+            const discount = item.discount || 0;
             const itemTotal = price * quantity;
+            const savings = (originalPrice - price) * quantity;
+            
             return `
-                <div class="cart-item" data-product-id="${productId}" style="display:flex; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px solid var(--border-light);">
-                    <img src="${getSafeImageUrl(product)}" alt="${productName}" class="item-image" style="width:64px; height:64px; object-fit:cover; border-radius:0.5rem;">
-                    <div style="flex:1;">
-                        <div style="font-weight:700;">${productName}</div>
-                        <div style="color:var(--text-secondary); margin-top:0.25rem;">Qty: ${quantity}</div>
+                <div class="checkout-cart-item" data-cart-id="${item.cartId}" style="display:flex; align-items:center; gap:1rem; padding:1rem 0; border-bottom:1px solid var(--border-light);">
+                    <div class="item-image-container" style="position:relative;">
+                        <img src="${item.image || getSafeImageUrl(item)}" alt="${productName}" class="item-image" style="width:72px; height:72px; object-fit:cover; border-radius:8px; box-shadow:var(--shadow-sm);">
+                        ${discount > 0 ? `<div style="position:absolute; top:-8px; right:-8px; background:var(--error); color:white; font-size:10px; padding:2px 6px; border-radius:50%; font-weight:600;">${discount}%</div>` : ''}
                     </div>
-                    <div style="font-weight:700;">${formatCurrency(itemTotal)}</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; font-size:14px; line-height:1.3; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${productName}</div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <span style="font-size:16px; font-weight:700; color:var(--primary);">${formatCurrency(price)}</span>
+                            ${originalPrice > price ? `<span style="font-size:12px; color:var(--text-light); text-decoration:line-through;">${formatCurrency(originalPrice)}</span>` : ''}
+                        </div>
+                        <div style="color:var(--text-secondary); font-size:12px;">Quantity: ${quantity}</div>
+                        ${item.deliveryInfo ? `
+                            <div style="display:flex; align-items:center; gap:4px; margin-top:4px; color:var(--accent); font-size:11px;">
+                                <i class="fas fa-truck" style="font-size:10px;"></i>
+                                <span>${item.deliveryInfo.time || '20-30 mins'}</span>
+                                ${item.deliveryInfo.fee === 0 ? '<span style="background:var(--accent); color:white; padding:1px 4px; border-radius:2px; font-weight:600;">FREE</span>' : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; font-size:16px;">${formatCurrency(itemTotal)}</div>
+                        ${savings > 0 ? `<div style="font-size:11px; color:var(--accent); font-weight:500;">Save ${formatCurrency(savings)}</div>` : ''}
+                    </div>
                 </div>
             `;
-        }).filter(Boolean).join('');
+        }).join('');
 
         cartItemsContainer.innerHTML = itemsHtml;
-        updatePricingDisplay(items, pricing);
+        
+        // Update pricing display with advanced cart totals
+        updatePricingDisplay(items, totals);
+        
+        // Show checkout content now that we have cart data
+        showCheckoutContent();
+        
+        console.log('✅ Enhanced cart summary rendered with', items.length, 'items');
     }
 
-    function updatePricingDisplay(items, pricing) {
-        const itemCount = items ? items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
-        const subtotal = pricing?.subtotal || items?.reduce((s, it) => {
-            const p = (it.product?.price ?? it.price ?? 0);
-            return s + p * (it.quantity || 1);
-        }, 0) || 0;
-        const discount = pricing?.discount || 0;
-        const deliveryFee = typeof pricing?.deliveryFee === 'number' ? pricing.deliveryFee : (subtotal >= 500 ? 0 : 25);
-        const tax = typeof pricing?.tax === 'number' ? pricing.tax : Math.round(subtotal * 0.05 * 100) / 100;
-        const total = pricing?.total || (subtotal - discount + deliveryFee + tax);
-
-        document.getElementById('itemCount').textContent = itemCount;
-        document.getElementById('subtotal').textContent = formatCurrency(subtotal);
-        document.getElementById('discount').textContent = `- ${formatCurrency(discount)}`;
-        document.getElementById('deliveryFee').textContent = deliveryFee > 0 ? formatCurrency(deliveryFee) : 'FREE';
-        document.getElementById('tax').textContent = formatCurrency(tax);
-        document.getElementById('total').textContent = formatCurrency(total);
-
-        const deliveryElement = document.getElementById('deliveryFee');
-        deliveryElement.style.color = deliveryFee === 0 ? 'var(--accent)' : 'inherit';
-        deliveryElement.style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
+    function updatePricingDisplay(items, totals) {
+        console.log('💰 Updating pricing display with totals:', totals);
+        
+        // Use advanced cart totals or calculate from items
+        const itemCount = totals?.itemCount || items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+        const subtotal = totals?.subtotal || 0;
+        const savings = totals?.savings || 0;
+        const deliveryFee = totals?.deliveryFee !== undefined ? totals.deliveryFee : (subtotal >= 500 ? 0 : 25);
+        const tax = Math.round(subtotal * 0.05 * 100) / 100; // 5% tax
+        const total = totals?.total || (subtotal + deliveryFee + tax);
+        
+        // Update DOM elements
+        const elements = {
+            itemCount: document.getElementById('itemCount'),
+            subtotal: document.getElementById('subtotal'),
+            discount: document.getElementById('discount'),
+            deliveryFee: document.getElementById('deliveryFee'),
+            tax: document.getElementById('tax'),
+            total: document.getElementById('total')
+        };
+        
+        // Safe updates with null checks
+        if (elements.itemCount) elements.itemCount.textContent = itemCount;
+        if (elements.subtotal) elements.subtotal.textContent = formatCurrency(subtotal);
+        if (elements.discount) {
+            elements.discount.textContent = savings > 0 ? `- ${formatCurrency(savings)}` : '-₹0';
+            elements.discount.style.color = savings > 0 ? 'var(--accent)' : 'inherit';
+            elements.discount.style.fontWeight = savings > 0 ? '700' : 'inherit';
+        }
+        if (elements.deliveryFee) {
+            elements.deliveryFee.textContent = deliveryFee > 0 ? formatCurrency(deliveryFee) : 'FREE';
+            elements.deliveryFee.style.color = deliveryFee === 0 ? 'var(--accent)' : 'inherit';
+            elements.deliveryFee.style.fontWeight = deliveryFee === 0 ? '700' : 'inherit';
+        }
+        if (elements.tax) elements.tax.textContent = formatCurrency(tax);
+        if (elements.total) elements.total.textContent = formatCurrency(total);
+        
+        // Add free delivery progress if close to threshold
+        if (totals?.amountForFreeDelivery > 0) {
+            const progressContainer = document.querySelector('.free-delivery-progress');
+            if (!progressContainer && elements.deliveryFee?.parentElement) {
+                const progress = document.createElement('div');
+                progress.className = 'free-delivery-progress';
+                progress.style.cssText = `
+                    background: #e8f5e8;
+                    border: 1px solid var(--accent);
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    margin: 8px 0;
+                    text-align: center;
+                    font-size: 12px;
+                    color: var(--accent);
+                    font-weight: 600;
+                `;
+                progress.innerHTML = `
+                    <i class="fas fa-truck"></i> 
+                    Add ${formatCurrency(totals.amountForFreeDelivery)} more for FREE delivery!
+                    <div style="background: #f0f0f0; height: 4px; border-radius: 2px; margin-top: 4px; overflow: hidden;">
+                        <div style="background: var(--accent); height: 100%; width: ${Math.min(100, (subtotal / totals.freeDeliveryThreshold) * 100)}%; transition: width 0.3s ease;"></div>
+                    </div>
+                `;
+                elements.deliveryFee.parentElement.appendChild(progress);
+            }
+        }
+        
+        console.log('✅ Pricing display updated - Total:', formatCurrency(total));
     }
 
     function formatCardNumber(e) {
@@ -621,12 +716,51 @@
     async function loadCheckoutData() {
         showLoading(true);
         try {
-            console.log('🛒 Loading checkout cart data using the auth client...');
+            console.log('🛒 Loading checkout cart data from advanced cart system...');
             
-            // ✅ FIXED: Use the 'api' wrapper which correctly uses HybridAuthClient.apiCall
+            // First, check if advanced cart system is available and initialized
+            if (window.AdvancedCart && typeof window.AdvancedCart.getCartData === 'function') {
+                console.log('📦 Using Advanced Cart System data');
+                
+                // Get cart data from the advanced cart system
+                const advancedCartData = await window.AdvancedCart.getCartData();
+                console.log('📦 Advanced Cart Data:', advancedCartData);
+                
+                if (advancedCartData && advancedCartData.items && advancedCartData.items.length > 0) {
+                    // Transform advanced cart data to match checkout expectations
+                    const transformedItems = advancedCartData.items.map(item => ({
+                        ...item,
+                        product: item.product || item,
+                        quantity: item.quantity || 1,
+                        price: item.price || item.product?.price || 0
+                    }));
+                    
+                    const transformedPricing = {
+                        subtotal: advancedCartData.totals?.subtotal || 0,
+                        shipping: advancedCartData.totals?.shipping || 0,
+                        tax: advancedCartData.totals?.tax || 0,
+                        discount: advancedCartData.totals?.discount || 0,
+                        total: advancedCartData.totals?.total || 0
+                    };
+                    
+                    checkoutState.cart = { 
+                        items: transformedItems, 
+                        pricing: transformedPricing,
+                        appliedCoupon: advancedCartData.appliedPromo
+                    };
+                    
+                    console.log('✅ Transformed cart data for checkout:', checkoutState.cart);
+                    renderCartSummary();
+                    showCheckoutContent();
+                    return; // Successfully loaded from advanced cart
+                }
+            }
+            
+            // Fallback: Load from API if advanced cart is not available or empty
+            console.log('🔄 Fallback: Loading cart data from API...');
             const data = await api.get('/api/v1/cart');
 
-            console.log('📦 Cart Data:', data);
+            console.log('📦 API Cart Data:', data);
 
             // Handle multiple possible response structures from the backend
             const items = data?.items || data?.data?.items || data?.cart?.items || [];
@@ -637,6 +771,13 @@
 
             if (Array.isArray(items) && items.length > 0) {
                 checkoutState.cart = { items, pricing };
+                
+                // If advanced cart is available, sync the API data to it
+                if (window.AdvancedCart && typeof window.AdvancedCart.syncCartData === 'function') {
+                    console.log('🔄 Syncing API data to Advanced Cart System...');
+                    await window.AdvancedCart.syncCartData({ items, pricing });
+                }
+                
                 renderCartSummary();
                 showCheckoutContent();
             } else {
@@ -739,12 +880,21 @@
             return { product: pid, quantity: item.quantity || 1 };
         });
 
+        // ✅ NEW: Updated payload structure for advanced order management
         const orderPayload = {
-            shippingAddress,
+            items: items, // New format: [{ product: "productId", quantity: number }]
+            shippingAddress: {
+                name: shippingAddress.name,
+                address: shippingAddress.address,
+                city: shippingAddress.city,
+                state: shippingAddress.state,
+                postalCode: shippingAddress.pincode,
+                phone: shippingAddress.phone,
+                country: shippingAddress.country || 'India'
+            },
             paymentMethod: checkoutState.selectedPayment,
-            saveAddress: checkoutState.saveAddress,
-            items,
-            orderItems: items  // ✅ FIXED: Added for backend compatibility
+            // Include coupon code from advanced cart system if available
+            couponCode: checkoutState.cart?.appliedCoupon?.code || null
         };
 
         if (checkoutState.selectedPayment === 'card') {
@@ -757,18 +907,40 @@
         }
 
         try {
+            console.log('🚀 Placing order with advanced processing...', orderPayload);
             const response = await api.post('/api/v1/orders', orderPayload, { timeout: 60000 });
             
-            if (response.success && (response.order || response.data)) {
-                const order = response.order || response.data?.order || response.data || {};
+            console.log('📦 Order response:', response);
+            
+            if (response.success && response.order) {
+                const order = response.order;
+                
+                // Store order info for success modal
+                checkoutState.lastOrder = {
+                    id: order.id,
+                    orderNumber: order.orderNumber,
+                    total: order.total,
+                    status: order.status,
+                    estimatedDelivery: order.estimatedDelivery,
+                    fraudScore: response.fraudScore,
+                    requiresVerification: response.requiresVerification
+                };
+                
                 showOrderSuccess(order.orderNumber || order.id || '#');
+                
+                // Show verification notice if needed
+                if (response.requiresVerification) {
+                    setTimeout(() => {
+                        showToast('Your order requires verification. Our team will review it shortly.', 'info');
+                    }, 2000);
+                }
             } else {
                 throw new Error(response.message || 'Failed to place order.');
             }
         } catch (err) {
             console.error('Order error:', err);
             if (err.name !== 'AbortError') {
-                 showToast(`Order failed: ${err.message}`, 'error');
+                showToast(`Order failed: ${err.message}`, 'error');
             }
         } finally {
             checkoutState.isProcessing = false;
@@ -780,8 +952,33 @@
     function showOrderSuccess(orderId) {
         document.getElementById('orderNumber').textContent = orderId || '#';
         updateEmailPreview();
+        
+        // Add enhanced order information to success modal
+        const successMessage = document.querySelector('.success-message');
+        if (checkoutState.lastOrder) {
+            const estimatedDate = checkoutState.lastOrder.estimatedDelivery ? 
+                new Date(checkoutState.lastOrder.estimatedDelivery).toLocaleDateString() : 'TBD';
+            
+            successMessage.innerHTML = `
+                Your order has been confirmed. You will receive an email with the details shortly.<br><br>
+                <strong>Status:</strong> ${checkoutState.lastOrder.status}<br>
+                <strong>Estimated Delivery:</strong> ${estimatedDate}<br>
+                ${checkoutState.lastOrder.requiresVerification ? '<br><span style="color: var(--warning);">⚠️ Order pending verification</span>' : ''}
+            `;
+        }
+        
         document.getElementById('successModal').classList.add('active');
+        
+        // Clear checkout state
         checkoutState.cart = null;
+        
+        // Clear advanced cart system if available
+        if (window.AdvancedCart && typeof window.AdvancedCart.clearCart === 'function') {
+            console.log('🧡 Clearing advanced cart system after successful order...');
+            window.AdvancedCart.clearCart();
+        }
+        
+        // Clear DOM elements
         document.getElementById('cartItemsList').innerHTML = '';
         updatePricingDisplay([], { subtotal:0, discount:0, deliveryFee:0, tax:0, total:0 });
     }
@@ -804,6 +1001,19 @@
 
     function closeSuccessModal() {
         document.getElementById('successModal').classList.remove('active');
+        // Flipkart-style: Don't auto-redirect, let user choose
+    }
+    
+    function viewMyOrders() {
+        // Redirect to customer-focused orders page with highlight
+        if (checkoutState.lastOrder && checkoutState.lastOrder.id) {
+            window.location.href = `my-orders.html?highlight=${checkoutState.lastOrder.id}`;
+        } else {
+            window.location.href = 'my-orders.html';
+        }
+    }
+    
+    function continueShopping() {
         window.location.href = 'marketplace.html';
     }
 
@@ -813,7 +1023,7 @@
         initializePaymentMethods();
         initializeAddressAutocomplete();
 
-        // ✅ FIXED: Create a robust function to wait for the auth client and check status
+        // ✅ FIXED: Create a robust function to wait for the auth client and advanced cart system
         const initializeCheckout = async () => {
             // Wait for the auth client to be available on the window object
             let attempts = 0;
@@ -829,6 +1039,23 @@
             }
 
             console.log('✅ HybridAuthClient is ready.');
+            
+            // Also wait for advanced cart system if it should be available
+            attempts = 0;
+            while (!window.AdvancedCart && attempts < 30) { // Wait up to 3 seconds
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (window.AdvancedCart) {
+                console.log('✅ AdvancedCart system is ready.');
+                // Initialize the advanced cart system for checkout
+                if (typeof window.AdvancedCart.init === 'function') {
+                    await window.AdvancedCart.init();
+                }
+            } else {
+                console.warn('⚠️ AdvancedCart system not available - using fallback mode');
+            }
 
             try {
                 const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
@@ -853,6 +1080,8 @@
     });
 
     window.closeSuccessModal = closeSuccessModal;
+    window.viewMyOrders = viewMyOrders;
+    window.continueShopping = continueShopping;
     </script>
 </body>
 </html>
