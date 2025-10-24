@@ -1,200 +1,152 @@
 /**
- * Advanced Shopping Cart System - Amazon/Flipkart Style
- * Features: Smart quantity controls, Save for later, Cart recommendations, Seamless checkout
+ * Advanced Shopping Cart System - Server-Driven
+ * Features: Smart quantity controls, Cart recommendations, Seamless checkout
+ * * NOTE: "Save for Later" has been removed as it was a client-only
+ * feature that conflicts with this server-driven cart.
+ * To re-enable it, it must be implemented on the backend.
  */
 
 class AdvancedShoppingCart {
   constructor() {
-    this.cart = this.loadCart();
-    this.savedForLater = this.loadSavedForLater();
+    // Start with an empty cart. Server will populate this.
+    this.cart = []; 
     this.cartTotal = 0;
     this.cartCount = 0;
     this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.debounceTimeout = null;
+    this.recommendations = [];
     
     this.init();
   }
 
   init() {
-    this.updateCartUI();
     this.bindEvents();
-    this.loadRecommendations();
-    this.autoSave();
     console.log('🛒 Advanced Shopping Cart initialized');
+    
+    // Load the cart from the server. This is the single source of truth.
+    this.loadCartFromServer();
+    
+    // Recommendations can be loaded after
+    this.loadRecommendations();
   }
 
-  // ==================== CART MANAGEMENT ====================
+  // ==================== CART MANAGEMENT (SERVER-DRIVEN) ====================
 
-  addToCart(productId, quantity = 1, variant = null) {
-    return new Promise(async (resolve) => {
-      try {
-        // Fetch product details
-        const product = await this.fetchProductDetails(productId);
-        if (!product) {
-          this.showNotification('Product not found', 'error');
-          resolve(false);
-          return;
-        }
-
-        // Check stock availability
-        if (product.stock < quantity) {
-          this.showNotification(`Only ${product.stock} items available`, 'warning');
-          resolve(false);
-          return;
-        }
-
-        const existingItem = this.cart.find(item => 
-          item.productId === productId && 
-          JSON.stringify(item.variant) === JSON.stringify(variant)
-        );
-
-        if (existingItem) {
-          // Update quantity with stock check
-          const newQuantity = existingItem.quantity + quantity;
-          if (newQuantity <= product.stock && newQuantity <= 10) {
-            existingItem.quantity = newQuantity;
-            existingItem.updatedAt = new Date().toISOString();
-            this.showNotification(`Updated quantity to ${newQuantity}`, 'success');
-          } else {
-            this.showNotification(`Maximum ${Math.min(product.stock, 10)} items allowed`, 'warning');
-            resolve(false);
-            return;
-          }
-        } else {
-          // Add new item
-          const cartItem = {
-            cartId: this.generateCartId(),
-            productId,
-            name: product.name,
-            price: product.finalPrice || product.price,
-            originalPrice: product.price,
-            discount: product.discountPercentage || 0,
-            image: product.image || (product.images && product.images[0]?.url),
-            quantity,
-            variant,
-            stock: product.stock,
-            seller: product.seller,
-            category: product.category,
-            deliveryInfo: product.deliveryInfo || { time: '20-30 mins', fee: 0 },
-            addedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-
-          this.cart.push(cartItem);
-          this.showNotification(`${product.name} added to cart!`, 'success');
-        }
-
-        this.saveCart();
-        this.updateCartUI();
-        this.trackAnalytics('add_to_cart', { productId, quantity, value: product.price * quantity });
-        resolve(true);
-
-      } catch (error) {
-        console.error('Add to cart error:', error);
-        this.showNotification('Failed to add item to cart', 'error');
-        resolve(false);
+  async addToCart(productId, quantity = 1, variant = null) {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/cart/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ productId, quantity, variant })
+      });
+      
+      const res = await response.json();
+      
+      if (!response.ok || !res.success) {
+        throw new Error(res.message || res.errors[0].msg || 'Failed to add item');
       }
-    });
+
+      await this.loadCartFromServer();
+      this.showNotification('Item added to cart', 'success');
+      this.trackAnalytics('add_to_cart', { productId, quantity });
+      return true;
+    } catch (error) {
+      console.error('Add to cart error:', error);
+      this.showNotification(error.message, 'error');
+      return false;
+    }
   }
 
-  updateQuantity(cartId, newQuantity) {
+  async updateQuantity(cartId, newQuantity) {
     const item = this.cart.find(item => item.cartId === cartId);
     if (!item) return;
 
     if (newQuantity <= 0) {
-      this.removeFromCart(cartId);
-      return;
-    }
-
-    if (newQuantity > item.stock) {
-      this.showNotification(`Only ${item.stock} items available`, 'warning');
+      await this.removeFromCart(cartId);
       return;
     }
 
     if (newQuantity > 10) {
       this.showNotification('Maximum 10 items allowed per product', 'warning');
+      // Revert the UI
+      this.updateCartUI(); 
       return;
     }
 
-    const oldQuantity = item.quantity;
-    item.quantity = newQuantity;
-    item.updatedAt = new Date().toISOString();
-
-    this.saveCart();
-    this.updateCartUI();
-    this.trackAnalytics('cart_quantity_change', { 
-      productId: item.productId, 
-      oldQuantity, 
-      newQuantity 
-    });
+    try {
+      const res = await fetch(`${this.apiBaseUrl}/cart/items/${item.productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quantity: newQuantity })
+      });
+      
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to update quantity');
+      }
+      
+      await this.loadCartFromServer();
+      this.showNotification('Quantity updated', 'success');
+      this.trackAnalytics('cart_quantity_change', { productId: item.productId, newQuantity });
+    } catch (error) {
+      console.error('Update quantity error:', error);
+      this.showNotification(error.message, 'error');
+      // Re-load server state to fix any UI mismatch
+      await this.loadCartFromServer();
+    }
   }
 
-  removeFromCart(cartId) {
-    const itemIndex = this.cart.findIndex(item => item.cartId === cartId);
-    if (itemIndex === -1) return;
+  async removeFromCart(cartId) {
+    const item = this.cart.find(i => i.cartId === cartId);
+    if (!item) return;
 
-    const item = this.cart[itemIndex];
-    this.cart.splice(itemIndex, 1);
-    
-    this.saveCart();
-    this.updateCartUI();
-    this.showNotification(`${item.name} removed from cart`, 'info');
-    this.trackAnalytics('remove_from_cart', { productId: item.productId });
+    try {
+      const res = await fetch(`${this.apiBaseUrl}/cart/items/${item.productId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to remove item');
+      }
+
+      await this.loadCartFromServer();
+      this.showNotification('Item removed from cart', 'info');
+      this.trackAnalytics('remove_from_cart', { productId: item.productId });
+    } catch (error) {
+      console.error('Remove from cart error:', error);
+      this.showNotification(error.message, 'error');
+    }
   }
 
-  clearCart() {
-    this.cart = [];
-    this.saveCart();
-    this.updateCartUI();
-    this.showNotification('Cart cleared', 'info');
+  async clearCart() {
+    try {
+      const res = await fetch(`${this.apiBaseUrl}/cart/clear`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to clear cart');
+      }
+      
+      await this.loadCartFromServer();
+      this.showNotification('Cart cleared', 'info');
+    } catch (error) {
+      console.error('Clear cart error:', error);
+      this.showNotification(error.message, 'error');
+    }
   }
 
-  // ==================== SAVE FOR LATER ====================
-
-  saveForLater(cartId) {
-    const itemIndex = this.cart.findIndex(item => item.cartId === cartId);
-    if (itemIndex === -1) return;
-
-    const item = this.cart[itemIndex];
-    item.savedAt = new Date().toISOString();
-    
-    this.savedForLater.push(item);
-    this.cart.splice(itemIndex, 1);
-
-    this.saveCart();
-    this.saveSavedForLater();
-    this.updateCartUI();
-    this.showNotification(`${item.name} saved for later`, 'info');
-  }
-
-  moveToCart(cartId) {
-    const itemIndex = this.savedForLater.findIndex(item => item.cartId === cartId);
-    if (itemIndex === -1) return;
-
-    const item = this.savedForLater[itemIndex];
-    delete item.savedAt;
-    item.updatedAt = new Date().toISOString();
-    
-    this.cart.push(item);
-    this.savedForLater.splice(itemIndex, 1);
-
-    this.saveCart();
-    this.saveSavedForLater();
-    this.updateCartUI();
-    this.showNotification(`${item.name} moved to cart`, 'success');
-  }
-
-  removeFromSavedForLater(cartId) {
-    const itemIndex = this.savedForLater.findIndex(item => item.cartId === cartId);
-    if (itemIndex === -1) return;
-
-    const item = this.savedForLater[itemIndex];
-    this.savedForLater.splice(itemIndex, 1);
-    
-    this.saveSavedForLater();
-    this.updateCartUI();
-    this.showNotification(`${item.name} removed from saved items`, 'info');
-  }
+  // ==================== SAVE FOR LATER (REMOVED) ====================
+  // All "Save for Later" functions (saveForLater, moveToCart,
+  // removeFromSavedForLater, loadSavedForLater, saveSavedForLater)
+  // have been removed. This feature must be built on the
+  // backend to work with a server-authoritative cart.
 
   // ==================== CART CALCULATIONS ====================
 
@@ -205,12 +157,16 @@ class AdvancedShoppingCart {
     let itemCount = 0;
 
     this.cart.forEach(item => {
-      const itemSubtotal = item.price * item.quantity;
-      const itemSavings = (item.originalPrice - item.price) * item.quantity;
+      const itemPrice = item.price || 0;
+      const itemOrigPrice = item.originalPrice || itemPrice;
+      const itemQty = item.quantity || 0;
+      
+      const itemSubtotal = itemPrice * itemQty;
+      const itemSavings = (itemOrigPrice - itemPrice) * itemQty;
       
       subtotal += itemSubtotal;
       savings += itemSavings;
-      itemCount += item.quantity;
+      itemCount += itemQty;
 
       // Calculate delivery fee (free above threshold)
       if (itemSubtotal < (item.deliveryInfo?.freeAbove || 500)) {
@@ -319,17 +275,26 @@ class AdvancedShoppingCart {
   renderCartPage() {
     const container = document.getElementById('cart-items-container');
     if (!container) return;
+    
+    // Hide loading spinner
+    const loadingEl = document.getElementById('loadingContainer');
+    if (loadingEl) loadingEl.style.display = 'none';
 
-    if (this.cart.length === 0 && this.savedForLater.length === 0) {
+    if (this.cart.length === 0) {
       container.innerHTML = this.renderEmptyCart();
+      const emptyEl = document.getElementById('emptyCart');
+      if (emptyEl) emptyEl.style.display = 'block';
       return;
     }
+    
+    // Hide default empty cart message if we are rendering items
+    const emptyEl = document.getElementById('emptyCart');
+    if (emptyEl) emptyEl.style.display = 'none';
 
     container.innerHTML = `
       <div class="cart-content">
         <div class="cart-main">
           ${this.cart.length > 0 ? this.renderCartItems() : ''}
-          ${this.savedForLater.length > 0 ? this.renderSavedForLater() : ''}
           ${this.renderCartRecommendations()}
         </div>
         <div class="cart-sidebar">
@@ -347,7 +312,7 @@ class AdvancedShoppingCart {
     return `
       <div class="cart-section">
         <div class="section-header">
-          <h2>Shopping Cart (${this.cart.length} item${this.cart.length !== 1 ? 's' : ''})</h2>
+          <h2>Shopping Cart (${this.cartCount} item${this.cartCount !== 1 ? 's' : ''})</h2>
           <button class="clear-cart-btn" onclick="advancedCart.clearCart()">Clear All</button>
         </div>
         <div class="cart-items">
@@ -402,9 +367,6 @@ class AdvancedShoppingCart {
           </div>
           
           <div class="item-actions">
-            <button class="action-btn save-later" onclick="advancedCart.saveForLater('${item.cartId}')">
-              <i class="fas fa-heart"></i> Save for later
-            </button>
             <button class="action-btn remove" onclick="advancedCart.removeFromCart('${item.cartId}')">
               <i class="fas fa-trash"></i> Remove
             </button>
@@ -416,59 +378,28 @@ class AdvancedShoppingCart {
     `;
   }
 
-  renderSavedForLater() {
-    if (this.savedForLater.length === 0) return '';
-
-    return `
-      <div class="cart-section saved-for-later-section">
-        <div class="section-header">
-          <h2>Saved for Later (${this.savedForLater.length} item${this.savedForLater.length !== 1 ? 's' : ''})</h2>
-        </div>
-        <div class="saved-items">
-          ${this.savedForLater.map(item => this.renderSavedItem(item)).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  renderSavedItem(item) {
-    return `
-      <div class="saved-item" data-cart-id="${item.cartId}">
-        <img src="${item.image}" alt="${item.name}" class="item-image">
-        <div class="item-details">
-          <h4>${item.name}</h4>
-          <div class="item-price">₹${item.price.toFixed(2)}</div>
-          <div class="item-actions">
-            <button class="btn-primary" onclick="advancedCart.moveToCart('${item.cartId}')">
-              Move to Cart
-            </button>
-            <button class="btn-secondary" onclick="advancedCart.removeFromSavedForLater('${item.cartId}')">
-              Remove
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
   // ==================== CART RECOMMENDATIONS ====================
 
   async loadRecommendations() {
-    // Load cart-based recommendations
-    if (this.cart.length === 0) return;
+    // This route 404s per your logs. You must create it in your backend.
+    // Example: GET /api/v1/products/recommendations?type=cart
+    
+    // Don't run if cart is empty
+    if (this.cart.length === 0 && (await this.loadCartFromServer()).cart.length === 0) {
+        return;
+    }
 
     try {
-      const productIds = this.cart.map(item => item.productId);
       const response = await fetch(`${this.apiBaseUrl}/products/recommendations`, {
-        method: 'POST',
+        method: 'GET', // Changed to GET, as POST /recommendations 404'd
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ productIds, type: 'cart_based' })
+        credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
-        this.recommendations = data.success ? data.data.products : [];
+        this.recommendations = data.success ? data.data : []; // Adjust based on your API response
+        this.updateCartUI(); // Re-render to show recommendations
       }
     } catch (error) {
       console.error('Load recommendations error:', error);
@@ -482,7 +413,7 @@ class AdvancedShoppingCart {
     return `
       <div class="cart-section recommendations-section">
         <div class="section-header">
-          <h2>🎯 Frequently bought together</h2>
+          <h2>🎯 You might also like</h2>
         </div>
         <div class="recommendations-grid">
           ${this.recommendations.slice(0, 4).map(product => this.renderRecommendationItem(product)).join('')}
@@ -492,21 +423,25 @@ class AdvancedShoppingCart {
   }
 
   renderRecommendationItem(product) {
+    // Adjust product fields based on your actual recommendation API response
+    const productId = product._id || product.id;
+    const productName = product.name;
+    const productImg = product.images ? product.images[0]?.url : 'default-image.jpg';
+    const productPrice = product.price;
+    const productDiscount = product.discountPercentage || 0;
+    const finalPrice = productPrice * (1 - productDiscount / 100);
+
     return `
-      <div class="recommendation-item" data-product-id="${product.id}">
-        <img src="${product.image}" alt="${product.name}" class="rec-image">
+      <div class="recommendation-item" data-product-id="${productId}">
+        <img src="${productImg}" alt="${productName}" class="rec-image">
         <div class="rec-details">
-          <h4>${product.name}</h4>
+          <h4>${productName}</h4>
           <div class="rec-price">
-            <span class="current-price">₹${product.finalPrice || product.price}</span>
-            ${product.discountPercentage > 0 ? `<span class="original-price">₹${product.price}</span>` : ''}
-          </div>
-          <div class="rec-rating">
-            ${'★'.repeat(Math.floor(product.averageRating || 4))}${'☆'.repeat(5 - Math.floor(product.averageRating || 4))}
-            <span>(${product.totalReviews || 0})</span>
+            <span class="current-price">₹${finalPrice.toFixed(2)}</span>
+            ${productDiscount > 0 ? `<span class="original-price">₹${productPrice.toFixed(2)}</span>` : ''}
           </div>
         </div>
-        <button class="add-rec-btn" onclick="advancedCart.addToCart('${product.id}')">
+        <button class="add-rec-btn" onclick="advancedCart.addToCart('${productId}')">
           <i class="fas fa-plus"></i> Add
         </button>
       </div>
@@ -598,6 +533,7 @@ class AdvancedShoppingCart {
   }
 
   renderPromoCode() {
+    // This is client-side only. For real promos, this must call the backend.
     return `
       <div class="promo-code-section">
         <h3><i class="fas fa-tag"></i> Promo Code</h3>
@@ -612,84 +548,53 @@ class AdvancedShoppingCart {
             <div class="offer-code">SAVE10</div>
             <div class="offer-desc">Get 10% off on orders above ₹200</div>
           </div>
-          <div class="offer-item" onclick="advancedCart.applyPromoCode('FREESHIP')">
-            <div class="offer-code">FREESHIP</div>
-            <div class="offer-desc">Free delivery on any order</div>
-          </div>
         </div>
       </div>
     `;
   }
 
   applyPromoCode(code = null) {
+    // This is a placeholder. Real implementation should call:
+    // POST /api/v1/cart/coupons
+    // and then call this.loadCartFromServer()
+    
     const promoCode = code || document.getElementById('promo-code-input')?.value;
     if (!promoCode) {
       this.showNotification('Please enter a promo code', 'warning');
       return;
     }
-
-    // Simulate promo code validation
-    const promoCodes = {
-      'SAVE10': { type: 'percentage', value: 10, minOrder: 200 },
-      'SAVE20': { type: 'percentage', value: 20, minOrder: 500 },
-      'FREESHIP': { type: 'free_shipping', value: 0, minOrder: 0 },
-      'FLAT50': { type: 'fixed', value: 50, minOrder: 300 }
-    };
-
-    const promo = promoCodes[promoCode.toUpperCase()];
-    if (!promo) {
-      this.showNotification('Invalid promo code', 'error');
-      return;
-    }
-
-    const totals = this.calculateTotals();
-    if (totals.subtotal < promo.minOrder) {
-      this.showNotification(`Minimum order value ₹${promo.minOrder} required`, 'warning');
-      return;
-    }
-
-    this.appliedPromo = { code: promoCode.toUpperCase(), ...promo };
-    this.updateCartUI();
-    this.showNotification(`Promo code ${promoCode.toUpperCase()} applied!`, 'success');
+    this.showNotification(`Applying ${promoCode}...`, 'info');
+    
+    // TODO: Convert this to call the backend API
+    this.showNotification('Promo code validation not implemented', 'warning');
   }
 
   removePromoCode() {
-    this.appliedPromo = null;
-    this.updateCartUI();
-    this.showNotification('Promo code removed', 'info');
+    // This is a placeholder. Real implementation should call:
+    // DELETE /api/v1/cart/coupons/:couponCode
+    // and then call this.loadCartFromServer()
+    this.showNotification('Promo code removal not implemented', 'warning');
   }
 
   // ==================== EMPTY STATES ====================
 
   updateEmptyState() {
-    // This method can be extended to show/hide empty state messages
-    const emptyStates = document.querySelectorAll('.empty-cart-state');
-    emptyStates.forEach(state => {
-      state.style.display = this.cart.length === 0 ? 'block' : 'none';
-    });
+    // This method is called by updateCartUI
+    // It ensures the correct container is shown/hidden
+    const emptyEl = document.getElementById('emptyCart');
+    if (!emptyEl) return;
+
+    if (this.cart.length === 0) {
+      emptyEl.style.display = 'block';
+    } else {
+      emptyEl.style.display = 'none';
+    }
   }
 
   renderEmptyCart() {
-    return `
-      <div class="empty-cart">
-        <div class="empty-cart-icon">
-          <i class="fas fa-shopping-cart"></i>
-        </div>
-        <h2>Your cart is empty</h2>
-        <p>Looks like you haven't added anything to your cart yet.</p>
-        <button class="continue-shopping-btn" onclick="window.location.href='marketplace.html'">
-          <i class="fas fa-arrow-left"></i> Continue Shopping
-        </button>
-        ${this.savedForLater.length > 0 ? `
-          <div class="saved-reminder">
-            <p>You have ${this.savedForLater.length} item(s) saved for later</p>
-            <button class="view-saved-btn" onclick="document.querySelector('.saved-for-later-section').scrollIntoView()">
-              View Saved Items
-            </button>
-          </div>
-        ` : ''}
-      </div>
-    `;
+    // This just returns the HTML. It is rendered by renderCartPage
+    // The emptyCart element is already in cart.html
+    return ''; 
   }
 
   // ==================== DROPDOWN METHODS ====================
@@ -739,72 +644,31 @@ class AdvancedShoppingCart {
     }
   }
 
-  generateCartId() {
-    return 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  }
-
   formatVariant(variant) {
     if (!variant) return '';
     return Object.entries(variant).map(([key, value]) => `${key}: ${value}`).join(', ');
   }
 
-  // ==================== STORAGE ====================
+  // ==================== STORAGE (BACKUP ONLY) ====================
 
   loadCart() {
+    // This is only used as a non-essential backup
     try {
       const saved = localStorage.getItem('quicklocal_cart');
       return saved ? JSON.parse(saved) : [];
     } catch (error) {
-      console.error('Error loading cart:', error);
+      console.error('Error loading cart from backup:', error);
       return [];
     }
   }
 
   saveCart() {
+    // Saves the current (server-fetched) state to localStorage as a backup
     try {
       localStorage.setItem('quicklocal_cart', JSON.stringify(this.cart));
-      
-      // Auto-save to server if user is logged in
-      clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = setTimeout(() => {
-        this.syncCartToServer();
-      }, 2000);
-    } catch (error) {
-      console.error('Error saving cart:', error);
-    }
-  }
-
-  loadSavedForLater() {
-    try {
-      const saved = localStorage.getItem('quicklocal_saved_for_later');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error('Error loading saved for later:', error);
-      return [];
-    }
-  }
-
-  saveSavedForLater() {
-    try {
-      localStorage.setItem('quicklocal_saved_for_later', JSON.stringify(this.savedForLater));
-    } catch (error) {
-      console.error('Error saving saved for later:', error);
-    }
-  }
-
-  async syncCartToServer() {
-    // Sync cart with server for logged-in users
-    if (!window.auth?.isLoggedIn()) return;
-
-    try {
-      await fetch(`${this.apiBaseUrl}/cart/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ cart: this.cart, savedForLater: this.savedForLater })
-      });
-    } catch (error) {
-      console.error('Cart sync error:', error);
+    } catch (error)
+      {
+      console.error('Error saving cart to backup:', error);
     }
   }
 
@@ -813,20 +677,20 @@ class AdvancedShoppingCart {
   bindEvents() {
     // Cart icon click
     document.addEventListener('click', (e) => {
-      if (e.target.closest('.cart-icon, .cart-btn')) {
+      const cartIcon = e.target.closest('.cart-icon, .cart-btn');
+      const cartDropdown = e.target.closest('.cart-dropdown-container');
+
+      if (cartIcon) {
         this.toggleCartDropdown();
-      }
-      
-      // Close dropdown when clicking outside
-      if (!e.target.closest('.cart-dropdown-container')) {
+      } else if (!cartDropdown) {
+        // Click was outside the cart icon and dropdown
         this.hideCartDropdown();
       }
     });
 
-    // Auto-save on page unload
+    // Auto-save backup on page unload
     window.addEventListener('beforeunload', () => {
       this.saveCart();
-      this.saveSavedForLater();
     });
   }
 
@@ -839,7 +703,20 @@ class AdvancedShoppingCart {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           const cartId = e.target.closest('.cart-item').dataset.cartId;
-          const quantity = parseInt(e.target.value) || 1;
+          let quantity = parseInt(e.target.value) || 1;
+          
+          // Enforce max
+          const max = parseInt(e.target.max) || 10;
+          if (quantity > max) {
+            quantity = max;
+            e.target.value = max;
+          }
+          // Enforce min
+          if (quantity < 1) {
+            quantity = 1;
+            e.target.value = 1;
+          }
+          
           this.updateQuantity(cartId, quantity);
         }, 500);
       });
@@ -849,7 +726,7 @@ class AdvancedShoppingCart {
   // ==================== NOTIFICATIONS ====================
 
   showNotification(message, type = 'info') {
-    // Use existing toast system or create simple notification
+    // Use existing global toast system
     if (window.showToast) {
       window.showToast(message, type);
     } else {
@@ -871,22 +748,11 @@ class AdvancedShoppingCart {
     console.log(`📊 Analytics: ${event}`, data);
   }
 
-  // ==================== AUTO-SAVE ====================
-
-  autoSave() {
-    // Auto-save cart every 30 seconds
-    setInterval(() => {
-      this.saveCart();
-      this.saveSavedForLater();
-    }, 30000);
-  }
-
   // ==================== PUBLIC API ====================
 
   getCart() {
     return {
       items: this.cart,
-      savedForLater: this.savedForLater,
       totals: this.calculateTotals()
     };
   }
@@ -898,7 +764,65 @@ class AdvancedShoppingCart {
   getCartTotal() {
     return this.cartTotal;
   }
-}
+
+  // ==================== SERVER SYNC (MOVED FROM BOTTOM) ====================
+
+  /**
+   * Fetches the cart data from the server and updates the local state.
+   * This is the new "single source of truth" for loading the cart.
+   */
+  async loadCartFromServer() {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/cart`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch cart from server');
+      const res = await response.json();
+      if (res.success && res.data) {
+        this.cart = this.formatServerCart(res.data.availableItems || []);
+      } else {
+        this.cart = [];
+      }
+    } catch (error) {
+      console.error('Error loading cart from server:', error);
+      this.showNotification('Could not load your cart', 'error');
+      // Fallback to empty cart, do not load from localStorage
+      this.cart = []; 
+    }
+    // Update UI and save backup AFTER fetching
+    this.updateCartUI();
+    this.saveCart(); 
+    return this.cart;
+  }
+
+  /**
+   * Helper function to map the server's cart item structure
+   * to the structure your frontend UI expects.
+   */
+  formatServerCart(serverItems) {
+    if (!serverItems) return [];
+    return serverItems.map(item => ({
+      cartId: item._id,
+      productId: item.product?._id || item.productId || item.id,
+      name: item.product?.name || item.name || 'Unnamed Product',
+      price: item.product?.finalPrice ?? item.product?.price ?? item.price ?? 0,
+      originalPrice: item.product?.originalPrice ?? item.product?.price ?? item.originalPrice ?? item.price ?? 0,
+      discount: item.product?.discountPercentage ?? 0,
+      image: item.product?.images && item.product.images.length > 0 ? item.product.images[0]?.url : 'https://via.placeholder.com/100', // Default image
+      quantity: item.quantity ?? 1,
+      variant: item.selectedVariant ?? item.variant ?? null,
+      stock: item.product?.stock ?? item.stock ?? 10,
+      seller: item.product?.seller ?? item.seller ?? null,
+      category: item.product?.category ?? item.category ?? null,
+      deliveryInfo: item.product?.deliveryInfo || { time: '20-30 mins', fee: 0 },
+      addedAt: item.addedAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString()
+    }));
+  }
+
+} // <-- *** THIS IS THE CORRECT END OF THE CLASS ***
+
 
 // Initialize advanced cart system
 document.addEventListener('DOMContentLoaded', () => {
