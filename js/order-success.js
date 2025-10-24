@@ -1,5 +1,5 @@
 // order-success.js - Dedicated script for order success page
-const ORDER_API = "https://quicklocal-backend.onrender.com/api/v1/orders";
+const ORDER_API = "https://ecommerce-backend-mlik.onrender.com/api/v1/orders";
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("Order success page loaded");

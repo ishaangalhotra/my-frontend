@@ -3,7 +3,7 @@ class QuickLocalHybridAuth {
     // Your Supabase configuration
     this.supabaseUrl = 'https://pmvhsjezhuokwygvhhqk.supabase.co';
     this.supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg';
-    this.backendUrl = 'https://quicklocal-backend.onrender.com';
+    this.backendUrl = 'https://ecommerce-backend-mlik.onrender.com';
     
     this.supabase = null;
     this.currentUser = null;
@@ -418,5 +418,5 @@ if (typeof module !== 'undefined' && module.exports) {
 // Log initialization
 console.log('🚀 QuickLocal Hybrid Auth loaded successfully');
 console.log('📊 Memory-efficient authentication ready');
-console.log('🔗 Backend URL:', 'https://quicklocal-backend.onrender.com');
+console.log('🔗 Backend URL:', 'https://ecommerce-backend-mlik.onrender.com');
 console.log('🗃️ Supabase URL:', 'https://pmvhsjezhuokwygvhhqk.supabase.co');

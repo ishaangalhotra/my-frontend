@@ -301,7 +301,7 @@ class AdvancedSearchSystem {
   async getAutocompleteSuggestions(query) {
     try {
       // Get API base URL from app config
-      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://quicklocal-backend.onrender.com/api/v1';
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
       
       // Create search URL for quick product suggestions
       const suggestionUrl = `${apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=5`;
@@ -515,7 +515,7 @@ class AdvancedSearchSystem {
   async searchProducts(query) {
     try {
       // Get API base URL from app config
-      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://quicklocal-backend.onrender.com/api/v1';
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
       
       // Build search parameters
       const searchParams = new URLSearchParams();

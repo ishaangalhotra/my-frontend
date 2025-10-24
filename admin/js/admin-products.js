@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const API_URL = 'https://quicklocal-backend.onrender.com/api/v1/admin/products';
+  const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1/admin/products';
   const token = localStorage.getItem('qk_token');
 
   // DOM Elements

@@ -15,7 +15,7 @@ let isInitialized = false;
 // ===============================
 // CART API HELPERS
 // ===============================
-const CART_API_URL = "https://quicklocal-backend.onrender.com/api/v1/cart";
+const CART_API_URL = "https://ecommerce-backend-mlik.onrender.com/api/v1/cart";
 async function addToCart(productId, quantity = 1) {
   try {
     const res = await fetch(CART_API_URL, {

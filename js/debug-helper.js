@@ -276,7 +276,7 @@ window.QLDebug = {
                 filteredProducts: [],
                 categories: new Set(),
                 cart: [],
-                apiBaseUrl: 'https://quicklocal-backend.onrender.com/api/v1',
+                apiBaseUrl: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
                 isLoading: false,
                 pagination: {
                     currentPage: 1,

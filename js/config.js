@@ -60,16 +60,16 @@ const environments = {
     RETRY_ATTEMPTS: 3
   },
   staging: {
-    API_BASE_URL: 'https://staging-quicklocal-backend.onrender.com/api/v1',
-    SOCKET_URL: 'https://staging-quicklocal-backend.onrender.com',
+    API_BASE_URL: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
+    SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
     DEBUG: false,
     MOCK_API: false,
     API_TIMEOUT: 20000,
     RETRY_ATTEMPTS: 3
   },
   production: {
-    API_BASE_URL: 'https://quicklocal-backend.onrender.com/api/v1',
-    SOCKET_URL: 'https://quicklocal-backend.onrender.com',
+    API_BASE_URL: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
+    SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
     DEBUG: false,
     MOCK_API: false,
     API_TIMEOUT: 15000,

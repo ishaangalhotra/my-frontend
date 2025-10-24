@@ -9,7 +9,7 @@ class AdvancedShoppingCart {
     this.savedForLater = this.loadSavedForLater();
     this.cartTotal = 0;
     this.cartCount = 0;
-    this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://quicklocal-backend.onrender.com/api/v1';
+    this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.debounceTimeout = null;
     
     this.init();

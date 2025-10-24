@@ -10,7 +10,7 @@
  * Configuration precedence:
  *   1) process.env.NEXT_PUBLIC_API_BASE (Vercel / bundlers)
  *   2) window.APP_CONFIG.API.BASE_URL (runtime override)
- *   3) 'https://quicklocal-backend.onrender.com' (production default)
+ *   3) 'https://ecommerce-backend-mlik.onrender.com' (production default)
  *
  * Usage:
  *   import api from "./simple-api.js";
@@ -30,7 +30,7 @@ const resolveBaseUrl = () => {
     window.APP_CONFIG?.API?.BASE_URL) || null;
   
   // Updated default to use your production backend
-  return envBase || winBase || "https://quicklocal-backend.onrender.com";
+  return envBase || winBase || "https://ecommerce-backend-mlik.onrender.com";
 };
 
 const getConfig = () => {

@@ -2,7 +2,7 @@
 // QUICKLOCAL ADMIN DASHBOARD SCRIPT
 // =================================================================================
 const AppState = {
-  apiBase: 'https://quicklocal-backend.onrender.com',
+  apiBase: 'https://ecommerce-backend-mlik.onrender.com',
   authToken: null,
   currentSection: 'dashboard',
   isApiConnected: false,
