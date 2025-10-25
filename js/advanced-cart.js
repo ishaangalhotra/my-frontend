@@ -23,11 +23,18 @@ class AdvancedShoppingCart {
     this.bindEvents();
     console.log('🛒 Advanced Shopping Cart initialized');
     
-    // Load the cart from the server. This is the single source of truth.
-    this.loadCartFromServer();
-    
-    // Recommendations can be loaded after
-    this.loadRecommendations();
+    // Data loading is deferred until authentication is confirmed.
+    // this.loadCartFromServer(); // <- REMOVED
+    // this.loadRecommendations(); // <- REMOVED
+  }
+
+  /**
+   * Public method to be called *after* authentication is confirmed.
+   */
+  async initializeCartData() {
+    console.log('Auth confirmed. Initializing cart data from server...');
+    await this.loadCartFromServer();
+    await this.loadRecommendations();
   }
 
   // ==================== CART MANAGEMENT (SERVER-DRIVEN) ====================
@@ -242,7 +249,7 @@ class AdvancedShoppingCart {
       </div>
       <div class="cart-dropdown-footer">
         <div class="cart-total">Total: ₹${this.cartTotal.toFixed(2)}</div>
-        <div class="cart-actions">
+        <div class.cart-actions">
           <button class="btn-secondary" onclick="window.location.href='cart.html'">View Cart</button>
           <button class="btn-primary" onclick="window.location.href='checkout.html'" ${this.cart.length === 0 ? 'disabled' : ''}>
             Checkout
@@ -385,7 +392,6 @@ class AdvancedShoppingCart {
     // Example: GET /api/v1/products/recommendations?type=cart
     
     // Don't run if cart is empty
-    // **FIXED**: Changed `(await this.loadCartFromServer()).cart.length` to `(await this.loadCartFromServer()).length`
     if (this.cart.length === 0 && (await this.loadCartFromServer()).length === 0) {
         return;
     }
@@ -826,10 +832,10 @@ class AdvancedShoppingCart {
 
 
 // Initialize advanced cart system
-document.addEventListener('DOMContentLoaded', () => {
-  window.advancedCart = new AdvancedShoppingCart();
-  console.log('🛒 Advanced Shopping Cart System loaded!');
-});
+// REMOVED: document.addEventListener('DOMContentLoaded', () => { ... });
+window.advancedCart = new AdvancedShoppingCart();
+console.log('🛒 Advanced Shopping Cart System loaded!');
+
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {

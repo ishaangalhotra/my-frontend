@@ -530,116 +530,58 @@
         // Make it globally available
         window.showToast = showToast;
 
-        // Demo function to add sample items for testing
-        function addDemoItems() {
-            if (window.advancedCart) {
-                const demoProducts = [
-                    {
-                        id: 'demo1',
-                        name: 'Fresh Organic Milk (1L)',
-                        price: 65,
-                        finalPrice: 58,
-                        discountPercentage: 10,
-                        image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&h=400&fit=crop&crop=center',
-                        stock: 50,
-                        seller: { name: 'Local Dairy Farm' },
-                        category: { name: 'Dairy' },
-                        deliveryInfo: { time: '15-20 mins', fee: 0 }
-                    },
-                    {
-                        id: 'demo2',
-                        name: 'Premium Basmati Rice (1kg)',
-                        price: 180,
-                        finalPrice: 162,
-                        discountPercentage: 10,
-                        image: 'https://images.unsplash.com/photo-1586201375761-83865001e6c8?w=400&h=400&fit=crop&crop=center',
-                        stock: 30,
-                        seller: { name: 'Grain Store' },
-                        category: { name: 'Groceries' },
-                        deliveryInfo: { time: '20-30 mins', fee: 25 }
-                    },
-                    {
-                        id: 'demo3',
-                        name: 'Fresh Tomatoes (500g)',
-                        price: 40,
-                        finalPrice: 35,
-                        discountPercentage: 12,
-                        image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&h=400&fit=crop&crop=center',
-                        stock: 20,
-                        seller: { name: 'Fresh Vegetables Co.' },
-                        category: { name: 'Vegetables' },
-                        deliveryInfo: { time: '15-25 mins', fee: 0 }
-                    }
-                ];
-            
-                // Add demo items to cart
-                demoProducts.forEach(product => {
-                    const cartItem = {
-                        cartId: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        productId: product.id,
-                        name: product.name,
-                        price: product.finalPrice || product.price,
-                        originalPrice: product.price,
-                        discount: product.discountPercentage || 0,
-                        image: product.image,
-                        quantity: Math.floor(Math.random() * 3) + 1, // Random quantity 1-3
-                        variant: null,
-                        stock: product.stock,
-                        seller: product.seller,
-                        category: product.category,
-                        deliveryInfo: product.deliveryInfo,
-                        addedAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    };
-            
-                    window.advancedCart.cart.push(cartItem);
-                });
-            
-                window.advancedCart.saveCart();
-                window.advancedCart.updateCartUI();
-                showToast('Demo items added to cart!', 'success');
+        /* Demo functions removed for clarity */
+        function addDemoItems() {}
+
+        // *** NEW AUTH LISTENER ***
+        // This function waits for the auth client to be ready, then tells
+        // the cart script to fetch its data.
+        function initializePage() {
+            if (!window.HybridAuthClient || !window.advancedCart) {
+                // If scripts aren't loaded yet, try again
+                console.warn('Auth or Cart script not ready, retrying...');
+                setTimeout(initializePage, 100);
+                return;
+            }
+
+            console.log('Auth and Cart scripts are loaded. Waiting for auth state...');
+
+            // Listen for auth changes
+            window.HybridAuthClient.onAuthStateChange((user) => {
+                if (user) {
+                    // User is logged in
+                    console.log('User is authenticated. Loading cart data...');
+                    // Now it's safe to call the cart script
+                    window.advancedCart.initializeCartData();
+                } else {
+                    // User is not logged in
+                    console.log('User is not authenticated. Showing empty cart.');
+                    // Hide loading spinner and show empty cart message
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('emptyCart').style.display = 'block';
+                }
+            });
+
+            // Trigger an initial check in case auth is already complete
+            const user = window.HybridAuthClient.getCurrentUser();
+            if (user) {
+                console.log('User is already authenticated. Loading cart data...');
+                window.advancedCart.initializeCartData();
+            } else if (window.HybridAuthClient.authMethod === null) {
+                // Auth is still initializing, onAuthStateChange will handle it
+                console.log('Auth is initializing...');
+            } else {
+                // Auth is initialized and there is no user
+                console.log('Auth is initialized, but no user. Showing empty cart.');
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('emptyCart').style.display = 'block';
             }
         }
-        /* Demo injection removed: use real server cart */
-        // function addDemoItems() {}
 
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', () => {
-            // Add demo button for testing
-            const cartHeader = document.querySelector('.cart-header');
-            if (cartHeader) {
-                const demoButton = document.createElement('button');
-                demoButton.textContent = '+ Add Demo Items (for testing)';
-                demoButton.style.cssText = `
-                    background: linear-gradient(135deg, var(--primary), var(--secondary));
-                    color: white;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: var(--radius-lg);
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    margin-top: 10px;
-                    transition: var(--transition);
-                `;
-                demoButton.onclick = () => {
-                    if (window.advancedCart && window.advancedCart.cart.length === 0) {
-                        addDemoItems();
-                    } else if (window.advancedCart) {
-                        showToast('Cart already has items! Clear cart first to add demo items.', 'info');
-                    } else {
-                        showToast('Advanced cart system not loaded yet. Please wait.', 'warning');
-                    }
-                };
-                
-                cartHeader.appendChild(demoButton);
-            }
-            // Demo button removed
+        // Run the initializer
+        initializePage();
 
-            // Auto-add demo removed
-
-            console.log('🛒 Enhanced Cart Page initialized!');
-        });
+        console.log('🛒 Enhanced Cart Page initialized!');
     </script>
     
     <script src="js/advanced-cart.js"></script>
