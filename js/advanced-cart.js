@@ -385,7 +385,8 @@ class AdvancedShoppingCart {
     // Example: GET /api/v1/products/recommendations?type=cart
     
     // Don't run if cart is empty
-    if (this.cart.length === 0 && (await this.loadCartFromServer()).cart.length === 0) {
+    // **FIXED**: Changed `(await this.loadCartFromServer()).cart.length` to `(await this.loadCartFromServer()).length`
+    if (this.cart.length === 0 && (await this.loadCartFromServer()).length === 0) {
         return;
     }
 
