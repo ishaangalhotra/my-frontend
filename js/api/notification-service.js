@@ -1,14 +1,29 @@
 // Notification Service for QuickLocal Frontend
 class NotificationService {
   constructor() {
-    this.baseURL = window.location.origin + '/api/v1';
-    this.token = localStorage.getItem('token');
+    // FIXED: Use backend URL instead of frontend origin
+    this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.token = null; // FIXED: Don't use localStorage in constructor
+    this.loadToken();
+  }
+
+  // Load token from localStorage
+  loadToken() {
+    try {
+      this.token = localStorage.getItem('token');
+    } catch (error) {
+      console.warn('Unable to access localStorage:', error);
+    }
   }
 
   // Set authentication token
   setToken(token) {
     this.token = token;
-    localStorage.setItem('token', token);
+    try {
+      localStorage.setItem('token', token);
+    } catch (error) {
+      console.warn('Unable to save token to localStorage:', error);
+    }
   }
 
   // Get authentication headers
@@ -124,7 +139,7 @@ class NotificationService {
   // Subscribe to real-time notifications
   subscribeToNotifications(callback) {
     if (typeof io !== 'undefined') {
-      const socket = io();
+      const socket = io(this.baseURL.replace('/api/v1', ''));
       
       socket.on('notification', (notification) => {
         callback(notification);
@@ -277,6 +292,9 @@ class NotificationService {
   // Initialize notification system
   async initialize() {
     try {
+      // Reload token in case it was set after construction
+      this.loadToken();
+
       // Initialize badge
       await this.initializeBadge();
 
