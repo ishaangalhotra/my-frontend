@@ -7,7 +7,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- Advanced Cart System CSS -->
     <link href="css/advanced-cart.css" rel="stylesheet">
     <style>
         :root {
@@ -316,7 +315,6 @@
 
     <div id="toastContainer"></div>
 
-    <!-- Advanced Cart System Scripts -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script src="js/advanced-cart.js"></script>
 
@@ -336,8 +334,8 @@
         cart: null,
         isProcessing: false,
         selectedPayment: 'card',
-        saveAddress: true,
-        advancedCart: null
+        saveAddress: true
+        // ✅ FIX: Removed checkoutState.advancedCart, will use window.advancedCart directly
     };
 
     // Toast notifications
@@ -374,13 +372,18 @@
                     throw err;
                 }
             }
-
+            
+            // Fallback fetch (should not be used for authenticated routes)
+            console.warn(`[API Fallback] Using legacy fetch for ${endpoint}`);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
 
             try {
-                const base = (new URL(endpoint, window.location.href)).href;
-                const res = await fetch(base, {
+                // ✅ FIX: Use API_BASE_URL for fallback fetch
+                const baseUrl = window.APP_CONFIG?.API_BASE_URL || '';
+                const fullUrl = `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+                const res = await fetch(fullUrl, {
                     ...fetchOptions,
                     method: options.method || 'GET',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {}),
@@ -439,8 +442,8 @@
     function renderCartSummary() {
         console.log('🛒 Rendering enhanced cart summary with advanced cart system');
         
-        // Get cart data from advanced cart system
-        const advancedCartData = checkoutState.advancedCart ? checkoutState.advancedCart.getCart() : null;
+        // ✅ FIX: Read directly from window.advancedCart
+        const advancedCartData = window.advancedCart ? window.advancedCart.getCart() : null;
         
         if (!advancedCartData || !advancedCartData.items || advancedCartData.items.length === 0) {
             console.log('⚠️ No cart data available from advanced cart system');
@@ -713,81 +716,42 @@
         return ok;
     }
 
+    // ✅ --- START: SIMPLIFIED loadCheckoutData --- ✅
     async function loadCheckoutData() {
         showLoading(true);
         try {
-            console.log('🛒 Loading checkout cart data from advanced cart system...');
+            console.log('🛒 Reading checkout cart data from advanced cart system...');
             
-            // First, check if advanced cart system is available and initialized
-            if (window.AdvancedCart && typeof window.AdvancedCart.getCartData === 'function') {
+            // First, check if advanced cart system is available
+            if (window.advancedCart && typeof window.advancedCart.getCart === 'function') {
                 console.log('📦 Using Advanced Cart System data');
                 
                 // Get cart data from the advanced cart system
-                const advancedCartData = await window.AdvancedCart.getCartData();
+                const advancedCartData = await window.advancedCart.getCart();
                 console.log('📦 Advanced Cart Data:', advancedCartData);
                 
                 if (advancedCartData && advancedCartData.items && advancedCartData.items.length > 0) {
-                    // Transform advanced cart data to match checkout expectations
-                    const transformedItems = advancedCartData.items.map(item => ({
-                        ...item,
-                        product: item.product || item,
-                        quantity: item.quantity || 1,
-                        price: item.price || item.product?.price || 0
-                    }));
-                    
-                    const transformedPricing = {
-                        subtotal: advancedCartData.totals?.subtotal || 0,
-                        shipping: advancedCartData.totals?.shipping || 0,
-                        tax: advancedCartData.totals?.tax || 0,
-                        discount: advancedCartData.totals?.discount || 0,
-                        total: advancedCartData.totals?.total || 0
-                    };
-                    
+                    // Store the data in the local checkoutState
                     checkoutState.cart = { 
-                        items: transformedItems, 
-                        pricing: transformedPricing,
-                        appliedCoupon: advancedCartData.appliedPromo
+                        items: advancedCartData.items, 
+                        pricing: advancedCartData.totals,
+                        appliedCoupon: advancedCartData.appliedPromo // Assuming this exists in advancedCart
                     };
                     
                     console.log('✅ Transformed cart data for checkout:', checkoutState.cart);
                     renderCartSummary();
                     showCheckoutContent();
-                    return; // Successfully loaded from advanced cart
+                    return; // Successfully loaded
                 }
             }
             
-            // Fallback: Load from API if advanced cart is not available or empty
-            console.log('🔄 Fallback: Loading cart data from API...');
-            const data = await api.get('/api/v1/cart');
+            // If we are here, advancedCart was not found or had no data
+            console.warn('⚠️ No items in cart or empty response from advancedCart');
+            showEmptyCheckout();
 
-            console.log('📦 API Cart Data:', data);
-
-            // Handle multiple possible response structures from the backend
-            const items = data?.items || data?.data?.items || data?.cart?.items || [];
-            const pricing = data?.pricing || data?.data?.pricing || data?.cart?.pricing || {};
-
-            console.log('📦 Parsed items:', items);
-            console.log('💰 Parsed pricing:', pricing);
-
-            if (Array.isArray(items) && items.length > 0) {
-                checkoutState.cart = { items, pricing };
-                
-                // If advanced cart is available, sync the API data to it
-                if (window.AdvancedCart && typeof window.AdvancedCart.syncCartData === 'function') {
-                    console.log('🔄 Syncing API data to Advanced Cart System...');
-                    await window.AdvancedCart.syncCartData({ items, pricing });
-                }
-                
-                renderCartSummary();
-                showCheckoutContent();
-            } else {
-                console.warn('⚠️ No items in cart or empty response');
-                showEmptyCheckout();
-            }
         } catch (err) {
             console.error('❌ Cart load error:', err);
             if (err.message.includes('401') || err.message === 'Unauthorized') {
-                // This is the correct place to handle unauthorized access
                 handleUnauthorized();
             } else {
                 showToast('Failed to load your cart. Please refresh or login again.', 'error');
@@ -797,6 +761,8 @@
             showLoading(false);
         }
     }
+    // ✅ --- END: SIMPLIFIED loadCheckoutData --- ✅
+
 
     async function loadSavedAddress() {
         try {
@@ -813,7 +779,7 @@
                 if (profile && profile.user && profile.user.address) {
                     Object.keys(profile.user.address).forEach(k => {
                         const input = document.getElementById(k);
-                        if (input && profile.user.address[k]) input.value = profile.user.address[k];
+                        if (input && profile.user.address[k]) input.value = user.address[k];
                     });
                 }
             }
@@ -873,11 +839,11 @@
         const formData = new FormData(document.getElementById('checkoutForm'));
         const shippingAddress = Object.fromEntries(formData.entries());
 
-        // FIXED: Extract product IDs correctly
+        // ✅ FIX: Extract product IDs correctly from the advancedCart item structure
         const items = checkoutState.cart.items.map(item => {
-            const productObj = item.product || item;
-            const pid = productObj?._id || productObj?.id || productObj;
-            return { product: pid, quantity: item.quantity || 1 };
+            // 'item' here is the formatted cart item from advanced-cart.js
+            // 'item.productId' is what we need.
+            return { product: item.productId, quantity: item.quantity || 1 };
         });
 
         // ✅ NEW: Updated payload structure for advanced order management
@@ -972,10 +938,10 @@
         // Clear checkout state
         checkoutState.cart = null;
         
-        // Clear advanced cart system if available
-        if (window.AdvancedCart && typeof window.AdvancedCart.clearCart === 'function') {
+        // ✅ FIX: Clear advanced cart system if available
+        if (window.advancedCart && typeof window.advancedCart.clearCart === 'function') {
             console.log('🧡 Clearing advanced cart system after successful order...');
-            window.AdvancedCart.clearCart();
+            window.advancedCart.clearCart();
         }
         
         // Clear DOM elements
@@ -1023,7 +989,7 @@
         initializePaymentMethods();
         initializeAddressAutocomplete();
 
-        // ✅ FIXED: Create a robust function to wait for the auth client and advanced cart system
+        // ✅ --- START: FIXED initializeCheckout --- ✅
         const initializeCheckout = async () => {
             // Wait for the auth client to be available on the window object
             let attempts = 0;
@@ -1042,19 +1008,19 @@
             
             // Also wait for advanced cart system if it should be available
             attempts = 0;
-            while (!window.AdvancedCart && attempts < 30) { // Wait up to 3 seconds
+            while (!window.advancedCart && attempts < 30) { // ✅ FIX: lowercase 'a'
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
             
-            if (window.AdvancedCart) {
+            if (window.advancedCart) { // ✅ FIX: lowercase 'a'
                 console.log('✅ AdvancedCart system is ready.');
                 // Initialize the advanced cart system for checkout
-                if (typeof window.AdvancedCart.init === 'function') {
-                    await window.AdvancedCart.init();
+                if (typeof window.advancedCart.initializeCartData === 'function') { // ✅ FIX: lowercase 'a' & correct method
+                    await window.advancedCart.initializeCartData(); // ✅ FIX: This loads the cart data
                 }
             } else {
-                console.warn('⚠️ AdvancedCart system not available - using fallback mode');
+                console.warn('⚠️ AdvancedCart system not available - this will fail');
             }
 
             try {
@@ -1062,7 +1028,7 @@
                 if (isAuthenticated) {
                     console.log('👤 User is authenticated. Loading checkout data...');
                     // Now it's safe to load all user-specific data
-                    await loadCheckoutData();
+                    await loadCheckoutData(); // This will now read from window.advancedCart
                     await loadSavedAddress();
                 } else {
                     console.warn('👤 User is not authenticated. Redirecting to login.');
@@ -1074,6 +1040,7 @@
                 handleUnauthorized();
             }
         };
+        // ✅ --- END: FIXED initializeCheckout --- ✅
 
         // Start the checkout initialization process
         initializeCheckout();
