@@ -20,6 +20,8 @@ class AdvancedShoppingCart {
     // this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL; // No longer needed, apiCall handles it
     this.debounceTimeout = null;
     this.recommendations = [];
+    // Prevent concurrent cart loads
+    this._loadingCart = false;
     
     this.init();
   }
@@ -801,6 +803,11 @@ class AdvancedShoppingCart {
    * This is the new "single source of truth" for loading the cart.
    */
   async loadCartFromServer() {
+    if (this._loadingCart) {
+      console.warn('Cart load is already in progress. Skipping duplicate call.');
+      return this.cart;
+    }
+    this._loadingCart = true;
     // Optional retry once on transient failures
     const tryFetch = async () => {
       // ✅ FIX: Use apiCall to send auth token
@@ -844,9 +851,13 @@ class AdvancedShoppingCart {
       }
     }
     // Update UI and save backup AFTER fetching
-    this.updateCartUI();
-    this.saveCart();
-    return this.cart;
+    try {
+      this.updateCartUI();
+      this.saveCart();
+      return this.cart;
+    } finally {
+      this._loadingCart = false;
+    }
   }
 
   /**

@@ -537,6 +537,7 @@
         // This function waits for the auth client to be ready, then tells
         // the cart script to fetch its data.
         function initializePage() {
+            let cartInitDone = false;
             if (!window.HybridAuthClient || !window.advancedCart) {
                 // If scripts aren't loaded yet, try again
                 console.warn('Auth or Cart script not ready, retrying...');
@@ -552,7 +553,10 @@
                     // User is logged in
                     console.log('User is authenticated. Loading cart data...');
                     // Now it's safe to call the cart script
-                    window.advancedCart.initializeCartData();
+                    if (!cartInitDone) {
+                        cartInitDone = true;
+                        window.advancedCart.initializeCartData();
+                    }
                 } else {
                     // User is not logged in
                     console.log('User is not authenticated. Showing empty cart.');
@@ -566,7 +570,10 @@
             const user = window.HybridAuthClient.getCurrentUser();
             if (user) {
                 console.log('User is already authenticated. Loading cart data...');
-                window.advancedCart.initializeCartData();
+                if (!cartInitDone) {
+                    cartInitDone = true;
+                    window.advancedCart.initializeCartData();
+                }
             } else if (window.HybridAuthClient.authMethod === null) {
                 // Auth is still initializing, onAuthStateChange will handle it
                 console.log('Auth is initializing...');
