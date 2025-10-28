@@ -1,7 +1,8 @@
 // Real-time Order Tracking Service for QuickLocal
 class TrackingService {
   constructor() {
-    this.baseURL = window.location.origin + '/api/v1';
+    this.baseURL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.socketURL = 'https://ecommerce-backend-mlik.onrender.com';
     this.token = localStorage.getItem('token');
     this.socket = null;
     this.activeTrackings = new Map(); // Store active order trackings
@@ -88,7 +89,12 @@ class TrackingService {
   subscribeToOrderTracking(orderId, callback) {
     if (typeof io !== 'undefined') {
       if (!this.socket) {
-        this.socket = io();
+        this.socket = io(this.socketURL, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000
+        });
       }
       
       // Join order tracking room
@@ -292,7 +298,15 @@ class TrackingService {
     try {
       // Initialize Socket.IO connection
       if (typeof io !== 'undefined' && !this.socket) {
-        this.socket = io();
+        this.socket = io(this.socketURL, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          auth: {
+            token: this.token
+          }
+        });
         
         this.socket.on('connect', () => {
           console.log('Connected to tracking service');
@@ -300,6 +314,10 @@ class TrackingService {
 
         this.socket.on('disconnect', () => {
           console.log('Disconnected from tracking service');
+        });
+
+        this.socket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
         });
 
         // Handle global tracking events

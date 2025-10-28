@@ -1,13 +1,16 @@
 // Service Worker for QuickLocal Push Notifications
 const CACHE_NAME = 'quicklocal-v1';
+
+// Only cache essential files that definitely exist
+// Remove paths that cause 404 errors
 const urlsToCache = [
   '/',
-  '/offline.html',
-  '/images/notification-icon.png',
-  '/images/badge-icon.png',
-  '/js/api/notification-service.js',
-  '/js/api/tracking-service.js',
-  '/js/api/push-notification-service.js'
+  '/marketplace.html'
+  // Removed problematic paths:
+  // - '/offline.html' (may not exist)
+  // - '/images/notification-icon.png' (may not exist)
+  // - '/images/badge-icon.png' (may not exist)
+  // - JS files (already loaded from HTML)
 ];
 
 // Install event - cache resources
@@ -18,7 +21,19 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Caching files');
-        return cache.addAll(urlsToCache);
+        // Use addAll with error handling
+        return cache.addAll(urlsToCache).catch((error) => {
+          console.error('Service Worker: Cache addAll failed', error);
+          // Try adding files individually to identify which one fails
+          return Promise.allSettled(
+            urlsToCache.map(url => 
+              cache.add(url).catch(err => {
+                console.error(`Failed to cache ${url}:`, err);
+                return null;
+              })
+            )
+          );
+        });
       })
       .then(() => self.skipWaiting())
   );
@@ -49,9 +64,12 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         // Return cached version or fetch from network
         return response || fetch(event.request).catch(() => {
-          // If both fail, return offline page for navigate requests
+          // If both fail and it's a navigation request, return a basic offline message
           if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html');
+            return new Response(
+              '<html><body><h1>Offline</h1><p>You are currently offline. Please check your internet connection.</p></body></html>',
+              { headers: { 'Content-Type': 'text/html' } }
+            );
           }
         });
       })
@@ -237,7 +255,7 @@ self.addEventListener('notificationclose', (event) => {
 
   // Send analytics data about dismissed notification
   event.waitUntil(
-    fetch('/api/v1/notifications/analytics/dismissed', {
+    fetch('https://ecommerce-backend-mlik.onrender.com/api/v1/notifications/analytics/dismissed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -272,7 +290,7 @@ async function syncOrderUpdates() {
     
     for (const update of pendingUpdates) {
       try {
-        await fetch(`/api/v1/orders/${update.orderId}/status`, {
+        await fetch(`https://ecommerce-backend-mlik.onrender.com/api/v1/orders/${update.orderId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update.data)
@@ -297,7 +315,7 @@ async function syncNotificationStatus() {
     
     for (const notification of pendingNotifications) {
       try {
-        await fetch(`/api/v1/notifications/${notification.id}/read`, {
+        await fetch(`https://ecommerce-backend-mlik.onrender.com/api/v1/notifications/${notification.id}/read`, {
           method: 'PATCH'
         });
         
@@ -392,7 +410,7 @@ self.addEventListener('periodicsync', (event) => {
 async function updateOrderStatusInBackground() {
   try {
     // Fetch latest order status for active orders
-    const response = await fetch('/api/v1/orders/active-status');
+    const response = await fetch('https://ecommerce-backend-mlik.onrender.com/api/v1/orders/active-status');
     const orders = await response.json();
 
     // Send status updates to any open tabs
