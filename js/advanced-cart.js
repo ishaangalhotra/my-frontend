@@ -1,9 +1,14 @@
 /**
- * Advanced Shopping Cart System - Server-Driven
+ * Advanced Shopping Cart System - Server-Driven (FIXED)
  * Features: Smart quantity controls, Cart recommendations, Seamless checkout
  * * NOTE: "Save for Later" has been removed as it was a client-only
  * feature that conflicts with this server-driven cart.
  * To re-enable it, it must be implemented on the backend.
+ *
+ * ---
+ * ✅ FIX: Replaced all `fetch()` calls with `window.HybridAuthClient.apiCall()`
+ * to ensure all API requests are authenticated.
+ * ---
  */
 
 class AdvancedShoppingCart {
@@ -12,7 +17,7 @@ class AdvancedShoppingCart {
     this.cart = []; 
     this.cartTotal = 0;
     this.cartCount = 0;
-    this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    // this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL; // No longer needed, apiCall handles it
     this.debounceTimeout = null;
     this.recommendations = [];
     
@@ -41,10 +46,9 @@ class AdvancedShoppingCart {
 
   async addToCart(productId, quantity = 1, variant = null) {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/cart/items`, {
+      // ✅ FIX: Use apiCall to send auth token
+      const response = await window.HybridAuthClient.apiCall('/cart/items', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ productId, quantity, variant })
       });
       
@@ -82,10 +86,9 @@ class AdvancedShoppingCart {
     }
 
     try {
-      const res = await fetch(`${this.apiBaseUrl}/cart/items/${item.productId}`, {
+      // ✅ FIX: Use apiCall to send auth token
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ quantity: newQuantity })
       });
       
@@ -110,9 +113,9 @@ class AdvancedShoppingCart {
     if (!item) return;
 
     try {
-      const res = await fetch(`${this.apiBaseUrl}/cart/items/${item.productId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      // ✅ FIX: Use apiCall to send auth token
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
+        method: 'DELETE'
       });
       
       const data = await res.json();
@@ -131,9 +134,9 @@ class AdvancedShoppingCart {
 
   async clearCart() {
     try {
-      const res = await fetch(`${this.apiBaseUrl}/cart/clear`, {
-        method: 'DELETE',
-        credentials: 'include'
+      // ✅ FIX: Use apiCall to send auth token
+      const res = await window.HybridAuthClient.apiCall('/cart/clear', {
+        method: 'DELETE'
       });
       
       const data = await res.json();
@@ -397,10 +400,9 @@ class AdvancedShoppingCart {
     }
 
     try {
-      const response = await fetch(`${this.apiBaseUrl}/products/recommendations`, {
-        method: 'GET', // Changed to GET, as POST /recommendations 404'd
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
+      // ✅ FIX: Use apiCall to send auth token
+      const response = await window.HybridAuthClient.apiCall('/products/recommendations', {
+        method: 'GET'
       });
 
       if (response.ok) {
@@ -560,7 +562,7 @@ class AdvancedShoppingCart {
     `;
   }
 
-  applyPromoCode(code = null) {
+  async applyPromoCode(code = null) {
     // This is a placeholder. Real implementation should call:
     // POST /api/v1/cart/coupons
     // and then call this.loadCartFromServer()
@@ -573,6 +575,25 @@ class AdvancedShoppingCart {
     this.showNotification(`Applying ${promoCode}...`, 'info');
     
     // TODO: Convert this to call the backend API
+    // Example:
+    /*
+    try {
+      const response = await window.HybridAuthClient.apiCall('/cart/coupons', {
+        method: 'POST',
+        body: JSON.stringify({ couponCode: promoCode })
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        this.showNotification('Promo code applied!', 'success');
+        await this.loadCartFromServer(); // Reload cart to reflect new totals
+      } else {
+        throw new Error(data.message || 'Invalid promo code');
+      }
+    } catch (error) {
+      this.showNotification(error.message, 'error');
+    }
+    */
     this.showNotification('Promo code validation not implemented', 'warning');
   }
 
@@ -637,8 +658,9 @@ class AdvancedShoppingCart {
 
   async fetchProductDetails(productId) {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/products/${productId}`, {
-        credentials: 'include'
+      // ✅ FIX: Use apiCall to send auth token (though this route might be public)
+      const response = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
+        method: 'GET'
       });
       
       if (!response.ok) return null;
@@ -780,17 +802,36 @@ class AdvancedShoppingCart {
    */
   async loadCartFromServer() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/cart`, {
-        method: 'GET',
-        credentials: 'include'
+      // ✅ FIX: Use apiCall to send auth token
+      const response = await window.HybridAuthClient.apiCall('/cart', {
+        method: 'GET'
       });
-      if (!response.ok) throw new Error('Failed to fetch cart from server');
-      const res = await response.json();
-      if (res.success && res.data) {
-        this.cart = this.formatServerCart(res.data.availableItems || []);
-      } else {
-        this.cart = [];
+
+      if (!response.ok) {
+         // The apiCall handles 401 and logs out, but other errors (500, etc.) land here
+         if (response.status === 401) {
+            console.error('Auth token is invalid, user should be logged out.');
+         }
+         throw new Error(`Failed to fetch cart from server (Status: ${response.status})`);
       }
+
+      const res = await response.json();
+      
+      // ✅ FIX: Check for the correct backend response structure from cart.js
+      // The new cart.js returns `res.data` (which has `availableItems`)
+      // The old cartcontroller.js returned `res.data` (which had `items`)
+      // This new code handles both, preferring the new structure.
+      let itemsToFormat = [];
+      if (res.success && res.data) {
+          if (res.data.availableItems) {
+            itemsToFormat = res.data.availableItems; // From new cart.js
+          } else if (res.data.items) {
+            itemsToFormat = res.data.items; // From old cartcontroller.js
+          }
+      }
+
+      this.cart = this.formatServerCart(itemsToFormat);
+
     } catch (error) {
       console.error('Error loading cart from server:', error);
       this.showNotification('Could not load your cart', 'error');
@@ -809,13 +850,18 @@ class AdvancedShoppingCart {
    */
   formatServerCart(serverItems) {
     if (!serverItems) return [];
+    
+    // ✅ FIX: Updated to match the populated response from `cart.js`
     return serverItems.map(item => ({
-      cartId: item._id,
+      cartId: item._id, // This is the cart *item* ID
       productId: item.product?._id || item.productId || item.id,
       name: item.product?.name || item.name || 'Unnamed Product',
-      price: item.product?.finalPrice ?? item.product?.price ?? item.price ?? 0,
-      originalPrice: item.product?.originalPrice ?? item.product?.price ?? item.originalPrice ?? item.price ?? 0,
+      
+      // Use finalPrice if available (from cartcontroller), else calculate
+      price: item.product?.finalPrice ?? (item.product?.price * (1 - (item.product?.discountPercentage || 0) / 100)) ?? item.priceAtAdd ?? 0,
+      originalPrice: item.product?.originalPrice ?? item.product?.price ?? item.priceAtAdd ?? 0,
       discount: item.product?.discountPercentage ?? 0,
+      
       image: item.product?.images && item.product.images.length > 0 ? item.product.images[0]?.url : 'https://via.placeholder.com/100', // Default image
       quantity: item.quantity ?? 1,
       variant: item.selectedVariant ?? item.variant ?? null,
