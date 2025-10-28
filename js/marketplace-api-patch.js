@@ -103,7 +103,7 @@ window.enhancedAPI = {
     }
 };
 
-// Enhanced product loading function with better error handling
+// Enhanced product loading function with better error handling and caching
 window.enhancedLoadProducts = async function() {
     console.log('🔄 Enhanced loadProducts started...');
     
@@ -122,70 +122,67 @@ window.enhancedLoadProducts = async function() {
     }
     
     try {
-        console.log('📡 Attempting to load products from API...');
+        // Check cache first
+        const cachedProducts = sessionStorage.getItem('cached_products');
+        const cacheTimestamp = parseInt(sessionStorage.getItem('products_cache_timestamp') || '0');
+        const cacheAge = Date.now() - cacheTimestamp;
+        const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
         
-        // Try multiple approaches in order of preference
-        let data = null;
-        const attempts = [
-            // Attempt 1: Use hybrid auth client if available
-            async () => {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                    console.log('🔐 Trying HybridAuthClient.apiCall...');
-                    // Use clean endpoint without /api/v1 prefix
-                    const response = await window.HybridAuthClient.apiCall('/products');
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return await response.json();
-                }
-                throw new Error('HybridAuthClient not available');
-            },
+        // Use cache if available and not expired
+        if (cachedProducts && cacheAge < CACHE_MAX_AGE) {
+            console.log('📦 Using cached products data, age:', Math.round(cacheAge/1000), 'seconds');
+            return JSON.parse(cachedProducts);
+        }
+        
+        console.log('📡 Cache expired or not available, fetching from API...');
+        
+        // Single optimized API call approach
+        let response;
+        let data;
+        
+        // Prioritize HybridAuthClient for consistent auth handling
+        if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+            console.log('🔐 Using HybridAuthClient.apiCall...');
+            response = await window.HybridAuthClient.apiCall('/products');
             
-            // Attempt 2: Use enhanced API helper
-            async () => {
-                console.log('🚀 Trying enhancedAPI...');
-                return await window.enhancedAPI.get('/products');
-            },
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             
-            // Attempt 3: Direct fetch with manual auth
-            async () => {
-                console.log('📡 Trying direct fetch...');
-                const headers = { 'Content-Type': 'application/json' };
-                
-                // Add auth if available and valid
-                if (window.HybridAuthClient) {
-                    try {
-                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
-                        if (isAuthenticated && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                            const authHeader = window.HybridAuthClient.getAuthHeader();
-                            if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
-                                headers['Authorization'] = authHeader;
-                            }
-                        }
-                    } catch (error) {
-                        console.warn('Auth check failed for direct fetch, continuing without auth');
-                    }
+            data = await response.json();
+        } else {
+            // Fallback to direct fetch with headers
+            console.log('📡 Using direct fetch...');
+            const headers = { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'max-age=300' // Tell CDN/browser to cache for 5 minutes
+            };
+            
+            // Add auth header if available
+            if (window.auth && typeof window.auth.getAuthHeader === 'function') {
+                const authHeader = window.auth.getAuthHeader();
+                if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
+                    headers['Authorization'] = authHeader;
                 }
-                
-                const response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
+            }
+            
+            response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
+                data = await response.json();
             }
-        ];
+        }
         
-        // Try each attempt
-        for (let i = 0; i < attempts.length; i++) {
-            try {
-                console.log(`🎯 Attempt ${i + 1}/${attempts.length}...`);
-                data = await attempts[i]();
-                console.log(`✅ Attempt ${i + 1} succeeded!`);
-                break;
-            } catch (error) {
-                console.warn(`⚠️ Attempt ${i + 1} failed:`, error.message);
-                if (i === attempts.length - 1) {
-                    throw error; // Last attempt failed, throw the error
-                }
-            }
+        if (!data) {
+            throw new Error('Product loading failed');
+        }
+        
+        // Cache the successful response
+        try {
+            sessionStorage.setItem('cached_products', JSON.stringify(data));
+            sessionStorage.setItem('products_cache_timestamp', Date.now().toString());
+            console.log('✅ Products cached successfully');
+        } catch (e) {
+            console.warn('Failed to cache products:', e);
         }
         
         if (!data) {

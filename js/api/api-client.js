@@ -1,9 +1,14 @@
 // frontend/js/api/api-client.js
 
 import { APP_CONFIG } from '../config.js';
+import cacheManager from '../cache-manager.js';
+import SessionManager from '../session-manager.js';
 
-// Generic request handler with automatic token refresh
-async function request(endpoint, { method = 'GET', body = null, auth = true } = {}) {
+// Optional global error handler (loaded on pages that include it)
+const EH = typeof window !== 'undefined' ? window.ErrorHandler : null;
+
+// Generic request handler with automatic token refresh and optional caching for GET requests
+async function request(endpoint, { method = 'GET', body = null, auth = true, cacheTTL = 0, cacheKey = null, showErrorToast = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
 
   if (auth) {
@@ -11,52 +16,76 @@ async function request(endpoint, { method = 'GET', body = null, auth = true } = 
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${APP_CONFIG.API_BASE_URL}${endpoint}`, {
+  const url = `${APP_CONFIG.API_BASE_URL}${endpoint}`;
+  const finalOptions = {
     method,
     headers,
     body: body ? JSON.stringify(body) : null
-  });
+  };
 
-  // If token expired → try refresh
+  // Try cache first for GET requests if TTL provided
+  if (method === 'GET' && cacheTTL && cacheTTL > 0) {
+    const key = cacheKey || `GET:${endpoint}`;
+    const cached = cacheManager.getItem(key);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  let res;
+  try {
+    res = await fetch(url, finalOptions);
+  } catch (error) {
+    // Network failure
+    if (EH) EH.handle({ error, toast: showErrorToast });
+    // Emit global event for diagnostics
+    window.dispatchEvent(new CustomEvent('api:error', { detail: { endpoint, method, error } }));
+    throw error;
+  }
+
+  // If token expired → try refresh via SessionManager
   if (res.status === 401 && auth) {
-    const refreshed = await refreshToken();
+    const refreshed = await SessionManager.refreshToken();
     if (refreshed) {
       const token = localStorage.getItem(APP_CONFIG.TOKEN_STORAGE_KEY);
       headers['Authorization'] = `Bearer ${token}`;
-      res = await fetch(`${APP_CONFIG.API_BASE_URL}${endpoint}`, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : null
-      });
+      try {
+        res = await fetch(url, finalOptions);
+      } catch (error) {
+        if (EH) EH.handle({ error, toast: showErrorToast });
+        window.dispatchEvent(new CustomEvent('api:error', { detail: { endpoint, method, error } }));
+        throw error;
+      }
+    } else {
+      // Emit global event for listeners
+      window.dispatchEvent(new CustomEvent('auth:expired'));
     }
   }
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `API Error: ${res.status}`);
+    const msg = errorData.message || `API Error: ${res.status}`;
+    const err = new Error(msg);
+    // Provide user feedback when requested
+    if (EH && showErrorToast) EH.handle({ response: res, toast: true });
+    // Emit global event for diagnostics and UI hooks
+    window.dispatchEvent(new CustomEvent('api:error', { detail: { endpoint, method, status: res.status, body, error: err } }));
+    throw err;
   }
 
-  return res.json();
+  const data = await res.json();
+
+  // Store successful GET responses in cache
+  if (method === 'GET' && cacheTTL && cacheTTL > 0) {
+    const key = cacheKey || `GET:${endpoint}`;
+    cacheManager.setItem(key, data, cacheTTL);
+  }
+
+  return data;
 }
 
 // Refresh token handler
-async function refreshToken() {
-  const refreshToken = localStorage.getItem(APP_CONFIG.REFRESH_TOKEN_KEY);
-  if (!refreshToken) return false;
-
-  const res = await fetch(`${APP_CONFIG.API_BASE_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken })
-  });
-
-  if (res.ok) {
-    const data = await res.json();
-    localStorage.setItem(APP_CONFIG.TOKEN_STORAGE_KEY, data.accessToken);
-    return true;
-  }
-  return false;
-}
+// Deprecated: refreshToken moved to SessionManager
 
 // Main API client
 export const apiClient = {
@@ -65,3 +94,6 @@ export const apiClient = {
   put: (url, body, opts) => request(url, { ...opts, method: 'PUT', body }),
   delete: (url, opts) => request(url, { ...opts, method: 'DELETE' })
 };
+
+// Alias export used by some services
+export const api = apiClient;

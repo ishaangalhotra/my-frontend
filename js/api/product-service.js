@@ -2,11 +2,13 @@ import { apiClient } from './api-client';
 
 export const ProductService = {
   async getProducts(sellerId) {
-    return apiClient.get(`/products?seller=${sellerId}`);
+    // Cache product lists for 5 minutes
+    return apiClient.get(`/products?seller=${sellerId}`, { cacheTTL: 5 * 60 * 1000 });
   },
 
   async getProductById(id) {
-    return apiClient.get(`/products/${id}`);
+    // Cache individual product for 1 minute
+    return apiClient.get(`/products/${id}`, { cacheTTL: 60 * 1000 });
   },
 
   async createProduct(productData) {
@@ -22,7 +24,8 @@ export const ProductService = {
   },
 
   async getProductsForCustomer() {
-    return apiClient.get('/products/customer');
+    // Cache customer-visible catalog for 5 minutes
+    return apiClient.get('/products/customer', { cacheTTL: 5 * 60 * 1000 });
   }
 };
 // js/api/products-service.js
@@ -31,15 +34,18 @@ import { api } from "./api-client.js";
 export const productsService = {
   async getProducts(params = {}) {
     const query = new URLSearchParams(params).toString();
-    return api.get(`/api/v1/products${query ? `?${query}` : ""}`);
+    // Cache general products listing for 5 minutes
+    return api.get(`/api/v1/products${query ? `?${query}` : ""}`, { cacheTTL: 5 * 60 * 1000 });
   },
   async getProductById(id) {
-    return api.get(`/api/v1/products/${id}`);
+    return api.get(`/api/v1/products/${id}`, { cacheTTL: 60 * 1000 });
   },
   async getCategories() {
-    return api.get(`/api/v1/categories`);
+    // Cache categories longer since they rarely change (10 minutes)
+    return api.get(`/api/v1/categories`, { cacheTTL: 10 * 60 * 1000 });
   },
   async searchProducts(keyword) {
-    return api.get(`/api/v1/products/search?keyword=${encodeURIComponent(keyword)}`);
+    // Cache search results briefly (30 seconds) to avoid stale results
+    return api.get(`/api/v1/products/search?keyword=${encodeURIComponent(keyword)}`, { cacheTTL: 30 * 1000 });
   }
 };

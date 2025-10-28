@@ -801,46 +801,51 @@ class AdvancedShoppingCart {
    * This is the new "single source of truth" for loading the cart.
    */
   async loadCartFromServer() {
-    try {
+    // Optional retry once on transient failures
+    const tryFetch = async () => {
       // ✅ FIX: Use apiCall to send auth token
-      const response = await window.HybridAuthClient.apiCall('/cart', {
-        method: 'GET'
-      });
-
+      const response = await window.HybridAuthClient.apiCall('/cart', { method: 'GET' });
       if (!response.ok) {
-         // The apiCall handles 401 and logs out, but other errors (500, etc.) land here
-         if (response.status === 401) {
-            console.error('Auth token is invalid, user should be logged out.');
-         }
-         throw new Error(`Failed to fetch cart from server (Status: ${response.status})`);
+        if (response.status === 401) {
+          console.error('Auth token invalid or expired during cart fetch.');
+          this.showNotification('Session expired. Please log in again.', 'error');
+        }
+        throw Object.assign(new Error(`Failed to fetch cart (Status: ${response.status})`), { code: response.status });
       }
-
       const res = await response.json();
-      
-      // ✅ FIX: Check for the correct backend response structure from cart.js
-      // The new cart.js returns `res.data` (which has `availableItems`)
-      // The old cartcontroller.js returned `res.data` (which had `items`)
-      // This new code handles both, preferring the new structure.
       let itemsToFormat = [];
       if (res.success && res.data) {
-          if (res.data.availableItems) {
-            itemsToFormat = res.data.availableItems; // From new cart.js
-          } else if (res.data.items) {
-            itemsToFormat = res.data.items; // From old cartcontroller.js
-          }
+        if (res.data.availableItems) {
+          itemsToFormat = res.data.availableItems; // From new cart.js
+        } else if (res.data.items) {
+          itemsToFormat = res.data.items; // From old cartcontroller.js
+        }
       }
-
       this.cart = this.formatServerCart(itemsToFormat);
+    };
 
+    try {
+      await tryFetch();
     } catch (error) {
       console.error('Error loading cart from server:', error);
-      this.showNotification('Could not load your cart', 'error');
-      // Fallback to empty cart, do not load from localStorage
-      this.cart = []; 
+      // Retry once on network/transient errors (5xx or fetch TypeError)
+      const retryable = (error && (error.code >= 500 || error.name === 'TypeError'));
+      if (retryable) {
+        try {
+          await new Promise(r => setTimeout(r, 500));
+          await tryFetch();
+          this.showNotification('Recovered from a temporary issue.', 'info');
+        } catch (retryErr) {
+          console.error('Retry failed:', retryErr);
+          this.handleCartLoadFailure(retryErr);
+        }
+      } else {
+        this.handleCartLoadFailure(error);
+      }
     }
     // Update UI and save backup AFTER fetching
     this.updateCartUI();
-    this.saveCart(); 
+    this.saveCart();
     return this.cart;
   }
 
@@ -872,6 +877,29 @@ class AdvancedShoppingCart {
       addedAt: item.addedAt || new Date().toISOString(),
       updatedAt: item.updatedAt || new Date().toISOString()
     }));
+  }
+
+  // Graceful fallback when cart load fails
+  handleCartLoadFailure(error) {
+    // Prefer backup cart if available
+    let backup = [];
+    try {
+      const raw = localStorage.getItem('quicklocal_cart');
+      backup = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.warn('Failed to read backup cart:', e);
+    }
+
+    if (Array.isArray(backup) && backup.length > 0) {
+      this.cart = backup;
+      this.showNotification('Loaded saved cart (offline mode).', 'warning');
+    } else {
+      this.cart = [];
+      const msg = (error && error.code === 401)
+        ? 'Session expired. Please log in to view your cart.'
+        : 'Could not load your cart. Please try again.';
+      this.showNotification(msg, 'error');
+    }
   }
 
 } // <-- *** THIS IS THE CORRECT END OF THE CLASS ***

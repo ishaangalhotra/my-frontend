@@ -13,14 +13,23 @@ const productCardUtils = {
         const finalPrice = product.finalPrice || product.price;
         const originalPrice = product.originalPrice;
         
+        // Get image URL with fallbacks
+        const imageUrl = product.primaryImage?.url || product.image || 'https://placehold.co/300x200?text=' + encodeURIComponent(product.name);
+        
+        // Create optimized image URLs for responsive loading
+        const optimizedImage = window.imageOptimizer ? 
+            window.imageOptimizer.getOptimizedImageUrl(imageUrl, 300) : 
+            imageUrl;
+        
         return `
             <div class="product-card enhanced-card" data-product-id="${product.id}" 
                  style="cursor: pointer;">
                 <div class="product-image-container">
                     <img loading="lazy" 
-                         src="${product.primaryImage?.url || product.image || 'https://placehold.co/300x200?text=' + encodeURIComponent(product.name)}"
+                         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Crect width='300' height='300' fill='%23f0f0f0'%3E%3C/rect%3E%3C/svg%3E"
+                         data-src="${optimizedImage}"
                          alt="${this.escapeHtml(product.name)}" 
-                         class="product-image"
+                         class="product-image lazy-load"
                          onerror="this.src='https://placehold.co/300x200?text=No+Image';">
                     ${discount > 0 ? `<div class="product-badge">${discount}% OFF</div>` : ''}
                     ${product.isNewArrival ? '<div class="product-badge new">NEW</div>' : ''}
