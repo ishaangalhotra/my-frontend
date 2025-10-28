@@ -39,7 +39,7 @@ class AdvancedShoppingCart {
   async initializeCartData() {
     console.log('Auth confirmed. Initializing cart data from server...');
     await this.loadCartFromServer();
-    await this.loadRecommendations();
+    // await this.loadRecommendations(); // <-- COMMENT THIS OUT
   }
 
   // ==================== CART MANAGEMENT (SERVER-DRIVEN) ====================
