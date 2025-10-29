@@ -131,7 +131,71 @@ window.enhancedLoadProducts = async function() {
         // Use cache if available and not expired
         if (cachedProducts && cacheAge < CACHE_MAX_AGE) {
             console.log('📦 Using cached products data, age:', Math.round(cacheAge/1000), 'seconds');
-            return JSON.parse(cachedProducts);
+            // We still need to process and render the data, so parse it and continue
+            const data = JSON.parse(cachedProducts);
+            
+            if (!data) {
+                throw new Error("Cached data is invalid");
+            }
+            
+            console.log('✅ Raw API response (from cache):', data);
+            
+            // Parse products from response
+            let products = [];
+            
+            if (data.success && data.data && data.data.products && Array.isArray(data.data.products)) {
+                products = data.data.products;
+                console.log(`✅ Found ${products.length} products in data.data.products`);
+            } else if (data.success && Array.isArray(data.data)) {
+                products = data.data;
+                console.log(`✅ Found ${products.length} products in data.data`);
+            } else if (Array.isArray(data)) {
+                products = data;
+                console.log(`✅ Found ${products.length} products in direct array`);
+            } else if (data.products && Array.isArray(data.products)) {
+                products = data.products;
+                console.log(`✅ Found ${products.length} products in data.products`);
+            } else {
+                console.warn('⚠️ Unexpected API response format (from cache):', data);
+                products = [];
+            }
+            
+            // Process products for display
+            if (window.appState) {
+                const processedProducts = products.map(product => ({
+                    ...product,
+                    id: product._id || product.id,
+                    rating: product.averageRating || product.rating || (3.5 + Math.random() * 1.5),
+                    reviews: product.totalReviews || product.reviews || Math.floor(Math.random() * 500) + 10,
+                    originalPrice: product.originalPrice || (product.finalPrice && product.finalPrice < product.price ? product.price : product.price * 1.2),
+                    stock: product.stock !== undefined ? product.stock : Math.floor(Math.random() * 50) + 5,
+                    image: product.image || (product.images && product.images.length > 0 ? 
+                        (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url) : null),
+                    category: typeof product.category === 'object' && product.category && product.category.name ? 
+                        product.category.name : (typeof product.category === 'string' ? product.category : 'Uncategorized')
+                }));
+                
+                window.appState.products = processedProducts;
+                window.appState.allProducts = [...processedProducts];
+                window.appState.filteredProducts = [...processedProducts];
+                
+                processedProducts.forEach(product => {
+                    if (product.category && typeof product.category === 'string') {
+                        window.appState.categories.add(product.category);
+                    }
+                });
+                
+                window.appState.pagination.totalItems = processedProducts.length;
+                window.appState.pagination.totalPages = Math.ceil(processedProducts.length / window.appState.pagination.itemsPerPage);
+            }
+            
+            // Render products if functions are available
+            if (typeof window.renderAll === 'function') window.renderAll();
+            if (typeof window.updatePagination === 'function') window.updatePagination();
+            if (typeof window.updateProductCount === 'function') window.updateProductCount(products.length);
+
+            console.log('🎉 Enhanced loadProducts (from cache) completed successfully!');
+            return; // Exit function since we loaded from cache
         }
         
         console.log('📡 Cache expired or not available, fetching from API...');
@@ -139,41 +203,47 @@ window.enhancedLoadProducts = async function() {
         // Single optimized API call approach
         let response;
         let data;
+
+        // ==========================================================
+        // == START FIX: Force public fetch for /products
+        // ==========================================================
         
-        // Prioritize HybridAuthClient for consistent auth handling
-        if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-            console.log('🔐 Using HybridAuthClient.apiCall...');
-            response = await window.HybridAuthClient.apiCall('/products');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            data = await response.json();
-        } else {
-            // Fallback to direct fetch with headers
-            console.log('📡 Using direct fetch...');
-            const headers = { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'max-age=300' // Tell CDN/browser to cache for 5 minutes
-            };
-            
-            // Add auth header if available
-            if (window.auth && typeof window.auth.getAuthHeader === 'function') {
-                const authHeader = window.auth.getAuthHeader();
-                if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
-                    headers['Authorization'] = authHeader;
-                }
-            }
-            
+        // The /products endpoint should ALWAYS be public and not use the auth client.
+        // This ensures logged-out users can see products.
+        
+        console.log('📡 Using direct, public fetch for /products...');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'max-age=300' // Cache for 5 minutes
+        };
+        
+        // DO NOT add an Authorization header here. This request must be public.
+        
+        try {
             response = await fetch(window.APP_CONFIG.API_BASE_URL + '/products', { headers });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                data = await response.json();
+            if (!response.ok) {
+                let errorText = response.statusText;
+                try {
+                    // Try to get a more specific error message from the server
+                    const errorData = await response.json();
+                    errorText = errorData.message || errorText;
+                } catch(e) {
+                    // Ignore if response is not JSON
+                }
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
+            data = await response.json();
+        } catch (fetchError) {
+            console.error('❌ Direct fetch for /products failed:', fetchError);
+            throw new Error(`Failed to fetch products. ${fetchError.message}`);
         }
+
+        // ==========================================================
+        // == END FIX
+        // ==========================================================
         
         if (!data) {
-            throw new Error('Product loading failed');
+            throw new Error('Product loading failed: No data returned from API');
         }
         
         // Cache the successful response
@@ -185,11 +255,7 @@ window.enhancedLoadProducts = async function() {
             console.warn('Failed to cache products:', e);
         }
         
-        if (!data) {
-            throw new Error('All API attempts failed');
-        }
-        
-        console.log('✅ Raw API response:', data);
+        console.log('✅ Raw API response (from fetch):', data);
         
         // Parse products from response
         let products = [];
@@ -275,7 +341,7 @@ window.enhancedLoadProducts = async function() {
             window.showToast(`✅ Loaded ${products.length} products`, 'success');
         }
         
-        console.log('🎉 Enhanced loadProducts completed successfully!');
+        console.log('🎉 Enhanced loadProducts (from fetch) completed successfully!');
         
     } catch (error) {
         console.error('❌ Enhanced loadProducts failed:', error);
