@@ -533,11 +533,11 @@
         /* Demo functions removed for clarity */
         function addDemoItems() {}
 
+        // --- START OF FIX: Replaced initializePage function ---
         // *** NEW AUTH LISTENER ***
         // This function waits for the auth client to be ready, then tells
         // the cart script to fetch its data.
         function initializePage() {
-            let cartInitDone = false;
             if (!window.HybridAuthClient || !window.advancedCart) {
                 // If scripts aren't loaded yet, try again
                 console.warn('Auth or Cart script not ready, retrying...');
@@ -545,20 +545,24 @@
                 return;
             }
 
-            console.log('Auth and Cart scripts are loaded. Waiting for auth state...');
+            console.log('Auth and Cart scripts are loaded. Waiting for auth state change...');
+            let cartInitDone = false;
 
             // Listen for auth changes
             window.HybridAuthClient.onAuthStateChange((user) => {
+                // Only run this logic once on the initial page load
+                if (cartInitDone) {
+                    console.log('Auth state changed, but cart is already initialized. Ignoring.');
+                    return;
+                }
+                cartInitDone = true;
+
                 if (user) {
                     // User is logged in
                     console.log('User is authenticated. Loading cart data...');
-                    // Now it's safe to call the cart script
-                    if (!cartInitDone) {
-                        cartInitDone = true;
-                        window.advancedCart.initializeCartData();
-                    }
+                    window.advancedCart.initializeCartData();
                 } else {
-                    // User is not logged in
+                    // User is not logged in (or auth failed to init)
                     console.log('User is not authenticated. Showing empty cart.');
                     // Hide loading spinner and show empty cart message
                     document.getElementById('loadingContainer').style.display = 'none';
@@ -566,27 +570,14 @@
                 }
             });
 
-            // Trigger an initial check in case auth is already complete
-            const user = window.HybridAuthClient.getCurrentUser();
-            if (user) {
-                console.log('User is already authenticated. Loading cart data...');
-                if (!cartInitDone) {
-                    cartInitDone = true;
-                    window.advancedCart.initializeCartData();
-                }
-            } else if (window.HybridAuthClient.authMethod === null) {
-                // Auth is still initializing, onAuthStateChange will handle it
-                console.log('Auth is initializing...');
-            } else {
-                // Auth is initialized and there is no user
-                console.log('Auth is initialized, but no user. Showing empty cart.');
-                document.getElementById('loadingContainer').style.display = 'none';
-                document.getElementById('emptyCart').style.display = 'block';
-            }
+            // The hybrid-auth-client will now *always* call onAuthStateChange
+            // after it finishes initializing (due to our first fix), so we don't
+            // need any manual checks here.
         }
 
         // Run the initializer
         initializePage();
+        // --- END OF FIX ---
 
         console.log('🛒 Enhanced Cart Page initialized!');
     </script>
