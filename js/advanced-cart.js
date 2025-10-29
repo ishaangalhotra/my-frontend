@@ -518,6 +518,7 @@ class AdvancedShoppingCart {
     // Update cart page if present
     if (document.getElementById('cart-items-container')) {
       this.renderCartPage();
+      this.loadRecommendations(); // <--- FIX: MOVED HERE FROM renderCartPage()
     }
     
     // Update summary (standalone or embedded)
@@ -617,7 +618,7 @@ class AdvancedShoppingCart {
     this.bindCartEvents();
     
     // Load recommendations after cart is rendered
-    this.loadRecommendations();
+    // this.loadRecommendations(); // <--- FIX: REMOVED FROM HERE
   }
 
   renderCartItemsSection() {
