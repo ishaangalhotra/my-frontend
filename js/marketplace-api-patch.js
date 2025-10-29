@@ -213,8 +213,8 @@ window.enhancedLoadProducts = async function() {
         
         console.log('📡 Using direct, public fetch for /products...');
         const headers = { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'max-age=300' // Cache for 5 minutes
+            'Content-Type': 'application/json'
+            // 'Cache-Control' line removed to prevent CORS error
         };
         
         // DO NOT add an Authorization header here. This request must be public.
