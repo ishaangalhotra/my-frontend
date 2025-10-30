@@ -7,6 +7,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
+    
     <style>
         :root {
             --primary: #6366f1;
@@ -451,7 +453,6 @@
             <p>Track and manage all orders placed on your QuickLocal marketplace</p>
         </div>
 
-        <!-- Statistics Cards -->
         <div class="stats-cards">
             <div class="stat-card">
                 <div class="stat-icon" style="color: var(--primary);"><i class="fas fa-shopping-cart"></i></div>
@@ -475,7 +476,6 @@
             </div>
         </div>
 
-        <!-- Filters -->
         <div class="filters-section">
             <div class="filters-grid">
                 <div class="filter-group">
@@ -511,7 +511,6 @@
             </div>
         </div>
 
-        <!-- Orders Table -->
         <div class="orders-table">
             <div id="loadingState" class="loading" style="display: none;">
                 <div class="spinner"></div>
@@ -532,8 +531,7 @@
                         </tr>
                     </thead>
                     <tbody id="ordersTableBody">
-                        <!-- Orders will be populated here -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
@@ -545,7 +543,6 @@
         </div>
     </div>
 
-    <!-- Order Details Modal -->
     <div id="orderModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -553,8 +550,7 @@
                 <button class="modal-close">&times;</button>
             </div>
             <div id="modalContent">
-                <!-- Order details will be populated here -->
-            </div>
+                </div>
         </div>
     </div>
 
@@ -967,21 +963,67 @@
             };
         }
 
+        // === START: FIXED AUTH FUNCTION ===
         function getAuthHeaders() {
-            const token = localStorage.getItem('token') || 
-                         localStorage.getItem('accessToken') || 
-                         localStorage.getItem('quicklocal_access_token');
-                         
+            let token = null;
+
+            // 1. Try to get token from HybridAuthClient (if it's loaded)
+            try {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                    const header = window.HybridAuthClient.getAuthHeader();
+                    if (header && header.startsWith('Bearer ')) {
+                        // Get just the token from the "Bearer <token>" string
+                        token = header.substring(7); 
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not get token from HybridAuthClient', e);
+            }
+
+            // 2. Fallback to localStorage (Supabase token)
+            if (!token) {
+                token = localStorage.getItem('supabase_access_token');
+            }
+            
+            // 3. Fallback to other known keys
+            if (!token) {
+                token = localStorage.getItem('quicklocal_access_token');
+            }
+            if (!token) {
+                token = localStorage.getItem('token');
+            }
+            if (!token) {
+                token = localStorage.getItem('accessToken');
+            }
+
+            // 4. Fallback to dynamic Supabase key (e.g., "sb-pmvhsjezhuokwygvhhqk-auth-token")
+            if (!token) {
+                try {
+                    const keys = Object.keys(localStorage);
+                    const authKey = keys.find(key => key.includes('auth-token') && key.startsWith('sb-'));
+                    if (authKey) {
+                        const authData = JSON.parse(localStorage.getItem(authKey));
+                        token = authData?.access_token;
+                    }
+                } catch (e) {
+                    console.warn('Could not get dynamic Supabase token', e);
+                }
+            }
+            
+            // Construct headers
             const headers = {
                 'Content-Type': 'application/json'
             };
             
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                console.warn('getAuthHeaders: No token found. Request will likely fail.');
             }
             
             return headers;
         }
+        // === END: FIXED AUTH FUNCTION ===
 
         // Make functions globally available
         window.viewOrder = viewOrder;
