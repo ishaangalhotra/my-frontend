@@ -6,45 +6,75 @@ class MultiChannelNotificationService {
     this.token = null; // FIXED: Don't use localStorage in constructor
     this.emailTemplates = new Map();
     this.smsTemplates = new Map();
-    this.loadToken(); // Call loadToken on initialization
-  }
+    this.loadToken() {
+  try {
+    let token = null;
 
-  // Load token from localStorage
-  loadToken() {
-    try {
-      let token = null;
+    // Priority 1: Check the dedicated token keys
+    token = localStorage.getItem('quicklocal_access_token') || 
+            localStorage.getItem('supabase_access_token') ||
+            localStorage.getItem('token');
 
-      // Priority 1: Check the dedicated token keys
-      token = localStorage.getItem('quicklocal_access_token') || 
-              localStorage.getItem('supabase_access_token') ||
-              localStorage.getItem('token');
-
-      // Priority 2: Fallback to checking inside the user object (as a last resort)
-      if (!token) {
-        const storedUser = localStorage.getItem('quicklocal_user');
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-          } catch (e) {
-            console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-          }
+    // Priority 2: Fallback to checking inside the user object (as a last resort)
+    if (!token) {
+      const storedUser = localStorage.getItem('quicklocal_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+        } catch (e) {
+          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
         }
       }
-
-      this.token = token;
-
-      if (!token) {
-        console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-      } else {
-        console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-      }
-    } catch (error) {
-      console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-      this.token = null;
     }
-  }
 
+    this.token = token;
+
+    if (!token) {
+      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
+    } else {
+      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
+    }
+  } catch (error) {
+    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+    this.token = null;
+  }
+}
+
+  // Load token from localStorage
+  
+loadToken() {
+  try {
+    let token = null;
+
+    // Priority 1: Check the dedicated token keys
+    token = localStorage.getItem('quicklocal_access_token') || 
+            localStorage.getItem('supabase_access_token') ||
+            localStorage.getItem('token');
+
+    // Priority 2: Fallback to checking inside the user object (as a last resort)
+    if (!token) {
+      const storedUser = localStorage.getItem('quicklocal_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      }
+    }
+
+    this.token = token;
+
+    if (!token) {
+      // This log is now expected on logout, but shows the bug if user is logged in
+      console.warn(`[${this.constructor.name}] No valid auth token found.`);
+    } else {
+      // Optional: Add a success log for debugging
+      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
+    }
+  } catch (error) {
+    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+    this.token = null;
+  }
+}
   // Set authentication token
   setToken(token) {
     this.token = token;
@@ -614,35 +644,39 @@ class MultiChannelNotificationService {
 
   // Initialize multi-channel service
   async initialize() {
+  try {
+    // Reload token in case it was set after construction
+    this.loadToken();
+
+    // Check if we actually have a token before making API calls
+    if (!this.token) {
+      console.log('[MultiChannelNotificationService] Skipping initialization - no auth token available');
+      return false;
+    }
+
+    // Load templates (with graceful failure)
     try {
-      // Reload token in case it was set after construction
-      this.loadToken();
-
-      // Check if we actually have a token before making API calls
-      if (!this.token) {
-        console.log('[MultiChannelNotificationService] Skipping initialization - no auth token available');
-        return false;
-      }
-
-      // Load templates (with graceful failure)
-      try {
-        await this.getEmailTemplates();
-        console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
-      } catch (error) {
-        console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
-      }
-
-      try {
-        await this.getSMSTemplates();
-        console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
-      } catch (error) {
-        console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
-      }
-
-      console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
-      return true;
+      await this.getEmailTemplates();
+      console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
     } catch (error) {
-      console.error('[MultiChannelNotificationService] Failed to initialize:', error);
+      console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
+    }
+
+    try {
+      await this.getSMSTemplates();
+      console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
+    } catch (error) {
+      console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
+    }
+
+    console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
+    return true;
+  } catch (error) {
+    console.error('[MultiChannelNotificationService] Failed to initialize:', error);
+    return false;
+  }
+} catch (error) {
+      console.error('Failed to initialize multi-channel notification service:', error);
       return false;
     }
   }
