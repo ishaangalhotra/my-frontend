@@ -680,7 +680,7 @@ loadToken() {
       return false;
     }
   }
-}
+
 
 // Create global instance
 window.multiChannelNotificationService = new MultiChannelNotificationService();
