@@ -13,17 +13,30 @@ class MultiChannelNotificationService {
   
 loadToken() {
   try {
-    const storedUser = localStorage.getItem('quicklocal_user');
     let token = null;
 
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+    // Priority 1: Check the dedicated token keys
+    token = localStorage.getItem('quicklocal_access_token') || 
+            localStorage.getItem('supabase_access_token') ||
+            localStorage.getItem('token');
+
+    // Priority 2: Fallback to checking inside the user object (as a last resort)
+    if (!token) {
+      const storedUser = localStorage.getItem('quicklocal_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      }
     }
 
     this.token = token;
+
     if (!token) {
+      // This log is now expected on logout, but shows the bug if user is logged in
       console.warn(`[${this.constructor.name}] No valid auth token found.`);
+    } else {
+      // Optional: Add a success log for debugging
+      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
     }
   } catch (error) {
     console.warn(`[${this.constructor.name}] Failed to load token:`, error);
