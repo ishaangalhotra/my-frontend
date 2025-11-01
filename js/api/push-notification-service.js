@@ -1,26 +1,42 @@
 // Advanced Push Notification Service for QuickLocal
 class PushNotificationService {
   constructor() {
-    this.baseURL = window.location.origin + '/api/v1';
+    // FIXED: Use external config or full backend URL for consistency and reliability
+    this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();
+    this.loadToken();
   }
 
+// Load token from localStorage
 loadToken() {
   try {
-    const storedUser = localStorage.getItem('quicklocal_user');
     let token = null;
 
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+    // Priority 1: Check the dedicated token keys
+    token = localStorage.getItem('quicklocal_access_token') || 
+            localStorage.getItem('supabase_access_token') ||
+            localStorage.getItem('token');
+
+    // Priority 2: Fallback to checking inside the user object (as a last resort)
+    if (!token) {
+      const storedUser = localStorage.getItem('quicklocal_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      }
     }
 
     this.token = token;
+
     if (!token) {
+      // This log is now expected on logout, but shows the bug if user is logged in
       console.warn(`[${this.constructor.name}] No valid auth token found.`);
+    } else {
+      // Optional: Add a success log for debugging
+      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
     }
   } catch (error) {
     console.warn(`[${this.constructor.name}] Failed to load token:`, error);
@@ -39,7 +55,8 @@ loadToken() {
   // Set authentication token
   setToken(token) {
     this.token = token;
-    localStorage.setItem('token', token);
+    // FIXED: Ensure we are setting a reliable token key, defaulting to the one the login flow likely uses
+    localStorage.setItem('quicklocal_access_token', token);
   }
 
   // Get authentication headers
