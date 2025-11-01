@@ -4,8 +4,40 @@ class NotificationService {
     // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.token = null; // FIXED: Don't use localStorage in constructor
-    this.loadToken();
+    this.loadToken() {
+  try {
+    let token = null;
+
+    // Priority 1: Check the dedicated token keys
+    token = localStorage.getItem('quicklocal_access_token') || 
+            localStorage.getItem('supabase_access_token') ||
+            localStorage.getItem('token');
+
+    // Priority 2: Fallback to checking inside the user object (as a last resort)
+    if (!token) {
+      const storedUser = localStorage.getItem('quicklocal_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+        } catch (e) {
+          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
+        }
+      }
+    }
+
+    this.token = token;
+
+    if (!token) {
+      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
+    } else {
+      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
+    }
+  } catch (error) {
+    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+    this.token = null;
   }
+}
 
   // Load token from localStorage
   
@@ -316,27 +348,48 @@ loadToken() {
 
   // Initialize notification system
   async initialize() {
-    try {
-      // Reload token in case it was set after construction
-      this.loadToken();
+  try {
+    // Reload token in case it was set after construction
+    this.loadToken();
 
-      // Initialize badge
-      await this.initializeBadge();
+    // Check if we actually have a token before making API calls
+    if (!this.token) {
+      console.log('[NotificationService] Skipping initialization - no auth token available');
+      return false;
+    }
 
-      // Request permission for browser notifications
-      await this.requestPermission();
+    // Initialize badge
+    await this.initializeBadge();
 
-      // Subscribe to real-time notifications
-      const socket = this.subscribeToNotifications((notification) => {
-        // Update badge
-        this.updateBadge(notification.unreadCount || 0);
+    // Request permission for browser notifications
+    await this.requestPermission();
 
-        // Show toast notification
-        this.showToast(notification);
+    // Subscribe to real-time notifications
+    const socket = this.subscribeToNotifications((notification) => {
+      // Update badge
+      this.updateBadge(notification.unreadCount || 0);
 
-        // Show browser notification
-        this.showBrowserNotification(notification);
-      });
+      // Show toast notification
+      this.showToast(notification);
+
+      // Show browser notification
+      this.showBrowserNotification(notification);
+    });
+
+    // Set up periodic badge updates
+    setInterval(async () => {
+      if (this.token) { // Only update if we still have a token
+        await this.initializeBadge();
+      }
+    }, 30000); // Update every 30 seconds
+
+    console.log('[NotificationService] ✅ Successfully initialized');
+    return socket;
+  } catch (error) {
+    console.error('[NotificationService] Failed to initialize:', error);
+    return false;
+  }
+});
 
       // Set up periodic badge updates
       setInterval(async () => {

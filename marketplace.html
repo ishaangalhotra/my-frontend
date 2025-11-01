@@ -4441,6 +4441,151 @@
 <script src="js/api/push-notification-service.js"></script>
 
 <script>
+(function() {
+  console.log('[NotificationInit] Setting up delayed initialization...');
+
+  let authReady = false;
+  let servicesInitialized = false;
+
+  // Track if we have a valid user session
+  function hasValidSession() {
+    try {
+      const token = localStorage.getItem('quicklocal_access_token') || 
+                    localStorage.getItem('supabase_access_token') ||
+                    localStorage.getItem('token');
+
+      const user = localStorage.getItem('quicklocal_user');
+
+      return !!(token && user);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Initialize all notification services
+  async function initializeNotificationServices() {
+    if (servicesInitialized) {
+      console.log('[NotificationInit] Services already initialized, skipping...');
+      return;
+    }
+
+    // Only initialize if we have a valid session
+    if (!hasValidSession()) {
+      console.log('[NotificationInit] No valid session found, skipping notification services');
+      return;
+    }
+
+    console.log('[NotificationInit] Initializing notification services after auth...');
+    servicesInitialized = true;
+
+    // Give auth system a moment to stabilize
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      // Initialize main notification service
+      if (window.notificationService && typeof window.notificationService.initialize === 'function') {
+        console.log('[NotificationInit] Initializing NotificationService...');
+        await window.notificationService.initialize();
+        console.log('[NotificationInit] ✅ NotificationService initialized');
+      } else if (window.NotificationService) {
+        console.log('[NotificationInit] Creating new NotificationService instance...');
+        window.notificationService = new window.NotificationService();
+        await window.notificationService.initialize();
+        console.log('[NotificationInit] ✅ NotificationService initialized');
+      }
+    } catch (error) {
+      console.warn('[NotificationInit] ⚠️ NotificationService initialization failed:', error.message);
+    }
+
+    try {
+      // Initialize multi-channel service
+      if (window.multiChannelNotificationService && typeof window.multiChannelNotificationService.initialize === 'function') {
+        console.log('[NotificationInit] Initializing MultiChannelNotificationService...');
+        await window.multiChannelNotificationService.initialize();
+        console.log('[NotificationInit] ✅ MultiChannelNotificationService initialized');
+      } else if (window.MultiChannelNotificationService) {
+        console.log('[NotificationInit] Creating new MultiChannelNotificationService instance...');
+        window.multiChannelNotificationService = new window.MultiChannelNotificationService();
+        await window.multiChannelNotificationService.initialize();
+        console.log('[NotificationInit] ✅ MultiChannelNotificationService initialized');
+      }
+    } catch (error) {
+      console.warn('[NotificationInit] ⚠️ MultiChannelNotificationService initialization failed:', error.message);
+    }
+
+    try {
+      // Initialize tracking service
+      if (window.TrackingService && typeof window.TrackingService.connect === 'function') {
+        console.log('[NotificationInit] Connecting TrackingService...');
+        window.TrackingService.connect();
+        console.log('[NotificationInit] ✅ TrackingService connected');
+      } else if (window.trackingService && typeof window.trackingService.connect === 'function') {
+        console.log('[NotificationInit] Connecting trackingService...');
+        window.trackingService.connect();
+        console.log('[NotificationInit] ✅ trackingService connected');
+      }
+    } catch (error) {
+      console.warn('[NotificationInit] ⚠️ TrackingService initialization failed:', error.message);
+    }
+
+    console.log('[NotificationInit] 🎉 All notification services initialized');
+  }
+
+  // Listen for auth-ready event (fired by HybridAuthClient)
+  document.addEventListener('auth-ready', async (e) => {
+    console.log('[NotificationInit] 🔐 auth-ready event received:', e.detail?.user?.email || e.detail?.user?.name);
+    authReady = true;
+
+    // Initialize services now that auth is ready
+    await initializeNotificationServices();
+  });
+
+  // Fallback: Check after DOM load + delay (in case auth-ready was missed)
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[NotificationInit] DOMContentLoaded - setting up fallback check');
+
+    // Wait 2 seconds for auth to initialize
+    setTimeout(async () => {
+      if (!authReady && hasValidSession()) {
+        console.log('[NotificationInit] ⏰ Fallback: Auth ready not detected, but valid session found');
+        authReady = true;
+        await initializeNotificationServices();
+      } else if (!hasValidSession()) {
+        console.log('[NotificationInit] ℹ️ No valid session - user is not logged in');
+      }
+    }, 2000);
+  });
+
+  // Push notification permission dialog (separate from initialization)
+  setTimeout(() => {
+    try {
+      if (window.pushNotificationService && 
+          typeof window.pushNotificationService.getPermissionStatus === 'function' &&
+          window.pushNotificationService.getPermissionStatus() === 'default') {
+
+        // Show permission dialog after 30 seconds (only if user is logged in)
+        setTimeout(() => {
+          if (hasValidSession()) {
+            try {
+              window.pushNotificationService.showPermissionDialog();
+            } catch (e) {
+              console.warn('[NotificationInit] Failed to show push permission dialog:', e);
+            }
+          }
+        }, 30000);
+      }
+    } catch (e) {
+      console.warn('[NotificationInit] Push notification setup failed:', e);
+    }
+  }, 5000);
+
+  console.log('[NotificationInit] ✅ Notification initialization system ready');
+})();
+</script>
+<script src="js/api/multi-channel-notification-service.js"></script>
+<script src="js/api/push-notification-service.js"></script>
+
+<script>
   // Delay initialization of services until authentication is ready
   function initNotificationServices() {
     console.log('Auth ready — initializing notification & tracking services.');
