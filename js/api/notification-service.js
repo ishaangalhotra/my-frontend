@@ -28,11 +28,6 @@ loadToken() {
     this.token = null;
   }
 }
- catch (error) {
-      console.warn('Unable to access localStorage:', error);
-    }
-  }
-
   // Set authentication token
   setToken(token) {
     this.token = token;
