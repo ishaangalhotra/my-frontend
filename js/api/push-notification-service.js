@@ -7,75 +7,44 @@ class PushNotificationService {
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();
-    this.loadToken() {
-  try {
-    let token = null;
+    this.loadToken(); // Call loadToken on initialization
+  }
 
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
+  // Load token from localStorage
+  loadToken() {
+    try {
+      let token = null;
 
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
+      // Priority 1: Check the dedicated token keys
+      token = localStorage.getItem('quicklocal_access_token') || 
+              localStorage.getItem('supabase_access_token') ||
+              localStorage.getItem('token');
+
+      // Priority 2: Fallback to checking inside the user object (as a last resort)
+      if (!token) {
+        const storedUser = localStorage.getItem('quicklocal_user');
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+          } catch (e) {
+            console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
+          }
         }
       }
-    }
 
-    this.token = token;
+      this.token = token;
 
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-
-// Load token from localStorage
-loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      if (!token) {
+        console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
+      } else {
+        console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
       }
+    } catch (error) {
+      console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+      this.token = null;
     }
-
-    this.token = token;
-
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
   }
-}
-
 
   // Check if push notifications are supported
   checkPushSupport() {
@@ -507,45 +476,24 @@ loadToken() {
 
   // Initialize push notification system
   async initialize() {
-  try {
-    if (!this.isSupported) {
-      console.warn('[PushNotificationService] Push notifications are not supported in this browser');
-      return false;
-    }
+    try {
+      if (!this.isSupported) {
+        console.warn('[PushNotificationService] Push notifications are not supported in this browser');
+        return false;
+      }
 
-    // Reload token
-    this.loadToken();
+      // Reload token
+      this.loadToken();
 
-    // Note: Push notification initialization doesn't require auth,
-    // so we don't skip here, but we log a warning
-    if (!this.token) {
-      console.log('[PushNotificationService] No auth token - limited functionality');
-    }
-
-    // Check current subscription status
-    const status = await this.getSubscriptionStatus();
-    console.log('[PushNotificationService] Push notification status:', status);
-
-    // Set up message handler for service worker
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
-          this.handleNotificationClick(event.data);
-        }
-      });
-    }
-
-    console.log('[PushNotificationService] ✅ Successfully initialized');
-    return true;
-  } catch (error) {
-    console.error('[PushNotificationService] Failed to initialize:', error);
-    return false;
-  }
-}
+      // Note: Push notification initialization doesn't require auth,
+      // so we don't skip here, but we log a warning
+      if (!this.token) {
+        console.log('[PushNotificationService] No auth token - limited functionality');
+      }
 
       // Check current subscription status
       const status = await this.getSubscriptionStatus();
-      console.log('Push notification status:', status);
+      console.log('[PushNotificationService] Push notification status:', status);
 
       // Set up message handler for service worker
       if (navigator.serviceWorker) {
@@ -556,9 +504,10 @@ loadToken() {
         });
       }
 
+      console.log('[PushNotificationService] ✅ Successfully initialized');
       return true;
     } catch (error) {
-      console.error('Failed to initialize push notification service:', error);
+      console.error('[PushNotificationService] Failed to initialize:', error);
       return false;
     }
   }

@@ -4,75 +4,45 @@ class NotificationService {
     // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.token = null; // FIXED: Don't use localStorage in constructor
-    this.loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
+    this.loadToken(); // Call loadToken on initialization
   }
-}
 
   // Load token from localStorage
-  
-loadToken() {
-  try {
-    let token = null;
+  loadToken() {
+    try {
+      let token = null;
 
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
+      // Priority 1: Check the dedicated token keys
+      token = localStorage.getItem('quicklocal_access_token') || 
+              localStorage.getItem('supabase_access_token') ||
+              localStorage.getItem('token');
 
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      // Priority 2: Fallback to checking inside the user object (as a last resort)
+      if (!token) {
+        const storedUser = localStorage.getItem('quicklocal_user');
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+          } catch (e) {
+            console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
+          }
+        }
       }
-    }
 
-    this.token = token;
+      this.token = token;
 
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
+      if (!token) {
+        console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
+      } else {
+        console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
+      }
+    } catch (error) {
+      console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+      this.token = null;
     }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
   }
-}
+
   // Set authentication token
   setToken(token) {
     this.token = token;
@@ -185,13 +155,20 @@ loadToken() {
   // Get unread count
   async getUnreadCount() {
     try {
-      const response = await this.getNotifications({ limit: 1, read: 'unread' });
-      return response.data.unreadCount || 0;
+      // Use a minimal request to get the count efficiently
+      const response = await this.makeRequest('/notifications?limit=1&read=unread');
+      // Assuming the API returns unreadCount in the metadata or top level
+      return response.unreadCount || response.pagination?.unreadCount || 0;
     } catch (error) {
       console.error('Failed to get unread count:', error);
+      // Check if response data is available even on error (e.g., from a custom error structure)
+      if (error.response && error.response.data) {
+         return error.response.data.unreadCount || 0;
+      }
       return 0;
     }
   }
+
 
   // Subscribe to real-time notifications
   subscribeToNotifications(callback) {
@@ -348,57 +325,46 @@ loadToken() {
 
   // Initialize notification system
   async initialize() {
-  try {
-    // Reload token in case it was set after construction
-    this.loadToken();
+    try {
+      // Reload token in case it was set after construction
+      this.loadToken();
 
-    // Check if we actually have a token before making API calls
-    if (!this.token) {
-      console.log('[NotificationService] Skipping initialization - no auth token available');
-      return false;
-    }
-
-    // Initialize badge
-    await this.initializeBadge();
-
-    // Request permission for browser notifications
-    await this.requestPermission();
-
-    // Subscribe to real-time notifications
-    const socket = this.subscribeToNotifications((notification) => {
-      // Update badge
-      this.updateBadge(notification.unreadCount || 0);
-
-      // Show toast notification
-      this.showToast(notification);
-
-      // Show browser notification
-      this.showBrowserNotification(notification);
-    });
-
-    // Set up periodic badge updates
-    setInterval(async () => {
-      if (this.token) { // Only update if we still have a token
-        await this.initializeBadge();
+      // Check if we actually have a token before making API calls
+      if (!this.token) {
+        console.log('[NotificationService] Skipping initialization - no auth token available');
+        return false;
       }
-    }, 30000); // Update every 30 seconds
 
-    console.log('[NotificationService] ✅ Successfully initialized');
-    return socket;
-  } catch (error) {
-    console.error('[NotificationService] Failed to initialize:', error);
-    return false;
-  }
-});
+      // Initialize badge
+      await this.initializeBadge();
+
+      // Request permission for browser notifications
+      await this.requestPermission();
+
+      // Subscribe to real-time notifications
+      const socket = this.subscribeToNotifications((notification) => {
+        // Update badge
+        this.updateBadge(notification.unreadCount || 0);
+
+        // Show toast notification
+        this.showToast(notification);
+
+        // Show browser notification
+        this.showBrowserNotification(notification);
+      });
 
       // Set up periodic badge updates
       setInterval(async () => {
-        await this.initializeBadge();
+        if (this.token) { // Only update if we still have a token
+          await this.initializeBadge();
+        }
       }, 30000); // Update every 30 seconds
 
+      console.log('[NotificationService] ✅ Successfully initialized');
       return socket;
     } catch (error) {
-      console.error('Failed to initialize notification system:', error);
+      console.error('[NotificationService] Failed to initialize:', error);
+      return false;
     }
   }
 }
