@@ -4431,42 +4431,69 @@
     
     <!-- Performance Optimization & Notification Services -->
     
+
 <script type="module" src="js/image-optimizer.js"></script>
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
+<!-- Load notification & related services but delay initialization until auth-ready -->
 <script src="js/api/notification-service.js"></script>
-<script src="js/api/tracking-service.js"></script>
-<script src="js/api/push-notification-service.js"></script>
 <script src="js/api/multi-channel-notification-service.js"></script>
+<script src="js/api/push-notification-service.js"></script>
 
 <script>
-    // 🛑 CRITICAL FIX: Wait for 'auth-ready' event before initializing services
-    document.addEventListener('auth-ready', () => {
-        console.log('Authentication ready. Initializing notification services...');
+  // Delay initialization of services until authentication is ready
+  function initNotificationServices() {
+    console.log('Auth ready — initializing notification & tracking services.');
+    try {
+      if (window.notificationService && typeof window.notificationService.initialize === 'function') {
+        window.notificationService.initialize();
+      } else if (window.NotificationService) {
+        new window.NotificationService().initialize();
+      }
+      if (window.multiChannelNotificationService && typeof window.multiChannelNotificationService.initialize === 'function') {
+        window.multiChannelNotificationService.initialize();
+      } else if (window.MultiChannelNotificationService) {
+        new window.MultiChannelNotificationService().initialize();
+      }
+      if (window.TrackingService && typeof window.TrackingService.connect === 'function') {
+        window.TrackingService.connect();
+      } else if (window.trackingService && typeof window.trackingService.connect === 'function') {
+        window.trackingService.connect();
+      }
+    } catch (e) {
+      console.error('Error initializing notification services after auth-ready:', e);
+    }
+  }
 
-        // Initialize notification services with the confirmed session
-        if (window.NotificationService) {
-            try { new window.NotificationService().initialize(); } catch (e) { console.error('NotificationService init failed', e); }
-        }
-        if (window.MultiChannelNotificationService) {
-            try { new window.MultiChannelNotificationService().initialize(); } catch (e) { console.error('MultiChannelNotificationService init failed', e); }
-        }
-        if (window.TrackingService) {
-            try { new window.TrackingService().connect(); } catch (e) { console.error('TrackingService connect failed', e); }
-        }
-    });
+  document.addEventListener('auth-ready', (e) => {
+    console.log('auth-ready event received in marketplace.html', e && e.detail && e.detail.user ? e.detail.user.email || e.detail.user.name : e);
+    initNotificationServices();
+  });
 
-    // Existing Push Notification Logic (Now separate from core init)
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            if (window.pushNotificationService && 
-                typeof window.pushNotificationService.getPermissionStatus === 'function' &&
-                window.pushNotificationService.getPermissionStatus() === 'default') {
-                setTimeout(() => {
-                    try { window.pushNotificationService.showPermissionDialog(); } catch (e) { console.error('pushNotificationService dialog failed', e); }
-                }, 30000); // Show after 30 seconds
-            }
-        }, 5000);
-    });
+  // Fallback: if quicklocal_user exists in storage, initialize after short delay
+  setTimeout(() => {
+    try {
+      const stored = localStorage.getItem('quicklocal_user');
+      if (stored && !window._notificationsInitialized) {
+        window._notificationsInitialized = true;
+        initNotificationServices();
+      }
+    } catch (e) {}
+  }, 500);
+
+  // Push permission dialog remains on DOMContentLoaded, but separate from core init
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      try {
+        if (window.pushNotificationService && typeof window.pushNotificationService.getPermissionStatus === 'function' &&
+            window.pushNotificationService.getPermissionStatus() === 'default') {
+          setTimeout(() => {
+            try { window.pushNotificationService.showPermissionDialog(); } catch (e) { console.error(e); }
+          }, 30000);
+        }
+      } catch (e) {}
+    }, 5000);
+  });
 </script>
+
 </body>
-</html>
