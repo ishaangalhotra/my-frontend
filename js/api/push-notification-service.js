@@ -2,11 +2,32 @@
 class PushNotificationService {
   constructor() {
     this.baseURL = window.location.origin + '/api/v1';
-    this.token = localStorage.getItem('token');
+    
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();
   }
+
+loadToken() {
+  try {
+    const storedUser = localStorage.getItem('quicklocal_user');
+    let token = null;
+
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+    }
+
+    this.token = token;
+    if (!token) {
+      console.warn(`[${this.constructor.name}] No valid auth token found.`);
+    }
+  } catch (error) {
+    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+    this.token = null;
+  }
+}
+
 
   // Check if push notifications are supported
   checkPushSupport() {
