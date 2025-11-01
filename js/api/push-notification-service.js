@@ -7,7 +7,7 @@ class PushNotificationService {
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();
-    this.loadToken() {
+    this.loadToken() 
   try {
     let token = null;
 

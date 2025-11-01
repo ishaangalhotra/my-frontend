@@ -4,7 +4,7 @@ class NotificationService {
     // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.token = null; // FIXED: Don't use localStorage in constructor
-    this.loadToken() {
+    this.loadToken() 
   try {
     let token = null;
 
