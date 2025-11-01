@@ -6,7 +6,7 @@ class MultiChannelNotificationService {
     this.token = null; // FIXED: Don't use localStorage in constructor
     this.emailTemplates = new Map();
     this.smsTemplates = new Map();
-    this.loadToken() 
+    this.loadToken() {
   try {
     let token = null;
 
@@ -680,7 +680,7 @@ loadToken() {
       return false;
     }
   }
-
+}
 
 // Create global instance
 window.multiChannelNotificationService = new MultiChannelNotificationService();
