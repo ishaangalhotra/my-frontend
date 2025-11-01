@@ -4029,7 +4029,7 @@
                     this.setupSmartSearch();
                     
                     // Apply user preferences
-                    this.applyUserPreferences();
+
                     
                     // Handle incoming context from other pages
                     this.handleIncomingContext();
@@ -4430,27 +4430,43 @@
     </script>
     
     <!-- Performance Optimization & Notification Services -->
-    <script src="js/image-optimizer.js"></script>
-    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <script src="js/api/notification-service.js"></script>
-    <script src="js/api/tracking-service.js"></script>
-    <script src="js/api/push-notification-service.js"></script>
-    <script src="js/api/multi-channel-notification-service.js"></script>
     
-    <script>
-        // Initialize notification system for marketplace
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check if user wants to enable notifications after some browsing
-            setTimeout(() => {
-                if (window.pushNotificationService && 
-                    window.pushNotificationService.getPermissionStatus() === 'default') {
-                    // Show permission dialog after user has browsed for a bit
-                    setTimeout(() => {
-                        window.pushNotificationService.showPermissionDialog();
-                    }, 30000); // Show after 30 seconds
-                }
-            }, 5000);
-        });
-    </script>
+<script type="module" src="js/image-optimizer.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="js/api/notification-service.js"></script>
+<script src="js/api/tracking-service.js"></script>
+<script src="js/api/push-notification-service.js"></script>
+<script src="js/api/multi-channel-notification-service.js"></script>
+
+<script>
+    // 🛑 CRITICAL FIX: Wait for 'auth-ready' event before initializing services
+    document.addEventListener('auth-ready', () => {
+        console.log('Authentication ready. Initializing notification services...');
+
+        // Initialize notification services with the confirmed session
+        if (window.NotificationService) {
+            try { new window.NotificationService().initialize(); } catch (e) { console.error('NotificationService init failed', e); }
+        }
+        if (window.MultiChannelNotificationService) {
+            try { new window.MultiChannelNotificationService().initialize(); } catch (e) { console.error('MultiChannelNotificationService init failed', e); }
+        }
+        if (window.TrackingService) {
+            try { new window.TrackingService().connect(); } catch (e) { console.error('TrackingService connect failed', e); }
+        }
+    });
+
+    // Existing Push Notification Logic (Now separate from core init)
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (window.pushNotificationService && 
+                typeof window.pushNotificationService.getPermissionStatus === 'function' &&
+                window.pushNotificationService.getPermissionStatus() === 'default') {
+                setTimeout(() => {
+                    try { window.pushNotificationService.showPermissionDialog(); } catch (e) { console.error('pushNotificationService dialog failed', e); }
+                }, 30000); // Show after 30 seconds
+            }
+        }, 5000);
+    });
+</script>
 </body>
 </html>

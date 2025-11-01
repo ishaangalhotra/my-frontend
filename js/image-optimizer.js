@@ -166,4 +166,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Export for module usage
-export default window.imageOptimizer;
+// Removed ES module export for compatibility with non-module script loading
+if (typeof module !== 'undefined' && module.exports) { module.exports = window.imageOptimizer; }
