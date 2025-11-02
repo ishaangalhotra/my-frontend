@@ -1,12 +1,15 @@
 /**
  * Advanced Search System - Amazon/Flipkart Style
- * Features: Autocomplete, Smart Filters, AI Suggestions, Voice Search
+ * * This script is the "brain" for all searching and filtering.
+ * It fetches results directly from the backend API and then
+ * dispatches an event ('searchResults') with the new product list.
+ * The main 'marketplace.html' script must listen for this event.
  */
 
 class AdvancedSearchSystem {
   constructor() {
-    this.searchInput = document.querySelector('.search-input');
-    this.searchContainer = document.querySelector('.search-container');
+    this.searchInput = null; // Will be set in init
+    this.searchContainer = null; // Will be set in init
     this.searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
     this.recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
     this.popularSearches = [
@@ -40,26 +43,32 @@ class AdvancedSearchSystem {
     // Check if the advanced search structure already exists
     const existingWrapper = document.querySelector('.advanced-search-wrapper');
     
+    // Find the main container
+    this.searchContainer = document.querySelector('.search-container') || existingWrapper;
+
     if (!existingWrapper && this.searchContainer) {
-      // Only create interface if it doesn't exist
+      // Only create interface if it doesn't exist AND we have a place to put it
       this.createSearchInterface();
     } else {
       console.log('🔍 Advanced search interface already exists, using existing structure');
-      // Update references to use existing elements
-      this.searchInput = document.querySelector('.search-input') || document.getElementById('globalSearchInput');
     }
+    
+    // Update references to use existing elements
+    // This is the most critical selector
+    this.searchInput = document.querySelector('.search-input') || document.getElementById('globalSearchInput');
   }
 
   createSearchInterface() {
     // This method is only called if the interface doesn't already exist
+    // and a .search-container was found.
     const searchHTML = `
       <div class="advanced-search-wrapper">
         <div class="search-input-container">
-          <input type="text" class="search-input" placeholder="Search for products, brands, and more..." autocomplete="off">
+          <input type="text" class="search-input" id="globalSearchInput" placeholder="Search for products, brands, and more..." autocomplete="off">
           <button class="voice-search-btn" aria-label="Voice Search">
             <i class="fas fa-microphone"></i>
           </button>
-          <button class="search-btn" aria-label="Search">
+          <button class="search-btn" id="globalSearchBtn" aria-label="Search">
             <i class="fas fa-search"></i>
           </button>
           <div class="search-loader hidden">
@@ -67,7 +76,6 @@ class AdvancedSearchSystem {
           </div>
         </div>
         
-        <!-- Autocomplete Dropdown -->
         <div class="autocomplete-dropdown hidden">
           <div class="search-suggestions">
             <div class="suggestion-section">
@@ -85,7 +93,6 @@ class AdvancedSearchSystem {
           </div>
         </div>
         
-        <!-- Advanced Filters Panel -->
         <div class="filters-panel hidden">
           <div class="filters-header">
             <h3><i class="fas fa-filter"></i> Advanced Filters</h3>
@@ -95,7 +102,6 @@ class AdvancedSearchSystem {
           </div>
           
           <div class="filters-content">
-            <!-- Category Filter -->
             <div class="filter-group">
               <h4>Category</h4>
               <div class="category-filters">
@@ -108,7 +114,6 @@ class AdvancedSearchSystem {
               </div>
             </div>
 
-            <!-- Price Range Filter -->
             <div class="filter-group">
               <h4>Price Range</h4>
               <div class="price-range-container">
@@ -124,7 +129,6 @@ class AdvancedSearchSystem {
               </div>
             </div>
 
-            <!-- Rating Filter -->
             <div class="filter-group">
               <h4>Customer Rating</h4>
               <div class="rating-filters">
@@ -134,28 +138,8 @@ class AdvancedSearchSystem {
                 <label><input type="radio" name="rating" value="0" checked> <span>All Ratings</span></label>
               </div>
             </div>
-
-            <!-- Delivery Time Filter -->
-            <div class="filter-group">
-              <h4>Delivery Time</h4>
-              <div class="delivery-filters">
-                <label><input type="radio" name="delivery" value="20min"> <span>20 minutes</span></label>
-                <label><input type="radio" name="delivery" value="1hour"> <span>Within 1 hour</span></label>
-                <label><input type="radio" name="delivery" value="sameday"> <span>Same day</span></label>
-                <label><input type="radio" name="delivery" value="all" checked> <span>All delivery times</span></label>
-              </div>
+            
             </div>
-
-            <!-- Availability Filter -->
-            <div class="filter-group">
-              <h4>Availability</h4>
-              <div class="availability-filters">
-                <label><input type="checkbox" class="in-stock-filter"> <span>In Stock Only</span></label>
-                <label><input type="checkbox" class="discount-filter"> <span>On Sale</span></label>
-                <label><input type="checkbox" class="new-arrivals-filter"> <span>New Arrivals</span></label>
-              </div>
-            </div>
-          </div>
           
           <div class="filters-actions">
             <button class="apply-filters-btn">Apply Filters</button>
@@ -172,37 +156,36 @@ class AdvancedSearchSystem {
   }
 
   bindEvents() {
-    // Search input events - try multiple selectors to find the right input
+    // Re-select elements after potential creation
     this.searchInput = document.querySelector('.search-input') || document.getElementById('globalSearchInput');
     const voiceBtn = document.querySelector('.voice-search-btn');
     const searchBtn = document.querySelector('.search-btn') || document.getElementById('globalSearchBtn');
     const autocompleteDropdown = document.querySelector('.autocomplete-dropdown');
-    
-    // Update search container reference
     this.searchContainer = document.querySelector('.search-container') || document.querySelector('.advanced-search-wrapper');
     
-    console.log('🔍 Binding events to:', {
-      searchInput: this.searchInput?.id || this.searchInput?.className,
-      voiceBtn: !!voiceBtn,
-      searchBtn: searchBtn?.id || searchBtn?.className,
-      autocompleteDropdown: !!autocompleteDropdown
-    });
+    // **Robustness Check**
+    if (!this.searchInput) {
+      console.error('❌ AdvancedSearch: Could not find search input (#globalSearchInput). Search will not work.');
+      return;
+    }
+    
+    console.log('✅ AdvancedSearch: Binding events to:', this.searchInput.id || this.searchInput.className);
 
-    // Input event with debouncing
-    this.searchInput?.addEventListener('input', (e) => {
+    // Input event with debouncing for suggestions
+    this.searchInput.addEventListener('input', (e) => {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(() => {
         this.handleSearchInput(e.target.value);
       }, 300);
     });
 
-    // Focus and blur events
-    this.searchInput?.addEventListener('focus', () => {
+    // Focus and blur events for suggestion dropdown
+    this.searchInput.addEventListener('focus', () => {
       this.showAutocomplete();
     });
 
     document.addEventListener('click', (e) => {
-      if (!this.searchContainer?.contains(e.target)) {
+      if (this.searchContainer && !this.searchContainer.contains(e.target)) {
         this.hideAutocomplete();
       }
     });
@@ -212,19 +195,17 @@ class AdvancedSearchSystem {
       this.startVoiceSearch();
     });
 
-    // Search button
+    // Search button click
     searchBtn?.addEventListener('click', () => {
       this.performSearch(this.searchInput.value);
     });
 
     // Enter key search
-    this.searchInput?.addEventListener('keydown', (e) => {
+    this.searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         this.performSearch(e.target.value);
       }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        this.navigateSuggestions(e.key);
-      }
+      // Note: Suggestion navigation (ArrowUp/Down) can be added here
     });
 
     // Filter events
@@ -232,6 +213,7 @@ class AdvancedSearchSystem {
   }
 
   bindFilterEvents() {
+    // This function binds to the filter panel, if it exists
     const filtersPanel = document.querySelector('.filters-panel');
     const applyBtn = document.querySelector('.apply-filters-btn');
     const clearBtn = document.querySelector('.clear-filters-btn');
@@ -262,22 +244,21 @@ class AdvancedSearchSystem {
       priceMin.value = e.target.value;
       this.filters.priceRange.min = parseInt(e.target.value);
     });
-
     rangeMax?.addEventListener('input', (e) => {
       priceMax.value = e.target.value;
       this.filters.priceRange.max = parseInt(e.target.value);
     });
-
     priceMin?.addEventListener('input', (e) => {
       rangeMin.value = e.target.value;
       this.filters.priceRange.min = parseInt(e.target.value);
     });
-
     priceMax?.addEventListener('input', (e) => {
       rangeMax.value = e.target.value;
       this.filters.priceRange.max = parseInt(e.target.value);
     });
   }
+
+  // --- AUTOCOMPLETE SUGGESTIONS ---
 
   async handleSearchInput(query) {
     if (!query.trim()) {
@@ -288,11 +269,12 @@ class AdvancedSearchSystem {
     this.showSearchLoader();
     
     try {
-      // Simulate API call for autocomplete suggestions
+      // Get autocomplete suggestions (fast, small payload)
       const suggestions = await this.getAutocompleteSuggestions(query);
       this.displaySuggestions(suggestions);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+      this.displaySuggestions([]); // Show no suggestions on error
     } finally {
       this.hideSearchLoader();
     }
@@ -300,17 +282,15 @@ class AdvancedSearchSystem {
 
   async getAutocompleteSuggestions(query) {
     try {
-      // Get API base URL from app config
       const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
       
-      // Create search URL for quick product suggestions
-      const suggestionUrl = `${apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=5`;
+      // Use a dedicated suggestion endpoint if available, otherwise fallback to product search
+      // Using /products?search=... is fine for this
+      const suggestionUrl = `${apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=5&fields=name,brand,category`;
       
       const response = await fetch(suggestionUrl, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
       
@@ -326,43 +306,27 @@ class AdvancedSearchSystem {
       
       // Transform product data to suggestions format
       const suggestions = [];
-      
-      // Add product name suggestions
+      const added = new Set();
+
       data.data.products.forEach(product => {
-        if (product.name.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.push({
-            text: product.name,
-            category: 'Products',
-            count: 1
-          });
+        // Add product name suggestion
+        if (product.name && !added.has(product.name)) {
+          suggestions.push({ text: product.name, category: 'Products' });
+          added.add(product.name);
         }
-        
-        // Add brand suggestions if available
-        if (product.brand && product.brand.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.push({
-            text: product.brand,
-            category: 'Brands',
-            count: 1
-          });
+        // Add brand suggestion
+        if (product.brand && !added.has(product.brand)) {
+          suggestions.push({ text: product.brand, category: 'Brands' });
+          added.add(product.brand);
         }
-        
-        // Add category suggestions if available
-        if (product.category?.name && product.category.name.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.push({
-            text: product.category.name,
-            category: 'Categories',
-            count: 1
-          });
+        // Add category suggestion
+        if (product.category?.name && !added.has(product.category.name)) {
+          suggestions.push({ text: product.category.name, category: 'Categories' });
+          added.add(product.category.name);
         }
       });
       
-      // Remove duplicates and limit results
-      const uniqueSuggestions = suggestions.filter((suggestion, index, self) => 
-        index === self.findIndex(s => s.text === suggestion.text && s.category === suggestion.category)
-      ).slice(0, 8);
-      
-      console.log('🔍 Autocomplete suggestions:', uniqueSuggestions);
-      return uniqueSuggestions;
+      return suggestions.slice(0, 8);
       
     } catch (error) {
       console.error('🚫 Autocomplete Error:', error);
@@ -372,42 +336,38 @@ class AdvancedSearchSystem {
   
   getFallbackSuggestions(query) {
     // Fallback suggestions when API fails
-    const fallbackSuggestions = [
-      { text: `${query} fresh`, category: 'Suggested', count: '?' },
-      { text: `${query} organic`, category: 'Suggested', count: '?' },
-      { text: `${query} premium`, category: 'Suggested', count: '?' },
-      { text: `Best ${query}`, category: 'Suggested', count: '?' }
+    const fallback = [
+      { text: query, category: 'Search' },
+      { text: `${query} in Electronics`, category: 'Search' },
+      { text: `Best ${query}`, category: 'Search' }
     ];
-
-    return fallbackSuggestions.filter(item => 
-      item.text.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5);
+    return fallback;
   }
 
   displaySuggestions(suggestions) {
     const suggestionsContainer = document.querySelector('.suggestion-results');
-    
+    if (!suggestionsContainer) return;
+
     if (suggestions.length === 0) {
-      suggestionsContainer.innerHTML = '<div class="no-suggestions">No suggestions found</div>';
-      return;
+      suggestionsContainer.innerHTML = `<div class="suggestion-item" data-query="${this.searchInput.value}">
+        <i class="fas fa-search suggestion-icon"></i>
+        <span class="suggestion-text">Search for "${this.highlightMatch(this.searchInput.value, this.searchInput.value)}"</span>
+      </div>`;
+    } else {
+        suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+        <div class="suggestion-item" data-query="${suggestion.text}">
+          <div class="suggestion-content">
+            <i class="fas ${suggestion.category === 'Products' ? 'fa-box' : suggestion.category === 'Brands' ? 'fa-star' : 'fa-tag'} suggestion-icon"></i>
+            <span class="suggestion-text">${this.highlightMatch(suggestion.text, this.searchInput.value)}</span>
+          </div>
+          <div class="suggestion-meta">
+            <span class="suggestion-category">${suggestion.category}</span>
+          </div>
+        </div>
+      `).join('');
     }
 
-    const suggestionsHTML = suggestions.map(suggestion => `
-      <div class="suggestion-item" data-query="${suggestion.text}">
-        <div class="suggestion-content">
-          <i class="fas fa-search suggestion-icon"></i>
-          <span class="suggestion-text">${this.highlightMatch(suggestion.text, this.searchInput.value)}</span>
-        </div>
-        <div class="suggestion-meta">
-          <span class="suggestion-category">${suggestion.category}</span>
-          <span class="suggestion-count">(${suggestion.count})</span>
-        </div>
-      </div>
-    `).join('');
-
-    suggestionsContainer.innerHTML = suggestionsHTML;
-
-    // Bind click events to suggestions
+    // Bind click events to new suggestions
     suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
       item.addEventListener('click', () => {
         const query = item.dataset.query;
@@ -417,35 +377,35 @@ class AdvancedSearchSystem {
   }
 
   showDefaultSuggestions() {
+    // Shows Recent & Popular Searches
     const recentContainer = document.querySelector('.recent-searches');
     const popularContainer = document.querySelector('.popular-searches');
 
-    // Show recent searches
-    const recentHTML = this.recentSearches.slice(0, 5).map(search => `
-      <div class="suggestion-item recent-item" data-query="${search}">
-        <i class="fas fa-clock-rotate-left"></i>
-        <span>${search}</span>
-        <button class="remove-recent" data-query="${search}">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    `).join('');
+    if (recentContainer) {
+      const recentHTML = this.recentSearches.slice(0, 5).map(search => `
+        <div class="suggestion-item recent-item" data-query="${search}">
+          <i class="fas fa-clock-rotate-left"></i>
+          <span>${search}</span>
+          <button class="remove-recent" data-query="${search}"><i class="fas fa-times"></i></button>
+        </div>
+      `).join('');
+      recentContainer.innerHTML = recentHTML || '<div class="no-suggestions">No recent searches</div>';
+    }
 
-    recentContainer.innerHTML = recentHTML || '<div class="no-suggestions">No recent searches</div>';
+    if (popularContainer) {
+      const popularHTML = this.popularSearches.map(search => `
+        <div class="suggestion-item popular-item" data-query="${search}">
+          <i class="fas fa-fire"></i>
+          <span>${search}</span>
+        </div>
+      `).join('');
+      popularContainer.innerHTML = popularHTML;
+    }
 
-    // Show popular searches
-    const popularHTML = this.popularSearches.map(search => `
-      <div class="suggestion-item popular-item" data-query="${search}">
-        <i class="fas fa-fire"></i>
-        <span>${search}</span>
-      </div>
-    `).join('');
-
-    popularContainer.innerHTML = popularHTML;
-
-    // Bind events
+    // Bind events for these items
     document.querySelectorAll('.recent-item, .popular-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-recent')) return; // Don't search if removing
         this.performSearch(item.dataset.query);
       });
     });
@@ -460,8 +420,153 @@ class AdvancedSearchSystem {
 
   highlightMatch(text, query) {
     if (!query) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
+    const regex = new RegExp(`(${query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")})`, 'gi');
     return text.replace(regex, '<strong>$1</strong>');
+  }
+
+  // --- ACTUAL SEARCH (PERFORMED ON CLICK/ENTER) ---
+
+  async performSearch(query) {
+    if (!query.trim()) {
+      // If search is cleared, perform an empty search to show all products
+      console.log('Performing empty search...');
+    }
+
+    this.addToSearchHistory(query);
+    this.hideAutocomplete();
+    
+    // Update search input
+    if (this.searchInput) {
+        this.searchInput.value = query;
+    }
+
+    // Show loading state
+    this.showSearchResults({ loading: true, query: query });
+
+    try {
+      // Perform the actual backend search
+      const results = await this.searchProducts(query);
+      
+      // Hand off the results to the main page
+      this.showSearchResults({ results, query });
+      
+      // Track search analytics
+      this.trackSearch(query, results.total);
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      this.showSearchResults({ error: 'Search failed. Please try again.', query: query });
+    }
+  }
+
+  async searchProducts(query) {
+    try {
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+      
+      // Build search parameters
+      const searchParams = new URLSearchParams();
+      
+      // Add the search query
+      if (query) {
+        searchParams.append('search', query);
+      }
+      
+      // **CRITICAL: Add all active filters**
+      if (this.filters.category && this.filters.category.length > 0) {
+        searchParams.append('category', this.filters.category.join(','));
+      }
+      if (this.filters.priceRange.min > 0) {
+        searchParams.append('minPrice', this.filters.priceRange.min);
+      }
+      if (this.filters.priceRange.max < 10000) {
+        searchParams.append('maxPrice', this.filters.priceRange.max);
+      }
+      if (this.filters.inStock) {
+        searchParams.append('inStock', 'true');
+      }
+      if (this.filters.rating > 0) {
+        searchParams.append('minRating', this.filters.rating);
+      }
+      
+      // Add pagination
+      searchParams.append('page', '1'); // Always fetch page 1 for a new search
+      searchParams.append('limit', '50'); // Fetch a larger set; main page will handle pagination
+      
+      const searchUrl = `${apiBaseUrl}/products?${searchParams.toString()}`;
+      console.log('🚀 AdvancedSearch: Performing backend search:', searchUrl);
+      
+      const response = await fetch(searchUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Search failed');
+      }
+      
+      console.log('✅ AdvancedSearch: Results received:', data.data);
+      
+      // Transform the results to the format expected by the 'searchResults' event
+      return {
+        products: data.data.products || [],
+        total: data.data.pagination?.totalProducts || 0,
+        totalPages: data.data.pagination?.totalPages || 1,
+        currentPage: data.data.pagination?.currentPage || 1,
+        filters: this.filters // Pass back the filters that were used
+      };
+      
+    } catch (error) {
+      console.error('🚫 AdvancedSearch: searchProducts Error:', error);
+      
+      // Return fallback empty results
+      return {
+        products: [],
+        total: 0,
+        totalPages: 0,
+        currentPage: 1,
+        filters: this.filters,
+        error: error.message
+      };
+    }
+  }
+
+  showSearchResults(data) {
+    // **THIS IS THE MOST IMPORTANT PART**
+    // This script does not render products itself.
+    // It dispatches a custom event that 'marketplace.html' (or any other page)
+    // must listen for to receive the search results.
+    
+    console.log('📢 AdvancedSearch: Dispatching "searchResults" event', data);
+    document.dispatchEvent(new CustomEvent('searchResults', {
+      detail: data
+    }));
+  }
+
+  // --- UI & HISTORY HELPERS ---
+
+  addToSearchHistory(query) {
+    if (!query) return;
+    // Remove if already exists
+    this.recentSearches = this.recentSearches.filter(search => search.toLowerCase() !== query.toLowerCase());
+    // Add to beginning
+    this.recentSearches.unshift(query);
+    // Keep only last 10 searches
+    this.recentSearches = this.recentSearches.slice(0, 10);
+    // Save to localStorage
+    localStorage.setItem('recentSearches', JSON.stringify(this.recentSearches));
+  }
+
+  removeRecentSearch(query) {
+    this.recentSearches = this.recentSearches.filter(search => search !== query);
+    localStorage.setItem('recentSearches', JSON.stringify(this.recentSearches));
+    this.showDefaultSuggestions(); // Refresh the display
   }
 
   showAutocomplete() {
@@ -484,182 +589,21 @@ class AdvancedSearchSystem {
     const loader = document.querySelector('.search-loader');
     loader?.classList.add('hidden');
   }
-
-  async performSearch(query) {
-    if (!query.trim()) return;
-
-    // Add to search history
-    this.addToSearchHistory(query);
-    this.hideAutocomplete();
-    
-    // Update search input
-    this.searchInput.value = query;
-
-    // Show loading state
-    this.showSearchResults({ loading: true });
-
-    try {
-      // Perform the actual search (replace with your API call)
-      const results = await this.searchProducts(query);
-      this.showSearchResults({ results, query });
-      
-      // Track search analytics
-      this.trackSearch(query, results.length);
-      
-    } catch (error) {
-      console.error('Search error:', error);
-      this.showSearchResults({ error: 'Search failed. Please try again.' });
-    }
-  }
-
-  async searchProducts(query) {
-    try {
-      // Get API base URL from app config
-      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-      
-      // Build search parameters
-      const searchParams = new URLSearchParams();
-      if (query) searchParams.append('search', query);
-      
-      // Add filters if they exist
-      if (this.filters.category && this.filters.category.length > 0) {
-        searchParams.append('category', this.filters.category.join(','));
-      }
-      
-      if (this.filters.priceRange.min > 0) {
-        searchParams.append('minPrice', this.filters.priceRange.min);
-      }
-      
-      if (this.filters.priceRange.max < 10000) {
-        searchParams.append('maxPrice', this.filters.priceRange.max);
-      }
-      
-      if (this.filters.inStock) {
-        searchParams.append('inStock', 'true');
-      }
-      
-      // Sort mapping
-      const sortMapping = {
-        'name': 'newest',
-        'price_low': 'price_low',
-        'price_high': 'price_high',
-        'rating': 'rating',
-        'popularity': 'popular'
-      };
-      
-      const sortBy = sortMapping[this.filters.sortBy] || 'newest';
-      searchParams.append('sort', sortBy);
-      
-      // Add pagination
-      searchParams.append('page', '1');
-      searchParams.append('limit', '20');
-      
-      const searchUrl = `${apiBaseUrl}/products?${searchParams.toString()}`;
-      console.log('🔍 Advanced Search API URL:', searchUrl);
-      
-      const response = await fetch(searchUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Search failed');
-      }
-      
-      console.log('🔍 Advanced Search Results:', data);
-      
-      // Transform the results to match expected format
-      return {
-        products: data.data.products || [],
-        total: data.data.pagination?.totalProducts || 0,
-        totalPages: data.data.pagination?.totalPages || 1,
-        currentPage: data.data.pagination?.currentPage || 1,
-        filters: this.filters
-      };
-      
-    } catch (error) {
-      console.error('🚫 Advanced Search Error:', error);
-      
-      // Return fallback empty results
-      return {
-        products: [],
-        total: 0,
-        totalPages: 0,
-        currentPage: 1,
-        filters: this.filters,
-        error: error.message
-      };
-    }
-  }
-
-  showSearchResults(data) {
-    // This would integrate with your existing product display system
-    // For now, we'll dispatch a custom event
-    document.dispatchEvent(new CustomEvent('searchResults', {
-      detail: data
-    }));
-  }
-
-  addToSearchHistory(query) {
-    // Remove if already exists
-    this.recentSearches = this.recentSearches.filter(search => search !== query);
-    
-    // Add to beginning
-    this.recentSearches.unshift(query);
-    
-    // Keep only last 10 searches
-    this.recentSearches = this.recentSearches.slice(0, 10);
-    
-    // Save to localStorage
-    localStorage.setItem('recentSearches', JSON.stringify(this.recentSearches));
-  }
-
-  removeRecentSearch(query) {
-    this.recentSearches = this.recentSearches.filter(search => search !== query);
-    localStorage.setItem('recentSearches', JSON.stringify(this.recentSearches));
-    this.showDefaultSuggestions(); // Refresh the display
-  }
-
-  // Voice Search Implementation
+  
+  // --- VOICE SEARCH ---
+  
   initializeVoiceSearch() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      // Hide voice search button if not supported
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       const voiceBtn = document.querySelector('.voice-search-btn');
       if (voiceBtn) voiceBtn.style.display = 'none';
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.recognition = new SpeechRecognition();
     this.recognition.continuous = false;
     this.recognition.interimResults = false;
     this.recognition.lang = 'en-US';
-  }
-
-  startVoiceSearch() {
-    if (!this.recognition) return;
-
-    const voiceBtn = document.querySelector('.voice-search-btn');
-    
-    if (this.isVoiceSearchActive) {
-      this.stopVoiceSearch();
-      return;
-    }
-
-    this.isVoiceSearchActive = true;
-    voiceBtn.classList.add('listening');
-    voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
-
-    this.recognition.start();
 
     this.recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
@@ -668,33 +612,45 @@ class AdvancedSearchSystem {
       this.stopVoiceSearch();
     };
 
-    this.recognition.onerror = () => {
-      this.stopVoiceSearch();
-    };
+    this.recognition.onerror = () => this.stopVoiceSearch();
+    this.recognition.onend = () => this.stopVoiceSearch();
+  }
 
-    this.recognition.onend = () => {
+  startVoiceSearch() {
+    if (!this.recognition) return;
+    const voiceBtn = document.querySelector('.voice-search-btn');
+    if (!voiceBtn) return;
+
+    if (this.isVoiceSearchActive) {
       this.stopVoiceSearch();
-    };
+      return;
+    }
+
+    this.isVoiceSearchActive = true;
+    voiceBtn.classList.add('listening');
+    voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+    this.recognition.start();
   }
 
   stopVoiceSearch() {
     this.isVoiceSearchActive = false;
     const voiceBtn = document.querySelector('.voice-search-btn');
-    voiceBtn.classList.remove('listening');
-    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-    
+    if (voiceBtn) {
+      voiceBtn.classList.remove('listening');
+      voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    }
     if (this.recognition) {
       this.recognition.stop();
     }
   }
 
-  // Advanced Filters
+  // --- ADVANCED FILTERS PANEL ---
+  
   showFilters() {
     const filtersPanel = document.querySelector('.filters-panel');
     if (filtersPanel) {
       filtersPanel.classList.remove('hidden');
       filtersPanel.style.display = 'block';
-      console.log('🔍 Showing filters panel');
     }
   }
 
@@ -703,18 +659,17 @@ class AdvancedSearchSystem {
     if (filtersPanel) {
       filtersPanel.classList.add('hidden');
       filtersPanel.style.display = 'none';
-      console.log('🔍 Hiding filters panel');
     }
   }
 
   applyFilters() {
-    // Collect all filter values
+    // 1. Collect all filter values from the panel
     this.collectFilterValues();
     
-    // Perform filtered search
+    // 2. Re-run the current search query with the new filters
     this.performSearch(this.searchInput.value);
     
-    // Hide filters panel
+    // 3. Hide filters panel
     this.hideFilters();
   }
 
@@ -733,17 +688,15 @@ class AdvancedSearchSystem {
     const ratingInput = document.querySelector('input[name="rating"]:checked');
     this.filters.rating = ratingInput ? parseInt(ratingInput.value) : 0;
 
-    // Delivery time
-    const deliveryInput = document.querySelector('input[name="delivery"]:checked');
-    this.filters.deliveryTime = deliveryInput ? deliveryInput.value : 'all';
-
     // Availability filters
-    this.filters.inStock = document.querySelector('.in-stock-filter').checked;
-    this.filters.discount = document.querySelector('.discount-filter').checked;
+    this.filters.inStock = document.querySelector('.in-stock-filter')?.checked || false;
+    this.filters.discount = document.querySelector('.discount-filter')?.checked || false;
+    
+    console.log('New filters collected:', this.filters);
   }
 
   clearAllFilters() {
-    // Reset all filters
+    // Reset filters object
     this.filters = {
       category: [],
       priceRange: { min: 0, max: 10000 },
@@ -755,39 +708,39 @@ class AdvancedSearchSystem {
     };
 
     // Reset form elements
-    document.querySelectorAll('.filters-panel input[type="checkbox"]').forEach(input => {
-      input.checked = false;
-    });
-
+    document.querySelectorAll('.filters-panel input[type="checkbox"]').forEach(input => input.checked = false);
     document.querySelectorAll('.filters-panel input[type="radio"]').forEach(input => {
-      if (input.value === 'all' || input.value === '0') {
-        input.checked = true;
-      } else {
-        input.checked = false;
-      }
+      input.checked = (input.value === 'all' || input.value === '0');
     });
 
     // Reset price inputs
-    document.querySelector('.price-min').value = 0;
-    document.querySelector('.price-max').value = 10000;
-    document.querySelector('.range-min').value = 0;
-    document.querySelector('.range-max').value = 10000;
+    const priceMin = document.querySelector('.price-min');
+    const priceMax = document.querySelector('.price-max');
+    const rangeMin = document.querySelector('.range-min');
+    const rangeMax = document.querySelector('.range-max');
+    
+    if(priceMin) priceMin.value = 0;
+    if(priceMax) priceMax.value = 10000;
+    if(rangeMin) rangeMin.value = 0;
+    if(rangeMax) rangeMax.value = 10000;
 
-    // Refresh search results
+    // Refresh search results (perform an empty search with no filters)
     this.performSearch(this.searchInput.value);
   }
 
   trackSearch(query, resultCount) {
-    // Analytics tracking (replace with your analytics service)
+    // Analytics tracking (e.g., Google Analytics)
     if (typeof gtag !== 'undefined') {
       gtag('event', 'search', {
         search_term: query,
         result_count: resultCount
       });
     }
+    console.log(`Analytics: Search for "${query}" returned ${resultCount} results.`);
   }
 
-  // Public methods for external integration
+  // --- PUBLIC API (for other scripts) ---
+  
   setSearchQuery(query) {
     if (this.searchInput) {
       this.searchInput.value = query;
@@ -797,21 +750,9 @@ class AdvancedSearchSystem {
   getActiveFilters() {
     return this.filters;
   }
-
-  clearSearch() {
-    if (this.searchInput) {
-      this.searchInput.value = '';
-    }
-    this.hideAutocomplete();
-  }
 }
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   window.advancedSearch = new AdvancedSearchSystem();
 });
-
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = AdvancedSearchSystem;
-}
