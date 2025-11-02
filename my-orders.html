@@ -668,7 +668,6 @@
             <p class="page-subtitle">Track your orders, manage returns and view purchase history</p>
         </div>
 
-        <!-- Quick Stats -->
         <div class="quick-stats">
             <div class="stat-card">
                 <div class="stat-value" id="totalOrdersCount" style="color: var(--primary);">0</div>
@@ -688,7 +687,6 @@
             </div>
         </div>
 
-        <!-- Filters Section -->
         <div class="filters-section">
             <div class="filters-grid">
                 <div class="filter-group">
@@ -725,13 +723,11 @@
             </div>
         </div>
 
-        <!-- Loading State -->
         <div id="loadingState" class="loading-state" style="display: none;">
             <div class="spinner"></div>
             <p>Loading your orders...</p>
         </div>
 
-        <!-- Empty State -->
         <div id="emptyState" class="empty-state" style="display: none;">
             <i class="fas fa-shopping-bag"></i>
             <h3>No Orders Yet!</h3>
@@ -742,12 +738,9 @@
             </a>
         </div>
 
-        <!-- Orders List -->
         <div id="ordersContainer" class="orders-list">
-            <!-- Orders will be populated here -->
-        </div>
+            </div>
 
-        <!-- Pagination -->
         <div id="paginationContainer" class="pagination-section" style="display: none;">
             <div class="pagination-info">
                 <span id="paginationInfo">Showing 1-10 of 0 orders</span>
@@ -766,10 +759,8 @@
         </div>
     </div>
 
-    <!-- Load HybridAuthClient -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     
-    <!-- Load Tracking & Notification Services -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="js/api/notification-service.js"></script>
     <script src="js/api/tracking-service.js"></script>
@@ -1205,55 +1196,19 @@
 
         // Return order
         async function returnOrder(orderId) {
-            // Enhanced confirmation dialog
-            const confirmMessage = 'Are you sure you want to return this order?\n\nPlease ensure the items are in their original condition. Return processing may take 3-7 business days.';
-            if (!confirm(confirmMessage)) return;
-
             const order = filteredOrders.find(o => o.id === orderId);
-            const orderNumber = order?.orderNumber || orderId;
-
-            try {
-                showToast(`Initiating return for order ${orderNumber}...`, 'info');
-                
-                if (!window.HybridAuthClient) {
-                    throw new Error('Authentication system not available. Please refresh the page.');
-                }
-                
-                const response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/return`, {
-                    method: 'POST',
-                    body: JSON.stringify({ 
-                        reason: 'Customer requested return',
-                        returnType: 'full_order'
-                    })
-                });
-
-                if (response && response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        showToast(`Return initiated successfully for order ${orderNumber}`, 'success');
-                        setTimeout(() => {
-                            showToast('You will receive an email with return instructions shortly.', 'info');
-                        }, 2000);
-                        await loadOrders(); // Refresh orders
-                    } else {
-                        throw new Error(result.message || 'Return initiation failed');
-                    }
-                } else if (response.status === 400) {
-                    throw new Error('This order is not eligible for return. Please check the return policy or contact customer support.');
-                } else if (response.status === 404) {
-                    throw new Error('Order not found. Please refresh the page and try again.');
-                } else if (response.status === 403) {
-                    throw new Error('You do not have permission to return this order.');
-                } else if (response.status === 422) {
-                    throw new Error('Return period has expired for this order.');
-                } else {
-                    throw new Error(`Failed to initiate return (Error: ${response.status})`);
-                }
-            } catch (error) {
-                console.error('Return order error:', error);
-                const errorMessage = error.message || 'Failed to initiate return. Please try again or contact customer support.';
-                showToast(errorMessage, 'error');
+            if (!order) {
+                showToast('Order not found!', 'error');
+                return;
             }
+            
+            // Redirect to the return request form, pre-filling the order number
+            const orderNumber = order.orderNumber || orderId;
+            showToast(`Redirecting to return request for order ${orderNumber}...`, 'info');
+            
+            setTimeout(() => {
+                window.location.href = `returns.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+            }, 1500);
         }
 
         // Utility functions

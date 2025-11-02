@@ -244,7 +244,6 @@
     </style>
 </head>
 <body>
-    <!-- Navigation Header -->
     <header class="header">
         <nav class="nav">
             <div class="nav-brand">
@@ -467,7 +466,6 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-section">
@@ -500,6 +498,7 @@
         </div>
     </footer>
 
+    <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script>
         // FAQ Toggle
         document.querySelectorAll('.faq-question').forEach(question => {
@@ -518,43 +517,129 @@
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
-        
+        const orderNumberInput = document.getElementById('orderNumber');
+        const emailInput = document.getElementById('email');
+
+        // --- NEW CODE START ---
+
+        // 1. Pre-fill form from URL and User Session
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Wait for auth client
+            let attempts = 0;
+            while (!window.HybridAuthClient && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!window.HybridAuthClient) {
+                showError('Could not load authentication. Please refresh.');
+                return;
+            }
+
+            // Check if user is logged in
+            const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
+            if (!isAuthenticated) {
+                showError('You must be logged in to request a return.');
+                // Redirect to login after 3 seconds
+                setTimeout(() => {
+                    window.location.href = 'login.html?redirect=returns.html' + window.location.search;
+                }, 3000);
+                return;
+            }
+
+            // Get user and pre-fill email
+            const user = window.HybridAuthClient.getCurrentUser();
+            if (user && user.email) {
+                emailInput.value = user.email;
+                emailInput.readOnly = true; // Don't let them change it
+            }
+
+            // Get order number from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderNumber = urlParams.get('orderNumber');
+            if (orderNumber) {
+                orderNumberInput.value = orderNumber;
+                // Optional: Make it read-only if you don't want them to change it
+                // orderNumberInput.readOnly = true; 
+            }
+        });
+
+        // 2. Handle the form submission to the REAL API
         returnForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Hide previous messages
             successMessage.style.display = 'none';
             errorMessage.style.display = 'none';
             
             // Get form data
             const formData = new FormData(returnForm);
-            const data = Object.fromEntries(formData);
             
+            // We need to send data in the format the backend expects
+            const data = {
+                orderNumber: formData.get('orderNumber'),
+                reason: formData.get('returnReason'),
+                details: formData.get('description'),
+                // This is a simple implementation. A better one would
+                // fetch the order items and let the user select one.
+                // For now, we'll let the backend pick the first item.
+                orderItemId: null 
+            };
+
+            // Find the submit button and show loading state
+            const submitBtn = returnForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
             try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                if (!window.HybridAuthClient) {
+                    throw new Error('Authentication client not loaded.');
+                }
                 
-                // Show success message
-                successMessage.style.display = 'block';
-                returnForm.reset();
-                
-                // Hide success message after 5 seconds
-                setTimeout(() => {
-                    successMessage.style.display = 'none';
-                }, 5000);
+                // Use HybridAuthClient to make the authenticated API call
+                // *** IMPORTANT: This assumes you change your route to /api/v1/returns ***
+                const response = await window.HybridAuthClient.apiCall('/returns', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        successMessage.style.display = 'block';
+                        returnForm.reset();
+                        // Pre-fill email and order number again
+                        if(window.HybridAuthClient.getCurrentUser()) {
+                           emailInput.value = window.HybridAuthClient.getCurrentUser().email;
+                        }
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if (urlParams.get('orderNumber')) {
+                            orderNumberInput.value = urlParams.get('orderNumber');
+                        }
+                    } else {
+                        throw new Error(result.message || 'An unknown error occurred.');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server responded with ${response.status}`);
+                }
                 
             } catch (error) {
-                errorText.textContent = 'Failed to submit return request. Please try again.';
-                errorMessage.style.display = 'block';
-                
-                // Hide error message after 5 seconds
-                setTimeout(() => {
-                    errorMessage.style.display = 'none';
-                }, 5000);
+                showError(error.message);
+            } finally {
+                // Restore button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Return Request';
             }
         });
         
-        // Form validation
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
+        // --- NEW CODE END ---
+        
+        // Form validation (your existing code is fine)
         const inputs = returnForm.querySelectorAll('input, textarea, select');
         inputs.forEach(input => {
             input.addEventListener('blur', () => {

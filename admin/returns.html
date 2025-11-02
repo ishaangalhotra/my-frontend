@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Returns Dashboard</title></head><body>
+<h2>Returns</h2>
+<input id="token" placeholder="Bearer token" style="width:60%" />
+<button id="load">Load</button>
+<table border="1" id="tbl"><thead><tr><th>RMA</th><th>Order</th><th>Customer</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
+<script>
+const base = location.origin;
+function authFetch(url, opts={}) {
+  opts.headers = opts.headers || {};
+  const t = document.getElementById('token').value;
+  if (t) opts.headers['Authorization'] = t;
+  return fetch(url, opts).then(r => r.json());
+}
+async function load(){
+  const j = await authFetch(base + '/api/returns');
+  const tb = document.querySelector('#tbl tbody'); tb.innerHTML='';
+  (j.data||j.returns||j).forEach(rr=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${rr.rma}</td><td>${rr.order}</td><td>${(rr.customer||{}).name||''}</td><td>${rr.reason}</td><td>${rr.status}</td>
+      <td>
+        <button data-id="${rr._id}" class="approve">Approve</button>
+        <button data-id="${rr._id}" class="reject">Reject</button>
+        <button data-id="${rr._id}" class="refund">Refund</button>
+      </td>`;
+    tb.appendChild(tr);
+  });
+}
+document.getElementById('load').addEventListener('click', load);
+document.querySelector('#tbl').addEventListener('click', async (e)=>{
+  const id = e.target.dataset?.id; if(!id) return;
+  let body={};
+  if(e.target.classList.contains('approve')) body={status:'seller_approved', comment:'Seller approved'};
+  if(e.target.classList.contains('reject')) body={status:'seller_rejected', comment:'Seller rejected'};
+  if(e.target.classList.contains('refund')) body={status:'refunded', refundAmount: 0, comment:'Manual refund by admin'};
+  await authFetch(base + '/api/returns/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  load();
+});
+</script>
+</body></html>
