@@ -583,13 +583,14 @@
         // Load orders from API
         async function loadOrders() {
             showLoading(true);
-            
+            allOrders = []; // <-- MODIFIED: Start with an empty list
+
             try {
                 console.log('Loading orders from API...');
-                
+
                 // Try to get auth headers for the request
                 const headers = getAuthHeaders();
-                
+
                 const response = await fetch(`${API_BASE_URL}/orders`, {
                     method: 'GET',
                     headers: headers
@@ -600,102 +601,34 @@
                 if (response.ok) {
                     const result = await response.json();
                     console.log('Orders API result:', result);
-                    
+
                     if (result.success && result.data) {
-                        allOrders = Array.isArray(result.data) ? result.data : 
-                                   result.data.orders ? result.data.orders : [];
+                        allOrders = Array.isArray(result.data) ? result.data :
+                                   (result.data.orders ? result.data.orders : []);
                     } else {
                         allOrders = result.orders || result.data || [];
                     }
                 } else if (response.status === 404) {
-                    console.log('Orders endpoint not found - using mock data');
-                    allOrders = generateMockOrders();
+                    // <-- MODIFIED: Removed call to generateMockOrders()
+                    console.log('Orders endpoint not found. No orders to show.');
+                    showToast('Orders service not found.', 'error');
                 } else {
                     throw new Error(`Failed to load orders: ${response.status}`);
                 }
 
-                filteredOrders = [...allOrders];
-                renderOrders();
-                updateStatistics();
-                
             } catch (error) {
                 console.error('Error loading orders:', error);
-                showToast('Failed to load orders. Using sample data.', 'warning');
+                // <-- MODIFIED: Changed toast message
+                showToast('Failed to load real orders. Please try again.', 'error');
                 
-                // Use mock data as fallback
-                allOrders = generateMockOrders();
+                // <-- MODIFIED: Removed call to generateMockOrders()
+                // allOrders remains an empty array
+            } finally {
                 filteredOrders = [...allOrders];
                 renderOrders();
                 updateStatistics();
-            } finally {
                 showLoading(false);
             }
-        }
-
-        // Generate mock orders for demonstration
-        function generateMockOrders() {
-            const statuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-            const customers = [
-                { name: 'Rahul Sharma', email: 'rahul.sharma@email.com', phone: '+91 98765 43210' },
-                { name: 'Priya Patel', email: 'priya.patel@email.com', phone: '+91 87654 32109' },
-                { name: 'Amit Kumar', email: 'amit.kumar@email.com', phone: '+91 76543 21098' },
-                { name: 'Sneha Singh', email: 'sneha.singh@email.com', phone: '+91 65432 10987' },
-                { name: 'Rajesh Gupta', email: 'rajesh.gupta@email.com', phone: '+91 54321 09876' }
-            ];
-            
-            const products = [
-                { name: 'Fresh Apples', price: 150, quantity: 2 },
-                { name: 'Organic Rice', price: 120, quantity: 1 },
-                { name: 'Premium Headphones', price: 2999, quantity: 1 },
-                { name: 'Cotton T-Shirt', price: 599, quantity: 3 },
-                { name: 'Smartphone Case', price: 299, quantity: 1 }
-            ];
-
-            const mockOrders = [];
-            
-            for (let i = 0; i < 15; i++) {
-                const customer = customers[Math.floor(Math.random() * customers.length)];
-                const orderProducts = [];
-                const numProducts = Math.floor(Math.random() * 3) + 1;
-                let totalAmount = 0;
-                
-                for (let j = 0; j < numProducts; j++) {
-                    const product = products[Math.floor(Math.random() * products.length)];
-                    const quantity = Math.floor(Math.random() * 3) + 1;
-                    const productTotal = product.price * quantity;
-                    totalAmount += productTotal;
-                    
-                    orderProducts.push({
-                        ...product,
-                        quantity,
-                        total: productTotal
-                    });
-                }
-
-                const order = {
-                    _id: `ORD${String(1000 + i).slice(-3)}`,
-                    orderId: `QL-${Date.now()}-${i}`,
-                    customer: {
-                        name: customer.name,
-                        email: customer.email,
-                        phone: customer.phone
-                    },
-                    products: orderProducts,
-                    totalAmount: totalAmount,
-                    status: statuses[Math.floor(Math.random() * statuses.length)],
-                    orderDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    shippingAddress: {
-                        street: '123 Main Street',
-                        city: 'Mumbai',
-                        state: 'Maharashtra',
-                        pincode: '400001'
-                    }
-                };
-
-                mockOrders.push(order);
-            }
-
-            return mockOrders.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
         }
 
         // Filter orders based on search and filters
@@ -707,9 +640,9 @@
             filteredOrders = allOrders.filter(order => {
                 // Search filter
                 const matchesSearch = !searchTerm || 
-                    order.orderId.toLowerCase().includes(searchTerm) ||
-                    order.customer.name.toLowerCase().includes(searchTerm) ||
-                    order.customer.email.toLowerCase().includes(searchTerm);
+                    (order.orderId && order.orderId.toLowerCase().includes(searchTerm)) ||
+                    (order.customer && order.customer.name && order.customer.name.toLowerCase().includes(searchTerm)) ||
+                    (order.customer && order.customer.email && order.customer.email.toLowerCase().includes(searchTerm));
 
                 // Status filter
                 const matchesStatus = !statusFilter || order.status === statusFilter;
@@ -766,32 +699,43 @@
             ordersContent.style.display = 'block';
             emptyState.style.display = 'none';
 
-            tbody.innerHTML = filteredOrders.map(order => `
+            // ADDED: Fix for crash when order.customer is missing
+            tbody.innerHTML = filteredOrders.map(order => {
+                const customerName = order.customer?.name || 'N/A';
+                const customerEmail = order.customer?.email || 'No Email';
+                const customerInitial = customerName.charAt(0).toUpperCase() || '?';
+                const orderId = order.orderId || order._id || 'N/A';
+                const totalAmount = order.totalAmount || 0;
+                const status = order.status || 'unknown';
+                const orderDate = order.orderDate ? new Date(order.orderDate) : new Date();
+                const products = order.products || [];
+
+                return `
                 <tr>
-                    <td><strong>${order.orderId}</strong></td>
+                    <td><strong>${orderId}</strong></td>
                     <td>
                         <div class="user-info">
-                            <div class="user-avatar">${order.customer.name.charAt(0).toUpperCase()}</div>
+                            <div class="user-avatar">${customerInitial}</div>
                             <div>
-                                <div><strong>${order.customer.name}</strong></div>
-                                <div style="font-size: 0.9em; color: var(--text-secondary);">${order.customer.email}</div>
+                                <div><strong>${customerName}</strong></div>
+                                <div style="font-size: 0.9em; color: var(--text-secondary);">${customerEmail}</div>
                             </div>
                         </div>
                     </td>
                     <td>
-                        <div>${order.products.length} item${order.products.length > 1 ? 's' : ''}</div>
+                        <div>${products.length} item${products.length > 1 ? 's' : ''}</div>
                         <div style="font-size: 0.9em; color: var(--text-secondary);">
-                            ${order.products.slice(0, 2).map(p => p.name).join(', ')}
-                            ${order.products.length > 2 ? ` +${order.products.length - 2} more` : ''}
+                            ${products.slice(0, 2).map(p => p.name || 'Product').join(', ')}
+                            ${products.length > 2 ? ` +${products.length - 2} more` : ''}
                         </div>
                     </td>
-                    <td><strong>₹${order.totalAmount.toLocaleString()}</strong></td>
+                    <td><strong>₹${totalAmount.toLocaleString()}</strong></td>
                     <td>
-                        <span class="order-status status-${order.status}">${order.status}</span>
+                        <span class="order-status status-${status}">${status}</span>
                     </td>
                     <td>
-                        <div>${new Date(order.orderDate).toLocaleDateString()}</div>
-                        <div style="font-size: 0.9em; color: var(--text-secondary);">${new Date(order.orderDate).toLocaleTimeString()}</div>
+                        <div>${orderDate.toLocaleDateString()}</div>
+                        <div style="font-size: 0.9em; color: var(--text-secondary);">${orderDate.toLocaleTimeString()}</div>
                     </td>
                     <td>
                         <div class="order-actions">
@@ -799,7 +743,7 @@
                                 <i class="fas fa-eye"></i> View
                             </button>
                             <select class="filter-select" style="padding: 0.375rem; font-size: 0.8rem;" onchange="updateOrderStatus('${order._id || order.orderId}', this.value)">
-                                <option value="${order.status}" selected>${order.status}</option>
+                                <option value="${status}" selected>${status}</option>
                                 <option value="pending">Pending</option>
                                 <option value="confirmed">Confirmed</option>
                                 <option value="shipped">Shipped</option>
@@ -809,7 +753,7 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         // Update statistics
@@ -817,7 +761,7 @@
             const totalOrders = filteredOrders.length;
             const pendingOrders = filteredOrders.filter(o => o.status === 'pending').length;
             const completedOrders = filteredOrders.filter(o => o.status === 'delivered').length;
-            const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+            const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
             document.getElementById('totalOrders').textContent = totalOrders;
             document.getElementById('pendingOrders').textContent = pendingOrders;
@@ -829,47 +773,56 @@
         function viewOrder(orderId) {
             const order = allOrders.find(o => (o._id === orderId || o.orderId === orderId));
             if (!order) return;
+            
+            // Safe fallbacks for potentially missing data
+            const customerName = order.customer?.name || 'N/A';
+            const customerEmail = order.customer?.email || 'No Email';
+            const customerPhone = order.customer?.phone || 'No Phone';
+            const status = order.status || 'unknown';
+            const orderDate = order.orderDate ? new Date(order.orderDate).toLocaleString() : 'N/A';
+            const totalAmount = order.totalAmount || 0;
+            const products = order.products || [];
 
-            document.getElementById('modalTitle').textContent = `Order ${order.orderId}`;
+            document.getElementById('modalTitle').textContent = `Order ${order.orderId || order._id}`;
             
             const modalContent = document.getElementById('modalContent');
             modalContent.innerHTML = `
                 <div class="order-detail">
                     <span class="label">Order ID:</span>
-                    <span class="value">${order.orderId}</span>
+                    <span class="value">${order.orderId || order._id}</span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Customer:</span>
-                    <span class="value">${order.customer.name}</span>
+                    <span class="value">${customerName}</span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Email:</span>
-                    <span class="value">${order.customer.email}</span>
+                    <span class="value">${customerEmail}</span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Phone:</span>
-                    <span class="value">${order.customer.phone}</span>
+                    <span class="value">${customerPhone}</span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Status:</span>
                     <span class="value">
-                        <span class="order-status status-${order.status}">${order.status}</span>
+                        <span class="order-status status-${status}">${status}</span>
                     </span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Order Date:</span>
-                    <span class="value">${new Date(order.orderDate).toLocaleString()}</span>
+                    <span class="value">${orderDate}</span>
                 </div>
                 <div class="order-detail">
                     <span class="label">Total Amount:</span>
-                    <span class="value"><strong>₹${order.totalAmount.toLocaleString()}</strong></span>
+                    <span class="value"><strong>₹${totalAmount.toLocaleString()}</strong></span>
                 </div>
                 
                 <h4 style="margin: 1.5rem 0 1rem 0; color: var(--text-primary);">Products Ordered:</h4>
-                ${order.products.map(product => `
+                ${products.map(product => `
                     <div class="order-detail">
-                        <span class="label">${product.name} (${product.quantity}x)</span>
-                        <span class="value">₹${(product.price * product.quantity).toLocaleString()}</span>
+                        <span class="label">${product.name || 'Product'} (${product.quantity || 1}x)</span>
+                        <span class="value">₹${((product.price || 0) * (product.quantity || 1)).toLocaleString()}</span>
                     </div>
                 `).join('')}
                 
@@ -878,9 +831,9 @@
                     <div class="order-detail">
                         <span class="label">Address:</span>
                         <span class="value">
-                            ${order.shippingAddress.street}<br>
-                            ${order.shippingAddress.city}, ${order.shippingAddress.state}<br>
-                            ${order.shippingAddress.pincode}
+                            ${order.shippingAddress.street || ''}<br>
+                            ${order.shippingAddress.city || ''}, ${order.shippingAddress.state || ''}<br>
+                         ${order.shippingAddress.pincode || ''}
                         </span>
                     </div>
                 ` : ''}
