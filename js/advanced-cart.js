@@ -354,13 +354,20 @@ class AdvancedShoppingCart {
         throw new Error(payload.message || 'Cart fetch failed');
       }
 
-      // Extract items from various possible response structures
-      const serverItems = payload.data?.availableItems 
-                       ?? payload.data?.items 
+      // ==================================================================
+      // == START: FIX
+      // == The logic was incorrectly looking for `payload.data.availableItems`
+      // == which doesn't exist. It is now corrected to look for
+      // == `payload.data.items` as per the backend controller.
+      // ==================================================================
+      const serverItems = payload.data?.items 
                        ?? payload.data 
                        ?? [];
 
-      console.log(`✅ Found ${serverItems.length} cart items`);
+      console.log(`✅ Found ${serverItems.length} cart items from 'payload.data.items'`);
+      // ==================================================================
+      // == END: FIX
+      // ==================================================================
       
       this.cart = this.formatServerCart(serverItems);
       console.log('🛒 Formatted cart:', this.cart);
