@@ -23,6 +23,8 @@ class AdvancedProductFilter {
     }
 
     init() {
+        // helper debounce
+    }
         this.createFilterUI();
         this.bindEvents();
     }
@@ -42,8 +44,8 @@ class AdvancedProductFilter {
                         <input type="range" id="minPrice" min="0" max="100000" value="0">
                         <input type="range" id="maxPrice" min="0" max="100000" value="100000">
                         <div class="price-values">
-                            <span id="minPriceValue">₹0</span> - 
-                            <span id="maxPriceValue">₹100000+</span>
+                            <span id="minPriceValue">â‚¹0</span> - 
+                            <span id="maxPriceValue">â‚¹100000+</span>
                         </div>
                     </div>
                 </div>
@@ -63,10 +65,10 @@ class AdvancedProductFilter {
                 <div class="filter-section">
                     <h4>Customer Ratings</h4>
                     <div class="rating-filter">
-                        <label><input type="radio" name="rating" value="4"> 4⭐ & above</label>
-                        <label><input type="radio" name="rating" value="3"> 3⭐ & above</label>
-                        <label><input type="radio" name="rating" value="2"> 2⭐ & above</label>
-                        <label><input type="radio" name="rating" value="1"> 1⭐ & above</label>
+                        <label><input type="radio" name="rating" value="4"> 4â­ & above</label>
+                        <label><input type="radio" name="rating" value="3"> 3â­ & above</label>
+                        <label><input type="radio" name="rating" value="2"> 2â­ & above</label>
+                        <label><input type="radio" name="rating" value="1"> 1â­ & above</label>
                     </div>
                 </div>
 
@@ -117,12 +119,37 @@ class AdvancedProductFilter {
             }
         });
 
-        // Rating filter
+        // Rating filter, discount and availability
         document.addEventListener('change', (e) => {
             if (e.target.name === 'rating') {
                 this.updateRatingFilter(parseFloat(e.target.value));
             }
+            if (e.target.classList && e.target.classList.contains('discount-checkbox')) {
+                this.updateDiscountFilter();
+            }
+            if (e.target.name === 'availability') {
+                this.updateAvailabilityFilter();
+            }
         });
+
+        // Brand search (debounced)
+        const brandSearch = document.getElementById('brandSearch');
+        if (brandSearch) {
+            const bs = this.debounce((e) => {
+                const q = (e.target.value || '').toLowerCase();
+                document.querySelectorAll('#brandList label').forEach(lbl => {
+                    const txt = lbl.textContent.trim().toLowerCase();
+                    lbl.style.display = txt.includes(q) ? '' : 'none';
+                });
+            }, 200);
+            brandSearch.addEventListener('input', bs);
+        }
+
+        // Sort select
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => this.sortProducts(e.target.value));
+        }
 
         // Clear all filters
         const clearBtn = document.querySelector('.clear-all-filters');
@@ -135,15 +162,12 @@ class AdvancedProductFilter {
         const minPrice = document.getElementById('minPrice').value;
         const maxPrice = document.getElementById('maxPrice').value;
         
-        this.filters.priceRange = {
-            min: parseInt(minPrice),
-            max: parseInt(maxPrice)
-        };
-        
-        // Update display
-        document.getElementById('minPriceValue').textContent = `₹${minPrice}`;
-        document.getElementById('maxPriceValue').textContent = `₹${maxPrice}`;
-        
+        let min = parseInt(minPrice);
+        let max = parseInt(maxPrice);
+        if (min > max) { const t = min; min = max; max = t; }
+        this.filters.priceRange = { min, max };
+        document.getElementById('minPriceValue').textContent = `â‚¹${min}`;
+        document.getElementById('maxPriceValue').textContent = `â‚¹${max}`;
         this.applyFilters();
     }
 
@@ -156,6 +180,11 @@ class AdvancedProductFilter {
     updateRatingFilter(rating) {
         this.filters.ratings = rating;
         this.applyFilters();
+    }
+
+    debounce(fn, wait = 200) {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
     }
 
     applyFilters() {
@@ -282,12 +311,24 @@ class AdvancedProductFilter {
         };
 
         // Reset UI
-        document.getElementById('minPrice').value = 0;
-        document.getElementById('maxPrice').value = 100000;
+        const minEl = document.getElementById('minPrice');
+        const maxEl = document.getElementById('maxPrice');
+        if (minEl) minEl.value = 0;
+        if (maxEl) maxEl.value = 100000;
         document.querySelectorAll('.brand-checkbox:checked').forEach(cb => cb.checked = false);
         document.querySelectorAll('input[name="rating"]:checked').forEach(r => r.checked = false);
-        document.querySelector('input[name="availability"][value="all"]').checked = true;
-
+        const availAll = document.querySelector('input[name="availability"][value="all"]'); if (availAll) availAll.checked = true;
+        document.querySelectorAll('.discount-filter input[type="checkbox"]:checked').forEach(c => c.checked = false);
+        const brandSearch = document.getElementById('brandSearch'); if (brandSearch) brandSearch.value = '';
+        this.filters = {
+            priceRange: { min: 0, max: Infinity },
+            brands: new Set(),
+            ratings: 0,
+            categories: new Set(),
+            availability: 'all',
+            discount: 0,
+            features: new Set()
+        };
         this.applyFilters();
     }
 
