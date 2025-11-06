@@ -31,7 +31,7 @@ class NotificationService {
     if (!token) {
       console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
     } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
+      console.log(`[${this.constructor.name}] âœ… Auth token loaded successfully`);
     }
   } catch (error) {
     console.warn(`[${this.constructor.name}] Failed to load token:`, error);
@@ -108,28 +108,6 @@ loadToken() {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        
-        // --- START ROBUST FIX ---
-        // Check if the error is a 401 Unauthorized
-        if (response.status === 401) {
-          console.error('Authentication error (401). Token is invalid or expired. Logging out.');
-          
-          // Clear all known token/user keys from storage
-          localStorage.removeItem('quicklocal_access_token');
-          localStorage.removeItem('supabase_access_token');
-          localStorage.removeItem('token');
-          localStorage.removeItem('quicklocal_user');
-          
-          // Redirect to the login page with a reason
-          // Add a query param to explain why we're here
-          const redirectUrl = `login.html?session=expired&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-          window.location.href = redirectUrl;
-          
-          // Return a pending promise that will never resolve to stop further code execution
-          return new Promise(() => {}); 
-        }
-        // --- END ROBUST FIX ---
-
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
@@ -208,9 +186,7 @@ loadToken() {
   async getUnreadCount() {
     try {
       const response = await this.getNotifications({ limit: 1, read: 'unread' });
-      // Ensure we handle cases where the API call was redirected (and response is undefined)
-      if (!response) return 0; 
-      return response.data?.unreadCount || 0;
+      return response.data.unreadCount || 0;
     } catch (error) {
       console.error('Failed to get unread count:', error);
       return 0;
@@ -407,13 +383,24 @@ loadToken() {
       }
     }, 30000); // Update every 30 seconds
 
-    console.log('[NotificationService] ✅ Successfully initialized');
+    console.log('[NotificationService] âœ… Successfully initialized');
     return socket;
   } catch (error) {
     console.error('[NotificationService] Failed to initialize:', error);
     return false;
   }
-}
+});
+
+      // Set up periodic badge updates
+      setInterval(async () => {
+        await this.initializeBadge();
+      }, 30000); // Update every 30 seconds
+
+      return socket;
+    } catch (error) {
+      console.error('Failed to initialize notification system:', error);
+    }
+  }
 }
 
 // Create global instance
