@@ -108,6 +108,28 @@ loadToken() {
       const response = await fetch(url, config);
       
       if (!response.ok) {
+        
+        // --- START ROBUST FIX ---
+        // Check if the error is a 401 Unauthorized
+        if (response.status === 401) {
+          console.error('Authentication error (401). Token is invalid or expired. Logging out.');
+          
+          // Clear all known token/user keys from storage
+          localStorage.removeItem('quicklocal_access_token');
+          localStorage.removeItem('supabase_access_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('quicklocal_user');
+          
+          // Redirect to the login page with a reason
+          // Add a query param to explain why we're here
+          const redirectUrl = `login.html?session=expired&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          window.location.href = redirectUrl;
+          
+          // Return a pending promise that will never resolve to stop further code execution
+          return new Promise(() => {}); 
+        }
+        // --- END ROBUST FIX ---
+
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
@@ -186,7 +208,9 @@ loadToken() {
   async getUnreadCount() {
     try {
       const response = await this.getNotifications({ limit: 1, read: 'unread' });
-      return response.data.unreadCount || 0;
+      // Ensure we handle cases where the API call was redirected (and response is undefined)
+      if (!response) return 0; 
+      return response.data?.unreadCount || 0;
     } catch (error) {
       console.error('Failed to get unread count:', error);
       return 0;
