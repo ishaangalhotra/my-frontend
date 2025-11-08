@@ -87,9 +87,16 @@ async function initializeApp() {
     }
 }
 
-// ✅ FIXED loadProducts with proper API integration
+// ✅ FIXED loadProducts with proper API integration + Skeleton Loading
 async function loadProducts() {
     isLoading = true;
+    
+    // Show skeleton loading
+    const productsContainer = document.getElementById('products-container') || 
+                             document.querySelector('.products-grid, .products-container');
+    if (productsContainer && window.showSkeleton) {
+        window.showSkeleton(productsContainer.id || 'products-container', 12);
+    }
     
     try {
         console.log("📦 Loading products from backend API...");
@@ -116,10 +123,21 @@ async function loadProducts() {
             
             filteredProducts = [...products];
             extractCategories();
-            renderProducts();
+            
+            // Hide skeleton and render products
+            if (productsContainer && window.hideSkeleton) {
+                window.hideSkeleton(productsContainer.id || 'products-container');
+                setTimeout(() => renderProducts(), 100);
+            } else {
+                renderProducts();
+            }
             
             console.log(`✅ Loaded ${products.length} products from backend`);
-            showNotification(`Loaded ${products.length} products`, "success");
+            if (window.showToast) {
+                window.showToast(`Loaded ${products.length} products`, "success");
+            } else {
+                showNotification(`Loaded ${products.length} products`, "success");
+            }
             
         } else {
             throw new Error("No products received from backend");
@@ -127,12 +145,41 @@ async function loadProducts() {
         
     } catch (error) {
         console.error("❌ Failed to load products from backend:", error);
-        showNotification("Backend unavailable, loading demo products...", "warning");
+        
+        // Try to load from cache if offline
+        if (window.offlineMode && !window.offlineMode.checkOnlineStatus()) {
+            const cachedProducts = await window.offlineMode.getCachedProducts();
+            if (cachedProducts.length > 0) {
+                products = cachedProducts;
+                filteredProducts = [...products];
+                extractCategories();
+                renderProducts();
+                
+                if (window.showToast) {
+                    window.showToast(`Loaded ${cachedProducts.length} cached products`, "info");
+                }
+                isLoading = false;
+                return;
+            }
+        }
+        
+        if (window.showToast) {
+            window.showToast("Backend unavailable, loading demo products...", "warning");
+        } else {
+            showNotification("Backend unavailable, loading demo products...", "warning");
+        }
         
         // Fallback to demo products
         await loadFallbackProducts();
     } finally {
         isLoading = false;
+        
+        // Hide skeleton if still showing
+        const productsContainer = document.getElementById('products-container') || 
+                                 document.querySelector('.products-grid, .products-container');
+        if (productsContainer && window.hideSkeleton) {
+            window.hideSkeleton(productsContainer.id || 'products-container');
+        }
     }
 }
 

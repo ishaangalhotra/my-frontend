@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius: 0.5rem;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 0.25rem 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-secondary);
+            border-radius: var(--radius);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .period-selector {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-primary);
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary { background: rgba(99, 102, 241, 0.1); color: var(--primary); }
+        .stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .stat-icon.info { background: rgba(59, 130, 246, 0.1); color: var(--info); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-change.positive { color: var(--success); }
+        .stat-change.negative { color: var(--error); }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Tables */
+        .table-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        .badge-error { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 3px solid var(--bg-secondary);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-shield-alt"></i> Admin Portal</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item">
+                        <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                            <i class="fas fa-chart-line"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#sellers" class="nav-link" data-section="sellers">
+                            <i class="fas fa-store"></i> Sellers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#products" class="nav-link" data-section="products">
+                            <i class="fas fa-box"></i> Products
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#orders" class="nav-link" data-section="orders">
+                            <i class="fas fa-shopping-cart"></i> Orders
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#users" class="nav-link" data-section="users">
+                            <i class="fas fa-users"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#financial" class="nav-link" data-section="financial">
+                            <i class="fas fa-chart-pie"></i> Financial
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#analytics" class="nav-link" data-section="analytics">
+                            <i class="fas fa-chart-bar"></i> Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#settings" class="nav-link" data-section="settings">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="dashboard-section" class="dashboard-section">
+                <div class="page-header">
+                    <h1 class="page-title">Admin Dashboard</h1>
+                    <div class="header-actions">
+                        <select class="period-selector" id="periodSelector">
+                            <option value="today">Today</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d" selected>Last 30 Days</option>
+                            <option value="90d">Last 90 Days</option>
+                            <option value="1y">Last Year</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="refreshDashboard()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Revenue</div>
+                            <div class="stat-icon primary"><i class="fas fa-rupee-sign"></i></div>
+                        </div>
+                        <div class="stat-value" id="totalRevenue">₹0</div>
+                        <div class="stat-change positive" id="revenueGrowth">
+                            <i class="fas fa-arrow-up"></i> 0%
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Orders</div>
+                            <div class="stat-icon success"><i class="fas fa-shopping-bag"></i></div>
+                        </div>
+                        <div class="stat-value" id="totalOrders">0</div>
+                        <div class="stat-change" id="orderInfo">
+                            Delivered: <span id="deliveredOrders">0</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Users</div>
+                            <div class="stat-icon info"><i class="fas fa-users"></i></div>
+                        </div>
+                        <div class="stat-value" id="totalUsers">0</div>
+                        <div class="stat-change" id="userInfo">
+                            Sellers: <span id="totalSellers">0</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Products</div>
+                            <div class="stat-icon warning"><i class="fas fa-box"></i></div>
+                        </div>
+                        <div class="stat-value" id="totalProducts">0</div>
+                        <div class="stat-change warning" id="productInfo">
+                            Active: <span id="activeProducts">0</span> | Low Stock: <span id="lowStock">0</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Platform Commission</div>
+                            <div class="stat-icon success"><i class="fas fa-percentage"></i></div>
+                        </div>
+                        <div class="stat-value" id="platformCommission">₹0</div>
+                        <div class="stat-change" id="commissionInfo">
+                            From <span id="commissionOrders">0</span> orders
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Conversion Rate</div>
+                            <div class="stat-icon info"><i class="fas fa-chart-line"></i></div>
+                        </div>
+                        <div class="stat-value" id="conversionRate">0%</div>
+                        <div class="stat-change" id="conversionInfo">
+                            Customer acquisition
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Revenue Trend</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Orders Trend</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="ordersChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">User Growth</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="userGrowthChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Payment Methods</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="paymentMethodsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Products -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">Top Selling Products</h3>
+                        <a href="admin-products.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> View All
+                        </a>
+                    </div>
+                    <table id="topProductsTable">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Seller</th>
+                                <th>Sold</th>
+                                <th>Revenue</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topProductsBody">
+                            <tr>
+                                <td colspan="5" class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Loading products...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Top Sellers -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">Top Performing Sellers</h3>
+                        <a href="#sellers" class="btn btn-primary">
+                            <i class="fas fa-list"></i> View All Sellers
+                        </a>
+                    </div>
+                    <table id="topSellersTable">
+                        <thead>
+                            <tr>
+                                <th>Seller</th>
+                                <th>Revenue</th>
+                                <th>Orders</th>
+                                <th>Products</th>
+                                <th>Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topSellersBody">
+                            <tr>
+                                <td colspan="5" class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Loading sellers...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/config.js"></script>
+    <script>
+        const API_BASE_URL = window.QuickLocalConfig?.api?.baseUrl || window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        let revenueChartInstance, ordersChartInstance, userGrowthChartInstance, paymentChartInstance;
+        let currentPeriod = '30d';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('periodSelector').addEventListener('change', function(e) {
+                currentPeriod = e.target.value;
+                loadDashboard();
+            });
+        }
+
+        async function initializeDashboard() {
+            await loadDashboard();
+            setupCharts();
+        }
+
+        async function loadDashboard() {
+            try {
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                if (!token) {
+                    window.location.href = 'admin-dashboard.html';
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/admin/enterprise/dashboard?period=${currentPeriod}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = 'admin-dashboard.html';
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateDashboard(result.data);
+                } else {
+                    throw new Error(result.message || 'Failed to load dashboard');
+                }
+            } catch (error) {
+                console.error('Dashboard load error:', error);
+                showError('Failed to load dashboard data. Please try again.');
+            }
+        }
+
+        function updateDashboard(data) {
+            const overview = data.overview || {};
+            const revenue = overview.revenue || {};
+            const orders = overview.orders || {};
+            const users = overview.users || {};
+            const products = overview.products || {};
+            const platform = overview.platform || {};
+
+            // Update stats
+            document.getElementById('totalRevenue').textContent = formatCurrency(revenue.total || 0);
+            document.getElementById('revenueGrowth').innerHTML = 
+                `<i class="fas fa-arrow-${revenue.growth >= 0 ? 'up' : 'down'}"></i> ${Math.abs(revenue.growth || 0).toFixed(1)}%`;
+            document.getElementById('revenueGrowth').className = `stat-change ${revenue.growth >= 0 ? 'positive' : 'negative'}`;
+
+            document.getElementById('totalOrders').textContent = orders.total || 0;
+            document.getElementById('deliveredOrders').textContent = orders.delivered || 0;
+
+            document.getElementById('totalUsers').textContent = users.total || 0;
+            document.getElementById('totalSellers').textContent = users.sellers || 0;
+
+            document.getElementById('totalProducts').textContent = products.total || 0;
+            document.getElementById('activeProducts').textContent = products.active || 0;
+            document.getElementById('lowStock').textContent = products.lowStock || 0;
+
+            document.getElementById('platformCommission').textContent = formatCurrency(revenue.platformCommission || 0);
+            document.getElementById('commissionOrders').textContent = orders.total || 0;
+
+            document.getElementById('conversionRate').textContent = (platform.conversionRate || 0).toFixed(1) + '%';
+
+            // Update charts
+            if (revenueChartInstance && data.charts?.revenue) {
+                updateRevenueChart(data.charts.revenue);
+            }
+            if (ordersChartInstance && data.charts?.orders) {
+                updateOrdersChart(data.charts.orders);
+            }
+            if (userGrowthChartInstance && data.charts?.userGrowth) {
+                updateUserGrowthChart(data.charts.userGrowth);
+            }
+            if (paymentChartInstance && data.paymentMethodsDistribution) {
+                updatePaymentChart(data.paymentMethodsDistribution);
+            }
+
+            // Update tables
+            updateTopProductsTable(data.topProducts || []);
+            updateTopSellersTable(data.topSellers || []);
+        }
+
+        function setupCharts() {
+            // Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart');
+            revenueChartInstance = new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: [],
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '₹' + context.parsed.y.toLocaleString('en-IN');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString('en-IN');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Orders Chart
+            const ordersCtx = document.getElementById('ordersChart');
+            ordersChartInstance = new Chart(ordersCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Orders',
+                        data: [],
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
+
+            // User Growth Chart
+            const userGrowthCtx = document.getElementById('userGrowthChart');
+            userGrowthChartInstance = new Chart(userGrowthCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'New Users',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Payment Methods Chart
+            const paymentCtx = document.getElementById('paymentMethodsChart');
+            paymentChartInstance = new Chart(paymentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(59, 130, 246, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function updateRevenueChart(data) {
+            revenueChartInstance.data.labels = data.map(item => formatDate(item.date));
+            revenueChartInstance.data.datasets[0].data = data.map(item => item.revenue);
+            revenueChartInstance.update();
+        }
+
+        function updateOrdersChart(data) {
+            ordersChartInstance.data.labels = data.map(item => formatDate(item.date));
+            ordersChartInstance.data.datasets[0].data = data.map(item => item.count);
+            ordersChartInstance.update();
+        }
+
+        function updateUserGrowthChart(data) {
+            userGrowthChartInstance.data.labels = data.map(item => formatDate(item.date));
+            userGrowthChartInstance.data.datasets[0].data = data.map(item => item.count);
+            userGrowthChartInstance.update();
+        }
+
+        function updatePaymentChart(data) {
+            paymentChartInstance.data.labels = data.map(item => item._id || 'Unknown');
+            paymentChartInstance.data.datasets[0].data = data.map(item => item.count);
+            paymentChartInstance.update();
+        }
+
+        function updateTopProductsTable(products) {
+            const tbody = document.getElementById('topProductsBody');
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No products found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = products.map(product => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            ${product.image ? `<img src="${product.image}" alt="${product.productName}" class="product-image" style="width: 50px; height: 50px; object-fit: cover; border-radius: var(--radius);">` : ''}
+                            <div>
+                                <div style="font-weight: 600;">${product.productName}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">₹${product.price?.toLocaleString('en-IN') || 0}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>Seller Name</td>
+                    <td><strong>${product.totalSold || 0}</strong></td>
+                    <td>₹${(product.revenue || 0).toLocaleString('en-IN')}</td>
+                    <td><span class="badge badge-success">Active</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateTopSellersTable(sellers) {
+            const tbody = document.getElementById('topSellersBody');
+            if (sellers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No sellers found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sellers.map(seller => `
+                <tr>
+                    <td>
+                        <div>
+                            <div style="font-weight: 600;">${seller.sellerName || 'Unknown'}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${seller.sellerEmail || ''}</div>
+                        </div>
+                    </td>
+                    <td>₹${(seller.revenue || 0).toLocaleString('en-IN')}</td>
+                    <td>${seller.orders || 0}</td>
+                    <td>${seller.productCount || 0}</td>
+                    <td>${(seller.averageRating || 0).toFixed(1)} ⭐</td>
+                </tr>
+            `).join('');
+        }
+
+        function formatCurrency(amount) {
+            return '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        }
+
+        function refreshDashboard() {
+            loadDashboard();
+        }
+
+        function showError(message) {
+            alert(message);
+        }
+    </script>
+</body>
+</html>
+
+
