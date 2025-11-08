@@ -22,7 +22,6 @@ const STATIC_URLS_TO_CACHE = [
   '/css/micro-interactions.css',
   '/js/main.js',
   '/js/marketplace.js',
-  '/js/cart.js',
   '/js/auth.js',
   '/js/offline-mode.js',
   '/js/ux-polish.js',
