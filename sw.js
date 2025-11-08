@@ -71,22 +71,41 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Helper function to check if request is API
+function isAPIRequest(url) {
+  return url.includes('/api/v1');
+}
+
+// Helper function to check if request is static
+function isStaticRequest(url) {
+  const staticExtensions = ['.html', '.css', '.js', '.json', '.xml'];
+  return staticExtensions.some(ext => url.includes(ext));
+}
+
 // Fetch event - serving content
 self.addEventListener('fetch', (event) => {
-  const requestUrl = new URL(event.request.url);
-  const isApi = requestUrl.pathname.includes('/api/v1');
+  const { request } = event;
+  const requestUrl = new URL(request.url);
+  
+  // Skip POST requests for caching - FIX FOR THE MAIN ERROR
+  if (request.method === 'POST') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  const isApi = isAPIRequest(request.url);
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
-  const isStatic = STATIC_URLS_TO_CACHE.includes(requestUrl.pathname);
+  const isStatic = isStaticRequest(request.url);
 
   // 1. API Cache Strategy (Stale-While-Revalidate)
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
-          const fetchedCopy = fetch(event.request).then((response) => {
+        return cache.match(request).then((cachedResponse) => {
+          const fetchedCopy = fetch(request).then((response) => {
             if (response.ok) {
               // Cache the new response
-              cache.put(event.request, response.clone());
+              cache.put(request, response.clone());
             }
             return response;
           }).catch((error) => {
@@ -110,17 +129,17 @@ self.addEventListener('fetch', (event) => {
   if (isImage) {
     event.respondWith(
       caches.open(IMAGE_CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
+        return cache.match(request).then((cachedResponse) => {
           if (cachedResponse) {
             // Revalidate in background to keep cache fresh
-            fetch(event.request).then((response) => {
-              if (response.ok) cache.put(event.request, response.clone());
+            fetch(request).then((response) => {
+              if (response.ok) cache.put(request, response.clone());
             });
             return cachedResponse;
           }
           // Fall back to network if not in cache
-          return fetch(event.request).then((response) => {
-            if (response.ok) cache.put(event.request, response.clone());
+          return fetch(request).then((response) => {
+            if (response.ok) cache.put(request, response.clone());
             return response;
           });
         });
@@ -132,13 +151,13 @@ self.addEventListener('fetch', (event) => {
   // 3. Static Assets Strategy (Cache-First) - Now only for HTML/CSS/Core JS
   if (isStatic) {
     event.respondWith(
-      caches.match(event.request).then((response) => {
+      caches.match(request).then((response) => {
         if (response) {
           console.log(`[SW] Serving static file from cache: ${requestUrl.href}`);
           return response;
         }
         // Fall back to network
-        return fetch(event.request);
+        return fetch(request);
       })
     );
     return;
@@ -146,12 +165,12 @@ self.addEventListener('fetch', (event) => {
 
   // 4. Default: Network-First (For all dynamic JS and unlisted files)
   event.respondWith(
-    fetch(event.request).catch(() => {
+    fetch(request).catch(() => {
       // Fallback to cache for critical paths if network fails
       if (requestUrl.pathname.includes('marketplace.html') || requestUrl.pathname === '/') {
         return caches.match('/marketplace.html') || caches.match('/index.html');
       }
-      return caches.match(event.request);
+      return caches.match(request);
     })
   );
 });
@@ -178,6 +197,11 @@ self.addEventListener('message', (event) => {
     } catch (error) {
       event.ports[0].postMessage({ success: false, error: error.message });
     }
+  }
+
+  // Handle POST request skipping
+  if (event.data && event.data.type === 'SKIP_POST_CACHING') {
+    console.log('[SW] Received instruction to skip POST caching');
   }
 });
 

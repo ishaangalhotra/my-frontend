@@ -42,6 +42,7 @@ class MultiChannelNotificationService {
       this.token = null;
     }
   }
+
   // Set authentication token
   setToken(token) {
     this.token = token;
@@ -611,39 +612,35 @@ class MultiChannelNotificationService {
 
   // Initialize multi-channel service
   async initialize() {
-  try {
-    // Reload token in case it was set after construction
-    this.loadToken();
-
-    // Check if we actually have a token before making API calls
-    if (!this.token) {
-      console.log('[MultiChannelNotificationService] Skipping initialization - no auth token available');
-      return false;
-    }
-
-    // Load templates (with graceful failure)
     try {
-      await this.getEmailTemplates();
-      console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
-    } catch (error) {
-      console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
-    }
+      // Reload token in case it was set after construction
+      this.loadToken();
 
-    try {
-      await this.getSMSTemplates();
-      console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
-    } catch (error) {
-      console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
-    }
+      // Check if we actually have a token before making API calls
+      if (!this.token) {
+        console.log('[MultiChannelNotificationService] Skipping initialization - no auth token available');
+        return false;
+      }
 
-    console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
-    return true;
-  } catch (error) {
-    console.error('[MultiChannelNotificationService] Failed to initialize:', error);
-    return false;
-  }
-} catch (error) {
-      console.error('Failed to initialize multi-channel notification service:', error);
+      // Load templates (with graceful failure)
+      try {
+        await this.getEmailTemplates();
+        console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
+      } catch (error) {
+        console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
+      }
+
+      try {
+        await this.getSMSTemplates();
+        console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
+      } catch (error) {
+        console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
+      }
+
+      console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
+      return true;
+    } catch (error) {
+      console.error('[MultiChannelNotificationService] Failed to initialize:', error);
       return false;
     }
   }

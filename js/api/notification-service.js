@@ -4,75 +4,45 @@ class NotificationService {
     // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     this.token = null; // FIXED: Don't use localStorage in constructor
-    this.loadToken() 
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] âœ… Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
+    this.loadToken();
   }
-}
 
   // Load token from localStorage
-  
-loadToken() {
-  try {
-    let token = null;
+  loadToken() {
+    try {
+      let token = null;
 
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
+      // Priority 1: Check the dedicated token keys
+      token = localStorage.getItem('quicklocal_access_token') || 
+              localStorage.getItem('supabase_access_token') ||
+              localStorage.getItem('token');
 
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+      // Priority 2: Fallback to checking inside the user object (as a last resort)
+      if (!token) {
+        const storedUser = localStorage.getItem('quicklocal_user');
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            token = parsed?.access_token || parsed?.token || parsed?.accessToken;
+          } catch (e) {
+            console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
+          }
+        }
       }
-    }
 
-    this.token = token;
+      this.token = token;
 
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
+      if (!token) {
+        console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
+      } else {
+        console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
+      }
+    } catch (error) {
+      console.warn(`[${this.constructor.name}] Failed to load token:`, error);
+      this.token = null;
     }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
   }
-}
+
   // Set authentication token
   setToken(token) {
     this.token = token;
