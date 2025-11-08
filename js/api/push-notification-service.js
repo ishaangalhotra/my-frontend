@@ -507,40 +507,40 @@ loadToken() {
 
   // Initialize push notification system
   async initialize() {
-  try {
-    if (!this.isSupported) {
-      console.warn('[PushNotificationService] Push notifications are not supported in this browser');
+    try {
+      if (!this.isSupported) {
+        console.warn('[PushNotificationService] Push notifications are not supported in this browser');
+        return false;
+      }
+
+      // Reload token
+      this.loadToken();
+
+      // Note: Push notification initialization doesn't require auth,
+      // so we don't skip here, but we log a warning
+      if (!this.token) {
+        console.log('[PushNotificationService] No auth token - limited functionality');
+      }
+
+      // Check current subscription status
+      const status = await this.getSubscriptionStatus();
+      console.log('[PushNotificationService] Push notification status:', status);
+
+      // Set up message handler for service worker
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+            this.handleNotificationClick(event.data);
+          }
+        });
+      }
+
+      console.log('[PushNotificationService] ✅ Successfully initialized');
+      return true;
+    } catch (error) {
+      console.error('[PushNotificationService] Failed to initialize:', error);
       return false;
     }
-
-    // Reload token
-    this.loadToken();
-
-    // Note: Push notification initialization doesn't require auth,
-    // so we don't skip here, but we log a warning
-    if (!this.token) {
-      console.log('[PushNotificationService] No auth token - limited functionality');
-    }
-
-    // Check current subscription status
-    const status = await this.getSubscriptionStatus();
-    console.log('[PushNotificationService] Push notification status:', status);
-
-    // Set up message handler for service worker
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
-          this.handleNotificationClick(event.data);
-        }
-      });
-    }
-
-    console.log('[PushNotificationService] ✅ Successfully initialized');
-    return true;
-  } catch (error) {
-    console.error('[PushNotificationService] Failed to initialize:', error);
-    return false;
-  }
   }
 
   // Handle notification click events

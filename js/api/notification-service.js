@@ -348,47 +348,47 @@ loadToken() {
 
   // Initialize notification system
   async initialize() {
-  try {
-    // Reload token in case it was set after construction
-    this.loadToken();
+    try {
+      // Reload token in case it was set after construction
+      this.loadToken();
 
-    // Check if we actually have a token before making API calls
-    if (!this.token) {
-      console.log('[NotificationService] Skipping initialization - no auth token available');
+      // Check if we actually have a token before making API calls
+      if (!this.token) {
+        console.log('[NotificationService] Skipping initialization - no auth token available');
+        return false;
+      }
+
+      // Initialize badge
+      await this.initializeBadge();
+
+      // Request permission for browser notifications
+      await this.requestPermission();
+
+      // Subscribe to real-time notifications
+      const socket = this.subscribeToNotifications((notification) => {
+        // Update badge
+        this.updateBadge(notification.unreadCount || 0);
+
+        // Show toast notification
+        this.showToast(notification);
+
+        // Show browser notification
+        this.showBrowserNotification(notification);
+      });
+
+      // Set up periodic badge updates
+      setInterval(async () => {
+        if (this.token) { // Only update if we still have a token
+          await this.initializeBadge();
+        }
+      }, 30000); // Update every 30 seconds
+
+      console.log('[NotificationService] ✅ Successfully initialized');
+      return socket;
+    } catch (error) {
+      console.error('[NotificationService] Failed to initialize:', error);
       return false;
     }
-
-    // Initialize badge
-    await this.initializeBadge();
-
-    // Request permission for browser notifications
-    await this.requestPermission();
-
-    // Subscribe to real-time notifications
-    const socket = this.subscribeToNotifications((notification) => {
-      // Update badge
-      this.updateBadge(notification.unreadCount || 0);
-
-      // Show toast notification
-      this.showToast(notification);
-
-      // Show browser notification
-      this.showBrowserNotification(notification);
-    });
-
-    // Set up periodic badge updates
-    setInterval(async () => {
-      if (this.token) { // Only update if we still have a token
-        await this.initializeBadge();
-      }
-    }, 30000); // Update every 30 seconds
-
-    console.log('[NotificationService] ✅ Successfully initialized');
-    return socket;
-  } catch (error) {
-    console.error('[NotificationService] Failed to initialize:', error);
-    return false;
-  }
   }
 }
 
