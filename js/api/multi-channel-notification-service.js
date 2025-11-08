@@ -6,44 +6,11 @@ class MultiChannelNotificationService {
     this.token = null; // FIXED: Don't use localStorage in constructor
     this.emailTemplates = new Map();
     this.smsTemplates = new Map();
-    this.loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
+    this.loadToken();
   }
-}
 
   // Load token from localStorage
-  
-loadToken() {
+  loadToken() {
   try {
     let token = null;
 

@@ -235,12 +235,14 @@ class MarketplaceIntegration {
 
   async loadTrendingRecommendations() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/recommendations/trending?limit=12`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.recommendations.length > 0) {
-          this.renderRecommendations(data.recommendations, 'trending');
-        }
+      const response = await fetch(`${this.apiBaseUrl}/recommendations/trending?limit=12`).catch(() => null);
+      if (!response || !response.ok) {
+        console.log('⚠️ Trending recommendations not available (404) - this is optional');
+        return;
+      }
+      const data = await response.json();
+      if (data.success && data.recommendations && data.recommendations.length > 0) {
+        this.renderRecommendations(data.recommendations, 'trending');
       }
     } catch (error) {
       console.error('Trending recommendations error:', error);
@@ -313,12 +315,14 @@ class MarketplaceIntegration {
   // ==================== FLASH SALES ====================
   async setupFlashSales() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/flash-sales/active`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.sales.length > 0) {
-          this.renderFlashSales(data.sales);
-        }
+      const response = await fetch(`${this.apiBaseUrl}/flash-sales/active`).catch(() => null);
+      if (!response || !response.ok) {
+        console.log('⚠️ Flash sales not available (404) - this is optional');
+        return;
+      }
+      const data = await response.json();
+      if (data.success && data.sales && data.sales.length > 0) {
+        this.renderFlashSales(data.sales);
       }
     } catch (error) {
       console.error('Flash sales error:', error);

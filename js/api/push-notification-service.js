@@ -541,26 +541,6 @@ loadToken() {
     console.error('[PushNotificationService] Failed to initialize:', error);
     return false;
   }
-}
-
-      // Check current subscription status
-      const status = await this.getSubscriptionStatus();
-      console.log('Push notification status:', status);
-
-      // Set up message handler for service worker
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
-            this.handleNotificationClick(event.data);
-          }
-        });
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Failed to initialize push notification service:', error);
-      return false;
-    }
   }
 
   // Handle notification click events

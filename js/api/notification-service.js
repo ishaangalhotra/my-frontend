@@ -383,23 +383,12 @@ loadToken() {
       }
     }, 30000); // Update every 30 seconds
 
-    console.log('[NotificationService] âœ… Successfully initialized');
+    console.log('[NotificationService] ✅ Successfully initialized');
     return socket;
   } catch (error) {
     console.error('[NotificationService] Failed to initialize:', error);
     return false;
   }
-});
-
-      // Set up periodic badge updates
-      setInterval(async () => {
-        await this.initializeBadge();
-      }, 30000); // Update every 30 seconds
-
-      return socket;
-    } catch (error) {
-      console.error('Failed to initialize notification system:', error);
-    }
   }
 }
 
