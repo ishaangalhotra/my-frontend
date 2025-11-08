@@ -216,10 +216,17 @@ class MarketplaceIntegration {
     }
 
     try {
+      
+      // ==========================================================
+      // == START FIX: Changed endpoint from /personalized to /trending
+      // ==========================================================
       const response = await fetch(
-        `${this.apiBaseUrl}/recommendations/personalized?limit=12`,
+        `${this.apiBaseUrl}/recommendations/trending?limit=12`,
         { headers: this.getAuthHeaders() }
       );
+      // ==========================================================
+      // == END FIX
+      // ==========================================================
 
       if (response.ok) {
         const data = await response.json();
@@ -500,4 +507,3 @@ class MarketplaceIntegration {
 if (typeof window !== 'undefined') {
   window.marketplaceIntegration = new MarketplaceIntegration();
 }
-
