@@ -797,6 +797,8 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script>
         const API_BASE_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
         
@@ -809,12 +811,29 @@
         let allCategories = [];
 
         document.addEventListener('DOMContentLoaded', function() {
-            loadCategories();
-            setupImageUpload();
-            setupForm();
-            setupTabs();
-            setupModal();
-            setupProductManagement();
+            // Wait for HybridAuthClient to be ready
+            const checkAuthReady = setInterval(() => {
+                if (window.HybridAuthClient) {
+                    clearInterval(checkAuthReady);
+                    console.log('Auth Client Ready. Initializing page.');
+                    
+                    // Check if logged in
+                    if (!window.HybridAuthClient.getCurrentUser()) {
+                        showAlert('You must be logged in to manage products. Redirecting...', 'error');
+                        setTimeout(() => {
+                            window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
+                        }, 2000);
+                    } else {
+                         // User is logged in, proceed with loading
+                        loadCategories();
+                        setupImageUpload();
+                        setupForm();
+                        setupTabs();
+                        setupModal();
+                        setupProductManagement();
+                    }
+                }
+            }, 100);
         });
 
         // Tab Management
@@ -826,15 +845,12 @@
                 btn.addEventListener('click', () => {
                     const targetTab = btn.getAttribute('data-tab');
 
-                    // Remove active class from all tabs and contents
                     tabBtns.forEach(b => b.classList.remove('active'));
                     tabContents.forEach(c => c.classList.remove('active'));
 
-                    // Add active class to clicked tab and corresponding content
                     btn.classList.add('active');
                     document.getElementById(targetTab).classList.add('active');
 
-                    // Load data based on active tab
                     if (targetTab === 'manage-products') {
                         loadAllProducts();
                     } else if (targetTab === 'statistics') {
@@ -846,14 +862,12 @@
 
         // Product Management Setup
         function setupProductManagement() {
-            // Search functionality
             document.getElementById('productSearch').addEventListener('input', debounce(filterProducts, 300));
             document.getElementById('categoryFilter').addEventListener('change', filterProducts);
             document.getElementById('stockFilter').addEventListener('change', filterProducts);
             document.getElementById('refreshProducts').addEventListener('click', loadAllProducts);
         }
 
-        // Debounce utility function
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
@@ -872,12 +886,20 @@
             const categoryFilter = document.getElementById('categoryFilter');
             
             try {
-                const response = await fetch(`${API_BASE_URL}/categories?limit=50`);
+                // FIXED: Use the HybridAuthClient to make the request
+                if (!window.HybridAuthClient) {
+                    throw new Error('Auth client not loaded');
+                }
+                
+                const response = await window.HybridAuthClient.apiCall('categories?limit=50', {
+                    method: 'GET'
+                });
+                
                 const result = await response.json();
 
                 if (result.success && result.data.categories.length > 0) {
                     const categories = result.data.categories;
-                    allCategories = categories; // Store for later use
+                    allCategories = categories;
                     
                     const categoryIcons = {
                         'Electronics': 'fas fa-mobile-alt',
@@ -901,7 +923,6 @@
                         </div>
                     `).join('');
 
-                    // Populate filter dropdown
                     if (categoryFilter) {
                         categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
                             categories.map(cat => `<option value="${cat._id}">${cat.name}</option>`).join('');
@@ -913,11 +934,10 @@
                 }
             } catch (error) {
                 console.error('Failed to load categories:', error);
-                categoryGrid.innerHTML = '<p class="alert alert-error" style="display: block; grid-column: 1 / -1;">Error loading categories. Please check the API connection and make sure categories exist in your database.</p>';
+                categoryGrid.innerHTML = `<p class="alert alert-error" style="display: block; grid-column: 1 / -1;">Error loading categories: ${error.message}</p>`;
             }
         }
 
-        // Load all products for management
         async function loadAllProducts() {
             const productsGrid = document.getElementById('productsGrid');
             
@@ -929,7 +949,10 @@
                     </div>
                 `;
 
-                const response = await fetch(`${API_BASE_URL}/products?limit=1000`);
+                // FIXED: Use HybridAuthClient
+                const response = await window.HybridAuthClient.apiCall('products?limit=1000', {
+                    method: 'GET'
+                });
                 const result = await response.json();
 
                 if (result.success && result.data) {
@@ -953,13 +976,12 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
                         <h3>Error loading products</h3>
-                        <p>Please check your connection and try again.</p>
+                        <p>${error.message}</p>
                     </div>
                 `;
             }
         }
 
-        // Filter products based on search and filters
         function filterProducts() {
             const searchTerm = document.getElementById('productSearch').value.toLowerCase();
             const categoryFilter = document.getElementById('categoryFilter').value;
@@ -988,7 +1010,6 @@
             renderProducts();
         }
 
-        // Render products in the grid
         function renderProducts() {
             const productsGrid = document.getElementById('productsGrid');
             
@@ -1011,7 +1032,6 @@
             renderPagination();
         }
 
-        // Create individual product card
         function createProductCard(product) {
             const categoryName = product.category ? (product.category.name || product.category) : 'Uncategorized';
             const stockStatus = product.stock === 0 ? 'Out of Stock' : 
@@ -1059,9 +1079,6 @@
                         <button class="btn btn-small btn-danger" onclick="confirmDeleteProduct('${product._id || product.id}', '${escapeHtml(product.name)}')">
                             <i class="fas fa-trash"></i> Delete
                         </button>
-                        <button class="btn btn-small btn-secondary" onclick="debugDeleteProduct('${product._id || product.id}')" style="font-size: 0.7rem;">
-                            <i class="fas fa-bug"></i> Debug
-                        </button>
                         <a href="marketplace.html" class="btn btn-small btn-secondary" target="_blank">
                             <i class="fas fa-eye"></i> View
                         </a>
@@ -1070,7 +1087,6 @@
             `;
         }
 
-        // Render pagination
         function renderPagination() {
             const paginationContainer = document.getElementById('productsPagination');
             const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
@@ -1082,12 +1098,10 @@
 
             let paginationHtml = '';
             
-            // Previous button
             paginationHtml += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">
                 <i class="fas fa-chevron-left"></i>
             </button>`;
 
-            // Page numbers
             for (let i = 1; i <= totalPages; i++) {
                 if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
                     paginationHtml += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
@@ -1096,7 +1110,6 @@
                 }
             }
 
-            // Next button
             paginationHtml += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">
                 <i class="fas fa-chevron-right"></i>
             </button>`;
@@ -1104,7 +1117,6 @@
             paginationContainer.innerHTML = paginationHtml;
         }
 
-        // Change page
         function changePage(page) {
             const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
             if (page < 1 || page > totalPages) return;
@@ -1112,7 +1124,6 @@
             currentPage = page;
             renderProducts();
             
-            // Scroll to top of products
             document.getElementById('productsGrid').scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -1182,9 +1193,15 @@
             form.addEventListener('submit', handleFormSubmit);
         }
         
+        // --- START OF FIXED FUNCTION ---
         async function handleFormSubmit(e) {
             e.preventDefault();
             
+            if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+                showAlert('You must be logged in to add/update products.', 'error');
+                return;
+            }
+
             if (!selectedCategory) {
                 showAlert('Please select a category', 'error');
                 return;
@@ -1225,7 +1242,6 @@
                 formData.append('images', file);
             });
 
-            // Log what we're sending
             console.log('=== FORM DATA BEING SENT ===');
             for (let pair of formData.entries()) {
                 console.log(pair[0] + ': ' + (pair[1] instanceof File ? `[File: ${pair[1].name}]` : pair[1]));
@@ -1236,63 +1252,46 @@
                 'Updating your product...' : 'Adding your product to QuickLocal...';
 
             try {
-                console.log(isEditing ? 'Updating product:' : 'Adding product:', selectedCategory);
-                
-                const url = isEditing ? `${API_BASE_URL}/products/${isEditing}` : `${API_BASE_URL}/products`;
+                const endpoint = isEditing ? `products/${isEditing}` : 'products';
                 const method = isEditing ? 'PUT' : 'POST';
-                
-                const response = await fetch(url, {
+
+                // FIXED: Use HybridAuthClient.apiCall
+                // It does NOT need the full URL, and it handles auth automatically.
+                // We MUST undefine Content-Type for FormData to work correctly.
+                const response = await window.HybridAuthClient.apiCall(endpoint, {
                     method: method,
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Content-Type': undefined 
+                    }
                 });
 
-                // CRITICAL: Get the response text first to see what the server is sending
-                const responseText = await response.text();
-                console.log('=== RAW SERVER RESPONSE ===');
-                console.log('Status:', response.status);
-                console.log('Response Text:', responseText);
-
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('Failed to parse response as JSON:', parseError);
-                    throw new Error(`Server returned non-JSON response: ${responseText.substring(0, 200)}`);
-                }
-
-                console.log('=== PARSED SERVER RESPONSE ===');
-                console.log(JSON.stringify(result, null, 2));
+                const result = await response.json();
 
                 if (result.success || response.ok) {
                     const action = isEditing ? 'updated' : 'added';
                     showAlert(`Product ${action} successfully! 🎉`, 'success');
                     
-                    // Reset form and editing state
                     resetForm();
                     delete form.dataset.editingId;
                     
-                    // Reset form UI
                     document.querySelector('#productForm button[type="submit"]').innerHTML = 
                         '<i class="fas fa-plus"></i> Add Product';
                     
-                    // Remove editing alert
                     const editingAlert = document.querySelector('#add-product .alert-warning');
                     if (editingAlert) editingAlert.remove();
                     
-                    // Refresh products list if on manage tab
                     if (document.getElementById('manage-products').classList.contains('active')) {
                         loadAllProducts();
                     }
                 } else {
-                    // Enhanced error display
                     let errorMessage = result.message || result.error || `Failed to ${isEditing ? 'update' : 'add'} product.`;
                     
-                    if (result.errors) {
+                    if (result.errors) { // Handle validation errors
                         const errorList = result.errors.map(err => `• ${err.msg || err.message || err}`).join('\n');
                         errorMessage += '\n\nValidation Errors:\n' + errorList;
                     }
-                    
-                    if (result.details) {
+                    if (result.details) { // Handle validation errors (alternative format)
                         const detailList = result.details.map(d => `• ${d.msg || d.message || d}`).join('\n');
                         errorMessage += '\n\nDetails:\n' + detailList;
                     }
@@ -1312,8 +1311,6 @@
                 errorDetails.innerHTML = `
                     <strong>Debug Information:</strong><br>
                     ${error.message.replace(/\n/g, '<br>')}
-                    <br><br>
-                    Check the browser console (F12) for more details.
                 `;
                 
                 const action = isEditing ? 'update' : 'add';
@@ -1323,6 +1320,7 @@
                 showLoading(false);
             }
         }
+        // --- END OF FIXED FUNCTION ---
 
         function resetForm() {
             document.getElementById('productForm').reset();
@@ -1332,9 +1330,16 @@
             document.getElementById('imagePreview').innerHTML = '';
             selectedCategory = '';
             selectedFiles = [];
+            
+            // Reset editing state
+            const form = document.getElementById('productForm');
+            delete form.dataset.editingId;
+            document.querySelector('#productForm button[type="submit"]').innerHTML = 
+                '<i class="fas fa-plus"></i> Add Product';
+            const editingAlert = document.querySelector('#add-product .alert-warning');
+            if (editingAlert) editingAlert.remove();
         }
 
-        // Product deletion functionality
         function confirmDeleteProduct(productId, productName) {
             showModal(
                 'Delete Product',
@@ -1343,109 +1348,58 @@
             );
         }
 
+        // --- START OF FIXED FUNCTION ---
         async function deleteProduct(productId) {
+            if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+                showAlert('You must be logged in to delete products.', 'error');
+                return;
+            }
+
             try {
                 console.log('🗑️ Attempting to delete product:', productId);
-                console.log('Delete URL:', `${API_BASE_URL}/products/${productId}`);
-                
-                // Prepare headers - some APIs might require authentication for DELETE
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                
-                // Add authorization if available (check for stored tokens)
-                const token = localStorage.getItem('token') || 
-                             localStorage.getItem('accessToken') || 
-                             localStorage.getItem('quicklocal_access_token');
-                             
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                    console.log('Adding auth header for delete request');
-                }
-                
-                const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE',
-                    headers: headers
+
+                // FIXED: Use HybridAuthClient.apiCall
+                const response = await window.HybridAuthClient.apiCall(`products/${productId}`, {
+                    method: 'DELETE'
                 });
-
-                console.log('Delete response status:', response.status);
-                console.log('Delete response ok:', response.ok);
                 
-                // Get the response text first to see what the server is sending
-                const responseText = await response.text();
-                console.log('Delete response text:', responseText);
-                
-                let result;
-                try {
-                    // Try to parse as JSON if there's content
-                    if (responseText.trim()) {
-                        result = JSON.parse(responseText);
-                        console.log('Parsed delete result:', result);
-                    } else {
-                        // Empty response is okay for DELETE operations
-                        result = { success: true };
-                    }
-                } catch (parseError) {
-                    console.warn('Could not parse delete response as JSON:', parseError);
-                    // If we can't parse but the status is OK, consider it successful
-                    if (response.ok) {
-                        result = { success: true };
-                    } else {
-                        throw new Error(`Server returned non-JSON response: ${responseText}`);
-                    }
-                }
-
-                // Check for success
-                if (result.success || response.ok || response.status === 204) {
-                    console.log('✅ Product deleted successfully');
+                // Check for empty 204 No Content response, which is a success
+                if (response.status === 204) {
+                    console.log('✅ Product deleted successfully (Status 204)');
                     showAlert('Product deleted successfully!', 'success');
                     
-                    // Remove from local arrays
-                    const initialCount = allProducts.length;
                     allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
                     filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
                     
-                    console.log(`Products reduced from ${initialCount} to ${allProducts.length}`);
+                    renderProducts();
+                    loadStatistics();
+                    return; // Exit function
+                }
+
+                // If not 204, parse the JSON
+                const result = await response.json();
+
+                if (result.success || response.ok) {
+                    console.log('✅ Product deleted successfully');
+                    showAlert('Product deleted successfully!', 'success');
+                    
+                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
+                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
                     
                     renderProducts();
-                    loadStatistics(); // Refresh statistics
+                    loadStatistics();
                 } else {
                     console.error('❌ Delete failed:', result);
                     throw new Error(result.message || result.error || `Failed to delete product (Status: ${response.status})`);
                 }
             } catch (error) {
                 console.error('❌ Error deleting product:', error);
-                
-                // Show detailed error information
-                let errorMessage = 'Failed to delete product.';
-                if (error.message.includes('fetch')) {
-                    errorMessage += ' Network error - please check your connection.';
-                } else if (error.message.includes('404')) {
-                    errorMessage += ' Product not found on server.';
-                } else if (error.message.includes('500')) {
-                    errorMessage += ' Server error - please try again later.';
-                } else {
-                    errorMessage += ` ${error.message}`;
-                }
-                
+                let errorMessage = `Failed to delete product. ${error.message}`;
                 showAlert(errorMessage, 'error');
-                
-                // Add debug info to the page
-                const debugInfo = document.createElement('div');
-                debugInfo.className = 'debug-info';
-                debugInfo.innerHTML = `
-                    <strong>Debug Information for Product Deletion:</strong><br>
-                    Product ID: ${productId}<br>
-                    Error: ${error.message}<br>
-                    API URL: ${API_BASE_URL}/products/${productId}<br>
-                    <br>
-                    Check the browser console (F12) for more details.
-                `;
-                document.getElementById('alertContainer').appendChild(debugInfo);
             }
         }
+        // --- END OF FIXED FUNCTION ---
 
-        // Product editing functionality (basic implementation)
         function editProduct(productId) {
             const product = allProducts.find(p => (p._id || p.id) === productId);
             if (!product) {
@@ -1453,10 +1407,8 @@
                 return;
             }
 
-            // Switch to add product tab and populate form
             document.querySelector('[data-tab="add-product"]').click();
             
-            // Populate form fields
             document.getElementById('name').value = product.name || '';
             document.getElementById('description').value = product.description || '';
             document.getElementById('price').value = product.price || '';
@@ -1465,15 +1417,13 @@
             document.getElementById('unit').value = product.unit || 'piece';
             document.getElementById('brand').value = product.brand || '';
             document.getElementById('weight').value = product.weight || '';
-            document.getElementById('tags').value = product.tags ? product.tags.join(', ') : '';
+            document.getElementById('tags').value = product.tags ? (Array.isArray(product.tags) ? product.tags.join(', ') : product.tags) : '';
 
-            // Select category
             if (product.category) {
                 const categoryId = product.category._id || product.category;
                 selectedCategory = categoryId;
                 document.getElementById('category').value = categoryId;
                 
-                // Highlight category visually
                 setTimeout(() => {
                     document.querySelectorAll('.category-item').forEach(item => {
                         item.classList.remove('selected');
@@ -1484,7 +1434,13 @@
                 }, 500);
             }
 
-            // Change form title and button text
+            // Clear old images and editing alerts
+            document.getElementById('imagePreview').innerHTML = '<p>Images cannot be edited. Re-upload new images to replace old ones.</p>';
+            selectedFiles = [];
+            const oldAlert = document.querySelector('#add-product .alert-warning');
+            if (oldAlert) oldAlert.remove();
+
+
             document.querySelector('#add-product .form-card').insertAdjacentHTML('afterbegin', `
                 <div class="alert alert-warning" style="display: block;">
                     <i class="fas fa-edit"></i> Editing: ${product.name}
@@ -1494,18 +1450,15 @@
             document.querySelector('#productForm button[type="submit"]').innerHTML = 
                 '<i class="fas fa-save"></i> Update Product';
             
-            // Store product ID for update
             document.getElementById('productForm').dataset.editingId = productId;
 
             showAlert('Product loaded for editing. Modify the fields and click "Update Product".', 'info');
         }
 
-        // Load and display statistics
         async function loadStatistics() {
             try {
-                // If we don't have products loaded, load them
-                if (allProducts.length === 0) {
-                    const response = await fetch(`${API_BASE_URL}/products?limit=1000`);
+                if (allProducts.length === 0 && window.HybridAuthClient && window.HybridAuthClient.getCurrentUser()) {
+                    const response = await window.HybridAuthClient.apiCall('products?limit=1000');
                     const result = await response.json();
                     if (result.success && result.data) {
                         allProducts = Array.isArray(result.data) ? result.data : 
@@ -1513,19 +1466,16 @@
                     }
                 }
 
-                // Calculate statistics
                 const totalProducts = allProducts.length;
                 const totalCategories = allCategories.length;
                 const lowStockProducts = allProducts.filter(p => p.stock > 0 && p.stock <= 10).length;
                 const outOfStockProducts = allProducts.filter(p => p.stock === 0).length;
 
-                // Update stat cards
                 document.getElementById('totalProducts').textContent = totalProducts;
                 document.getElementById('totalCategories').textContent = totalCategories;
                 document.getElementById('lowStockProducts').textContent = lowStockProducts;
                 document.getElementById('outOfStockProducts').textContent = outOfStockProducts;
 
-                // Category breakdown
                 const categoryBreakdown = {};
                 allProducts.forEach(product => {
                     const categoryName = product.category ? 
@@ -1552,7 +1502,6 @@
             }
         }
 
-        // Modal functionality
         function setupModal() {
             const modal = document.getElementById('confirmModal');
             const closeBtn = document.querySelector('.modal-close');
@@ -1561,7 +1510,6 @@
             closeBtn.addEventListener('click', hideModal);
             cancelBtn.addEventListener('click', hideModal);
             
-            // Close modal when clicking outside
             window.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     hideModal();
@@ -1574,11 +1522,9 @@
             document.getElementById('modalMessage').textContent = message;
             
             const confirmBtn = document.getElementById('modalConfirm');
-            // Remove existing event listeners
             const newConfirmBtn = confirmBtn.cloneNode(true);
             confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
             
-            // Add new event listener
             newConfirmBtn.addEventListener('click', () => {
                 onConfirm();
                 hideModal();
@@ -1591,7 +1537,6 @@
             document.getElementById('confirmModal').style.display = 'none';
         }
 
-        // Utility function to escape HTML
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -1599,17 +1544,29 @@
             return div.innerHTML;
         }
         
-        // Debug function to test API endpoints
-        window.testDeleteAPI = async function(productId) {
+        window.debugDeleteProduct = function(productId) {
+            console.log('🐛 Debug delete for product:', productId);
+            const product = allProducts.find(p => (p._id || p.id) === productId);
+            if (product) {
+                console.log('Product found in local array:', product);
+                testDeleteAPI(productId);
+            } else {
+                console.log('❌ Product not found in local array');
+            }
+        };
+
+        async function testDeleteAPI(productId) {
+             if (!window.HybridAuthClient) {
+                 console.log('Auth client not ready');
+                 return;
+             }
             console.log('🧪 Testing DELETE API endpoint...');
             console.log('Product ID:', productId);
-            console.log('API Base URL:', API_BASE_URL);
             console.log('Full URL:', `${API_BASE_URL}/products/${productId}`);
             
             try {
-                // Test if product exists first
                 console.log('1. Testing GET request first...');
-                const getResponse = await fetch(`${API_BASE_URL}/products/${productId}`);
+                const getResponse = await window.HybridAuthClient.apiCall(`products/${productId}`);
                 console.log('GET response status:', getResponse.status);
                 
                 if (getResponse.ok) {
@@ -1620,24 +1577,9 @@
                     return;
                 }
                 
-                // Now test DELETE
                 console.log('2. Testing DELETE request...');
-                const headers = { 'Content-Type': 'application/json' };
-                
-                const token = localStorage.getItem('token') || 
-                             localStorage.getItem('accessToken') || 
-                             localStorage.getItem('quicklocal_access_token');
-                             
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                    console.log('Auth token found and added');
-                } else {
-                    console.log('No auth token found');
-                }
-                
-                const deleteResponse = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE',
-                    headers: headers
+                const deleteResponse = await window.HybridAuthClient.apiCall(`products/${productId}`, {
+                    method: 'DELETE'
                 });
                 
                 console.log('DELETE response status:', deleteResponse.status);
@@ -1646,35 +1588,8 @@
                 const responseText = await deleteResponse.text();
                 console.log('DELETE response text:', responseText);
                 
-                if (responseText) {
-                    try {
-                        const result = JSON.parse(responseText);
-                        console.log('DELETE result:', result);
-                    } catch (e) {
-                        console.log('Response is not JSON');
-                    }
-                }
-                
-                if (deleteResponse.ok || deleteResponse.status === 204) {
-                    console.log('✅ DELETE request successful');
-                } else {
-                    console.log('❌ DELETE request failed');
-                }
-                
             } catch (error) {
                 console.error('🔴 Test failed:', error);
-            }
-        };
-        
-        // Add this function to global scope for easy testing
-        window.debugDeleteProduct = function(productId) {
-            console.log('🐛 Debug delete for product:', productId);
-            const product = allProducts.find(p => (p._id || p.id) === productId);
-            if (product) {
-                console.log('Product found in local array:', product);
-                testDeleteAPI(productId);
-            } else {
-                console.log('❌ Product not found in local array');
             }
         };
 
