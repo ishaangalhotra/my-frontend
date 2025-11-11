@@ -48,6 +48,29 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// Add this function to periodically clean stale API cache
+async function cleanupStaleAPICache() {
+    const cache = await caches.open(API_CACHE_NAME);
+    const requests = await cache.keys();
+    
+    const now = Date.now();
+    const MAX_AGE = 5 * 60 * 1000; // 5 minutes
+    
+    for (const request of requests) {
+        const response = await cache.match(request);
+        if (response) {
+            const dateHeader = response.headers.get('date');
+            if (dateHeader) {
+                const age = now - new Date(dateHeader).getTime();
+                if (age > MAX_AGE) {
+                    await cache.delete(request);
+                    console.log('[SW] Removed stale API cache:', request.url);
+                }
+            }
+        }
+    }
+}
+
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activating...');
@@ -64,6 +87,9 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+        console.log('[SW] Cleaning up stale API cache...');
+        return cleanupStaleAPICache();
     })
   );
   
@@ -87,17 +113,19 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const requestUrl = new URL(request.url);
   
-  // Skip POST requests for caching - FIX FOR THE MAIN ERROR
-  if (request.method === 'POST') {
+  // --- START OF FIX ---
+  // Skip caching for all non-GET requests
+  if (request.method !== 'GET') {
     event.respondWith(fetch(request));
     return;
   }
+  // --- END OF FIX ---
 
   const isApi = isAPIRequest(request.url);
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
   const isStatic = isStaticRequest(request.url);
 
-  // 1. API Cache Strategy (Stale-While-Revalidate)
+  // 1. API Cache Strategy (Stale-While-Revalidate) - NOW ONLY FOR GET
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {

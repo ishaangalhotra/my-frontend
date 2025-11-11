@@ -1341,296 +1341,1489 @@
             const editingAlert = document.querySelector('#add-product .alert-warning');
             if (editingAlert) editingAlert.remove();
         }
-
-        function confirmDeleteProduct(productId, productName) {
+        
+        // --- START: ADDED HEALTH CHECK FUNCTION ---
+        async function checkServerHealth() {
+            try {
+                const response = await window.HybridAuthClient.apiCall('health', {
+                    method: 'GET'
+                    // You might want to add a timeout if your HybridAuthClient supports it
+                });
+                
+                if (!response.ok) {
+                   const data = await response.json();
+                   throw new Error(data.status || 'Server not healthy');
+                }
+                
+                console.log('Server health OK');
+                return true;
+            } catch (error) {
+                console.warn('Server health check failed:', error);
+                return false;
+            }
+        }
+        
+        // --- START: UPDATED CONFIRM DELETE FUNCTION ---
+        async function confirmDeleteProduct(productId, productName) {
+            const isServerHealthy = await checkServerHealth();
+            
+            if (!isServerHealthy) {
+                showAlert('Server is currently unavailable or unhealthy. Please try again in a few moments.', 'error');
+                return;
+            }
+            
             showModal(
                 'Delete Product',
                 `Are you sure you want to delete "${productName}"? This action cannot be undone.`,
                 () => deleteProduct(productId)
             );
         }
+        // --- END: UPDATED CONF lf/1024 / 1024),
+        heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+        external: Math.round(mem.external / 1024 / 1024),
+        arrayBuffers: Math.round((mem.arrayBuffers || 0) / 1024 / 1024)
+      };
+      
+      // Memory health indicators
+      const heapUsagePercent = Math.round((mem.heapUsed / mem.heapTotal) * 100);
+      const isHealthy = memoryMB.rss < 400 && heapUsagePercent < 80; // Render free tier ~512MB
+      const alertLevel = memoryMB.rss > 450 ? 'critical' : memoryMB.rss > 350 ? 'warning' : 'normal';
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        memoryMB,
+        heapUsagePercent,
+        isHealthy,
+        alertLevel,
+        uptime: Math.floor(process.uptime()),
+        // Additional context
+        nodeVersion: process.version,
+        platform: process.platform,
+        pid: process.pid,
+        // Render-specific info
+        renderMemoryLimit: '512MB (free tier)',
+        recommendations: isHealthy ? [] : this.getMemoryRecommendations(memoryMB, heapUsagePercent)
+      });
+    });
+    
+    // Metrics endpoint (enhanced with memory focus)
+    if (this.config.ENABLE_METRICS) {
+      this.app.get('/metrics', (req, res) => {
+        const mem = process.memoryUsage();
+        res.set('Content-Type', 'text/plain');
+        res.send(`# HELP process_memory_rss_bytes Resident set size in bytes
+# TYPE process_memory_rss_bytes gauge
+process_memory_rss_bytes ${mem.rss}
+# HELP process_memory_heap_used_bytes Heap used in bytes
+# TYPE process_memory_heap_used_bytes gauge
+process_memory_heap_used_bytes ${mem.heapUsed}
+# HELP server_uptime_seconds Server uptime in seconds
+# TYPE server_uptime_seconds counter
+server_uptime_seconds ${Math.floor(process.uptime())}`);
+      });
 
-        // --- START OF FIXED FUNCTION ---
-        async function deleteProduct(productId) {
-            // DEV HACK: Temporarily allow deleting without login
-            // if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
-            //     showAlert('You must be logged in to delete products.', 'error');
-            //     return;
-            // }
+      this.app.get('/metrics/summary', (req, res) => {
+        const mem = process.memoryUsage();
+        res.json({
+          uptime: Math.floor(process.uptime()),
+          memory: {
+            rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+            heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+            heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+            external: Math.round(mem.external / 1024 / 1024) + 'MB'
+          },
+          cpu: process.cpuUsage(),
+          platform: process.platform,
+          nodeVersion: process.version
+        });
+      });
+    }
 
-            try {
-                console.log('🗑️ Attempting to delete product:', productId);
+    // Server info endpoint
+    this.app.get('/api/v1/info', (req, res) => {
+      res.json({
+        name: this.config.APP_NAME,
+        version: this.config.APP_VERSION,
+        status: 'operational',
+        timestamp: new Date().toISOString(),
+        environment: this.config.NODE_ENV,
+        instance_id: this.config.INSTANCE_ID,
+        api_version: this.config.API_VERSION,
+        timezone: process.env.TIMEZONE || 'UTC',
+        currency: process.env.CURRENCY || 'USD',
+        server: {
+          uptime: Math.floor(process.uptime()),
+          memory: process.memoryUsage(),
+          node_version: process.version,
+          platform: process.platform,
+          cpu_count: os.cpus().length,
+          load_average: os.loadavg()
+        },
+        features: {
+          websockets: !!this.io,
+          clustering: this.config.CLUSTER_MODE,
+          metrics: this.config.ENABLE_METRICS,
+          caching: this.config.ENABLE_CACHING,
+          compression: this.config.COMPRESSION_ENABLED,
+          rate_limiting: this.config.RATE_LIMIT_ENABLED,
+          brute_force_protection: true,
+          reviews: process.env.FEATURE_REVIEWS === 'true',
+          wishlist: process.env.FEATURE_WISHLIST === 'true',
+          live_tracking: process.env.FEATURE_LIVE_TRACKING === 'true',
+          chat: process.env.FEATURE_CHAT === 'true',
+          loyalty_program: process.env.FEATURE_LOYALTY_PROGRAM === 'true',
+          delivery_system: process.env.DELIVERY_ENABLED === 'true'
+        },
+        endpoints: this.loadedRoutes ? this.loadedRoutes.reduce((acc, route) => {
+          acc[route.name.toLowerCase().replace(/\s+/g, '_')] = route.path;
+          return acc;
+        }, {}) : {},
+        marketplace: {
+          min_order_amount: process.env.MIN_ORDER_AMOUNT || 50,
+          max_order_amount: process.env.MAX_ORDER_AMOUNT || 50000,
+          delivery_fee: process.env.BASE_DELIVERY_FEE || 25,
+          free_delivery_threshold: process.env.FREE_DELIVERY_THRESHOLD || 500,
+          platform_commission: process.env.PLATFORM_COMMISSION || 0.025
+        },
+        documentation: {
+          health_check: '/health',
+          metrics: '/metrics',
+          api_docs: '/api/v1/docs',
+          rate_limits: {
+            general: `${this.config.RATE_LIMIT_MAX} requests per ${this.config.RATE_LIMIT_WINDOW / 60000} minutes`,
+            auth: `${this.config.AUTH_RATE_LIMIT_MAX} requests per 15 minutes`,
+            orders: `${this.config.ORDER_RATE_LIMIT_MAX} requests per minute`
+          }
+        }
+      });
+    });
+    
+    // API documentation endpoint
+    if (this.config.ENABLE_API_DOCS) {
+      this.app.get('/api/v1/docs', (req, res) => {
+        res.json({
+          title: `${this.config.APP_NAME} API Documentation`,
+          version: this.config.API_VERSION,
+          description: 'Complete e-commerce marketplace API with real-time features',
+          base_url: `${req.protocol}://${req.get('host')}${this.config.API_BASE_PATH}`,
+          instance_id: this.config.INSTANCE_ID,
+          authentication: {
+            type: 'Bearer Token',
+            header: 'Authorization',
+            format: 'Bearer <token>',
+            refresh_token: 'Supported',
+            expires_in: process.env.JWT_ACCESS_EXPIRES || '24h'
+          },
+          endpoints: this.loadedRoutes ? this.loadedRoutes.map(route => ({
+            name: route.name,
+            path: route.path,
+            priority: route.priority,
+            status: route.status
+          })) : [],
+          features: {
+            pagination: 'Supported with limit/offset and cursor-based',
+            filtering: 'Advanced filtering with query parameters',
+            sorting: 'Multi-field sorting supported',
+            search: 'Full-text search available',
+            real_time: this.io ? 'WebSocket support for live updates' : 'Not available',
+            file_upload: 'Multi-part form data supported',
+            webhooks: 'Event-driven notifications supported'
+          },
+          rate_limits: {
+            general: `${this.config.RATE_LIMIT_MAX} requests per ${this.config.RATE_LIMIT_WINDOW / 60000} minutes`,
+            auth: `${this.config.AUTH_RATE_LIMIT_MAX} requests per 15 minutes`,
+            orders: `${this.config.ORDER_RATE_LIMIT_MAX} requests per minute`
+          },
+          websocket: this.io ? {
+            enabled: true,
+            url: `ws://${req.get('host')}`,
+            events: [
+              'order_status_update',
+              'delivery_location_update', 
+              'new_message',
+              'stock_update',
+              'price_change',
+              'seller_notification'
+            ],
+            rooms: [
+              'user_{user_id}',
+              'order_{order_id}',
+              'seller_{seller_id}',
+              'product_{product_id}'
+            ]
+          } : { enabled: false },
+          marketplace_features: {
+            multi_vendor: true,
+            inventory_management: true,
+            order_tracking: true,
+            review_system: process.env.FEATURE_REVIEWS === 'true',
+            wishlist: process.env.FEATURE_WISHLIST === 'true',
+            loyalty_program: process.env.FEATURE_LOYALTY_PROGRAM === 'true',
+            bulk_orders: process.env.FEATURE_BULK_ORDERS === 'true',
+            scheduled_delivery: process.env.FEATURE_SCHEDULED_DELIVERY === 'true'
+          }
+        });
+      });
+    }
 
-                // FIXED: Use HybridAuthClient.apiCall
-                const response = await window.HybridAuthClient.apiCall(`products/${productId}`, {
-                    method: 'DELETE'
-                });
-                
-                // Check for empty 204 No Content response, which is a success
-                if (response.status === 204) {
-                    console.log('✅ Product deleted successfully (Status 204)');
-                    showAlert('Product deleted successfully!', 'success');
-                    
-                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
-                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
-                    
-                    renderProducts();
-                    loadStatistics();
-                    return; // Exit function
+    // Advanced UX Features API endpoints
+    this.setupUXFeaturesEndpoints();
+    
+    // CORS test endpoint for debugging
+    this.app.get('/api/v1/cors-test', (req, res) => {
+      console.log(`[CORS TEST] Request from origin: ${req.headers.origin}`);
+      res.json({
+        success: true,
+        message: 'CORS is working!',
+        origin: req.headers.origin,
+        timestamp: new Date().toISOString(),
+        headers: {
+          'access-control-allow-origin': res.getHeader('Access-Control-Allow-Origin'),
+          'access-control-allow-credentials': res.getHeader('Access-Control-Allow-Credentials')
+        }
+      });
+    });
+    
+    // Server status endpoint
+    this.app.get('/status', (req, res) => {
+      res.json({
+        status: 'operational',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        cpu: process.cpuUsage(),
+        connections: this.server.listening ? 'accepting' : 'not accepting',
+        socket_connections: this.io ? this.io.engine.clientsCount : 0,
+        environment: this.config.NODE_ENV,
+        version: this.config.APP_VERSION,
+        cors_config: {
+          allowed_origins: CORSManager.getOrigins(),
+          frontend_urls: process.env.FRONTEND_URLS?.split(','),
+          client_url: process.env.CLIENT_URL
+        }
+      });
+    });
+  }
+
+  setupUXFeaturesEndpoints() {
+    // Recently viewed products endpoint
+    this.app.post('/api/v1/user/recently-viewed', async (req, res) => {
+      try {
+        const { productId } = req.body;
+        const userId = req.user?.id;
+        
+        if (!productId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Product ID required'
+          });
+        }
+
+        // If user is logged in, store in database
+        if (userId) {
+          try {
+            const User = mongoose.model('User');
+            await User.findByIdAndUpdate(
+              userId,
+              {
+                $pull: { recentlyViewed: productId },
+                $push: {
+                  recentlyViewed: {
+                    $each: [{ productId, viewedAt: new Date() }],
+                    $position: 0,
+                    $slice: 20 // Keep only last 20 items
+                  }
                 }
-
-                // If not 204, parse the JSON
-                const result = await response.json();
-
-                if (result.success || response.ok) {
-                    console.log('✅ Product deleted successfully');
-                    showAlert('Product deleted successfully!', 'success');
-                    
-                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
-                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
-                    
-                    renderProducts();
-                    loadStatistics();
-                } else {
-                    console.error('❌ Delete failed:', result);
-                    throw new Error(result.message || result.error || `Failed to delete product (Status: ${response.status})`);
-                }
-            } catch (error) {
-                console.error('❌ Error deleting product:', error);
-                let errorMessage = `Failed to delete product. ${error.message}`;
-                showAlert(errorMessage, 'error');
-            }
-        }
-        // --- END OF FIXED FUNCTION ---
-
-        function editProduct(productId) {
-            const product = allProducts.find(p => (p._id || p.id) === productId);
-            if (!product) {
-                showAlert('Product not found', 'error');
-                return;
-            }
-
-            document.querySelector('[data-tab="add-product"]').click();
-            
-            document.getElementById('name').value = product.name || '';
-            document.getElementById('description').value = product.description || '';
-            document.getElementById('price').value = product.price || '';
-            document.getElementById('originalPrice').value = product.originalPrice || '';
-            document.getElementById('stock').value = product.stock || '';
-            document.getElementById('unit').value = product.unit || 'piece';
-            document.getElementById('brand').value = product.brand || '';
-            document.getElementById('weight').value = product.weight || '';
-            document.getElementById('tags').value = product.tags ? (Array.isArray(product.tags) ? product.tags.join(', ') : product.tags) : '';
-
-            if (product.category) {
-                const categoryId = product.category._id || product.category;
-                selectedCategory = categoryId;
-                document.getElementById('category').value = categoryId;
-                
-                setTimeout(() => {
-                    document.querySelectorAll('.category-item').forEach(item => {
-                        item.classList.remove('selected');
-                        if (item.dataset.categoryId === categoryId) {
-                            item.classList.add('selected');
-                        }
-                    });
-                }, 500);
-            }
-
-            // Clear old images and editing alerts
-            document.getElementById('imagePreview').innerHTML = '<p>Images cannot be edited. Re-upload new images to replace old ones.</p>';
-            selectedFiles = [];
-            const oldAlert = document.querySelector('#add-product .alert-warning');
-            if (oldAlert) oldAlert.remove();
-
-
-            document.querySelector('#add-product .form-card').insertAdjacentHTML('afterbegin', `
-                <div class="alert alert-warning" style="display: block;">
-                    <i class="fas fa-edit"></i> Editing: ${product.name}
-                </div>
-            `);
-            
-            document.querySelector('#productForm button[type="submit"]').innerHTML = 
-                '<i class="fas fa-save"></i> Update Product';
-            
-            document.getElementById('productForm').dataset.editingId = productId;
-
-            showAlert('Product loaded for editing. Modify the fields and click "Update Product".', 'info');
+              },
+              { upsert: false }
+            );
+          } catch (error) {
+            console.warn('Failed to save recently viewed to database:', error);
+          }
         }
 
-        async function loadStatistics() {
-            try {
-                if (allProducts.length === 0 && window.HybridAuthClient) { // Removed user check for dev
-                    const response = await window.HybridAuthClient.apiCall('products?limit=1000');
-                    const result = await response.json();
-                    if (result.success && result.data) {
-                        allProducts = Array.isArray(result.data) ? result.data : 
-                                     result.data.products ? result.data.products : [];
-                    }
-                }
+        res.json({
+          success: true,
+          message: 'Product view tracked'
+        });
+      } catch (error) {
+        console.error('Recently viewed tracking error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to track product view',
+          message: error.message
+        });
+      }
+    });
 
-                const totalProducts = allProducts.length;
-                const totalCategories = allCategories.length;
-                const lowStockProducts = allProducts.filter(p => p.stock > 0 && p.stock <= 10).length;
-                const outOfStockProducts = allProducts.filter(p => p.stock === 0).length;
-
-                document.getElementById('totalProducts').textContent = totalProducts;
-                document.getElementById('totalCategories').textContent = totalCategories;
-                document.getElementById('lowStockProducts').textContent = lowStockProducts;
-                document.getElementById('outOfStockProducts').textContent = outOfStockProducts;
-
-                const categoryBreakdown = {};
-                allProducts.forEach(product => {
-                    const categoryName = product.category ? 
-                        (product.category.name || product.category) : 'Uncategorized';
-                    categoryBreakdown[categoryName] = (categoryBreakdown[categoryName] || 0) + 1;
-                });
-
-                const breakdownHtml = Object.entries(categoryBreakdown)
-                    .sort(([,a], [,b]) => b - a)
-                    .map(([category, count]) => `
-                        <div class="product-detail">
-                            <span class="label">${escapeHtml(category)}:</span>
-                            <span class="value">${count} products</span>
-                        </div>
-                    `).join('');
-
-                document.getElementById('categoryBreakdown').innerHTML = breakdownHtml || 
-                    '<p>No products found.</p>';
-
-            } catch (error) {
-                console.error('Error loading statistics:', error);
-                document.getElementById('categoryBreakdown').innerHTML = 
-                    '<p class="alert alert-error" style="display: block;">Error loading statistics.</p>';
-            }
+    // Get recently viewed products
+    this.app.get('/api/v1/user/recently-viewed', async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        const limit = parseInt(req.query.limit) || 10;
+        
+        if (!userId) {
+          return res.json({
+            success: true,
+            products: []
+          });
         }
 
-        function setupModal() {
-            const modal = document.getElementById('confirmModal');
-            const closeBtn = document.querySelector('.modal-close');
-            const cancelBtn = document.getElementById('modalCancel');
-
-            closeBtn.addEventListener('click', hideModal);
-            cancelBtn.addEventListener('click', hideModal);
-            
-            window.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    hideModal();
-                }
-            });
+        const User = mongoose.model('User');
+        const Product = mongoose.model('Product');
+        
+        const user = await User.findById(userId)
+          .select('recentlyViewed')
+          .lean();
+        
+        if (!user?.recentlyViewed?.length) {
+          return res.json({
+            success: true,
+            products: []
+          });
         }
 
-        function showModal(title, message, onConfirm) {
-            document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalMessage').textContent = message;
-            
-            const confirmBtn = document.getElementById('modalConfirm');
-            const newConfirmBtn = confirmBtn.cloneNode(true);
-            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-            
-            newConfirmBtn.addEventListener('click', () => {
-                onConfirm();
-                hideModal();
-            });
-            
-            document.getElementById('confirmModal').style.display = 'block';
+        const productIds = user.recentlyViewed
+          .slice(0, limit)
+          .map(item => item.productId);
+        
+        const products = await Product.find({
+          _id: { $in: productIds },
+          isDeleted: { $ne: true }
+        })
+        .select('name price images averageRating reviewCount stock')
+        .lean();
+
+        // Maintain order from recently viewed
+        const orderedProducts = productIds
+          .map(id => products.find(p => p._id.toString() === id.toString()))
+          .filter(Boolean);
+
+        res.json({
+          success: true,
+          products: orderedProducts
+        });
+      } catch (error) {
+        console.error('Get recently viewed error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get recently viewed products',
+          message: error.message
+        });
+      }
+    });
+
+    // Product comparison endpoints
+    this.app.post('/api/v1/products/compare', async (req, res) => {
+      try {
+        const { productIds } = req.body;
+        
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Product IDs array required'
+          });
         }
 
-        function hideModal() {
-            document.getElementById('confirmModal').style.display = 'none';
+        if (productIds.length > 5) {
+          return res.status(400).json({
+            success: false,
+            error: 'Maximum 5 products can be compared'
+          });
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        const Product = mongoose.model('Product');
+        const products = await Product.find({
+          _id: { $in: productIds },
+          isDeleted: { $ne: true }
+        })
+        .select('name brand price originalPrice images averageRating reviewCount stock specifications category')
+        .lean();
+
+        // Generate comparison data
+        const comparison = {
+          products,
+          comparisonTable: this.generateComparisonTable(products),
+          summary: this.generateComparisonSummary(products)
+        };
+
+        res.json({
+          success: true,
+          comparison
+        });
+      } catch (error) {
+        console.error('Product comparison error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to compare products',
+          message: error.message
+        });
+      }
+    });
+
+    // Quick view endpoint (enhanced product details)
+    this.app.get('/api/v1/products/:id/quickview', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const userId = req.user?.id;
+        
+        const Product = mongoose.model('Product');
+        const product = await Product.findById(id)
+          .populate('sellerId', 'businessName verified')
+          .lean();
+
+        if (!product || product.isDeleted) {
+          return res.status(404).json({
+            success: false,
+            error: 'Product not found'
+          });
+        }
+
+        // Check if in user's wishlist
+        let inWishlist = false;
+        if (userId) {
+          try {
+            const User = mongoose.model('User');
+            const user = await User.findById(userId).select('wishlist').lean();
+            inWishlist = user?.wishlist?.some(item => item.toString() === id);
+          } catch (error) {
+            console.warn('Failed to check wishlist status:', error);
+          }
+        }
+
+        res.json({
+          success: true,
+          product: {
+            ...product,
+            inWishlist
+          }
+        });
+      } catch (error) {
+        console.error('Quick view error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get product details',
+          message: error.message
+        });
+      }
+    });
+
+    // Product recommendations endpoint
+    this.app.get('/api/v1/products/:id/recommendations', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const limit = parseInt(req.query.limit) || 10;
+        const userId = req.user?.id;
+        
+        const Product = mongoose.model('Product');
+        const currentProduct = await Product.findById(id).select('category brand tags').lean();
+        
+        if (!currentProduct) {
+          return res.status(404).json({
+            success: false,
+            error: 'Product not found'
+          });
+        }
+
+        // Build recommendation query
+        const recommendationQuery = {
+          _id: { $ne: id },
+          isDeleted: { $ne: true },
+          stock: { $gt: 0 },
+          $or: [
+            { category: currentProduct.category },
+            { brand: currentProduct.brand },
+            { tags: { $in: currentProduct.tags || [] } }
+          ]
+        };
+
+        const recommendations = await Product.find(recommendationQuery)
+          .select('name price originalPrice images averageRating reviewCount stock')
+          .sort({ averageRating: -1, reviewCount: -1 })
+          .limit(limit)
+          .lean();
+
+        res.json({
+          success: true,
+          recommendations
+        });
+      } catch (error) {
+        console.error('Product recommendations error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get product recommendations',
+          message: error.message
+        });
+      }
+    });
+
+    console.log('✨ UX Features API endpoints initialized');
+  }
+
+  generateComparisonTable(products) {
+    if (!products.length) return {};
+
+    const comparisonFields = ['price', 'originalPrice', 'brand', 'averageRating', 'reviewCount', 'stock'];
+    const specificationFields = new Set();
+    
+    // Collect all specification keys
+    products.forEach(product => {
+      if (product.specifications) {
+        Object.keys(product.specifications).forEach(key => {
+          specificationFields.add(key);
+        });
+      }
+    });
+
+    const comparison = {};
+    
+    // Basic fields
+    comparisonFields.forEach(field => {
+      comparison[field] = products.map(product => product[field] || 'N/A');
+    });
+    
+    // Specifications
+    Array.from(specificationFields).forEach(spec => {
+      comparison[spec] = products.map(product => 
+        product.specifications?.[spec] || 'N/A'
+      );
+    });
+
+    return comparison;
+  }
+
+  generateComparisonSummary(products) {
+    if (!products.length) return {};
+
+    const summary = {
+      cheapest: null,
+      mostExpensive: null,
+      bestRated: null,
+      mostReviewed: null
+    };
+
+    let minPrice = Infinity;
+    let maxPrice = 0;
+    let maxRating = 0;
+    let maxReviews = 0;
+
+    products.forEach(product => {
+      if (product.price < minPrice) {
+        minPrice = product.price;
+        summary.cheapest = product;
+      }
+      
+      if (product.price > maxPrice) {
+        maxPrice = product.price;
+        summary.mostExpensive = product;
+      }
+      
+      if ((product.averageRating || 0) > maxRating) {
+        maxRating = product.averageRating || 0;
+        summary.bestRated = product;
+      }
+      
+      if ((product.reviewCount || 0) > maxReviews) {
+        maxReviews = product.reviewCount || 0;
+        summary.mostReviewed = product;
+      }
+    });
+
+    return summary;
+  }
+
+  async checkDatabase() {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        return { status: 'critical', message: 'Database disconnected' };
+      }
+
+      const startTime = Date.now();
+      await mongoose.connection.db.admin().ping();
+      const responseTime = Date.now() - startTime;
+
+      return {
+        status: responseTime < 1000 ? 'healthy' : 'degraded',
+        response_time: responseTime,
+        connection_state: mongoose.connection.readyState,
+        database_name: mongoose.connection.db?.databaseName,
+        host: mongoose.connection.host
+      };
+    } catch (error) {
+      return {
+        status: 'critical',
+        message: error.message,
+        error: 'Database health check failed'
+      };
+    }
+  }
+
+  checkMemory() {
+    const memUsage = process.memoryUsage();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+    const systemUsagePercent = ((totalMem - freeMem) / totalMem) * 100;
+    
+    return {
+      status: usagePercent > 90 || systemUsagePercent > 95 ? 'critical' : 
+              usagePercent > 75 || systemUsagePercent > 85 ? 'degraded' : 'healthy',
+      heap_used: memUsage.heapUsed,
+      heap_total: memUsage.heapTotal,
+      usage_percent: Math.round(usagePercent),
+      system_usage_percent: Math.round(systemUsagePercent),
+      external: memUsage.external,
+      rss: memUsage.rss,
+      free_memory: freeMem,
+      total_memory: totalMem
+    };
+  }
+
+  checkDisk() {
+    try {
+      const stats = fs.statSync(__dirname);
+      const logStats = fs.statSync(this.config.LOG_DIR);
+      
+      return {
+        status: 'healthy',
+        accessible: true,
+        log_directory: {
+          accessible: true,
+          path: this.config.LOG_DIR
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'critical',
+        message: 'Disk access failed',
+        error: error.message
+      };
+    }
+  }
+
+  async checkExternalServices() {
+    const services = [];
+    
+    try {
+      // Check payment gateways
+      if (process.env.RAZORPAY_ENABLED === 'true') {
+        services.push({
+          name: 'razorpay',
+          status: 'configured',
+          enabled: true
+        });
+      }
+
+      if (process.env.STRIPE_ENABLED === 'true') {
+        services.push({
+          name: 'stripe',
+          status: 'configured',
+          enabled: true
+        });
+      }
+
+      // Check email service
+      if (process.env.ENABLE_EMAIL_NOTIFICATIONS === 'true') {
+        services.push({
+          name: 'email_service',
+          status: process.env.SMTP_HOST ? 'configured' : 'not_configured',
+          provider: 'smtp'
+        });
+      }
+
+      // Check file storage
+      if (process.env.CLOUDINARY_CLOUD_NAME) {
+        services.push({
+          name: 'cloudinary',
+          status: 'configured',
+          enabled: true
+        });
+      }
+
+    } catch (error) {
+      console.warn('External service health check failed:', error.message);
+    }
+
+    return {
+      status: services.length > 0 ? 'healthy' : 'degraded',
+      services,
+      total_services: services.length
+    };
+  }
+
+  checkFeatures() {
+    return {
+      status: 'healthy',
+      enabled_features: {
+        reviews: process.env.FEATURE_REVIEWS === 'true',
+        ratings: process.env.FEATURE_RATINGS === 'true',
+        wishlist: process.env.FEATURE_WISHLIST === 'true',
+        live_tracking: process.env.FEATURE_LIVE_TRACKING === 'true',
+        chat: process.env.FEATURE_CHAT === 'true',
+        multiple_addresses: process.env.FEATURE_MULTIPLE_ADDRESSES === 'true',
+        scheduled_delivery: process.env.FEATURE_SCHEDULED_DELIVERY === 'true',
+        loyalty_program: process.env.FEATURE_LOYALTY_PROGRAM === 'true',
+        referral_program: process.env.FEATURE_REFERRAL_PROGRAM === 'true',
+        bulk_orders: process.env.FEATURE_BULK_ORDERS === 'true'
+      },
+      notifications: {
+        push: process.env.ENABLE_PUSH_NOTIFICATIONS === 'true',
+        sms: process.env.ENABLE_SMS_NOTIFICATIONS === 'true',
+        in_app: process.env.ENABLE_IN_APP_NOTIFICATIONS === 'true',
+        email: process.env.ENABLE_EMAIL_NOTIFICATIONS === 'true'
+      }
+    };
+  }
+
+  getPaymentGatewayStatus() {
+    return {
+      razorpay: {
+        enabled: process.env.RAZORPAY_ENABLED === 'true',
+        configured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+      },
+      stripe: {
+        enabled: process.env.STRIPE_ENABLED === 'true',
+        configured: !!(process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY)
+      },
+      paypal: {
+        enabled: process.env.PAYPAL_ENABLED === 'true',
+        configured: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET)
+      }
+    };
+  }
+
+  setupErrorHandling() {
+    // Shutdown middleware
+    this.app.use((req, res, next) => {
+      if (this.isShuttingDown) {
+        res.status(530).json({
+          error: 'Server shutting down',
+          message: 'Server is currently shutting down. Please try again in a few moments.',
+          correlation_id: req.correlationId
+        });
+        return;
+      }
+      next();
+    });
+
+    // 404 handler with intelligent suggestions
+    this.app.use('*', (req, res) => {
+      const availableRoutes = this.loadedRoutes ? this.loadedRoutes.map(route => route.path) : [];
+      const method = req.method;
+      const requestedPath = req.originalUrl;
+      
+      // Find similar routes using basic string matching
+      const suggestions = availableRoutes
+        .filter(route => {
+          const similarity = this.calculateSimilarity(requestedPath, route);
+          return similarity > 0.3;
+        })
+        .slice(0, 3);
+
+      console.warn(`404: ${method} ${requestedPath} from ${req.headers.origin || 'unknown'} [${req.correlationId}]`);
+      
+      res.status(404).json({
+        error: 'Endpoint not found',
+        message: `${method} ${requestedPath} does not exist on this server`,
+        correlation_id: req.correlationId,
+        instance_id: this.config.INSTANCE_ID,
+        timestamp: new Date().toISOString(),
+        suggestions: {
+          documentation: {
+            api_docs: '/api/v1/docs',
+            health_check: '/health',
+            server_status: '/status'
+          },
+          similar_routes: suggestions,
+          available_methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+          api_version: `Current API version is ${this.config.API_VERSION}`,
+          base_path: this.config.API_BASE_PATH
+        },
+        help: {
+          documentation_url: `${req.protocol}://${req.get('host')}/api/v1/docs`,
+          support_contact: process.env.EMAIL_FROM || 'support@quicklocal.com'
+        }
+      });
+    });
+
+    // Enhanced global error handler
+    this.app.use((err, req, res, next) => {
+      const errorId = `${this.config.INSTANCE_ID}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2)}`;
+      
+      // Enhanced error logging
+      const errorLog = {
+        error_id: errorId,
+        error: err.message,
+        name: err.name,
+        stack: this.config.IS_PRODUCTION ? undefined : err.stack,
+        url: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+        user_agent: req.headers['user-agent'],
+        correlation_id: req.correlationId,
+        user_id: req.user?.id || null,
+        timestamp: new Date().toISOString(),
+        environment: this.config.NODE_ENV,
+        instance_id: this.config.INSTANCE_ID
+      };
+
+      console.error(`Unhandled error [${errorId}]:`, errorLog);
+
+      // Enhanced error type handling
+      let statusCode = err.status || err.statusCode || 500;
+      let message = err.message;
+      let errorType = 'internal_server_error';
+      let helpMessage = null;
+
+      // Mongoose/MongoDB errors
+      if (err.name === 'ValidationError') {
+        statusCode = 400;
+        message = 'Validation failed';
+        errorType = 'validation_error';
+        helpMessage = 'Please check your input data and try again';
+      } else if (err.name === 'CastError') {
+        statusCode = 400;
+        message = 'Invalid ID format';
+        errorType = 'cast_error';
+        helpMessage = 'Please provide a valid MongoDB ObjectId';
+      } else if (err.code === 11000) {
+        statusCode = 409;
+        message = 'Duplicate entry';
+        errorType = 'duplicate_error';
+        helpMessage = 'This record already exists';
+      } else if (err.name === 'MongooseError' || err.name === 'MongoError') {
+        statusCode = 500;
+        message = 'Database error';
+        errorType = 'database_error';
+        helpMessage = 'Please try again later';
+      }
+
+      // JWT errors
+      else if (err.name === 'JsonWebTokenError') {
+        statusCode = 401;
+        message = 'Invalid token';
+        errorType = 'jwt_error';
+        helpMessage = 'Please provide a valid authentication token';
+      } else if (err.name === 'TokenExpiredError') {
+        statusCode = 401;
+        message = 'Token expired';
+        errorType = 'token_expired';
+        helpMessage = 'Please refresh your authentication token';
+      }
+
+      // Express errors
+      else if (err.type === 'entity.parse.failed') {
+        statusCode = 400;
+        message = 'Invalid JSON';
+        errorType = 'json_parse_error';
+        helpMessage = 'Please check your JSON syntax';
+      } else if (err.type === 'entity.too.large') {
+        statusCode = 413;
+        message = 'Request too large';
+        errorType = 'payload_too_large';
+        helpMessage = `Maximum request size is ${this.config.MAX_REQUEST_SIZE}`;
+      }
+
+      // Multer errors (file upload)
+      else if (err.code === 'LIMIT_FILE_SIZE') {
+        statusCode = 413;
+        message = 'File too large';
+        errorType = 'file_too_large';
+        helpMessage = `Maximum file size is ${Math.round(this.config.MAX_FILE_SIZE / 1024 / 1024)}MB`;
+      }
+
+      const errorResponse = {
+        error: this.config.IS_PRODUCTION && statusCode === 500 ? 'Internal Server Error' : message,
+        error_id: errorId,
+        error_type: errorType,
+        correlation_id: req.correlationId,
+        instance_id: this.config.INSTANCE_ID,
+        timestamp: new Date().toISOString(),
+        path: req.originalUrl,
+        method: req.method,
+        ...(helpMessage && { help: helpMessage }),
+        ...(this.config.IS_PRODUCTION ? {} : { 
+          stack: err.stack,
+          details: err.details || null,
+          validation_errors: err.errors || null
+        })
+      };
+
+      // Add specific help for common errors
+      if (statusCode === 401) {
+        errorResponse.authentication = {
+          required: true,
+          header: 'Authorization: Bearer <token>',
+        refresh_endpoint: '/api/hybrid-auth/refresh-token'
+        };
+      } else if (statusCode === 403) {
+        errorResponse.authorization = {
+          message: 'Insufficient permissions for this resource',
+          required_role: err.requiredRole || 'unknown'
+        };
+      } else if (statusCode === 429) {
+        errorResponse.rate_limit = {
+          retry_after: err.retryAfter || Math.ceil(this.config.RATE_LIMIT_WINDOW / 1000),
+          limit: this.config.RATE_LIMIT_MAX,
+          window: this.config.RATE_LIMIT_WINDOW
+        };
+      }
+
+      res.status(statusCode).json(errorResponse);
+    });
+
+    // Global process error handlers
+    process.on('uncaughtException', (err) => {
+      console.error('💥 Uncaught Exception:', err);
+      
+      // Give some time for logs to be written, then exit
+      setTimeout(() => {
+        process.exit(1);
+      }, 1000);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+  }
+
+  // Memory optimization helper
+  getMemoryRecommendations(memoryMB, heapUsagePercent) {
+    const recommendations = [];
+    
+    if (memoryMB.rss > 450) {
+      recommendations.push('CRITICAL: RSS memory over 450MB - restart recommended');
+      recommendations.push('Check for memory leaks in recent deployments');
+    } else if (memoryMB.rss > 350) {
+      recommendations.push('WARNING: High memory usage - monitor closely');
+    }
+    
+    if (heapUsagePercent > 80) {
+      recommendations.push('High heap usage - consider garbage collection');
+      recommendations.push('Review recent code changes for memory inefficiencies');
+    }
+    
+    if (memoryMB.external > 50) {
+      recommendations.push('High external memory - check file processing operations');
+    }
+    
+    return recommendations;
+  }
+
+  calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
+  async startServer() {
+    return new Promise((resolve, reject) => {
+      this.server.listen(this.config.PORT, this.config.HOST, (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const serverInfo = `
+🌟 ${this.config.APP_NAME} E-commerce API Server v${this.config.APP_VERSION}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 Server Configuration:
+   🌍 URL: http://${this.config.HOST}:${this.config.PORT}
+   🆔 Instance: ${this.config.INSTANCE_ID}
+   🏗️  Environment: ${this.config.NODE_ENV}
+   🔧 Node.js: ${process.version}
+   🖥️  Platform: ${process.platform}
+   💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB used
+   🔄 Process ID: ${process.pid}
+   🌐 Domain: ${this.config.DOMAIN}
+
+🗄️  Database:
+   📊 Metrics: /metrics
+   🔍 API Version: ${this.config.API_VERSION}
+   📍 Routes: ${this.loadedRoutes ? this.loadedRoutes.length : 0} loaded
+   💰 Min Order: ₹${process.env.MIN_ORDER_AMOUNT || 50}
+   🚚 Delivery Fee: ₹${process.env.BASE_DELIVERY_FEE || 25}
+   🆓 Free Delivery: ₹${process.env.FREE_DELIVERY_THRESHOLD || 500}+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ ${this.config.APP_NAME} Server is ready to serve customers!
+🌐 Visit http://${this.config.HOST}:${this.config.PORT} for API documentation
+🏪 Marketplace ready for ${process.env.CURRENCY || 'INR'} transactions
+        `;
+
+        console.log(serverInfo);
+        console.log('🚀 QuickLocal API Server started successfully');
+        
+        // Now show detailed status since everything is actually connected
+        console.log('Status: Connected');
+        console.log('✅ Server is connected and running');
+        console.log(`🏦 Database: ${mongoose.connection.db?.databaseName || 'Connected'}`); 
+        console.log(`🖥️  Host: ${mongoose.connection.host || this.config.HOST}`);
+        console.log(`
+⚡ Pool Size: ${process.env.DB_POOL_SIZE || 10}
+🛑️  Security Features:
+🔒 Helmet Security: ${process.env.HELMET_ENABLED === 'true' ? '✅' : '❌'}
+🚦 Rate Limiting: ${process.env.RATE_LIMIT_ENABLED === 'true' ? '✅' : '❌'} (${process.env.RATE_LIMIT_MAX || 100}/${(process.env.RATE_LIMIT_WINDOW || 900000) / 60000}min)
+🛑 Brute Force Protection: ✅
+🌐 CORS Origins: ${CORSManager.getOrigins().length} configured
+🔐 Session Management: ✅
+💪 Password Hashing: ${process.env.BCRYPT_SALT_ROUNDS || 12} rounds
+🚀 Performance Features:
+📦 Compression: ${process.env.COMPRESSION_ENABLED === 'true' ? '✅' : '❌'} (Level: ${process.env.COMPRESSION_LEVEL || 6})
+📊 Metrics: ${process.env.ENABLE_METRICS === 'true' ? '✅' : '❌'}
+🔌 Socket.IO: ✅
+⚡ Circuit Breaker: ✅
+🕐 Request Timeout: ${(process.env.REQUEST_TIMEOUT || 30000) / 1000}s
+🎯 Clustering: ${process.env.CLUSTER_MODE === 'true' ? '✅' : '❌'}
+🏦 Marketplace Features:
+💳 Payment Gateways: Multiple enabled
+🚚 Delivery System: ${process.env.DELIVERY_ENABLED === 'true' ? '✅' : '❌'}
+⭐ Reviews & Ratings: ${process.env.FEATURE_REVIEWS === 'true' ? '✅' : '❌'}
+💝 Wishlist: ${process.env.FEATURE_WISHLIST === 'true' ? '✅' : '❌'}
+📍 Live Tracking: ${process.env.FEATURE_LIVE_TRACKING === 'true' ? '✅' : '❌'}
+💬 Chat System: ${process.env.FEATURE_CHAT === 'true' ? '✅' : '❌'}
+🎁 Loyalty Program: ${process.env.FEATURE_LOYALTY_PROGRAM === 'true' ? '✅' : '❌'}
+📚 API Information:
+📖 Documentation: /api/v1/docs
+❤️  Health Check: /health
+`);
+        
+        resolve();
+      });
+
+      // Enhanced server error handling
+      this.server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`❌ Port ${this.config.PORT} is already in use.`);
+          console.log(`💡 Kill existing process: lsof -ti:${this.config.PORT} | xargs kill -9`);
+          console.log(`💡 Or try a different port: PORT=10001 npm start`);
+        } else if (err.code === 'EACCES') {
+          console.error(`❌ Permission denied for port ${this.config.PORT}.`);
+          console.log(`💡 Try a port > 1024 or run with appropriate permissions.`);
+        } else if (err.code === 'ENOTFOUND') {
+          console.error(`❌ Host ${this.config.HOST} not found.`);
+          console.log(`💡 Check your HOST environment variable.`);
+        } else {
+          console.error('❌ Server error:', err);
         }
         
-        window.debugDeleteProduct = function(productId) {
-            console.log('🐛 Debug delete for product:', productId);
-            const product = allProducts.find(p => (p._id || p.id) === productId);
-            if (product) {
-                console.log('Product found in local array:', product);
-                testDeleteAPI(productId);
-            } else {
-                console.log('❌ Product not found in local array');
-            }
-        };
+        reject(err);
+      });
 
-        async function testDeleteAPI(productId) {
-             if (!window.HybridAuthClient) {
-                 console.log('Auth client not ready');
-                 return;
-             }
-            console.log('🧪 Testing DELETE API endpoint...');
-            console.log('Product ID:', productId);
-            console.log('Full URL:', `${API_BASE_URL}/products/${productId}`);
-            
-            try {
-                console.log('1. Testing GET request first...');
-                const getResponse = await window.HybridAuthClient.apiCall(`products/${productId}`);
-                console.log('GET response status:', getResponse.status);
-                
-                if (getResponse.ok) {
-                    const productData = await getResponse.json();
-                    console.log('Product exists:', productData);
-                } else {
-                    console.log('Product not found with GET request');
-                    return;
-                }
-                
-                console.log('2. Testing DELETE request...');
-                const deleteResponse = await window.HybridAuthClient.apiCall(`products/${productId}`, {
-                    method: 'DELETE'
-                });
-                
-                console.log('DELETE response status:', deleteResponse.status);
-                console.log('DELETE response ok:', deleteResponse.ok);
-                
-                const responseText = await deleteResponse.text();
-                console.log('DELETE response text:', responseText);
-                
-            } catch (error) {
-                console.error('🔴 Test failed:', error);
-            }
-        };
-
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-            document.getElementById('productForm').style.display = show ? 'none' : 'block';
+      // Handle server warnings and client errors
+      this.server.on('clientError', (err, socket) => {
+        console.warn(`Client error from ${socket.remoteAddress}: ${err.message}`);
+        
+        if (socket.writable) {
+          socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         }
+      });
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alertContainer');
-            alertContainer.innerHTML = '';
-            
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-                ${message}
-            `;
-            
-            alertContainer.appendChild(alert);
-            alert.style.display = 'block';
-            
-            if (type === 'success') {
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        document.getElementById('originalPrice').addEventListener('input', function() {
-            const originalPrice = parseFloat(this.value);
-            const currentPrice = parseFloat(document.getElementById('price').value);
-            
-            if (originalPrice && currentPrice && originalPrice > currentPrice) {
-                const discount = ((originalPrice - currentPrice) / originalPrice) * 100;
-                console.log(`Discount: ${discount.toFixed(1)}%`);
-            }
+      this.server.on('connection', (socket) => {
+        socket.on('error', (err) => {
+          console.warn(`Socket error: ${err.message}`);
         });
-    </script>
-</body>
-</html>
+      });
+    });
+  }
+
+  setupGracefulShutdown() {
+    const shutdown = async (signal) => {
+      if (this.isShuttingDown) {
+        console.warn('⚠️ Shutdown already in progress...');
+        return;
+      }
+
+      this.isShuttingDown = true;
+      console.log(`🛑 ${signal} received. Starting graceful shutdown...`);
+
+      const shutdownTimeout = setTimeout(() => {
+        console.error('❌ Graceful shutdown timeout exceeded. Forcing exit...');
+        process.exit(1);
+      }, 30000); // 30 second timeout
+
+      try {
+        // Stop accepting new connections
+        console.log('🔄 Stopping HTTP server...');
+        await new Promise((resolve, reject) => {
+          this.server.close((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+
+        // Close Socket.IO connections gracefully
+        if (this.io) {
+          console.log('🔄 Closing Socket.IO connections...');
+          
+          // Notify all connected clients about shutdown
+          this.io.emit('server_shutdown', {
+            message: 'Server is shutting down for maintenance',
+            timestamp: new Date().toISOString(),
+            reconnect_delay: 5000
+          });
+          
+          // Give clients time to handle the notification
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          this.io.close();
+        }
+
+        // Close database connections
+        console.log('🔄 Closing database connections...');
+        await mongoose.connection.close();
+
+        // Final cleanup
+        console.log('🔄 Performing final cleanup...');
+        
+        clearTimeout(shutdownTimeout);
+        
+        console.log('✅ Graceful shutdown completed successfully');
+        console.log(`👋 ${this.config.APP_NAME} server stopped cleanly`);
+        
+        process.exit(0);
+      } catch (error) {
+        console.error('❌ Error during graceful shutdown:', error);
+        process.exit(1);
+      }
+    };
+
+    // Handle different shutdown signals
+    process.on('SIGTERM', () => shutdown('SIGTERM')); // Docker/PM2 shutdown
+    process.on('SIGINT', () => shutdown('SIGINT'));   // Ctrl+C
+    process.on('SIGUSR2', () => shutdown('SIGUSR2')); // Nodemon restart
+    process.on('SIGHUP', () => shutdown('SIGHUP'));   // Terminal closed
+
+    // Handle PM2 graceful shutdown
+    process.on('message', (msg) => {
+      if (msg === 'shutdown') {
+        shutdown('PM2_SHUTDOWN');
+      }
+    });
+  }
+
+  // Fallback route mounting when main routes fail
+  mountFallbackRoutes() {
+    const essentialRoutes = [
+      // ✅ Using hybrid auth only - legacy auth permanently disabled
+      { path: '/api/v1/products', file: './routes/products' },
+      { path: '/api/v1/users', file: './routes/users' },
+      { path: '/api/v1/orders', file: './routes/orders' },
+      { path: '/api/v1/auth', file: './routes/hybridAuth' },
+      // FIX: Add the missing notifications route
+      { path: '/api/v1/notifications', file: './routes/notifications' }
+    ];
+    
+    essentialRoutes.forEach(route => {
+      try {
+        const routeHandler = require(route.file);
+        this.app.use(route.path, routeHandler);
+        console.log(`✅ Fallback: Mounted ${route.path}`);
+      } catch (error) {
+        console.error(`❌ Fallback failed for ${route.path}:`, error.message);
+      }
+    });
+  }
+  
+  // Emergency route mounting with basic responses
+  mountEmergencyRoutes() {
+    // Basic hybrid auth route
+    this.app.post('/api/v1/auth/login', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable', 
+        message: 'Authentication service is being restored' 
+      });
+    });
+    
+    // Basic products route
+    this.app.get('/api/v1/products', (req, res) => {
+      res.status(503).json({ 
+        error: 'Service temporarily unavailable', 
+        message: 'Product service is being restored',
+        products: []
+      });
+    });
+    
+    console.log('🚨 Emergency routes mounted - basic responses active');
+  }
+}
+
+// Enhanced Cluster Manager for Production Scaling
+class QuickLocalClusterManager {
+  static start() {
+    const config = new QuickLocalConfig().config;
+    
+    if (config.CLUSTER_MODE && cluster.isPrimary) {
+      console.log(`🔄 Starting QuickLocal in cluster mode with ${config.MAX_WORKERS} workers...`);
+      
+      // Fork workers
+      for (let i = 0; i < config.MAX_WORKERS; i++) {
+        const worker = cluster.fork({
+          WORKER_ID: i + 1,
+          INSTANCE_ID: `${config.INSTANCE_ID}-worker-${i + 1}`
+        });
+        
+        worker.on('message', (message) => {
+          if (message.type === 'metrics') {
+            // Handle worker metrics in master process
+            console.log(`📊 Metrics from worker ${worker.id}:`, message.data);
+          }
+        });
+      }
+
+      // Handle worker events
+      cluster.on('exit', (worker, code, signal) => {
+        const exitCode = worker.process.exitCode;
+        console.warn(`❌ Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
+        
+        // Don't restart if it was an intentional shutdown
+        if (exitCode !== 0 && signal !== 'SIGTERM' && signal !== 'SIGINT') {
+          console.log('🔄 Starting a new worker to replace the failed one...');
+          const newWorker = cluster.fork({
+            WORKER_ID: worker.id,
+            INSTANCE_ID: `${config.INSTANCE_ID}-worker-${worker.id}`
+          });
+          
+          newWorker.on('message', (message) => {
+            if (message.type === 'metrics') {
+              console.log(`📊 Metrics from replacement worker ${newWorker.id}:`, message.data);
+            }
+          });
+        }
+      });
+
+      cluster.on('online', (worker) => {
+        console.log(`✅ Worker ${worker.process.pid} is online (ID: ${worker.id})`);
+      });
+
+      cluster.on('listening', (worker, address) => {
+        console.log(`🎧 Worker ${worker.process.pid} is listening on ${address.address}:${address.port}`);
+      });
+
+      // Master process graceful shutdown
+      const masterShutdown = () => {
+        console.log('🛑 Master process shutting down workers...');
+        
+        const workers = Object.values(cluster.workers);
+        let workersShutdown = 0;
+        
+        // Send shutdown signal to all workers
+        workers.forEach(worker => {
+          if (worker) {
+            worker.send('shutdown');
+            
+            // Force kill worker after timeout
+            setTimeout(() => {
+              if (!worker.isDead()) {
+                console.warn(`⚠️ Force killing worker ${worker.process.pid}`);
+                worker.kill('SIGKILL');
+              }
+            }, 10000);
+            
+            worker.on('disconnect', () => {
+              workersShutdown++;
+              if (workersShutdown === workers.length) {
+                console.log('✅ All workers shut down successfully');
+                process.exit(0);
+              }
+            });
+          }
+        });
+        
+        // Force exit if workers don't shutdown in time
+        setTimeout(() => {
+          console.error('❌ Workers shutdown timeout. Force exiting...');
+          process.exit(1);
+        }, 15000);
+      };
+
+      process.on('SIGTERM', masterShutdown);
+      process.on('SIGINT', masterShutdown);
+
+      // Log cluster status every 5 minutes
+      setInterval(() => {
+        const workers = Object.values(cluster.workers);
+        const aliveWorkers = workers.filter(worker => worker && !worker.isDead()).length;
+        console.log(`📊 Cluster status: ${aliveWorkers}/${config.MAX_WORKERS} workers alive`);
+      }, 5 * 60 * 1000);
+
+    } else {
+      // Worker process or single process mode
+      const server = new QuickLocalServer();
+      
+      // Handle shutdown message from master
+      process.on('message', (msg) => {
+        if (msg === 'shutdown') {
+          console.log(`🛑 Worker ${process.pid} received shutdown signal from master`);
+          server.isShuttingDown = true;
+          
+          // Close server gracefully
+          if (server.server) {
+            server.server.close(() => {
+              process.exit(0);
+            });
+          } else {
+            process.exit(0);
+          }
+        }
+      });
+      
+      server.initialize().catch((error) => {
+        console.error('❌ Worker startup failed:', error);
+        process.exit(1);
+      });
+    }
+  }
+
+  static getClusterInfo() {
+    if (cluster.isPrimary) {
+      const workers = Object.values(cluster.workers);
+      return {
+        isPrimary: true,
+        totalWorkers: workers.length,
+        aliveWorkers: workers.filter(worker => worker && !worker.isDead()).length,
+        workers: workers.map(worker => ({
+          id: worker.id,
+          pid: worker.process.pid,
+          state: worker.state,
+          isDead: worker.isDead()
+        }))
+      };
+    } else {
+      return {
+        isPrimary: false,
+        workerId: cluster.worker.id,
+        pid: process.pid,
+        state: cluster.worker.state
+      };
+    }
+  }
+}
+
+// Development utilities
+class QuickLocalDevUtils {
+  static setupDevelopmentTools(app) {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    // Development route for testing
+    app.get('/dev/test', (req, res) => {
+      res.json({
+        message: 'Development test endpoint',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        features: {
+          mock_payment: process.env.MOCK_PAYMENT === 'true',
+          mock_sms: process.env.MOKC_SMS === 'true',
+          mock_email: process.env.MOCK_EMAIL === 'true',
+          debug_mode: process.env.DEBUG_MODE === 'true'
+        }
+      });
+    });
+
+    // Route to trigger test events (development only)
+    app.post('/dev/trigger/:event', (req, res) => {
+      const { event } = req.params;
+      const { data } = req.body;
+
+      console.log(`🧪 Development: Triggering ${event} event`, data);
+
+      // Simulate different events for testing
+      switch (event) {
+        case 'order_update':
+          if (app.io) {
+            app.io.to(`order_${data.orderId}`).emit('order_status_update', {
+              orderId: data.orderId,
+              status: data.status,
+              timestamp: new Date().toISOString()
+            });
+          }
+          break;
+        case 'delivery_update':
+          if (app.io) {
+            app.io.to(`order_${data.orderId}`).emit('delivery_location_update', {
+              orderId: data.orderId,
+              location: data.location,
+              timestamp: new Date().toISOString()
+            });
+          }
+          break;
+        default:
+          return res.status(400).json({ error: 'Unknown event type' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: `${event} event triggered`,
+        data 
+      });
+    });
+
+    console.log('🧪 Development utilities enabled');
+  }
+
+  static logEnvironmentInfo() {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    console.log('🧪 Development Environment Info:');
+    console.log(`   Debug Mode: ${process.env.DEBUG_MODE}`);
+    console.log(`   Mock Payment: ${process.env.MOCK_PAYMENT}`);
+    console.log(`   Mock SMS: ${process.env.MOCK_SMS}`);
+    console.log(`   Mock Email: ${process.env.MOCK_EMAIL}`);
+    console.log(`   API Docs: ${process.env.ENABLE_API_DOCS}`);
+    console.log(`   Seed Data: ${process.env.ENABLE_SEED_DATA}`);
+  }
+}
+
+// Export everything for use
+module.exports = { 
+  QuickLocalServer, 
+  QuickLocalClusterManager, 
+  QuickLocalConfig,
+  CORSManager,
+  EnhancedSecurityManager,
+  QuickLocalRouteManager,
+  QuickLocalDevUtils
+};
+
+// Start the server if this file is run directly
+if (require.main === module) {
+  // Log environment info in development
+  QuickLocalDevUtils.logEnvironmentInfo();
+  
+  // Start server (with or without clustering)
+  QuickLocalClusterManager.start();
+}
