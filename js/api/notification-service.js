@@ -1,111 +1,22 @@
 // Notification Service for QuickLocal Frontend
 class NotificationService {
   constructor() {
-    // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    this.token = null; // FIXED: Don't use localStorage in constructor
-    this.loadToken() 
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-
-  // Load token from localStorage
-  
-loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-  // Set authentication token
-  setToken(token) {
-    this.token = token;
-    try {
-      localStorage.setItem('token', token);
-    } catch (error) {
-      console.warn('Unable to save token to localStorage:', error);
-    }
+    // FIXED: Removed all internal token management (this.token, loadToken)
   }
 
-  // Get authentication headers
-  getHeaders() {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    
-    return headers;
-  }
-
-  // Make API request
+  // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
   async makeRequest(endpoint, options = {}) {
+    if (!window.HybridAuthClient) {
+      console.error('HybridAuthClient is not available!');
+      throw new Error('Authentication client not found');
+    }
+    
     try {
-      const url = `${this.baseURL}${endpoint}`;
-      const config = {
-        headers: this.getHeaders(),
-        ...options
-      };
+      // Clean the endpoint: apiCall expects 'notifications/read-all', not '/notifications/read-all'
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
 
-      const response = await fetch(url, config);
+      const response = await window.HybridAuthClient.apiCall(cleanEndpoint, options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -115,6 +26,7 @@ loadToken() {
       return await response.json();
     } catch (error) {
       console.error('API Request failed:', error);
+      // The auth client will handle 401s; we just re-throw the final error
       throw error;
     }
   }
@@ -196,7 +108,16 @@ loadToken() {
   // Subscribe to real-time notifications
   subscribeToNotifications(callback) {
     if (typeof io !== 'undefined') {
-      const socket = io(this.baseURL.replace('/api/v1', ''));
+      // FIXED: Get token from the central auth client for socket connection
+      const token = window.HybridAuthClient?.getAuthHeader()?.replace('Bearer ', '');
+      if (!token) {
+        console.warn('[NotificationService] Socket.IO connection aborted: no auth token');
+        return null;
+      }
+
+      const socket = io(this.baseURL.replace('/api/v1', ''), {
+        auth: { token } // Pass token for backend socket authentication
+      });
       
       socket.on('notification', (notification) => {
         callback(notification);
@@ -265,7 +186,6 @@ loadToken() {
       ` : ''}
     `;
 
-    // Add to toast container
     let container = document.getElementById('toast-container');
     if (!container) {
       container = document.createElement('div');
@@ -276,14 +196,12 @@ loadToken() {
 
     container.appendChild(toast);
 
-    // Auto remove after 5 seconds
     setTimeout(() => {
       if (toast.parentElement) {
         toast.remove();
       }
     }, 5000);
 
-    // Play notification sound
     this.playNotificationSound();
   }
 
@@ -339,7 +257,6 @@ loadToken() {
         browserNotification.close();
       };
 
-      // Auto close after 5 seconds
       setTimeout(() => {
         browserNotification.close();
       }, 5000);
@@ -348,57 +265,35 @@ loadToken() {
 
   // Initialize notification system
   async initialize() {
-  try {
-    // Reload token in case it was set after construction
-    this.loadToken();
-
-    // Check if we actually have a token before making API calls
-    if (!this.token) {
-      console.log('[NotificationService] Skipping initialization - no auth token available');
-      return false;
-    }
-
-    // Initialize badge
-    await this.initializeBadge();
-
-    // Request permission for browser notifications
-    await this.requestPermission();
-
-    // Subscribe to real-time notifications
-    const socket = this.subscribeToNotifications((notification) => {
-      // Update badge
-      this.updateBadge(notification.unreadCount || 0);
-
-      // Show toast notification
-      this.showToast(notification);
-
-      // Show browser notification
-      this.showBrowserNotification(notification);
-    });
-
-    // Set up periodic badge updates
-    setInterval(async () => {
-      if (this.token) { // Only update if we still have a token
-        await this.initializeBadge();
+    try {
+      // FIXED: Check auth status using the central client
+      if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+        console.log('[NotificationService] Skipping initialization - no authenticated user');
+        return false;
       }
-    }, 30000); // Update every 30 seconds
 
-    console.log('[NotificationService] ✅ Successfully initialized');
-    return socket;
-  } catch (error) {
-    console.error('[NotificationService] Failed to initialize:', error);
-    return false;
-  }
-});
+      await this.initializeBadge();
+      await this.requestPermission();
+
+      const socket = this.subscribeToNotifications((notification) => {
+        this.updateBadge(notification.unreadCount || 0);
+        this.showToast(notification);
+        this.showBrowserNotification(notification);
+      });
 
       // Set up periodic badge updates
       setInterval(async () => {
-        await this.initializeBadge();
+        // FIXED: Check auth status using the central client
+        if (window.HybridAuthClient && window.HybridAuthClient.getCurrentUser()) {
+          await this.initializeBadge();
+        }
       }, 30000); // Update every 30 seconds
 
+      console.log('[NotificationService] ✅ Successfully initialized');
       return socket;
     } catch (error) {
-      console.error('Failed to initialize notification system:', error);
+      console.error('[NotificationService] Failed to initialize:', error);
+      return false;
     }
   }
 }
@@ -408,9 +303,8 @@ window.notificationService = new NotificationService();
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.notificationService) {
-    window.notificationService.initialize();
-  }
+  // Initialization is now handled by the 'auth-ready' event in marketplace.html
+  // to ensure auth is available first.
 });
 
 // Export for module systems

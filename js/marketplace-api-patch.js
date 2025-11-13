@@ -126,7 +126,14 @@ window.enhancedLoadProducts = async function() {
         const cachedProducts = sessionStorage.getItem('cached_products');
         const cacheTimestamp = parseInt(sessionStorage.getItem('products_cache_timestamp') || '0');
         const cacheAge = Date.now() - cacheTimestamp;
-        const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+        
+        // ==========================================================
+        // == START FIX: Reduced cache time from 5 minutes to 5 seconds
+        // ==========================================================
+        const CACHE_MAX_AGE = 5 * 1000; // 5 seconds
+        // ==========================================================
+        // == END FIX
+        // ==========================================================
         
         // Use cache if available and not expired
         if (cachedProducts && cacheAge < CACHE_MAX_AGE) {

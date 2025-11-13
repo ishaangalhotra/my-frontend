@@ -85,6 +85,7 @@ class TrackingService {
     return await this.makeRequest(`/orders/${orderId}/tracking-history`);
   }
 
+  // === THIS FUNCTION IS NOW CORRECTED ===
   // Subscribe to real-time order tracking updates
   subscribeToOrderTracking(orderId, callback) {
     if (typeof io !== 'undefined') {
@@ -97,30 +98,32 @@ class TrackingService {
         });
       }
       
-      // Join order tracking room
-      this.socket.emit('join-order-tracking', orderId);
+      // === FIX 1: Emit the correct event to join the room ===
+      this.socket.emit('track_order', orderId);
       
-      // Listen for tracking updates
-      this.socket.on(`order-${orderId}-tracking`, (trackingData) => {
-        callback(trackingData);
-        this.activeTrackings.set(orderId, trackingData);
+      // === FIX 2: Listen for the correct status update event ===
+      this.socket.on('order-status-update', (data) => {
+        // Pass it to the callback, matching the {type: 'status', ...} format
+        callback({ type: 'status', ...data });
+        this.activeTrackings.set(orderId, data);
       });
 
-      // Listen for delivery location updates
-      this.socket.on(`order-${orderId}-location`, (locationData) => {
+      // === FIX 3: Listen for the correct location update event ===
+      this.socket.on('order-location-update', (locationData) => {
         callback({ type: 'location', ...locationData });
       });
 
-      // Listen for ETA updates
+      // Listen for ETA updates (if you implement this on the server)
       this.socket.on(`order-${orderId}-eta`, (etaData) => {
         callback({ type: 'eta', ...etaData });
       });
 
+      // Return the unsubscribe function
       return () => {
-        this.socket.off(`order-${orderId}-tracking`);
-        this.socket.off(`order-${orderId}-location`);
+        this.socket.off('order-status-update');
+        this.socket.off('order-location-update');
         this.socket.off(`order-${orderId}-eta`);
-        this.socket.emit('leave-order-tracking', orderId);
+        // No "leave" event was defined on the server, so we just stop listening.
         this.activeTrackings.delete(orderId);
       };
     } else {
@@ -132,10 +135,10 @@ class TrackingService {
   // Unsubscribe from order tracking
   unsubscribeFromOrderTracking(orderId) {
     if (this.socket) {
-      this.socket.off(`order-${orderId}-tracking`);
-      this.socket.off(`order-${orderId}-location`);
+      // Use the correct event names to unsubscribe
+      this.socket.off('order-status-update');
+      this.socket.off('order-location-update');
       this.socket.off(`order-${orderId}-eta`);
-      this.socket.emit('leave-order-tracking', orderId);
       this.activeTrackings.delete(orderId);
     }
   }

@@ -1,81 +1,12 @@
 // Advanced Push Notification Service for QuickLocal
 class PushNotificationService {
   constructor() {
-    // FIXED: Use external config or full backend URL for consistency and reliability
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();
-    this.loadToken() 
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
+    // FIXED: Removed all internal token management
   }
-}
-
-// Load token from localStorage
-loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-
 
   // Check if push notifications are supported
   checkPushSupport() {
@@ -84,46 +15,46 @@ loadToken() {
            'Notification' in window;
   }
 
-  // Set authentication token
-  setToken(token) {
-    this.token = token;
-    // FIXED: Ensure we are setting a reliable token key, defaulting to the one the login flow likely uses
-    localStorage.setItem('quicklocal_access_token', token);
-  }
-
-  // Get authentication headers
-  getHeaders() {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    
-    return headers;
-  }
-
-  // Make API request
+  // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
   async makeRequest(endpoint, options = {}) {
-    try {
-      const url = `${this.baseURL}${endpoint}`;
-      const config = {
-        headers: this.getHeaders(),
-        ...options
-      };
+    // Public endpoints don't need the client, but authenticated ones do.
+    // We'll check for the client and use it if available.
+    if (window.HybridAuthClient && window.HybridAuthClient.getCurrentUser()) {
+      try {
+        // Clean the endpoint
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
 
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        const response = await window.HybridAuthClient.apiCall(cleanEndpoint, options);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('API Request failed (with auth):', error);
+        throw error;
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error('API Request failed:', error);
-      throw error;
+    } else {
+      // Fallback for public requests (like getting VAPID key before login)
+      try {
+        const url = `${this.baseURL}${endpoint}`;
+        const config = {
+          headers: { 'Content-Type': 'application/json' },
+          ...options
+        };
+        const response = await fetch(url, config);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('API Request failed (public):', error);
+        throw error;
+      }
     }
   }
 
@@ -140,7 +71,6 @@ loadToken() {
       
       console.log('Service Worker registered successfully');
       
-      // Wait for service worker to be ready
       await navigator.serviceWorker.ready;
       
       return this.serviceWorkerRegistration;
@@ -177,33 +107,34 @@ loadToken() {
     if (!this.isSupported) {
       throw new Error('Push notifications are not supported');
     }
+    
+    // FIXED: Check for auth *before* subscribing
+    if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+      throw new Error('User must be logged in to subscribe to notifications');
+    }
 
     try {
-      // Register service worker if not already registered
       if (!this.serviceWorkerRegistration) {
         await this.registerServiceWorker();
       }
 
-      // Request permission
       const hasPermission = await this.requestPermission();
       if (!hasPermission) {
         throw new Error('Notification permission not granted');
       }
 
-      // Get VAPID public key from server
+      // Get VAPID public key from server (this can be public)
       const response = await this.makeRequest('/notifications/vapid-public-key');
       const vapidPublicKey = response.publicKey;
 
-      // Convert VAPID key to Uint8Array
       const applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
 
-      // Subscribe to push manager
       this.pushSubscription = await this.serviceWorkerRegistration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey
       });
 
-      // Send subscription to server
+      // Send subscription to server (this requires auth)
       await this.sendSubscriptionToServer(this.pushSubscription);
 
       console.log('Push subscription successful');
@@ -218,10 +149,10 @@ loadToken() {
   async unsubscribe() {
     try {
       if (this.pushSubscription) {
-        await this.pushSubscription.unsubscribe();
-        
-        // Remove subscription from server
+        // This requires auth
         await this.removeSubscriptionFromServer();
+        
+        await this.pushSubscription.unsubscribe();
         
         this.pushSubscription = null;
         console.log('Push unsubscription successful');
@@ -246,6 +177,7 @@ loadToken() {
       timestamp: new Date().toISOString()
     };
 
+    // This endpoint requires authentication
     return await this.makeRequest('/notifications/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscriptionData)
@@ -255,6 +187,7 @@ loadToken() {
   // Remove subscription from server
   async removeSubscriptionFromServer() {
     if (this.pushSubscription) {
+      // This endpoint requires authentication
       return await this.makeRequest('/notifications/unsubscribe', {
         method: 'POST',
         body: JSON.stringify({
@@ -266,6 +199,7 @@ loadToken() {
 
   // Send push notification (admin use)
   async sendPushNotification(notificationData) {
+    // This endpoint requires admin auth
     return await this.makeRequest('/notifications/send-push', {
       method: 'POST',
       body: JSON.stringify({
@@ -281,7 +215,7 @@ loadToken() {
         requireInteraction: notificationData.requireInteraction || false,
         silent: notificationData.silent || false,
         timestamp: new Date().getTime(),
-        recipients: notificationData.recipients || 'all' // 'all', 'customers', 'sellers', or array of user IDs
+        recipients: notificationData.recipients || 'all'
       })
     });
   }
@@ -296,6 +230,7 @@ loadToken() {
 
   // Send order update notification
   async sendOrderNotification(orderId, status, customMessage = null) {
+    // ... (This method is unchanged, it relies on sendPushNotification)
     const orderStatusMessages = {
       'confirmed': {
         title: 'Order Confirmed! 🎉',
@@ -316,16 +251,8 @@ loadToken() {
         url: `/order-tracking.html?order=${orderId}`,
         requireInteraction: true,
         actions: [
-          {
-            action: 'track',
-            title: 'Track Order',
-            icon: '/images/icons/track.png'
-          },
-          {
-            action: 'call',
-            title: 'Call Delivery',
-            icon: '/images/icons/phone.png'
-          }
+          { action: 'track', title: 'Track Order', icon: '/images/icons/track.png' },
+          { action: 'call', title: 'Call Delivery', icon: '/images/icons/phone.png' }
         ]
       },
       'delivered': {
@@ -334,16 +261,8 @@ loadToken() {
         icon: '/images/icons/delivered.png',
         url: `/orders.html`,
         actions: [
-          {
-            action: 'rate',
-            title: 'Rate Order',
-            icon: '/images/icons/star.png'
-          },
-          {
-            action: 'reorder',
-            title: 'Order Again',
-            icon: '/images/icons/reorder.png'
-          }
+          { action: 'rate', title: 'Rate Order', icon: '/images/icons/star.png' },
+          { action: 'reorder', title: 'Order Again', icon: '/images/icons/reorder.png' }
         ]
       }
     };
@@ -352,13 +271,13 @@ loadToken() {
     if (notification) {
       notification.tag = `order-${orderId}`;
       notification.data = { orderId, status };
-      
       return await this.sendPushNotification(notification);
     }
   }
 
   // Send promotional notification
   async sendPromotionalNotification(promotionData) {
+    // ... (This method is unchanged, it relies on sendPushNotification)
     return await this.sendPushNotification({
       title: `${promotionData.title} 🎁`,
       body: promotionData.description,
@@ -368,16 +287,8 @@ loadToken() {
       tag: `promotion-${promotionData.id}`,
       data: { type: 'promotion', promotionId: promotionData.id },
       actions: [
-        {
-          action: 'view',
-          title: 'View Deal',
-          icon: '/images/icons/eye.png'
-        },
-        {
-          action: 'dismiss',
-          title: 'Dismiss',
-          icon: '/images/icons/close.png'
-        }
+        { action: 'view', title: 'View Deal', icon: '/images/icons/eye.png' },
+        { action: 'dismiss', title: 'Dismiss', icon: '/images/icons/close.png' }
       ]
     });
   }
@@ -450,6 +361,7 @@ loadToken() {
 
   // Utility: Convert VAPID key
   urlBase64ToUint8Array(base64String) {
+    // ... (unchanged)
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding)
       .replace(/\-/g, '+')
@@ -466,6 +378,7 @@ loadToken() {
 
   // Utility: Convert ArrayBuffer to Base64
   arrayBufferToBase64(buffer) {
+    // ... (unchanged)
     let binary = '';
     const bytes = new Uint8Array(buffer);
     const len = bytes.byteLength;
@@ -477,6 +390,7 @@ loadToken() {
 
   // Show rich notification with actions
   async showRichNotification(data) {
+    // ... (unchanged)
     if ('Notification' in window && Notification.permission === 'granted') {
       const options = {
         body: data.body,
@@ -507,47 +421,20 @@ loadToken() {
 
   // Initialize push notification system
   async initialize() {
-  try {
-    if (!this.isSupported) {
-      console.warn('[PushNotificationService] Push notifications are not supported in this browser');
-      return false;
-    }
+    try {
+      if (!this.isSupported) {
+        console.warn('[PushNotificationService] Push notifications are not supported in this browser');
+        return false;
+      }
 
-    // Reload token
-    this.loadToken();
+      // FIXED: Check auth status from the central client
+      if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+        console.log('[PushNotificationService] No auth token - limited functionality (user cannot subscribe)');
+      }
 
-    // Note: Push notification initialization doesn't require auth,
-    // so we don't skip here, but we log a warning
-    if (!this.token) {
-      console.log('[PushNotificationService] No auth token - limited functionality');
-    }
-
-    // Check current subscription status
-    const status = await this.getSubscriptionStatus();
-    console.log('[PushNotificationService] Push notification status:', status);
-
-    // Set up message handler for service worker
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
-          this.handleNotificationClick(event.data);
-        }
-      });
-    }
-
-    console.log('[PushNotificationService] ✅ Successfully initialized');
-    return true;
-  } catch (error) {
-    console.error('[PushNotificationService] Failed to initialize:', error);
-    return false;
-  }
-}
-
-      // Check current subscription status
       const status = await this.getSubscriptionStatus();
-      console.log('Push notification status:', status);
+      console.log('[PushNotificationService] Push notification status:', status);
 
-      // Set up message handler for service worker
       if (navigator.serviceWorker) {
         navigator.serviceWorker.addEventListener('message', (event) => {
           if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
@@ -556,24 +443,24 @@ loadToken() {
         });
       }
 
+      console.log('[PushNotificationService] ✅ Successfully initialized');
       return true;
     } catch (error) {
-      console.error('Failed to initialize push notification service:', error);
+      console.error('[PushNotificationService] Failed to initialize:', error);
       return false;
     }
   }
 
   // Handle notification click events
   handleNotificationClick(data) {
+    // ... (unchanged)
     console.log('Notification clicked:', data);
     
-    // Emit custom event for handling
     const event = new CustomEvent('notificationClicked', { 
       detail: data 
     });
     document.dispatchEvent(event);
     
-    // Handle specific actions
     if (data.action && data.orderId) {
       switch (data.action) {
         case 'track':
@@ -597,6 +484,7 @@ loadToken() {
 
   // Show permission request dialog
   showPermissionDialog() {
+    // ... (unchanged)
     const dialog = document.createElement('div');
     dialog.className = 'permission-dialog-overlay';
     dialog.innerHTML = `
@@ -635,6 +523,7 @@ window.pushNotificationService = new PushNotificationService();
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   if (window.pushNotificationService) {
+    // We can initialize this one early as it doesn't need auth for basic setup
     window.pushNotificationService.initialize();
   }
 });

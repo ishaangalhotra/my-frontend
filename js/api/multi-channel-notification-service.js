@@ -1,113 +1,24 @@
 // Multi-channel Notification Service for QuickLocal
 class MultiChannelNotificationService {
   constructor() {
-    // FIXED: Use backend URL instead of frontend origin
     this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    this.token = null; // FIXED: Don't use localStorage in constructor
     this.emailTemplates = new Map();
     this.smsTemplates = new Map();
-    this.loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-        } catch (e) {
-          console.warn(`[${this.constructor.name}] Failed to parse user object:`, e);
-        }
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      console.log(`[${this.constructor.name}] No auth token found (user may not be logged in)`);
-    } else {
-      console.log(`[${this.constructor.name}] ✅ Auth token loaded successfully`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-
-  // Load token from localStorage
-  
-loadToken() {
-  try {
-    let token = null;
-
-    // Priority 1: Check the dedicated token keys
-    token = localStorage.getItem('quicklocal_access_token') || 
-            localStorage.getItem('supabase_access_token') ||
-            localStorage.getItem('token');
-
-    // Priority 2: Fallback to checking inside the user object (as a last resort)
-    if (!token) {
-      const storedUser = localStorage.getItem('quicklocal_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        token = parsed?.access_token || parsed?.token || parsed?.accessToken;
-      }
-    }
-
-    this.token = token;
-
-    if (!token) {
-      // This log is now expected on logout, but shows the bug if user is logged in
-      console.warn(`[${this.constructor.name}] No valid auth token found.`);
-    } else {
-      // Optional: Add a success log for debugging
-      console.log(`[${this.constructor.name}] Auth token loaded successfully.`);
-    }
-  } catch (error) {
-    console.warn(`[${this.constructor.name}] Failed to load token:`, error);
-    this.token = null;
-  }
-}
-  // Set authentication token
-  setToken(token) {
-    this.token = token;
-    try {
-      localStorage.setItem('token', token);
-    } catch (error) {
-      console.warn('Unable to save token to localStorage:', error);
-    }
+    // FIXED: Removed all internal token management (this.token, loadToken)
   }
 
-  // Get authentication headers
-  getHeaders() {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    
-    return headers;
-  }
-
-  // Make API request
+  // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
   async makeRequest(endpoint, options = {}) {
+    if (!window.HybridAuthClient) {
+      console.error('HybridAuthClient is not available!');
+      throw new Error('Authentication client not found');
+    }
+    
     try {
-      const url = `${this.baseURL}${endpoint}`;
-      const config = {
-        headers: this.getHeaders(),
-        ...options
-      };
+      // Clean the endpoint: apiCall expects 'notifications/email/templates', not '/notifications/email/templates'
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
 
-      const response = await fetch(url, config);
+      const response = await window.HybridAuthClient.apiCall(cleanEndpoint, options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -122,6 +33,8 @@ loadToken() {
   }
 
   // EMAIL NOTIFICATION METHODS
+  // (All methods below like sendEmail, sendOrderConfirmationEmail, etc.,
+  // will now work correctly as they all rely on the fixed makeRequest)
 
   // Send email notification
   async sendEmail(emailData) {
@@ -137,7 +50,7 @@ loadToken() {
         templateData: emailData.templateData,
         attachments: emailData.attachments,
         priority: emailData.priority || 'normal',
-        sendAt: emailData.sendAt, // For scheduled emails
+        sendAt: emailData.sendAt,
         trackingEnabled: emailData.trackingEnabled !== false
       })
     });
@@ -161,7 +74,6 @@ loadToken() {
       },
       priority: 'high'
     };
-
     return await this.sendEmail(emailData);
   }
 
@@ -182,7 +94,6 @@ loadToken() {
       },
       priority: 'high'
     };
-
     return await this.sendEmail(emailData);
   }
 
@@ -205,7 +116,6 @@ loadToken() {
       },
       priority: 'low'
     };
-
     return await this.sendEmail(emailData);
   }
 
@@ -214,9 +124,11 @@ loadToken() {
     const response = await this.makeRequest('/notifications/email/templates');
     
     // Cache templates locally
-    response.templates.forEach(template => {
-      this.emailTemplates.set(template.id, template);
-    });
+    if (response.data && Array.isArray(response.data)) { // FIXED: Access data property based on backend response
+      response.data.forEach(template => {
+        this.emailTemplates.set(template.id, template);
+      });
+    }
     
     return response;
   }
@@ -251,7 +163,7 @@ loadToken() {
         recipientId: recipientId,
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
-        ipAddress: 'client-side' // Server will get actual IP
+        ipAddress: 'client-side'
       })
     });
   }
@@ -281,15 +193,16 @@ loadToken() {
         template: smsData.template,
         templateData: smsData.templateData,
         priority: smsData.priority || 'normal',
-        sendAt: smsData.sendAt, // For scheduled SMS
-        shortUrl: smsData.shortUrl, // Enable URL shortening
-        unicode: smsData.unicode || false // For emoji and special characters
+        sendAt: smsData.sendAt,
+        shortUrl: smsData.shortUrl,
+        unicode: smsData.unicode || false
       })
     });
   }
 
   // Send order status SMS
   async sendOrderStatusSMS(orderData, status) {
+    // ... (rest of the method is unchanged, it relies on sendSMS)
     const statusMessages = {
       confirmed: {
         template: 'order-confirmed',
@@ -348,7 +261,6 @@ loadToken() {
       priority: 'urgent',
       unicode: true
     };
-
     return await this.sendSMS(smsData);
   }
 
@@ -369,7 +281,6 @@ loadToken() {
       unicode: true,
       shortUrl: true
     };
-
     return await this.sendSMS(smsData);
   }
 
@@ -378,9 +289,11 @@ loadToken() {
     const response = await this.makeRequest('/notifications/sms/templates');
     
     // Cache templates locally
-    response.templates.forEach(template => {
-      this.smsTemplates.set(template.id, template);
-    });
+    if (response.data && Array.isArray(response.data)) { // FIXED: Access data property
+      response.data.forEach(template => {
+        this.smsTemplates.set(template.id, template);
+      });
+    }
     
     return response;
   }
@@ -420,9 +333,9 @@ loadToken() {
 
   // Send multi-channel notification
   async sendMultiChannelNotification(notificationData) {
+    // ... (This method is unchanged, it relies on other fixed methods)
     const results = {};
     
-    // Send push notification
     if (notificationData.channels.includes('push') && window.pushNotificationService) {
       try {
         results.push = await window.pushNotificationService.sendPushNotification(notificationData.push);
@@ -431,7 +344,6 @@ loadToken() {
       }
     }
 
-    // Send email
     if (notificationData.channels.includes('email')) {
       try {
         results.email = await this.sendEmail(notificationData.email);
@@ -440,7 +352,6 @@ loadToken() {
       }
     }
 
-    // Send SMS
     if (notificationData.channels.includes('sms')) {
       try {
         results.sms = await this.sendSMS(notificationData.sms);
@@ -454,6 +365,7 @@ loadToken() {
 
   // Send order notification across all channels
   async sendOrderNotification(orderData, status) {
+    // ... (This method is unchanged)
     const channels = await this.getEnabledChannels(orderData.customerId, 'order');
     
     const notificationData = {
@@ -483,7 +395,9 @@ loadToken() {
   // Get enabled notification channels for user
   async getEnabledChannels(userId, notificationType) {
     try {
-      const preferences = await window.notificationService?.getNotificationSettings();
+      // FIXED: Use window.notificationService
+      const response = await window.notificationService?.getNotificationSettings();
+      const preferences = response?.data?.settings;
       if (preferences && preferences[notificationType]) {
         return Object.keys(preferences[notificationType]).filter(
           channel => preferences[notificationType][channel]
@@ -493,20 +407,16 @@ loadToken() {
       console.error('Failed to get user preferences:', error);
     }
     
-    // Default channels if preferences not available
-    return ['push', 'email'];
+    return ['push', 'email']; // Default
   }
 
   // UTILITY METHODS
+  // (All utility methods are unchanged)
 
-  // Shorten URL for SMS
   shortenUrl(url) {
-    // In a real implementation, this would use a URL shortening service
-    // For demo purposes, we'll just return the original URL
     return url;
   }
 
-  // Get order status title
   getOrderStatusTitle(status) {
     const titles = {
       pending: 'Order Received',
@@ -521,7 +431,6 @@ loadToken() {
     return titles[status] || 'Order Update';
   }
 
-  // Get order status message
   getOrderStatusMessage(orderData, status) {
     const messages = {
       pending: 'Your order has been received and is being processed.',
@@ -536,35 +445,28 @@ loadToken() {
     return messages[status] || 'Your order status has been updated.';
   }
 
-  // Validate email address
   validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
 
-  // Validate phone number
   validatePhoneNumber(phone) {
     const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/;
     return phoneRegex.test(phone);
   }
 
-  // Format phone number for SMS
   formatPhoneNumber(phone) {
-    // Remove all non-numeric characters
     const cleaned = phone.replace(/\D/g, '');
-    
-    // Add country code if not present
     if (cleaned.length === 10) {
-      return `+1${cleaned}`; // Assume US if 10 digits
+      return `+1${cleaned}`;
     } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
       return `+${cleaned}`;
     }
-    
     return `+${cleaned}`;
   }
 
-  // Get notification analytics
   async getMultiChannelAnalytics(timeframe = '7d') {
+    // ... (unchanged)
     const [emailStats, smsStats, pushStats] = await Promise.allSettled([
       this.getEmailStats(timeframe),
       this.getSMSStats(timeframe),
@@ -580,10 +482,10 @@ loadToken() {
     };
   }
 
-  // Bulk send notifications
   async bulkSendNotifications(notifications) {
+    // ... (unchanged)
     const results = [];
-    const batchSize = 100; // Process in batches to avoid overwhelming the server
+    const batchSize = 100;
     
     for (let i = 0; i < notifications.length; i += batchSize) {
       const batch = notifications.slice(i, i + batchSize);
@@ -594,7 +496,6 @@ loadToken() {
       
       results.push(...batchResults);
       
-      // Small delay between batches
       if (i + batchSize < notifications.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -603,7 +504,6 @@ loadToken() {
     return results;
   }
 
-  // Schedule notification
   async scheduleNotification(notificationData, scheduleTime) {
     return await this.makeRequest('/notifications/schedule', {
       method: 'POST',
@@ -615,19 +515,16 @@ loadToken() {
     });
   }
 
-  // Cancel scheduled notification
   async cancelScheduledNotification(notificationId) {
     return await this.makeRequest(`/notifications/schedule/${notificationId}`, {
       method: 'DELETE'
     });
   }
 
-  // Get delivery performance by channel
   async getChannelPerformance(timeframe = '30d') {
     return await this.makeRequest(`/notifications/analytics/channel-performance?timeframe=${timeframe}`);
   }
 
-  // A/B test notifications
   async createABTest(testData) {
     return await this.makeRequest('/notifications/ab-test', {
       method: 'POST',
@@ -644,39 +541,32 @@ loadToken() {
 
   // Initialize multi-channel service
   async initialize() {
-  try {
-    // Reload token in case it was set after construction
-    this.loadToken();
-
-    // Check if we actually have a token before making API calls
-    if (!this.token) {
-      console.log('[MultiChannelNotificationService] Skipping initialization - no auth token available');
-      return false;
-    }
-
-    // Load templates (with graceful failure)
     try {
-      await this.getEmailTemplates();
-      console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
-    } catch (error) {
-      console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
-    }
+      // FIXED: Check auth status using the central client
+      if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
+        console.log('[MultiChannelNotificationService] Skipping initialization - no authenticated user');
+        return false;
+      }
 
-    try {
-      await this.getSMSTemplates();
-      console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
-    } catch (error) {
-      console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
-    }
+      // Load templates (with graceful failure)
+      try {
+        await this.getEmailTemplates();
+        console.log('[MultiChannelNotificationService] ✅ Email templates loaded');
+      } catch (error) {
+        console.log('[MultiChannelNotificationService] Email templates not available:', error.message);
+      }
 
-    console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
-    return true;
-  } catch (error) {
-    console.error('[MultiChannelNotificationService] Failed to initialize:', error);
-    return false;
-  }
-} catch (error) {
-      console.error('Failed to initialize multi-channel notification service:', error);
+      try {
+        await this.getSMSTemplates();
+        console.log('[MultiChannelNotificationService] ✅ SMS templates loaded');
+      } catch (error) {
+        console.log('[MultiChannelNotificationService] SMS templates not available:', error.message);
+      }
+
+      console.log('[MultiChannelNotificationService] ✅ Successfully initialized');
+      return true;
+    } catch (error) {
+      console.error('[MultiChannelNotificationService] Failed to initialize:', error);
       return false;
     }
   }
@@ -687,9 +577,7 @@ window.multiChannelNotificationService = new MultiChannelNotificationService();
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.multiChannelNotificationService) {
-    window.multiChannelNotificationService.initialize();
-  }
+  // Initialization is now handled by the 'auth-ready' event in marketplace.html
 });
 
 // Export for module systems

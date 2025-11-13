@@ -24,13 +24,13 @@ class AdvancedShoppingCart {
     this._pendingQuantityDebouncers = new Map();
 
     this.bindGlobalEvents();
-    console.log('🛒 Advanced Cart Final initialized');
+    console.log('ðŸ›’ Advanced Cart Final initialized');
   }
 
   // ==================== PUBLIC API ====================
 
   async initializeCartData() {
-    console.log('🔐 Auth confirmed — initializing cart from server...');
+    console.log('ðŸ” Auth confirmed â€” initializing cart from server...');
     await this.loadCartFromServer();
     // Don't load recommendations on init to avoid 404s
     // They'll load when needed on the cart page
@@ -52,7 +52,7 @@ class AdvancedShoppingCart {
 
   async addToCart(productId, quantity = 1, variant = null) {
     try {
-      console.log('➕ Adding to cart:', { productId, quantity });
+      console.log('âž• Adding to cart:', { productId, quantity });
       
       const response = await window.HybridAuthClient.apiCall('/cart/items', {
         method: 'POST',
@@ -60,7 +60,7 @@ class AdvancedShoppingCart {
       });
 
       const data = await response.json();
-      console.log('📦 Add to cart response:', data);
+      console.log('ðŸ“¦ Add to cart response:', data);
       
       if (!response.ok || !data.success) {
         throw new Error(data.message || data.errors?.[0]?.msg || 'Failed to add item');
@@ -71,7 +71,7 @@ class AdvancedShoppingCart {
       this.track('add_to_cart', { productId, quantity });
       return true;
     } catch (err) {
-      console.error('❌ addToCart error:', err);
+      console.error('âŒ addToCart error:', err);
       this.notify(err.message || 'Failed to add item', 'error');
       return false;
     }
@@ -80,14 +80,14 @@ class AdvancedShoppingCart {
   async removeFromCart(cartId) {
     const item = this.cart.find(i => i.cartId === cartId);
     if (!item) {
-      console.warn('⚠️  Item not found:', cartId);
+      console.warn('âš ï¸  Item not found:', cartId);
       return;
     }
 
     try {
-      console.log('🗑️  Removing from cart:', item.productId);
+      console.log('ðŸ—‘ï¸  Removing from cart:', item.productId);
       
-      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.cartId}`, {
         method: 'DELETE'
       });
       
@@ -100,13 +100,13 @@ class AdvancedShoppingCart {
       this.notify('Item removed from cart', 'info');
       this.track('remove_from_cart', { productId: item.productId });
     } catch (err) {
-      console.error('❌ removeFromCart error:', err);
+      console.error('âŒ removeFromCart error:', err);
       this.notify(err.message || 'Failed to remove item', 'error');
     }
   }
 
   async updateQuantity(cartId, newQuantity) {
-    console.log('🔄 Update quantity debounced:', { cartId, newQuantity });
+    console.log('ðŸ”„ Update quantity debounced:', { cartId, newQuantity });
     
     // Debounce to avoid spamming backend
     if (this._pendingQuantityDebouncers.has(cartId)) {
@@ -134,15 +134,15 @@ class AdvancedShoppingCart {
     }
 
     try {
-      console.log('🔄 Updating quantity on server:', { productId: item.productId, newQuantity });
+      console.log('ðŸ”„ Updating quantity on server:', { productId: item.productId, newQuantity });
       
-      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.cartId}`, {
         method: 'PATCH',
         body: JSON.stringify({ quantity: newQuantity })
       });
 
       const data = await res.json();
-      console.log('📦 Update quantity response:', data);
+      console.log('ðŸ“¦ Update quantity response:', data);
       
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to update quantity');
@@ -152,7 +152,7 @@ class AdvancedShoppingCart {
       this.notify('Quantity updated', 'success');
       this.track('cart_quantity_change', { productId: item.productId, newQuantity });
     } catch (err) {
-      console.error('❌ updateQuantity error:', err);
+      console.error('âŒ updateQuantity error:', err);
       this.notify(err.message || 'Failed to update quantity', 'error');
       await this.loadCartFromServer(); // Reload to fix UI
     }
@@ -174,7 +174,7 @@ class AdvancedShoppingCart {
       await this.loadCartFromServer();
       this.notify('Cart cleared', 'info');
     } catch (err) {
-      console.error('❌ clearCart error:', err);
+      console.error('âŒ clearCart error:', err);
       this.notify(err.message || 'Failed to clear cart', 'error');
     }
   }
@@ -212,7 +212,7 @@ class AdvancedShoppingCart {
       if (input) input.value = '';
       
     } catch (err) {
-      console.error('❌ applyPromoCode error:', err);
+      console.error('âŒ applyPromoCode error:', err);
       this.notify(err.message || 'Invalid promo code', 'error');
     }
   }
@@ -234,7 +234,7 @@ class AdvancedShoppingCart {
       await this.loadCartFromServer();
       this.notify('Promo removed', 'info');
     } catch (err) {
-      console.error('❌ removePromoCode error:', err);
+      console.error('âŒ removePromoCode error:', err);
       this.notify(err.message || 'Failed to remove promo', 'error');
     }
   }
@@ -258,7 +258,7 @@ class AdvancedShoppingCart {
       );
       
       if (!resp.ok) {
-        console.warn('⚠️  Recommendations not available (status ' + resp.status + ')');
+        console.warn('âš ï¸  Recommendations not available (status ' + resp.status + ')');
         this.recommendations = [];
         return;
       }
@@ -267,7 +267,7 @@ class AdvancedShoppingCart {
       
       if (data.success && data.recommendations) {
         this.recommendations = data.recommendations.slice(0, this.config.recommendationsLimit);
-        console.log('✅ Loaded recommendations:', this.recommendations.length);
+        console.log('âœ… Loaded recommendations:', this.recommendations.length);
       } else {
         this.recommendations = [];
       }
@@ -275,7 +275,7 @@ class AdvancedShoppingCart {
       this.updateCartUI();
       
     } catch (err) {
-      console.error('❌ loadRecommendations error:', err);
+      console.error('âŒ loadRecommendations error:', err);
       this.recommendations = [];
     }
   }
@@ -325,14 +325,14 @@ class AdvancedShoppingCart {
 
   async loadCartFromServer() {
     if (this._loadingCart) {
-      console.warn('⚠️  Cart load already in progress');
+      console.warn('âš ï¸  Cart load already in progress');
       return this.cart;
     }
     
     this._loadingCart = true;
 
     const fetchOnce = async () => {
-      console.log('📡 Fetching cart from server...');
+      console.log('ðŸ“¡ Fetching cart from server...');
       
       const res = await window.HybridAuthClient.apiCall('/cart', { method: 'GET' });
       
@@ -348,7 +348,7 @@ class AdvancedShoppingCart {
       }
       
       const payload = await res.json();
-      console.log('📦 Server cart response:', payload);
+      console.log('ðŸ“¦ Server cart response:', payload);
       
       if (!payload.success) {
         throw new Error(payload.message || 'Cart fetch failed');
@@ -364,13 +364,13 @@ class AdvancedShoppingCart {
                        ?? payload.data 
                        ?? [];
 
-      console.log(`✅ Found ${serverItems.length} cart items from 'payload.data.items'`);
+      console.log(`âœ… Found ${serverItems.length} cart items from 'payload.data.items'`);
       // ==================================================================
       // == END: FIX
       // ==================================================================
       
       this.cart = this.formatServerCart(serverItems);
-      console.log('🛒 Formatted cart:', this.cart);
+      console.log('ðŸ›’ Formatted cart:', this.cart);
       
       this.updateCartUI();
       this.saveCartBackup();
@@ -385,7 +385,7 @@ class AdvancedShoppingCart {
         // Retry once for 5xx or network errors
         const retryable = err && (err.code >= 500 || err.name === 'TypeError');
         if (retryable) {
-          console.warn('⚠️  Retrying cart fetch...');
+          console.warn('âš ï¸  Retrying cart fetch...');
           await this._delay(500);
           return await fetchOnce();
         } else {
@@ -393,7 +393,7 @@ class AdvancedShoppingCart {
         }
       }
     } catch (err) {
-      console.error('❌ loadCartFromServer final error:', err);
+      console.error('âŒ loadCartFromServer final error:', err);
       this.handleCartLoadFailure(err);
       return this.cart;
     } finally {
@@ -403,11 +403,11 @@ class AdvancedShoppingCart {
 
   formatServerCart(serverItems) {
     if (!Array.isArray(serverItems)) {
-      console.warn('⚠️  Server items not an array:', serverItems);
+      console.warn('âš ï¸  Server items not an array:', serverItems);
       return [];
     }
 
-    console.log('🔄 Formatting cart items...');
+    console.log('ðŸ”„ Formatting cart items...');
 
     const formatted = serverItems.map((it, idx) => {
       try {
@@ -416,7 +416,7 @@ class AdvancedShoppingCart {
         const productId = product._id || product.id || it.productId;
         
         if (!productId) {
-          console.warn(`⚠️  Item ${idx} missing product ID`, it);
+          console.warn(`âš ï¸  Item ${idx} missing product ID`, it);
           return null;
         }
 
@@ -464,11 +464,11 @@ class AdvancedShoppingCart {
           addedAt: it.addedAt || new Date().toISOString()
         };
 
-        console.log(`✅ Formatted item ${idx}: ${formattedItem.name}`);
+        console.log(`âœ… Formatted item ${idx}: ${formattedItem.name}`);
         return formattedItem;
         
       } catch (err) {
-        console.error(`❌ Error formatting item ${idx}:`, err, it);
+        console.error(`âŒ Error formatting item ${idx}:`, err, it);
         return null;
       }
     }).filter(Boolean);
@@ -479,7 +479,7 @@ class AdvancedShoppingCart {
   // ==================== FALLBACKS ====================
 
   handleCartLoadFailure(error) {
-    console.error('💥 Cart load failure:', error);
+    console.error('ðŸ’¥ Cart load failure:', error);
     
     // Try backup
     try {
@@ -494,7 +494,7 @@ class AdvancedShoppingCart {
         }
       }
     } catch (e) {
-      console.warn('⚠️  Failed to load backup:', e);
+      console.warn('âš ï¸  Failed to load backup:', e);
     }
 
     // Empty cart
@@ -510,7 +510,7 @@ class AdvancedShoppingCart {
     try {
       localStorage.setItem(this.config.backupKey, JSON.stringify(this.cart));
     } catch (err) {
-      console.warn('⚠️  saveCartBackup failed:', err);
+      console.warn('âš ï¸  saveCartBackup failed:', err);
     }
   }
 
@@ -562,7 +562,7 @@ class AdvancedShoppingCart {
           : '<div class="empty-cart-dropdown">Your cart is empty</div>'}
       </div>
       <div class="cart-dropdown-footer">
-        <div class="cart-total">Total: ₹${this.cartTotal.toFixed(2)}</div>
+        <div class="cart-total">Total: â‚¹${this.cartTotal.toFixed(2)}</div>
         <div class="cart-actions">
           <button class="btn-secondary" onclick="window.location.href='cart.html'">View Cart</button>
           <button class="btn-primary" onclick="window.location.href='checkout.html'" ${!this.cart.length ? 'disabled' : ''}>
@@ -580,8 +580,8 @@ class AdvancedShoppingCart {
         <div class="item-details">
           <h4>${this._esc(item.name)}</h4>
           <div class="item-price">
-            ₹${item.price.toFixed(2)} × ${item.quantity}
-            ${item.discount > 0 ? `<span class="original-price">₹${item.originalPrice.toFixed(2)}</span>` : ''}
+            â‚¹${item.price.toFixed(2)} Ã— ${item.quantity}
+            ${item.discount > 0 ? `<span class="original-price">â‚¹${item.originalPrice.toFixed(2)}</span>` : ''}
           </div>
         </div>
         <button class="remove-item" onclick="advancedCart.removeFromCart('${item.cartId}')" title="Remove">
@@ -652,9 +652,9 @@ class AdvancedShoppingCart {
           ${item.seller?.name ? `<div class="item-seller">Sold by: ${this._esc(item.seller.name)}</div>` : ''}
           
           <div class="item-price">
-            ₹${item.price.toFixed(2)}
+            â‚¹${item.price.toFixed(2)}
             ${item.discount > 0 ? `
-              <span class="original-price">₹${item.originalPrice.toFixed(2)}</span>
+              <span class="original-price">â‚¹${item.originalPrice.toFixed(2)}</span>
               <span class="discount-tag">${item.discount}% OFF</span>
             ` : ''}
           </div>
@@ -673,7 +673,7 @@ class AdvancedShoppingCart {
             </button>
           </div>
           
-          <div class="item-total">₹${(item.price * item.quantity).toFixed(2)}</div>
+          <div class="item-total">â‚¹${(item.price * item.quantity).toFixed(2)}</div>
           
           <button class="remove-btn" onclick="advancedCart.removeFromCart('${item.cartId}')" title="Remove">
             <i class="fas fa-trash"></i>
@@ -688,7 +688,7 @@ class AdvancedShoppingCart {
     
     return `
       <div class="recommendations-section">
-        <h3>🎯 You might also like</h3>
+        <h3>ðŸŽ¯ You might also like</h3>
         <div class="recommendations-grid">
           ${this.recommendations.map(p => this.renderRecommendationItem(p)).join('')}
         </div>
@@ -710,8 +710,8 @@ class AdvancedShoppingCart {
         <div class="rec-details">
           <h4>${this._esc(name)}</h4>
           <div class="rec-price">
-            <span>₹${final.toFixed(2)}</span>
-            ${discount > 0 ? `<span class="original-price">₹${price.toFixed(2)}</span>` : ''}
+            <span>â‚¹${final.toFixed(2)}</span>
+            ${discount > 0 ? `<span class="original-price">â‚¹${price.toFixed(2)}</span>` : ''}
           </div>
         </div>
         <button class="add-rec-btn" onclick="advancedCart.addToCart('${id}')">
@@ -730,27 +730,27 @@ class AdvancedShoppingCart {
         
         <div class="summary-row">
           <span class="summary-label">Items (${totals.itemCount})</span>
-          <span class="summary-value">₹${totals.subtotal.toFixed(2)}</span>
+          <span class="summary-value">â‚¹${totals.subtotal.toFixed(2)}</span>
         </div>
         
         ${totals.savings > 0 ? `
           <div class="summary-row">
             <span class="summary-label" style="color: var(--success)">You saved</span>
-            <span class="summary-value" style="color: var(--success)">-₹${totals.savings.toFixed(2)}</span>
+            <span class="summary-value" style="color: var(--success)">-â‚¹${totals.savings.toFixed(2)}</span>
           </div>
         ` : ''}
         
         <div class="summary-row">
           <span class="summary-label">Delivery Fee</span>
           <span class="summary-value">
-            ${totals.deliveryFee === 0 ? 'FREE' : `₹${totals.deliveryFee.toFixed(2)}`}
+            ${totals.deliveryFee === 0 ? 'FREE' : `â‚¹${totals.deliveryFee.toFixed(2)}`}
           </span>
         </div>
         
         ${totals.amountForFreeDelivery > 0 ? `
           <div style="margin: 1rem 0; padding: 0.75rem; background: var(--bg-tertiary); border-radius: var(--radius);">
             <div style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">
-              Add ₹${totals.amountForFreeDelivery.toFixed(2)} more for FREE delivery
+              Add â‚¹${totals.amountForFreeDelivery.toFixed(2)} more for FREE delivery
             </div>
             <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
               <div style="height: 100%; background: var(--primary); width: ${Math.min(100, (totals.subtotal / totals.freeDeliveryThreshold) * 100)}%;"></div>
@@ -764,7 +764,7 @@ class AdvancedShoppingCart {
         
         <div class="summary-row total">
           <span class="summary-label">Total</span>
-          <span class="summary-value total">₹${totals.total.toFixed(2)}</span>
+          <span class="summary-value total">â‚¹${totals.total.toFixed(2)}</span>
         </div>
 
         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
@@ -882,7 +882,7 @@ class AdvancedShoppingCart {
         console.warn('Analytics tracking failed:', e);
       }
     }
-    console.log(`📊 Analytics: ${event}`, data);
+    console.log(`ðŸ“Š Analytics: ${event}`, data);
   }
 
   formatVariant(variant) {
@@ -911,7 +911,7 @@ class AdvancedShoppingCart {
 // ==================== INITIALIZE ====================
 
 window.advancedCart = new AdvancedShoppingCart();
-console.log('🛒 Advanced Cart Final loaded and ready!');
+console.log('ðŸ›’ Advanced Cart Final loaded and ready!');
 
 // Export for CommonJS
 if (typeof module !== 'undefined' && module.exports) {
