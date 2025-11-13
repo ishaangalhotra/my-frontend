@@ -7,6 +7,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
+    <script src="hybrid-auth-client.js"></script>
+    
     <style>
         :root {
             --primary: #6366f1;
@@ -798,7 +800,8 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        // Use the API_BASE_URL from the auth client if available, otherwise fallback
+        const API_BASE_URL = window.HybridAuthClient?.backendUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
         
         let selectedCategory = '';
         let selectedFiles = [];
@@ -872,7 +875,14 @@
             const categoryFilter = document.getElementById('categoryFilter');
             
             try {
-                const response = await fetch(`${API_BASE_URL}/categories?limit=50`);
+                // Use apiCall if available for authenticated requests
+                let response;
+                if (window.HybridAuthClient) {
+                    response = await window.HybridAuthClient.apiCall('/categories?limit=50');
+                } else {
+                    response = await fetch(`${API_BASE_URL}/categories?limit=50`);
+                }
+                
                 const result = await response.json();
 
                 if (result.success && result.data.categories.length > 0) {
@@ -928,13 +938,19 @@
                         <p>Loading products...</p>
                     </div>
                 `;
+                
+                let response;
+                if (window.HybridAuthClient) {
+                    response = await window.HybridAuthClient.apiCall('/products?limit=1000');
+                } else {
+                    response = await fetch(`${API_BASE_URL}/products?limit=1000`);
+                }
 
-                const response = await fetch(`${API_BASE_URL}/products?limit=1000`);
                 const result = await response.json();
 
                 if (result.success && result.data) {
                     allProducts = Array.isArray(result.data) ? result.data : 
-                                  result.data.products ? result.data.products : [];
+                                  (result.data.products ? result.data.products : []);
                     filteredProducts = [...allProducts];
                     currentPage = 1;
                     renderProducts();
@@ -1185,6 +1201,12 @@
         async function handleFormSubmit(e) {
             e.preventDefault();
             
+            // --- FIX 2: Check for auth client ---
+            if (!window.HybridAuthClient) {
+                showAlert('Authentication client not loaded. Please refresh.', 'error');
+                return;
+            }
+            
             if (!selectedCategory) {
                 showAlert('Please select a category', 'error');
                 return;
@@ -1204,6 +1226,7 @@
             
             const originalPrice = document.getElementById('originalPrice').value;
             if (originalPrice) {
+                formData.append('originalPrice', originalPrice);
                 const price = parseFloat(document.getElementById('price').value);
                 const original = parseFloat(originalPrice);
                 if (original > price) {
@@ -1238,13 +1261,17 @@
             try {
                 console.log(isEditing ? 'Updating product:' : 'Adding product:', selectedCategory);
                 
-                const url = isEditing ? `${API_BASE_URL}/products/${isEditing}` : `${API_BASE_URL}/products`;
+                // --- FIX 3: Use relative URL for apiCall ---
+                const url = isEditing ? `/products/${isEditing}` : `/products`;
                 const method = isEditing ? 'PUT' : 'POST';
                 
-                const response = await fetch(url, {
+                // --- FIX 4: Use apiCall instead of fetch ---
+                const response = await window.HybridAuthClient.apiCall(url, {
                     method: method,
                     body: formData
+                    // No 'headers' needed, apiCall handles FormData automatically
                 });
+                // ---
 
                 // CRITICAL: Get the response text first to see what the server is sending
                 const responseText = await response.text();
@@ -1346,48 +1373,32 @@
         async function deleteProduct(productId) {
             try {
                 console.log('🗑️ Attempting to delete product:', productId);
-                console.log('Delete URL:', `${API_BASE_URL}/products/${productId}`);
                 
-                // Prepare headers - some APIs might require authentication for DELETE
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                
-                // Add authorization if available (check for stored tokens)
-                const token = localStorage.getItem('token') || 
-                             localStorage.getItem('accessToken') || 
-                             localStorage.getItem('quicklocal_access_token');
-                             
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                    console.log('Adding auth header for delete request');
+                if (!window.HybridAuthClient) {
+                    showAlert('Authentication client not loaded. Please refresh.', 'error');
+                    return;
                 }
                 
-                const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE',
-                    headers: headers
+                const response = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
+                    method: 'DELETE'
                 });
 
                 console.log('Delete response status:', response.status);
                 console.log('Delete response ok:', response.ok);
                 
-                // Get the response text first to see what the server is sending
                 const responseText = await response.text();
                 console.log('Delete response text:', responseText);
                 
                 let result;
                 try {
-                    // Try to parse as JSON if there's content
                     if (responseText.trim()) {
                         result = JSON.parse(responseText);
                         console.log('Parsed delete result:', result);
                     } else {
-                        // Empty response is okay for DELETE operations
                         result = { success: true };
                     }
                 } catch (parseError) {
                     console.warn('Could not parse delete response as JSON:', parseError);
-                    // If we can't parse but the status is OK, consider it successful
                     if (response.ok) {
                         result = { success: true };
                     } else {
@@ -1395,7 +1406,6 @@
                     }
                 }
 
-                // Check for success
                 if (result.success || response.ok || response.status === 204) {
                     console.log('✅ Product deleted successfully');
                     showAlert('Product deleted successfully!', 'success');
@@ -1416,10 +1426,9 @@
             } catch (error) {
                 console.error('❌ Error deleting product:', error);
                 
-                // Show detailed error information
                 let errorMessage = 'Failed to delete product.';
-                if (error.message.includes('fetch')) {
-                    errorMessage += ' Network error - please check your connection.';
+                if (error.message.includes('401') || error.message.includes('403')) {
+                    errorMessage += ' You may not have permission for this action.';
                 } else if (error.message.includes('404')) {
                     errorMessage += ' Product not found on server.';
                 } else if (error.message.includes('500')) {
@@ -1430,7 +1439,6 @@
                 
                 showAlert(errorMessage, 'error');
                 
-                // Add debug info to the page
                 const debugInfo = document.createElement('div');
                 debugInfo.className = 'debug-info';
                 debugInfo.innerHTML = `
@@ -1484,6 +1492,10 @@
                 }, 500);
             }
 
+            // Clear image previews for editing
+            document.getElementById('imagePreview').innerHTML = '<p>Current images will be kept. Upload new images to add them.</p>';
+            selectedFiles = [];
+
             // Change form title and button text
             document.querySelector('#add-product .form-card').insertAdjacentHTML('afterbegin', `
                 <div class="alert alert-warning" style="display: block;">
@@ -1505,11 +1517,16 @@
             try {
                 // If we don't have products loaded, load them
                 if (allProducts.length === 0) {
-                    const response = await fetch(`${API_BASE_URL}/products?limit=1000`);
+                    let response;
+                    if (window.HybridAuthClient) {
+                        response = await window.HybridAuthClient.apiCall('/products?limit=1000');
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/products?limit=1000`);
+                    }
                     const result = await response.json();
                     if (result.success && result.data) {
                         allProducts = Array.isArray(result.data) ? result.data : 
-                                     result.data.products ? result.data.products : [];
+                                     (result.data.products ? result.data.products : []);
                     }
                 }
 
@@ -1607,58 +1624,34 @@
             console.log('Full URL:', `${API_BASE_URL}/products/${productId}`);
             
             try {
-                // Test if product exists first
-                console.log('1. Testing GET request first...');
-                const getResponse = await fetch(`${API_BASE_URL}/products/${productId}`);
-                console.log('GET response status:', getResponse.status);
-                
-                if (getResponse.ok) {
-                    const productData = await getResponse.json();
-                    console.log('Product exists:', productData);
-                } else {
-                    console.log('Product not found with GET request');
-                    return;
-                }
-                
-                // Now test DELETE
-                console.log('2. Testing DELETE request...');
-                const headers = { 'Content-Type': 'application/json' };
-                
-                const token = localStorage.getItem('token') || 
-                             localStorage.getItem('accessToken') || 
-                             localStorage.getItem('quicklocal_access_token');
-                             
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                    console.log('Auth token found and added');
-                } else {
-                    console.log('No auth token found');
-                }
-                
-                const deleteResponse = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE',
-                    headers: headers
-                });
-                
-                console.log('DELETE response status:', deleteResponse.status);
-                console.log('DELETE response ok:', deleteResponse.ok);
-                
-                const responseText = await deleteResponse.text();
-                console.log('DELETE response text:', responseText);
-                
-                if (responseText) {
-                    try {
-                        const result = JSON.parse(responseText);
-                        console.log('DELETE result:', result);
-                    } catch (e) {
-                        console.log('Response is not JSON');
+                if (!window.HybridAuthClient) {
+                    console.log('No auth client found, using manual fetch');
+                    const headers = { 'Content-Type': 'application/json' };
+                    const token = localStorage.getItem('token') || 
+                                 localStorage.getItem('accessToken') || 
+                                 localStorage.getItem('quicklocal_access_token');
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
                     }
-                }
-                
-                if (deleteResponse.ok || deleteResponse.status === 204) {
-                    console.log('✅ DELETE request successful');
+                    
+                    const deleteResponse = await fetch(`${API_BASE_URL}/products/${productId}`, {
+                        method: 'DELETE',
+                        headers: headers
+                    });
+                    
+                    console.log('DELETE response status:', deleteResponse.status);
+                    const responseText = await deleteResponse.text();
+                    console.log('DELETE response text:', responseText);
+                    
                 } else {
-                    console.log('❌ DELETE request failed');
+                    console.log('Using auth client for DELETE request');
+                    const deleteResponse = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    console.log('DELETE response status:', deleteResponse.status);
+                    const responseText = await deleteResponse.text();
+                    console.log('DELETE response text:', responseText);
                 }
                 
             } catch (error) {
