@@ -2695,87 +2695,235 @@
             });
         }
 
-        async function loadProducts() {
-            if (appState.isLoading) return;
-            
-            appState.isLoading = true;
-            showLoading(true);
-            
+        
+async function loadProducts() {
+    if (appState.isLoading) {
+        console.log('[LoadProducts] ⏸️ Already loading, skipping...');
+        return;
+    }
+
+    appState.isLoading = true;
+    showLoading(true);
+
+    console.log('[LoadProducts] 🔄 Starting product load...');
+    console.log('[LoadProducts] API Base URL:', appState.apiBaseUrl);
+
+    try {
+        // CRITICAL FIX: Add cache-busting parameter + force no-cache headers
+        const cacheBuster = `_t=${Date.now()}&v=2`;
+        const endpoint = `/products?${cacheBuster}`;
+
+        console.log('[LoadProducts] 📡 Fetching from:', appState.apiBaseUrl + endpoint);
+
+        let data = null;
+        let fetchError = null;
+
+        // Method 1: Direct fetch with aggressive cache bypass
+        try {
+            console.log('[LoadProducts] Method 1: Direct fetch with cache bypass');
+            const response = await fetch(appState.apiBaseUrl + endpoint, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                cache: 'no-store' // Force network request
+            });
+
+            console.log('[LoadProducts] ✅ Response status:', response.status);
+            console.log('[LoadProducts] ✅ Response ok:', response.ok);
+
+            if (response.ok) {
+                data = await response.json();
+                console.log('[LoadProducts] ✅ Method 1 SUCCESS - Got data');
+            } else {
+                const errorText = await response.text();
+                console.error('[LoadProducts] ❌ Response not ok:', response.status, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+        } catch (error) {
+            console.warn('[LoadProducts] ⚠️ Method 1 failed:', error.message);
+            fetchError = error;
+        }
+
+        // Method 2: Try with API helper (if Method 1 failed)
+        if (!data && window.api) {
             try {
-                const data = await apiCallWithRetry('/products');
-                
-                console.log('✅ API response received:', data);
-                
-                let products = [];
-                if (data && data.success !== undefined) {
-                    if (data.data && Array.isArray(data.data)) {
-                        products = data.data;
-                    } else if (data.data && data.data.products && Array.isArray(data.data.products)) {
-                        products = data.data.products;
-                    }
-                } else if (Array.isArray(data)) {
-                    products = data;
-                } else {
-                    console.warn('Unexpected API response format:', data);
-                    products = [];
-                }
-                
-                appState.products = products.map(product => ({
-                    ...product,
-                    id: product._id || product.id,
-                    rating: product.rating || (3.5 + Math.random() * 1.5),
-                    reviews: product.reviews || Math.floor(Math.random() * 500) + 10,
-                    originalPrice: product.originalPrice || (product.price * (1 + Math.random() * 0.5)),
-                    stock: product.stock !== undefined ? product.stock : Math.floor(Math.random() * 50) + 5
-                }));
-                
-                appState.products.forEach(product => {
-                    if (product.category) {
-                        appState.categories.add(product.category);
-                    }
-                });
-                
-                appState.allProducts = [...appState.products];
-                appState.filteredProducts = [...appState.products];
-                
-                if (Object.values(appState.currentFilters).some(v => v && v !== '' && v !== 'name' && v !== 1)) {
-                    applyAllFilters();
-                } else {
-                    appState.pagination.totalItems = appState.products.length;
-                    appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
-                    
-                    const firstPageProducts = appState.products.slice(0, appState.pagination.itemsPerPage);
-                    renderAll();
-                    updatePagination();
-                    updateProductCount(appState.products.length);
-                }
-                
+                console.log('[LoadProducts] Method 2: Using api.get()');
+                data = await api.get(`/products?${cacheBuster}`);
+                console.log('[LoadProducts] ✅ Method 2 SUCCESS');
             } catch (error) {
-                console.error('❌ Failed to load products:', error);
-                
-                let errorMessage = 'Could not load products from server.';
-                if (error.message.includes('500')) {
-                    errorMessage = 'Server error (500) - Backend is having issues. Check server logs.';
-                }
-                
-                showToast(errorMessage + ' Using demo data instead.', 'warning');
-                
-                appState.products = generateDemoProducts();
-                appState.allProducts = [...appState.products];
-                appState.filteredProducts = [...appState.products];
-                appState.products.forEach(p => appState.categories.add(p.category));
-                
-                appState.pagination.totalItems = appState.products.length;
-                appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
-                renderAll();
-                updatePagination();
-                updateProductCount(appState.products.length);
-                
-            } finally {
-                appState.isLoading = false;
-                showLoading(false);
+                console.warn('[LoadProducts] ⚠️ Method 2 failed:', error.message);
             }
         }
+
+        // Method 3: Try with retry helper (if Methods 1 & 2 failed)
+        if (!data && typeof apiCallWithRetry === 'function') {
+            try {
+                console.log('[LoadProducts] Method 3: Using apiCallWithRetry()');
+                data = await apiCallWithRetry(`/products?${cacheBuster}`);
+                console.log('[LoadProducts] ✅ Method 3 SUCCESS');
+            } catch (error) {
+                console.warn('[LoadProducts] ⚠️ Method 3 failed:', error.message);
+            }
+        }
+
+        // If all methods failed, throw the original error
+        if (!data) {
+            console.error('[LoadProducts] ❌ All fetch methods failed');
+            throw fetchError || new Error('All fetch methods failed - check network and API');
+        }
+
+        console.log('[LoadProducts] 📦 Raw API response preview:', JSON.stringify(data).substring(0, 300) + '...');
+        console.log('[LoadProducts] 📊 Response keys:', Object.keys(data));
+
+        // Parse products from response with multiple fallback strategies
+        let products = [];
+
+        if (data && data.success !== undefined) {
+            // Standard response format
+            if (data.data && Array.isArray(data.data)) {
+                products = data.data;
+                console.log('[LoadProducts] ✅ Found products in data.data (array)');
+            } else if (data.data && data.data.products && Array.isArray(data.data.products)) {
+                products = data.data.products;
+                console.log('[LoadProducts] ✅ Found products in data.data.products');
+            } else if (data.products && Array.isArray(data.products)) {
+                products = data.products;
+                console.log('[LoadProducts] ✅ Found products in data.products');
+            }
+        } else if (Array.isArray(data)) {
+            products = data;
+            console.log('[LoadProducts] ✅ Response is direct array');
+        }
+
+        console.log('[LoadProducts] 📊 Parsed products count:', products.length);
+
+        if (products.length === 0) {
+            console.warn('[LoadProducts] ⚠️ ZERO PRODUCTS FOUND!');
+            console.warn('[LoadProducts] Response structure:', JSON.stringify(data, null, 2));
+            console.warn('[LoadProducts] This might be a backend issue or empty database');
+        } else {
+            console.log('[LoadProducts] 📦 Sample product:', JSON.stringify(products[0], null, 2));
+        }
+
+        // Enhance products with missing data
+        appState.products = products.map(product => {
+            const enhanced = {
+                ...product,
+                id: product._id || product.id,
+                rating: product.rating || product.averageRating || (3.5 + Math.random() * 1.5),
+                reviews: product.reviews || product.totalReviews || Math.floor(Math.random() * 500) + 10,
+                originalPrice: product.originalPrice || (product.price ? product.price * (1 + Math.random() * 0.3) : 0),
+                stock: product.stock !== undefined ? product.stock : Math.floor(Math.random() * 50) + 5
+            };
+            return enhanced;
+        });
+
+        // Extract categories
+        appState.categories.clear();
+        appState.products.forEach(product => {
+            if (product.category) {
+                const categoryName = typeof product.category === 'string' ? 
+                    product.category : 
+                    (product.category.name || 'Uncategorized');
+                appState.categories.add(categoryName);
+            }
+        });
+
+        // Update state
+        appState.allProducts = [...appState.products];
+        appState.filteredProducts = [...appState.products];
+
+        console.log('[LoadProducts] ✅ Final state updated:');
+        console.log('[LoadProducts]   - Total products:', appState.products.length);
+        console.log('[LoadProducts]   - Categories:', Array.from(appState.categories));
+        console.log('[LoadProducts]   - All products:', appState.allProducts.length);
+        console.log('[LoadProducts]   - Filtered products:', appState.filteredProducts.length);
+
+        // Apply filters or render
+        if (Object.values(appState.currentFilters).some(v => v && v !== '' && v !== 'name' && v !== 1)) {
+            console.log('[LoadProducts] 🔍 Applying existing filters');
+            applyAllFilters();
+        } else {
+            console.log('[LoadProducts] 🎨 Rendering all products');
+            appState.pagination.totalItems = appState.products.length;
+            appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
+
+            renderAll();
+            updatePagination();
+            updateProductCount(appState.products.length);
+        }
+
+        // Success message
+        if (appState.products.length > 0) {
+            console.log('[LoadProducts] 🎉 SUCCESS! Products loaded and rendered');
+        } else {
+            console.warn('[LoadProducts] ⚠️ SUCCESS but NO PRODUCTS - check backend/database');
+        }
+
+    } catch (error) {
+        console.error('[LoadProducts] ❌ CRITICAL ERROR:', error);
+        console.error('[LoadProducts] Error stack:', error.stack);
+        console.error('[LoadProducts] Error name:', error.name);
+        console.error('[LoadProducts] Error message:', error.message);
+
+        // Show detailed error message
+        let errorMessage = 'Could not load products from server.';
+        let technicalDetails = '';
+
+        if (error.message.includes('500')) {
+            errorMessage = 'Server error (500) - Backend is having issues.';
+            technicalDetails = 'The API server returned an internal error. Check backend logs.';
+        } else if (error.message.includes('404')) {
+            errorMessage = 'Products endpoint not found (404).';
+            technicalDetails = 'The /api/v1/products endpoint may not exist on the server.';
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMessage = 'Network error - Cannot reach server.';
+            technicalDetails = 'Check if the backend server is running at: ' + appState.apiBaseUrl;
+        } else if (error.message.includes('CORS')) {
+            errorMessage = 'CORS error - Server blocking request.';
+            technicalDetails = 'The API server needs to allow requests from this domain.';
+        } else {
+            technicalDetails = error.message;
+        }
+
+        console.error('[LoadProducts] 📋 Technical details:', technicalDetails);
+
+        showToast(errorMessage + ' Using demo data instead.', 'warning');
+
+        // Load demo products as fallback
+        console.log('[LoadProducts] 🎭 Loading demo/fallback products');
+        appState.products = generateDemoProducts();
+        appState.allProducts = [...appState.products];
+        appState.filteredProducts = [...appState.products];
+        appState.products.forEach(p => {
+            if (p.category) appState.categories.add(p.category);
+        });
+
+        appState.pagination.totalItems = appState.products.length;
+        appState.pagination.totalPages = Math.ceil(appState.products.length / appState.pagination.itemsPerPage);
+        renderAll();
+        updatePagination();
+        updateProductCount(appState.products.length);
+
+        console.log('[LoadProducts] 🎭 Demo products rendered:', appState.products.length);
+
+    } finally {
+        appState.isLoading = false;
+        showLoading(false);
+        console.log('[LoadProducts] 🏁 Load process complete');
+        console.log('[LoadProducts] 📊 Final counts:', {
+            products: appState.products.length,
+            allProducts: appState.allProducts.length,
+            filteredProducts: appState.filteredProducts.length,
+            categories: appState.categories.size
+        });
+    }
+}
+
 
         function generateDemoProducts() {
             const demoProducts = [
@@ -3764,7 +3912,7 @@
             }
         });
     </script>
-    
+    <script src="cache-buster.js"></script>
     <script src="js/product-card-utils.js"></script>
     <script src="js/advanced-pagination-system.js"></script>
     <script src="js/advanced-ux-features.js"></script>

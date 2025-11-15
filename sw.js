@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v3'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v1';
+const CACHE_NAME = 'quicklocal-v4'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v2'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v2'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v3'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -23,9 +23,6 @@ const STATIC_URLS_TO_CACHE = [
   '/css/skeleton-loading.css',
   '/css/micro-interactions.css',
   
-  // NOTE: All dynamic JS files have been REMOVED from this list (e.g., marketplace.js,
-  // marketplace-integration.js, marketplace-api-patch.js, etc.) to ensure the browser 
-  // always fetches the latest version from the network during development.
   '/js/main.js',
   '/js/auth.js',
   '/js/offline-mode.js',
@@ -34,27 +31,29 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('[SW] Installing v4...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching static files');
+        console.log('[SW] Caching static files');
         return cache.addAll(STATIC_URLS_TO_CACHE).catch((error) => {
-          console.error('Service Worker: Cache addAll failed', error);
-          // If some files fail, log and continue, don't fail the whole install
+          console.error('[SW] Cache addAll failed', error);
         });
       })
   );
+  
+  // Force immediate activation
+  self.skipWaiting();
 });
 
-// Add this function to periodically clean stale API cache
+// CRITICAL FIX: Cleanup stale API cache with shorter TTL
 async function cleanupStaleAPICache() {
     const cache = await caches.open(API_CACHE_NAME);
     const requests = await cache.keys();
     
     const now = Date.now();
-    const MAX_AGE = 5 * 60 * 1000; // 5 minutes
+    const MAX_AGE = 2 * 60 * 1000; // REDUCED to 2 minutes for API calls
     
     for (const request of requests) {
         const response = await cache.match(request);
@@ -64,7 +63,7 @@ async function cleanupStaleAPICache() {
                 const age = now - new Date(dateHeader).getTime();
                 if (age > MAX_AGE) {
                     await cache.delete(request);
-                    console.log('[SW] Removed stale API cache:', request.url);
+                    console.log('[SW] ✅ Removed stale API cache:', request.url);
                 }
             }
         }
@@ -73,28 +72,29 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
-  // Only keep caches with the latest names
+  console.log('[SW] Activating v4...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!cacheWhitelist.includes(cacheName)) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-        console.log('[SW] Cleaning up stale API cache...');
-        return cleanupStaleAPICache();
+    Promise.all([
+      // Delete old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (!cacheWhitelist.includes(cacheName)) {
+              console.log('[SW] ✅ Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clean stale API cache
+      cleanupStaleAPICache()
+    ]).then(() => {
+      console.log('[SW] ✅ Cleanup complete');
+      return self.clients.claim();
     })
   );
-  
-  // Ensure the Service Worker takes control of clients immediately
-  event.waitUntil(self.clients.claim());
 });
 
 // Helper function to check if request is API
@@ -108,46 +108,59 @@ function isStaticRequest(url) {
   return staticExtensions.some(ext => url.includes(ext));
 }
 
-// Fetch event - serving content
+// CRITICAL FIX: Enhanced fetch with proper cache control
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const requestUrl = new URL(request.url);
   
-  // --- START OF FIX ---
   // Skip caching for all non-GET requests
   if (request.method !== 'GET') {
     event.respondWith(fetch(request));
     return;
   }
-  // --- END OF FIX ---
 
   const isApi = isAPIRequest(request.url);
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
   const isStatic = isStaticRequest(request.url);
 
-  // 1. API Cache Strategy (Stale-While-Revalidate) - NOW ONLY FOR GET
+  // 1. CRITICAL FIX: API Cache Strategy - Network First with short-lived cache
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {
-        return cache.match(request).then((cachedResponse) => {
-          const fetchedCopy = fetch(request).then((response) => {
-            if (response.ok) {
-              // Cache the new response
-              cache.put(request, response.clone());
+        // Always try network first for API calls
+        return fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse.ok) {
+              // Clone and cache the response with timestamp
+              const responseToCache = networkResponse.clone();
+              cache.put(request, responseToCache);
+              console.log('[SW] 🔄 Cached fresh API response:', requestUrl.pathname);
             }
-            return response;
-          }).catch((error) => {
-            console.warn(`[SW] API fetch failed for ${requestUrl.pathname}:`, error.message);
-            // This is handled by returning the cachedResponse if available
+            return networkResponse;
+          })
+          .catch(async (error) => {
+            console.warn('[SW] ⚠️ Network failed, trying cache:', requestUrl.pathname);
+            
+            // Only use cache as fallback when offline
+            const cachedResponse = await cache.match(request);
+            if (cachedResponse) {
+              console.log('[SW] 📦 Serving stale API from cache (offline):', requestUrl.pathname);
+              
+              // Add header to indicate this is cached
+              const headers = new Headers(cachedResponse.headers);
+              headers.append('X-Cache-Status', 'STALE');
+              
+              return new Response(cachedResponse.body, {
+                status: cachedResponse.status,
+                statusText: cachedResponse.statusText,
+                headers: headers
+              });
+            }
+            
+            // No cache available
+            console.error('[SW] ❌ No cache available for:', requestUrl.pathname);
+            throw error;
           });
-
-          if (cachedResponse) {
-            console.log(`[SW] Serving API from cache: ${requestUrl.href}`);
-            return cachedResponse;
-          }
-          
-          return fetchedCopy;
-        });
       })
     );
     return;
@@ -176,12 +189,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets Strategy (Cache-First) - Now only for HTML/CSS/Core JS
+  // 3. Static Assets Strategy (Cache-First) - Only for HTML/CSS/Core JS
   if (isStatic) {
     event.respondWith(
       caches.match(request).then((response) => {
         if (response) {
-          console.log(`[SW] Serving static file from cache: ${requestUrl.href}`);
+          console.log('[SW] 📦 Serving static file from cache:', requestUrl.href);
           return response;
         }
         // Fall back to network
@@ -203,7 +216,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Messaging event for version control and offline data
+// Messaging event for version control and cache management
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -211,6 +224,18 @@ self.addEventListener('message', (event) => {
 
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
+  }
+
+  // NEW: Force cache clear command
+  if (event.data && event.data.type === 'CLEAR_API_CACHE') {
+    caches.open(API_CACHE_NAME).then((cache) => {
+      cache.keys().then((requests) => {
+        requests.forEach((request) => {
+          cache.delete(request);
+        });
+      });
+    });
+    event.ports[0].postMessage({ success: true });
   }
 
   // Handle offline data storage
@@ -226,30 +251,28 @@ self.addEventListener('message', (event) => {
       event.ports[0].postMessage({ success: false, error: error.message });
     }
   }
-
-  // Handle POST request skipping
-  if (event.data && event.data.type === 'SKIP_POST_CACHING') {
-    console.log('[SW] Received instruction to skip POST caching');
-  }
 });
 
 // Periodic Background Sync (if supported)
 self.addEventListener('periodicsync', (event) => {
-  console.log('Service Worker: Periodic background sync', event.tag);
+  console.log('[SW] Periodic background sync', event.tag);
 
   if (event.tag === 'update-order-status') {
     event.waitUntil(updateOrderStatusInBackground());
+  }
+  
+  // NEW: Clean stale cache periodically
+  if (event.tag === 'clean-cache') {
+    event.waitUntil(cleanupStaleAPICache());
   }
 });
 
 // Update order status in background
 async function updateOrderStatusInBackground() {
   try {
-    // Fetch latest order status for active orders
     const response = await fetch('https://ecommerce-backend-mlik.onrender.com/api/v1/orders/active-status');
     const orders = await response.json();
 
-    // Send status updates to any open tabs
     const clients = await self.clients.matchAll();
     clients.forEach(client => {
       client.postMessage({
@@ -260,7 +283,8 @@ async function updateOrderStatusInBackground() {
     });
 
   } catch (error) {
-    // Handle error
-    console.error('Background sync failed:', error);
+    console.error('[SW] Background sync failed:', error);
   }
 }
+
+console.log('[SW] ✅ Service Worker v4 loaded with API cache fixes');
