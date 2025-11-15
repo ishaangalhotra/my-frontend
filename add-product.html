@@ -1371,86 +1371,152 @@
         }
 
         async function deleteProduct(productId) {
-            try {
-                console.log('🗑️ Attempting to delete product:', productId);
-                
-                if (!window.HybridAuthClient) {
-                    showAlert('Authentication client not loaded. Please refresh.', 'error');
-                    return;
-                }
-                
-                const response = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
-                    method: 'DELETE'
-                });
+            try {
+                console.log('🗑️ DELETE: Starting deletion for product:', productId);
+                console.log('📍 API Base URL:', API_BASE_URL);
+                
+                if (!window.HybridAuthClient) {
+                    showAlert('Authentication client not loaded. Please refresh the page.', 'error');
+                    console.error('❌ HybridAuthClient not available');
+                    return;
+                }
+                
+                // Show loading state on buttons
+                const deleteButtons = document.querySelectorAll(`[onclick*="${productId}"]`);
+                deleteButtons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                });
+                
+                // CRITICAL: Use proper endpoint format
+                const deleteEndpoint = `/products/${productId}`;
+                console.log('🎯 DELETE endpoint:', deleteEndpoint);
+                
+                // Make DELETE request
+                console.log('📡 Sending DELETE request...');
+                const response = await window.HybridAuthClient.apiCall(deleteEndpoint, {
+                    method: 'DELETE'
+                });
 
-                console.log('Delete response status:', response.status);
-                console.log('Delete response ok:', response.ok);
-                
-                const responseText = await response.text();
-                console.log('Delete response text:', responseText);
-                
-                let result;
-                try {
-                    if (responseText.trim()) {
-                        result = JSON.parse(responseText);
-                        console.log('Parsed delete result:', result);
-                    } else {
-                        result = { success: true };
-                    }
-                } catch (parseError) {
-                    console.warn('Could not parse delete response as JSON:', parseError);
-                    if (response.ok) {
-                        result = { success: true };
-                    } else {
-                        throw new Error(`Server returned non-JSON response: ${responseText}`);
-                    }
-                }
+                console.log('📥 Response received:');
+                console.log('  Status:', response.status);
+                console.log('  OK:', response.ok);
+                console.log('  StatusText:', response.statusText);
+                
+                // Handle 204 No Content (successful deletion with no body)
+                if (response.status === 204) {
+                    console.log('✅ Product deleted successfully (204 No Content)');
+                    showAlert('Product deleted successfully!', 'success');
+                    
+                    // Remove from local arrays
+                    const initialCount = allProducts.length;
+                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
+                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
+                    
+                    console.log(`🔄 Products reduced from ${initialCount} to ${allProducts.length}`);
+                    
+                    renderProducts();
+                    loadStatistics();
+                    return;
+                }
+                
+                // Try to parse response body
+                let result;
+                const responseText = await response.text();
+                console.log('📄 Response text:', responseText || '(empty)');
+                
+                if (responseText.trim()) {
+                    try {
+                        result = JSON.parse(responseText);
+                        console.log('✅ Parsed JSON:', result);
+                    } catch (parseError) {
+                        console.warn('⚠️ Could not parse as JSON');
+                        
+                        // If response is OK but not JSON, consider it success
+                        if (response.ok || response.status === 200) {
+                            result = { success: true };
+                        } else {
+                            throw new Error(`Server error: ${responseText.substring(0, 200)}`);
+                        }
+                    }
+                } else {
+                    // Empty response
+                    if (response.ok || response.status === 200) {
+                        result = { success: true };
+                    } else {
+                        throw new Error(`Empty response with status ${response.status}`);
+                    }
+                }
 
-                if (result.success || response.ok || response.status === 204) {
-                    console.log('✅ Product deleted successfully');
-                    showAlert('Product deleted successfully!', 'success');
-                    
-                    // Remove from local arrays
-                    const initialCount = allProducts.length;
-                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
-                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
-                    
-                    console.log(`Products reduced from ${initialCount} to ${allProducts.length}`);
-                    
-                    renderProducts();
-                    loadStatistics(); // Refresh statistics
-                } else {
-                    console.error('❌ Delete failed:', result);
-                    throw new Error(result.message || result.error || `Failed to delete product (Status: ${response.status})`);
-                }
-            } catch (error) {
-                console.error('❌ Error deleting product:', error);
-                
-                let errorMessage = 'Failed to delete product.';
-                if (error.message.includes('401') || error.message.includes('403')) {
-                    errorMessage += ' You may not have permission for this action.';
-                } else if (error.message.includes('404')) {
-                    errorMessage += ' Product not found on server.';
-                } else if (error.message.includes('500')) {
-                    errorMessage += ' Server error - please try again later.';
-                } else {
-                    errorMessage += ` ${error.message}`;
-                }
-                
-                showAlert(errorMessage, 'error');
-                
-                const debugInfo = document.createElement('div');
-                debugInfo.className = 'debug-info';
-                debugInfo.innerHTML = `
-                    <strong>Debug Information for Product Deletion:</strong><br>
-                    Product ID: ${productId}<br>
-                    Error: ${error.message}<br>
-                    API URL: ${API_BASE_URL}/products/${productId}<br>
-                    <br>
-                    Check the browser console (F12) for more details.
-                `;
-                document.getElementById('alertContainer').appendChild(debugInfo);
-            }
+                // Check if deletion was successful
+                if (result.success || response.ok || response.status === 200 || response.status === 204) {
+                    console.log('✅ Product deleted successfully');
+                    showAlert('Product deleted successfully!', 'success');
+                    
+                    // Remove from local arrays
+                    const initialCount = allProducts.length;
+                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
+                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
+                    
+                    console.log(`🔄 Products reduced from ${initialCount} to ${allProducts.length}`);
+                    
+                    renderProducts();
+                    loadStatistics();
+                } else {
+                    console.error('❌ Delete failed:', result);
+                    throw new Error(result.message || result.error || `Delete failed with status ${response.status}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error deleting product:', error);
+                console.error('   Type:', error.name);
+                console.error('   Message:', error.message);
+                console.error('   Stack:', error.stack);
+                
+                let errorMessage = 'Failed to delete product. ';
+                
+                if (error.message.includes('401')) {
+                    errorMessage += 'Authentication required. Please login again.';
+                } else if (error.message.includes('403')) {
+                    errorMessage += 'You do not have permission to delete this product.';
+                } else if (error.message.includes('404')) {
+                    errorMessage += 'Product not found on server (may already be deleted).';
+                    
+                    // Remove from local state anyway
+                    allProducts = allProducts.filter(p => (p._id || p.id) !== productId);
+                    filteredProducts = filteredProducts.filter(p => (p._id || p.id) !== productId);
+                    renderProducts();
+                    loadStatistics();
+                    
+                    showAlert('Product removed from view (not found on server).', 'info');
+                    return;
+                } else if (error.message.includes('500')) {
+                    errorMessage += 'Server error. Please try again later.';
+                } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Network error. Check your connection.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showAlert(errorMessage, 'error');
+                
+                // Debug info
+                console.group('🐛 Debug Information');
+                console.log('Product ID:', productId);
+                console.log('API Base URL:', API_BASE_URL);
+                console.log('Full endpoint:', `${API_BASE_URL}/products/${productId}`);
+                console.log('HybridAuthClient:', !!window.HybridAuthClient);
+          T     console.log('Products count:', allProducts.length);
+                console.groupEnd();
+                
+            } finally {
+                // Re-enable delete buttons
+                const deleteButtons = document.querySelectorAll(`[onclick*="${productId}"]`);
+                deleteButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                });
+            }
         }
 
         // Product editing functionality (basic implementation)
@@ -1616,60 +1682,88 @@
             return div.innerHTML;
         }
         
-        // Debug function to test API endpoints
-        window.testDeleteAPI = async function(productId) {
-            console.log('🧪 Testing DELETE API endpoint...');
-            console.log('Product ID:', productId);
-            console.log('API Base URL:', API_BASE_URL);
-            console.log('Full URL:', `${API_BASE_URL}/products/${productId}`);
-            
-            try {
-                if (!window.HybridAuthClient) {
-                    console.log('No auth client found, using manual fetch');
-                    const headers = { 'Content-Type': 'application/json' };
-                    const token = localStorage.getItem('token') || 
-                                 localStorage.getItem('accessToken') || 
-                                 localStorage.getItem('quicklocal_access_token');
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-                    
-                    const deleteResponse = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                        method: 'DELETE',
-                        headers: headers
-                    });
-                    
-                    console.log('DELETE response status:', deleteResponse.status);
-                    const responseText = await deleteResponse.text();
-                    console.log('DELETE response text:', responseText);
-                    
-                } else {
-                    console.log('Using auth client for DELETE request');
-                    const deleteResponse = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
-                        method: 'DELETE'
-                    });
-                    
-                    console.log('DELETE response status:', deleteResponse.status);
-                    const responseText = await deleteResponse.text();
-                    console.log('DELETE response text:', responseText);
-                }
-                
-            } catch (error) {
-                console.error('🔴 Test failed:', error);
-            }
+        // ============================================================================
+        // NEW DEBUG FUNCTION REPLACES OLD testDeleteAPI and debugDeleteProduct
+        // ============================================================================
+        window.debugDeleteProduct = async function(productId) {
+            console.log('🐛 === DEBUG DELETE PRODUCT ===');
+            console.log('Product ID:', productId);
+            
+            // Check if product exists locally
+            const product = allProducts.find(p => (p._id || p.id) === productId);
+            console.log('Product in local array:', product ? '✅ Found' : '❌ Not found');
+            if (product) {
+                console.log('  Name:', product.name);
+                console.log('  ID:', product._id || product.id);
+            }
+            
+            // Check API availability
+            console.log('\n📡 API Check:');
+            console.log('  Base URL:', API_BASE_URL);
+            console.log('  Full URL:', `${API_BASE_URL}/products/${productId}`);
+            console.log('  HybridAuthClient:', !!window.HybridAuthClient);
+            
+            // Test authentication
+            if (window.HybridAuthClient) {
+                try {
+                    const isAuth = await window.HybridAuthClient.isAuthenticated();
+                    console.log('  Authenticated:', isAuth ? '✅' : '❌');
+                    
+                    if (isAuth) {
+                        const user = window.HybridAuthClient.getCurrentUser();
+                        console.log('  User:', user?.email || user?.name);
+                        console.log('  Role:', user?.role);
+                    }
+                } catch (e) {
+                    console.log('  Auth check failed:', e.message);
+                }
+            }
+            
+            // Test DELETE API call
+            console.log('\n🧪 Testing DELETE API:');
+            try {
+                const response = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
+                    method: 'DELETE'
+                });
+                
+                console.log('  Status:', response.status);
+                console.log('  OK:', response.ok);
+                console.log('  StatusText:', response.statusText);
+                
+                const text = await response.text();
+                console.log('  Body:', text || '(empty)');
+                
+                if (text) {
+                    try {
+                        const json = JSON.parse(text);
+                        console.log('  JSON:', json);
+                    } catch (e) {
+                        console.log('s (Not JSON)');
+                    }
+                }
+                
+                if (response.status === 200 || response.status === 204) {
+                    console.log('  ✅ DELETE SUCCESSFUL');
+                } else if (response.status === 404) {
+                    console.log('  ⚠️ NOT FOUND (404)');
+                } else if (response.status === 403) {
+                    console.log('  ❌ FORBIDDEN (403)');
+                } else if (response.status === 401) {
+                    console.log('  ❌ UNAUTHORIZED (401)');
+                } else {
+                    console.log('  ❌ FAILED:', response.status);
+          T     }
+                
+            } catch (error) {
+                console.error('  ❌ API call failed:', error.message);
+                console.error('  Full error:', error);
+            }
+            
+            console.log('=== END DEBUG ===');
         };
-        
-        // Add this function to global scope for easy testing
-        window.debugDeleteProduct = function(productId) {
-            console.log('🐛 Debug delete for product:', productId);
-            const product = allProducts.find(p => (p._id || p.id) === productId);
-            if (product) {
-                console.log('Product found in local array:', product);
-                testDeleteAPI(productId);
-            } else {
-                console.log('❌ Product not found in local array');
-            }
-        };
+
+        console.log('✅ Enhanced deleteProduct() loaded');
+        console.log('💡 Debug command: window.debugDeleteProduct("PRODUCT_ID")');
 
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'block' : 'none';
