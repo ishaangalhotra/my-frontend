@@ -533,7 +533,6 @@
 
         <div id="alertContainer"></div>
 
-        <!-- Add Product Tab -->
         <div id="add-product" class="tab-content active">
             <form id="productForm" class="form-card">
                 <div class="form-group">
@@ -650,7 +649,6 @@
             </div>
         </div>
 
-        <!-- Manage Products Tab -->
         <div id="manage-products" class="tab-content">
             <div class="products-header">
                 <div class="search-filters">
@@ -678,7 +676,6 @@
             </div>
         </div>
 
-        <!-- Statistics Tab -->
         <div id="statistics" class="tab-content">
             <div class="stats-cards">
                 <div class="stat-card">
@@ -1004,7 +1001,7 @@
                     const action = isEditing ? 'updated' : 'added';
                     showAlert(`Product ${action} successfully! 🎉`, 'success');
                     
-                    // Clear cache
+                    // Clear cache safely
                     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                         navigator.serviceWorker.controller.postMessage({
                             type: 'CLEAR_API_CACHE'
@@ -1072,7 +1069,7 @@
             
             try {
                 productsGrid.innerHTML = `
-                    <div class="loading">
+                    <div class="loading" style="display: block;">
                         <div class="spinner"></div>
                         <p>Loading products...</p>
                     </div>
@@ -1080,7 +1077,7 @@
                 
                 console.log('📦 Loading products...');
                 
-                // Clear service worker cache
+                // FIX: Safely clear service worker cache (prevents crash if controller is null)
                 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.controller.postMessage({
                         type: 'CLEAR_API_CACHE'
@@ -1088,25 +1085,20 @@
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
-                const cacheBuster = `_t=${Date.now()}&_v=${Math.random()}`;
+                // FIX: Removed Cache-Control headers that were causing CORS errors.
+                // We rely solely on the cacheBuster parameter now.
+                const cacheBuster = `_t=${Date.now()}`;
                 let response;
                 
                 if (window.HybridAuthClient) {
                     response = await window.HybridAuthClient.apiCall(`/products?limit=1000&${cacheBuster}`, {
-                        method: 'GET',
-                        headers: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
-                        }
+                        method: 'GET'
+                        // Headers removed to prevent CORS preflight failure
                     });
                 } else {
                     response = await fetch(`${API_BASE_URL}/products?limit=1000&${cacheBuster}`, {
-                        method: 'GET',
-                        headers: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
-                        },
-                        cache: 'no-store'
+                        method: 'GET'
+                        // Headers removed to prevent CORS preflight failure
                     });
                 }
 
@@ -1128,7 +1120,7 @@
                             <i class="fas fa-box-open"></i>
                             <h3>No products found</h3>
                             <p>Add some products to get started!</p>
-                            <button onclick="document.querySelector('[data-tab=\\"add-product\\"]').click()" class="btn btn-primary">
+                            <button onclick="document.querySelector('[data-tab=\\'add-product\\']').click()" class="btn btn-primary">
                                 <i class="fas fa-plus"></i> Add Your First Product
                             </button>
                         </div>
@@ -1149,6 +1141,9 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         <h3>Error loading products</h3>
                         <p>${error.message}</p>
+                        <p style="font-size: 0.8rem; margin-top: 10px; color: #666;">
+                           If this persists, try logging out and logging back in.
+                        </p>
                         <button onclick="loadAllProducts()" class="btn btn-primary">
                             <i class="fas fa-sync"></i> Try Again
                         </button>
@@ -1291,12 +1286,9 @@
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
                 });
                 
-                const cacheBuster = `_t=${Date.now()}`;
-                const response = await window.HybridAuthClient.apiCall(`/products/${productId}?${cacheBuster}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
+                // FIX: Removed headers causing CORS issues
+                const response = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
+                    method: 'DELETE'
                 });
 
                 if (response.status === 200 || response.status === 204) {
@@ -1304,6 +1296,7 @@
                     
                     showAlert('Product deleted successfully!', 'success');
                     
+                    // FIX: Safe Service Worker check
                     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                         navigator.serviceWorker.controller.postMessage({
                             type: 'CLEAR_API_CACHE'
@@ -1317,7 +1310,13 @@
                     loadStatistics();
                     
                 } else {
-                    throw new Error(`Delete failed with status ${response.status}`);
+                    // Try to parse error message
+                    let errorMsg = `Delete failed with status ${response.status}`;
+                    try {
+                        const data = await response.json();
+                        errorMsg = data.message || errorMsg;
+                    } catch(e) {}
+                    throw new Error(errorMsg);
                 }
                 
             } catch (error) {
