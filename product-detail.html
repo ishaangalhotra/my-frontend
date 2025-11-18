@@ -746,8 +746,7 @@
         </div>
         
         <div class="product-detail-container" id="productDetail">
-            <!-- Product details will be populated here -->
-        </div>
+            </div>
     </div>
 
     <div class="image-zoom-overlay" id="imageZoomOverlay">
@@ -762,7 +761,6 @@
         <span id="notificationText">Item added to cart!</span>
     </div>
 
-    <!-- Load necessary scripts first -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script src="js/api-fix.js"></script>
     
@@ -1267,18 +1265,16 @@
                 // If user is logged in, try to add to backend cart
                 if (auth.isLoggedIn()) {
                     try {
-                        const cartItem = {
-                            productId: currentProduct.id || currentProduct._id,
-                            quantity: currentQuantity,
-                            price: currentProduct.finalPrice || currentProduct.price
-                        };
-                        
-                        const response = await api.request('/cart/add', {
+                        // Use /cart/items to match marketplace.html
+                        const response = await api.request('/cart/items', {
                             method: 'POST',
-                            body: JSON.stringify(cartItem)
+                            body: JSON.stringify({
+                                productId: currentProduct.id || currentProduct._id,
+                                quantity: currentQuantity
+                            })
                         });
                         
-                        if (response.success) {
+                        if (response.success || response.data) {
                             showNotification(`${currentProduct.name} added to cart!`, 'success');
                         } else {
                             throw new Error('Failed to add to backend cart');
@@ -1289,16 +1285,20 @@
                     }
                 }
                 
-                // Always update localStorage cart for consistency
+                // Always update localStorage cart for consistency and offline support
                 let cart = JSON.parse(localStorage.getItem('quicklocal_cart')) || [];
-                const existingItem = cart.find(item => item.id === (currentProduct.id || currentProduct._id));
+                const productId = currentProduct.id || currentProduct._id;
+                const existingItem = cart.find(item => item.id === productId);
                 
                 if (existingItem) {
                     existingItem.quantity += currentQuantity;
-                    showNotification(`Updated quantity in cart! (${existingItem.quantity} items)`, 'success');
+                    // Only show if we didn't already show a success message from backend
+                    if (!auth.isLoggedIn()) {
+                        showNotification(`Updated quantity! (${existingItem.quantity} items)`, 'success');
+                    }
                 } else {
                     cart.push({
-                        id: currentProduct.id || currentProduct._id,
+                        id: productId,
                         title: currentProduct.name,
                         price: currentProduct.finalPrice || currentProduct.price,
                         quantity: currentQuantity,
@@ -1308,7 +1308,6 @@
                         seller: currentProduct.seller || 'QuickLocal'
                     });
                     
-                    // Only show notification if not already shown above
                     if (!auth.isLoggedIn()) {
                         showNotification(`${currentProduct.name} added to cart!`, 'success');
                     }
@@ -1455,7 +1454,6 @@
         });
     </script>
 
-    <!-- Related Products Section -->
     <section class="related-products" id="relatedProductsSection" style="margin-top: 40px; padding: 40px; background: #f8fafc; border-radius: 20px;">
         <div class="container">
             <h3 style="text-align: center; margin-bottom: 30px; font-size: 2rem; color: #333;">You might also like</h3>
