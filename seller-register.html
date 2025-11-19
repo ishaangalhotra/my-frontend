@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Become a Seller | QuickLocal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1; --primary-dark: #4338ca; --bg-secondary: #f8fafc;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+        
+        .register-card {
+            background: white; width: 100%; max-width: 500px; padding: 2.5rem;
+            border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+        }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h2 { color: #1e293b; margin-bottom: 0.5rem; }
+        .header p { color: #64748b; font-size: 0.95rem; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .full-width { grid-column: span 2; }
+        
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 600; color: #334155; }
+        .form-control {
+            width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .btn {
+            width: 100%; padding: 1rem; background: var(--primary); color: white;
+            border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer;
+            margin-top: 1rem; font-size: 1rem;
+        }
+        .btn:hover { background: var(--primary-dark); }
+        
+        .message { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: none; font-size: 0.9rem; }
+        .message.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .message.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    </style>
+</head>
+<body>
+    <div class="register-card">
+        <div class="header">
+            <i class="fas fa-store fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+            <h2>Start Selling Today</h2>
+            <p>Join thousands of local sellers on QuickLocal</p>
+        </div>
+
+        <div id="msgBox" class="message"></div>
+
+        <form id="sellerRegForm">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label class="form-label">Business / Shop Name</label>
+                    <input type="text" name="shopName" class="form-control" required placeholder="e.g. Mohan's Electronics">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Owner Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="Full Name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-control" required placeholder="Mobile Number">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control" required placeholder="business@example.com">
+                </div>
+
+                <div class="form-group full-width">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" required minlength="6" placeholder="Min 6 characters">
+                </div>
+            </div>
+
+            <button type="submit" class="btn" id="regBtn">Create Seller Account</button>
+            
+            <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #64748b;">
+                Already have an account? <a href="seller-login.html" style="color: var(--primary); text-decoration: none;">Login here</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+
+        document.getElementById('sellerRegForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('regBtn');
+            const msg = document.getElementById('msgBox');
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Force role to seller
+            data.role = 'seller';
+
+            btn.disabled = true;
+            btn.innerText = 'Creating Account...';
+            msg.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) throw new Error(result.message || 'Registration failed');
+
+                msg.className = 'message success';
+                msg.textContent = '🎉 Account created successfully! Redirecting to login...';
+                msg.style.display = 'block';
+                
+                setTimeout(() => {
+                    window.location.href = 'seller-login.html';
+                }, 2000);
+
+            } catch (error) {
+                msg.className = 'message error';
+                msg.textContent = error.message;
+                msg.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = 'Create Seller Account';
+            }
+        });
+    </script>
+</body>
+</html>
