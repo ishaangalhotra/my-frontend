@@ -104,5 +104,3 @@
 
   window.SessionManager = manager;
 })();
-
-export default window.SessionManager;
