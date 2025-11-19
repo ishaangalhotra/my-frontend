@@ -1,6 +1,6 @@
 /**
  * Infinite Scroll - Load more products as user scrolls
- * Similar to Flipkart/Amazon infinite scroll
+ * Integrated with Global AppState and Advanced Search
  */
 
 class InfiniteScroll {
@@ -10,7 +10,11 @@ class InfiniteScroll {
     this.hasMore = true;
     this.isLoading = false;
     this.page = 1;
-    this.threshold = options.threshold || 200; // pixels from bottom
+    this.threshold = options.threshold || 300; // pixels from bottom
+    
+    // Bind methods
+    this.checkScrollPosition = this.checkScrollPosition.bind(this);
+    this.loadMore = this.loadMore.bind(this);
     
     this.init();
   }
@@ -25,11 +29,19 @@ class InfiniteScroll {
     if ('IntersectionObserver' in window) {
       this.setupIntersectionObserver();
     } else {
-      // Fallback to scroll event
       this.setupScrollListener();
     }
 
-    console.log('✅ Infinite scroll initialized');
+    // Listen for search results to reset pagination
+    document.addEventListener('searchResults', (e) => {
+        // When a new search happens, reset the infinite scroll page
+        const { currentPage, totalPages } = e.detail;
+        this.page = currentPage || 1;
+        this.hasMore = this.page < (totalPages || 1);
+        console.log(`🔄 InfiniteScroll reset: Page ${this.page}, HasMore: ${this.hasMore}`);
+    });
+
+    console.log('✅ Infinite scroll initialized (Integrated)');
   }
 
   setupIntersectionObserver() {
@@ -37,13 +49,20 @@ class InfiniteScroll {
     this.sentinel = document.createElement('div');
     this.sentinel.id = 'infinite-scroll-sentinel';
     this.sentinel.style.cssText = `
-      height: 1px;
+      height: 10px;
       width: 100%;
       visibility: hidden;
+      margin-top: 20px;
     `;
-    this.container.appendChild(this.sentinel);
+    
+    // Append sentinel after the product grid
+    // Note: We append to the parent of the grid if the grid is strictly for cards
+    if(this.container.parentNode) {
+        this.container.parentNode.appendChild(this.sentinel);
+    } else {
+        this.container.appendChild(this.sentinel);
+    }
 
-    // Observe sentinel
     this.observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
@@ -62,7 +81,6 @@ class InfiniteScroll {
 
   setupScrollListener() {
     let ticking = false;
-    
     window.addEventListener('scroll', () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
@@ -79,141 +97,161 @@ class InfiniteScroll {
     const windowHeight = window.innerHeight;
     const documentHeight = document.documentElement.scrollHeight;
 
-    const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
-
-    if (distanceFromBottom < this.threshold && this.hasMore && !this.isLoading) {
-      this.loadMore();
+    if (documentHeight - (scrollTop + windowHeight) < this.threshold) {
+        if (this.hasMore && !this.isLoading) {
+            this.loadMore();
+        }
     }
   }
 
   async loadMore() {
     if (this.isLoading || !this.hasMore) return;
 
-    this.isLoading = true;
-    this.page++;
+    // Double check appState to prevent over-fetching
+    if (window.appState && window.appState.isLoading) return;
 
-    // Show loading indicator
+    this.isLoading = true;
+    if(window.appState) window.appState.isLoading = true;
+
+    this.page++;
     this.showLoadingIndicator();
 
     try {
-      if (this.loadMoreCallback) {
-        const result = await this.loadMoreCallback(this.page);
+        // 1. Construct URL based on GLOBAL FILTERS
+        const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        let queryParams = new URLSearchParams();
         
-        if (result && result.hasMore !== undefined) {
-          this.hasMore = result.hasMore;
-        } else {
-          // Assume no more if callback returns falsy or empty array
-          this.hasMore = result && Array.isArray(result) && result.length > 0;
+        // Add Pagination
+        queryParams.append('page', this.page);
+        queryParams.append('limit', '20');
+
+        // Add Filters from Global State
+        if (window.appState && window.appState.currentFilters) {
+            const f = window.appState.currentFilters;
+            if (f.search) queryParams.append('search', f.search);
+            if (f.category) queryParams.append('category', f.category);
+            
+            // Handle price
+            if (f.priceRange) {
+                 // Parse logic matching advanced-search.js or marketplace.html
+                 if (f.priceRange === '5000+') {
+                     queryParams.append('minPrice', '5000');
+                 } else if (f.priceRange.includes('-')) {
+                     const [min, max] = f.priceRange.split('-');
+                     queryParams.append('minPrice', min);
+                     queryParams.append('maxPrice', max);
+                 }
+            }
+            if (f.sortBy) {
+                // Map sort values
+                if(f.sortBy === 'price-low') queryParams.append('sort', 'price_asc');
+                else if(f.sortBy === 'price-high') queryParams.append('sort', 'price_desc');
+                else if(f.sortBy === 'rating') queryParams.append('sort', 'rating_desc');
+                else queryParams.append('sort', 'name_asc');
+            }
         }
-      } else {
-        // Default: Load more products from API
-        await this.loadMoreProducts();
-      }
+
+        console.log(`📜 Infinite Scroll loading page ${this.page}`, queryParams.toString());
+
+        const response = await fetch(`${apiBaseUrl}/products?${queryParams.toString()}`);
+        const data = await response.json();
+        
+        let products = [];
+        if (data.success && data.data && data.data.products) {
+            products = data.data.products;
+        } else if (Array.isArray(data)) {
+            products = data;
+        } else if (data.products) {
+            products = data.products;
+        }
+
+        if (products.length > 0) {
+            this.appendProducts(products);
+            // Assume we have more if we got a full page
+            this.hasMore = products.length >= 10; 
+        } else {
+            this.hasMore = false;
+        }
+
     } catch (error) {
-      console.error('Infinite scroll load more error:', error);
+      console.error('Infinite scroll error:', error);
       this.hasMore = false;
     } finally {
       this.isLoading = false;
+      if(window.appState) window.appState.isLoading = false;
       this.hideLoadingIndicator();
     }
   }
 
-  async loadMoreProducts() {
-    const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 
-                      'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/products?page=${this.page}&limit=20`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const products = data.products || data.data || data;
-        
-        if (Array.isArray(products) && products.length > 0) {
-          // Append products to container
-          this.appendProducts(products);
-          this.hasMore = products.length >= 20; // Assume more if full page
-        } else {
-          this.hasMore = false;
-        }
-      } else {
-        this.hasMore = false;
-      }
-    } catch (error) {
-      console.error('Load more products error:', error);
-      this.hasMore = false;
-    }
-  }
-
   appendProducts(products) {
-    // This should be customized based on your product rendering
-    const productsGrid = this.container.querySelector('.products-grid') || this.container;
-    
+    // Use the same container
+    const grid = this.container.classList.contains('products-grid') ? 
+                 this.container : 
+                 this.container.querySelector('.products-grid');
+                 
+    if (!grid) return;
+
+    const fragment = document.createDocumentFragment();
+
     products.forEach(product => {
-      const productCard = this.createProductCard(product);
-      productsGrid.appendChild(productCard);
+        // FIX: Use the unified renderer if available to match UI
+        if (window.productCardUtils && typeof window.productCardUtils.generateProductCard === 'function') {
+            // Normalize data for the utility
+            const p = { ...product, id: product._id || product.id };
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = window.productCardUtils.generateProductCard(p);
+            const card = tempDiv.firstElementChild;
+            
+            // Ensure the card is visible for animation
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            fragment.appendChild(card);
+        } else {
+            // Fallback
+            const card = this.createFallbackCard(product);
+            fragment.appendChild(card);
+        }
     });
 
-    // Re-observe sentinel if using intersection observer
-    if (this.observer && this.sentinel) {
-      this.observer.observe(this.sentinel);
+    grid.appendChild(fragment);
+
+    // Trigger animations for new elements
+    requestAnimationFrame(() => {
+        const newCards = grid.querySelectorAll('.product-card[style*="opacity: 0"]');
+        newCards.forEach(card => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Re-attach variant listeners if needed
+    if (window.productCardUtils && window.productCardUtils.attachVariantListeners) {
+        window.productCardUtils.attachVariantListeners();
     }
   }
-
-  createProductCard(product) {
-    const card = document.createElement('div');
-    card.className = 'product-card product-card-interactive hover-lift';
-    card.dataset.productId = product._id || product.id;
-    card.innerHTML = `
-      <div class="product-image-zoom">
-        <img src="${product.images?.[0]?.url || 'https://placehold.co/300x200'}" 
-             alt="${product.name}"
-             loading="lazy">
-      </div>
-      <div style="padding: 1rem;">
-        <h3 style="font-size: 0.875rem; margin-bottom: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${product.name}
-        </h3>
-        <div style="font-size: 1.125rem; font-weight: 700; color: #6366f1; margin-bottom: 0.5rem;">
-          ₹${product.price}
+  
+  createFallbackCard(product) {
+      // Simplified fallback matching the main HTML structure
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.dataset.productId = product._id || product.id;
+      card.innerHTML = `
+        <div class="product-image-container">
+            <img src="${product.image || 'https://placehold.co/300x220'}" class="product-image" loading="lazy">
         </div>
-        ${product.averageRating ? `
-          <div style="font-size: 0.75rem; color: #64748b;">
-            ⭐ ${product.averageRating} (${product.reviewCount || 0})
-          </div>
-        ` : ''}
-      </div>
-    `;
-
-    // Add click handler
-    card.addEventListener('click', () => {
-      window.location.href = `/product-detail.html?id=${product._id || product.id}`;
-    });
-
-    return card;
+        <div class="product-content">
+            <h3 class="product-name">${product.name}</h3>
+            <div class="product-price">₹${product.price}</div>
+        </div>
+      `;
+      return card;
   }
 
   showLoadingIndicator() {
     if (this.sentinel) {
-      this.sentinel.innerHTML = `
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 2rem;
-          gap: 1rem;
-        ">
-          <div class="spinner"></div>
-          <span style="color: #64748b;">Loading more products...</span>
-        </div>
-      `;
+      this.sentinel.innerHTML = '<div class="spinner" style="margin:0 auto;"></div>';
       this.sentinel.style.visibility = 'visible';
     }
   }
@@ -224,25 +262,9 @@ class InfiniteScroll {
       this.sentinel.style.visibility = 'hidden';
     }
   }
-
-  reset() {
-    this.page = 1;
-    this.hasMore = true;
-    this.isLoading = false;
-  }
-
-  destroy() {
-    if (this.observer) {
-      this.observer.disconnect();
-    }
-    if (this.sentinel && this.sentinel.parentElement) {
-      this.sentinel.parentElement.removeChild(this.sentinel);
-    }
-  }
 }
 
-// Export for use
+// Export
 if (typeof window !== 'undefined') {
   window.InfiniteScroll = InfiniteScroll;
 }
-

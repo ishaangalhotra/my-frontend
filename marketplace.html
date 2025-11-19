@@ -2005,7 +2005,6 @@
     <script src="js/mobile-interactions.js"></script>
     <script src="js/debug-helper.js"></script>
     <script src="js/product-loading-fix.js"></script>
-    <script src="js/product-navigation-fix.js"></script>
     <script src="js/offline-mode.js"></script>
     <script src="js/ux-polish.js"></script>
     <script src="js/infinite-scroll.js"></script>
@@ -2588,91 +2587,63 @@
         }
 
         function initializeEventListeners() {
-            document.getElementById('applyFilters')?.addEventListener('click', applyAllFilters);
-            document.getElementById('clearFilters')?.addEventListener('click', clearAllFilters);
-            document.getElementById('categoryList')?.addEventListener('click', handleCategoryPillClick);
-            
-            const globalSearchInput = document.getElementById('globalSearchInput');
-            globalSearchInput?.addEventListener('input', debounce(handleGlobalSearch, 300));
-            
-            document.getElementById('prevPageBtn')?.addEventListener('click', () => {
-                if (appState.pagination.currentPage > 1) {
-                    goToPage(appState.pagination.currentPage - 1);
-                }
-            });
-            
-            document.getElementById('nextPageBtn')?.addEventListener('click', () => {
-                if (appState.pagination.currentPage < appState.pagination.totalPages) {
-                    goToPage(appState.pagination.currentPage + 1);
-                }
-            });
-            
-            document.getElementById('itemsPerPage')?.addEventListener('change', (e) => {
-                changeItemsPerPage(e.target.value);
-            });
-            
-            document.getElementById('category-filter')?.addEventListener('change', () => {
-                appState.pagination.currentPage = 1;
-                appState.currentFilters.page = 1;
-                applyAllFilters();
-            });
-            
-            document.getElementById('price-filter')?.addEventListener('change', () => {
-                appState.pagination.currentPage = 1;
-                appState.currentFilters.page = 1;
-                applyAllFilters();
-            });
-            
-            document.getElementById('sort-select')?.addEventListener('change', () => {
-                applyAllFilters();
-            });
-            
-            document.querySelectorAll('.carousel-container').forEach(initializeCarousel);
-            
-            window.addEventListener('scroll', handleScroll);
-            
-            document.getElementById('scrollToTop')?.addEventListener('click', scrollToTop);
-            
-            document.addEventListener('click', (e) => {
-                const productCard = e.target.closest('.product-card, .carousel-card');
-                if (productCard && !e.target.closest('.add-to-cart')) {
-                    const productId = productCard.getAttribute('data-product-id');
-                    if (productId && typeof handleCardClick === 'function') {
-                        handleCardClick(productId);
-                    }
-                }
-                
-                const addToCartBtn = e.target.closest('.add-to-cart');
-                if (addToCartBtn) {
-                    e.stopPropagation();
-                    const productCard = addToCartBtn.closest('.product-card');
-                    if (productCard) {
-                        const productId = productCard.getAttribute('data-product-id');
-                        if (productId && typeof handleAddToCart === 'function') {
-                            handleAddToCart(productId);
-                        }
-                    }
-                }
-                
-                const pageBtn = e.target.closest('.page-number[data-page]');
-                if (pageBtn && !pageBtn.classList.contains('ellipsis')) {
-                    const page = parseInt(pageBtn.getAttribute('data-page'));
-                    if (page && typeof goToPage === 'function') {
-                        goToPage(page);
-                    }
-                }
-                
-                const suggestionItem = e.target.closest('.suggestion-item[data-suggestion]');
-                if (suggestionItem) {
-                    const suggestion = suggestionItem.getAttribute('data-suggestion');
-                    if (suggestion && typeof performSearchFromSuggestion === 'function') {
-                        performSearchFromSuggestion(suggestion);
-                    }
-                }
-            });
-            
-            console.log('✅ Event listeners initialized');
+    // 1. Global Event Delegation (Replaces product-navigation-fix.js)
+    // This handles clicks for ALL product cards, even those loaded via Infinite Scroll
+    const productsContainer = document.getElementById('products-container');
+    const carousels = document.querySelectorAll('.carousel-track');
+
+    const handleGlobalClick = (e) => {
+        // A. Handle "Add to Cart" clicks
+        const addToCartBtn = e.target.closest('.add-to-cart');
+        if (addToCartBtn) {
+            e.stopPropagation(); // Prevent opening product detail
+            const card = addToCartBtn.closest('[data-product-id]');
+            if (card) {
+                handleAddToCart(card.getAttribute('data-product-id'));
+            }
+            return;
         }
+
+        // B. Handle Product Card clicks (Navigation)
+        const card = e.target.closest('.product-card, .carousel-card');
+        // Ensure we didn't click a button inside the card
+        if (card && !e.target.closest('button') && !e.target.closest('.action-btn')) {
+            const productId = card.getAttribute('data-product-id');
+            if (productId) {
+                handleCardClick(productId);
+            }
+        }
+    };
+
+    // Attach listener to the main grid
+    if (productsContainer) {
+        productsContainer.addEventListener('click', handleGlobalClick);
+    }
+
+    // Attach listeners to carousels
+    carousels.forEach(track => {
+        track.addEventListener('click', handleGlobalClick);
+    });
+
+    // 2. Existing Filter Listeners
+    document.getElementById('applyFilters')?.addEventListener('click', () => applyAllFilters());
+    document.getElementById('clearFilters')?.addEventListener('click', clearAllFilters);
+    
+    // 3. Category Pills
+    document.getElementById('categoryList')?.addEventListener('click', handleCategoryPillClick);
+    
+    // 4. Search Inputs
+    const globalSearchInput = document.getElementById('globalSearchInput');
+    if(globalSearchInput) {
+        globalSearchInput.addEventListener('input', debounce(handleGlobalSearch, 300));
+    }
+
+    // 5. Scroll to Top
+    document.getElementById('scrollToTop')?.addEventListener('click', scrollToTop);
+
+    console.log('✅ Optimized Event Delegation initialized');
+}
+
 
         function initializeScrollEffects() {
             const header = document.getElementById('header');
