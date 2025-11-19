@@ -826,32 +826,52 @@
         await saveAddress();
 
         const formData = new FormData(document.getElementById('checkoutForm'));
-        const shippingAddress = Object.fromEntries(formData.entries());
+        const shippingAddressData = Object.fromEntries(formData.entries());
 
-        // 1. STRICT ITEMS FORMATTING (FIX FOR 500 ERROR)
-        // Ensure we are sending simple objects, not complex references
-        const items = checkoutState.cart.items.map(item => ({ 
-            product: item.productId || item.product?._id || item.product, 
-            quantity: Number(item.quantity || 1) 
-        }));
+        // FIXED: Robust item mapping to ensure strict Product ID strings
+        const items = checkoutState.cart.items.map(item => {
+            // Prioritize the explicit ID string from advanced-cart.js
+            let id = item.productId;
+            
+            // Fallback: if product is an object (populated), extract its ID
+            if (!id && item.product && typeof item.product === 'object') {
+                id = item.product._id || item.product.id;
+            }
+            
+            // Fallback: if product is just the string ID
+            if (!id && typeof item.product === 'string') {
+                id = item.product;
+            }
 
-        // 2. CLEAN PAYLOAD CONSTRUCTION
+            return {
+                product: id, // Mongoose expects the ID string here
+                quantity: Number(item.quantity || 1)
+            };
+        });
+
+        // FIXED: Robust total amount parsing
+        let total = 0;
+        if (checkoutState.cart.pricing && checkoutState.cart.pricing.total !== undefined) {
+            total = parseFloat(checkoutState.cart.pricing.total);
+        }
+        
+        // Clean Payload Construction
         const orderPayload = {
             items: items,
             shippingAddress: {
-                name: shippingAddress.name,
-                address: shippingAddress.address,
-                city: shippingAddress.city,
-                state: shippingAddress.state,
-                postalCode: shippingAddress.pincode,
-                phone: shippingAddress.phone,
-                country: shippingAddress.country || 'India'
+                name: shippingAddressData.name,
+                address: shippingAddressData.address,
+                city: shippingAddressData.city,
+                state: shippingAddressData.state,
+                postalCode: shippingAddressData.pincode, // Ensure field mapping matches backend
+                phone: shippingAddressData.phone,
+                country: shippingAddressData.country || 'India'
             },
-            paymentMethod: checkoutState.selectedPayment,
-            totalAmount: checkoutState.cart.pricing.total // Explicit total to help backend validation
+            paymentMethod: checkoutState.selectedPayment || 'card',
+            totalAmount: total
         };
 
-        // 3. CONDITIONAL COUPON (FIX FOR 500 ERROR)
+        // Conditional Coupon
         if (checkoutState.cart?.appliedCoupon?.code) {
             orderPayload.couponCode = checkoutState.cart.appliedCoupon.code;
         }
