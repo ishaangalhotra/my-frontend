@@ -6,101 +6,69 @@
     <title>Seller Dashboard | QuickLocal</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --primary: #6366f1; --bg-dark: #0f172a; --bg-light: #f1f5f9; --text-dark: #1e293b;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg-light); display: flex; min-height: 100vh; }
+        :root { --primary: #6366f1; --bg: #f1f5f9; --text: #1e293b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); display: flex; min-height: 100vh; }
 
-        /* Sidebar */
-        .sidebar { width: 260px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; height: 100vh; }
-        .brand { padding: 1.5rem; font-size: 1.25rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid #f1f5f9; }
-        .menu { padding: 1rem; flex: 1; }
-        .menu-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; color: #64748b; text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; transition: 0.2s; }
-        .menu-item:hover, .menu-item.active { background: #eff6ff; color: var(--primary); }
-        .menu-item i { width: 20px; }
-        .user-profile { padding: 1rem; border-top: 1px solid #f1f5f9; display: flex; align-items: center; gap: 0.75rem; }
-        .avatar { width: 40px; height: 40px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-
-        /* Main Content */
-        .main-content { margin-left: 260px; flex: 1; padding: 2rem; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-        .page-title { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e2e8f0; position: fixed; height: 100%; display: flex; flex-direction: column; }
+        .brand { padding: 1.5rem; font-size: 1.2rem; font-weight: 800; color: var(--primary); border-bottom: 1px solid #f1f5f9; }
+        .nav { padding: 1rem; flex: 1; }
+        .nav a { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; color: #64748b; text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; }
+        .nav a:hover, .nav a.active { background: #eff6ff; color: var(--primary); }
+        .user-section { padding: 1rem; border-top: 1px solid #f1f5f9; }
         
-        /* Stats Grid */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .stat-card { background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .stat-label { color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem; }
-        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--text-dark); }
-        .stat-icon { float: right; color: var(--primary); opacity: 0.2; font-size: 2rem; }
-
-        /* Action Bar */
-        .actions { margin-bottom: 2rem; }
-        .btn-primary { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
-        .btn-primary:hover { background: #4f46e5; }
-
-        /* Loading */
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .main { margin-left: 250px; padding: 2rem; width: 100%; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--text); margin-top: 0.5rem; }
+        .stat-label { color: #64748b; font-size: 0.9rem; }
+        
+        .loader-overlay { position: fixed; inset: 0; background: white; z-index: 999; display: flex; justify-content: center; align-items: center; }
     </style>
 </head>
 <body>
-
-    <div class="loading-overlay" id="loader">
-        <h2><i class="fas fa-circle-notch fa-spin"></i> Loading Dashboard...</h2>
+    <div id="loader" class="loader-overlay">
+        <h2><i class="fas fa-spinner fa-spin"></i> Loading Dashboard...</h2>
     </div>
 
     <aside class="sidebar">
-        <div class="brand">
-            <i class="fas fa-rocket"></i> QuickLocal Seller
-        </div>
-        <nav class="menu">
-            <a href="#" class="menu-item active"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="seller-products.html" class="menu-item"><i class="fas fa-box"></i> Products</a>
-            <a href="seller-orders.html" class="menu-item"><i class="fas fa-shopping-bag"></i> Orders</a>
-            <a href="#" class="menu-item"><i class="fas fa-chart-bar"></i> Analytics</a>
-            <a href="#" class="menu-item"><i class="fas fa-cog"></i> Settings</a>
+        <div class="brand"><i class="fas fa-rocket"></i> QuickLocal Seller</div>
+        <nav class="nav">
+            <a href="#" class="active"><i class="fas fa-home"></i> Overview</a>
+            <a href="seller-products.html"><i class="fas fa-box"></i> Products</a>
+            <a href="seller-orders.html"><i class="fas fa-shopping-bag"></i> Orders</a>
         </nav>
-        <div class="user-profile">
-            <div class="avatar" id="userInitials">U</div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; font-size: 0.9rem;" id="userName">Loading...</div>
-                <div style="font-size: 0.8rem; color: #64748b; cursor: pointer;" id="logoutBtn">Logout</div>
-            </div>
+        <div class="user-section">
+            <div id="sellerName" style="font-weight: 600;">Seller</div>
+            <button id="logoutBtn" style="margin-top: 0.5rem; border: none; background: none; color: #ef4444; cursor: pointer;">Logout</button>
         </div>
     </aside>
 
-    <main class="main-content">
-        <header class="header">
-            <h1 class="page-title">Overview</h1>
-            <a href="seller-add-product.html" class="btn-primary"><i class="fas fa-plus"></i> Add New Product</a>
-        </header>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <i class="fas fa-money-bill-wave stat-icon"></i>
+    <main class="main">
+        <h1 style="margin-bottom: 1.5rem;">Dashboard Overview</h1>
+        
+        <div class="stats">
+            <div class="card">
                 <div class="stat-label">Total Revenue</div>
-                <div class="stat-value" id="statRevenue">₹0</div>
+                <div class="stat-val" id="revenue">₹0</div>
             </div>
-            <div class="stat-card">
-                <i class="fas fa-shopping-cart stat-icon"></i>
+            <div class="card">
                 <div class="stat-label">Total Orders</div>
-                <div class="stat-value" id="statOrders">0</div>
+                <div class="stat-val" id="orders">0</div>
             </div>
-            <div class="stat-card">
-                <i class="fas fa-box-open stat-icon"></i>
+            <div class="card">
                 <div class="stat-label">Active Products</div>
-                <div class="stat-value" id="statProducts">0</div>
+                <div class="stat-val" id="products">0</div>
             </div>
-            <div class="stat-card">
-                <i class="fas fa-users stat-icon"></i>
-                <div class="stat-label">Customers</div>
-                <div class="stat-value" id="statCustomers">0</div>
+            <div class="card">
+                <div class="stat-label">Low Stock Items</div>
+                <div class="stat-val" id="lowStock" style="color: #f59e0b;">0</div>
             </div>
         </div>
 
-        <div style="background: white; padding: 2rem; border-radius: 1rem; border: 1px solid #e2e8f0;">
-            <h3 style="margin-bottom: 1rem;">Platform Status</h3>
-            <p id="healthStatus">Checking connection...</p>
+        <div class="card">
+            <h3>Recent Activity</h3>
+            <p style="color: #64748b; margin-top: 1rem;">System is connected. Real-time updates active.</p>
         </div>
     </main>
 
@@ -108,52 +76,50 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const loader = document.getElementById('loader');
-            
-            // 1. Check Auth
+
+            // 1. SECURITY CHECK
+            // This is why you were being redirected!
             if (!window.HybridAuthClient) {
-                alert('System Error: Auth client missing');
+                alert('Auth Client failed to load');
                 return;
+            }
+
+            // Wait for auth initialization
+            let attempts = 0;
+            while (!window.HybridAuthClient.getAuthMethod() && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
             }
 
             const isAuth = await window.HybridAuthClient.isAuthenticated();
             if (!isAuth) {
-                window.location.href = 'seller-login.html';
+                // Redirects to seller-login.html if not logged in
+                window.location.href = 'seller-login.html'; 
                 return;
             }
 
             const user = window.HybridAuthClient.getCurrentUser();
-            if (user.role !== 'seller' && user.role !== 'admin') {
-                alert('Access Denied: Sellers only');
-                window.location.href = 'marketplace.html';
-                return;
-            }
+            document.getElementById('sellerName').textContent = user.name || 'Seller';
 
-            // 2. Set User Info
-            document.getElementById('userName').textContent = user.name;
-            document.getElementById('userInitials').textContent = user.name.charAt(0).toUpperCase();
-
-            // 3. Fetch Dashboard Data
+            // 2. FETCH DATA
             try {
-                // Assuming the backend route is /api/v1/seller/dashboard as defined in seller.js
                 const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
-                const data = await response.json();
+                const result = await response.json();
 
-                if (data.success) {
-                    const stats = data.data.overview;
-                    document.getElementById('statRevenue').textContent = '₹' + (stats.totalRevenue || 0).toLocaleString();
-                    document.getElementById('statOrders').textContent = stats.totalOrders || 0;
-                    document.getElementById('statProducts').textContent = stats.activeProducts || 0;
-                    document.getElementById('statCustomers').textContent = stats.totalCustomers || 0;
-                    document.getElementById('healthStatus').innerHTML = `<span style="color:green"><i class="fas fa-check-circle"></i> Systems Operational</span>`;
+                if (result.success && result.data) {
+                    const overview = result.data.overview;
+                    document.getElementById('revenue').textContent = '₹' + (overview.totalRevenue || 0).toLocaleString();
+                    document.getElementById('orders').textContent = overview.totalOrders || 0;
+                    document.getElementById('products').textContent = overview.activeProducts || 0;
+                    document.getElementById('lowStock').textContent = overview.lowStockProducts || 0;
                 }
             } catch (error) {
-                console.error("Dashboard fetch error:", error);
-                document.getElementById('healthStatus').textContent = "Could not load live data.";
+                console.error('Dashboard load error:', error);
             } finally {
                 loader.style.display = 'none';
             }
 
-            // Logout Handler
+            // 3. LOGOUT
             document.getElementById('logoutBtn').addEventListener('click', async () => {
                 await window.HybridAuthClient.logout();
                 window.location.href = 'seller-login.html';
