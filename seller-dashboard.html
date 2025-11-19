@@ -6,125 +6,476 @@
     <title>Seller Dashboard | QuickLocal</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --primary: #6366f1; --bg: #f1f5f9; --text: #1e293b; }
+        :root { --primary: #6366f1; --primary-dark: #4338ca; --bg: #f1f5f9; --text: #1e293b; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); display: flex; min-height: 100vh; }
+        body { background: var(--bg); display: flex; min-height: 100vh; color: var(--text); }
 
-        .sidebar { width: 250px; background: white; border-right: 1px solid #e2e8f0; position: fixed; height: 100%; display: flex; flex-direction: column; }
+        /* Sidebar */
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e2e8f0; position: fixed; height: 100%; display: flex; flex-direction: column; z-index: 100; }
         .brand { padding: 1.5rem; font-size: 1.2rem; font-weight: 800; color: var(--primary); border-bottom: 1px solid #f1f5f9; }
         .nav { padding: 1rem; flex: 1; }
-        .nav a { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; color: #64748b; text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; }
-        .nav a:hover, .nav a.active { background: #eff6ff; color: var(--primary); }
+        .nav-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; color: #64748b; text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; width: 100%; border: none; background: none; cursor: pointer; font-size: 1rem; text-align: left; }
+        .nav-btn:hover, .nav-btn.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
         .user-section { padding: 1rem; border-top: 1px solid #f1f5f9; }
+
+        /* Main Content */
+        .main { margin-left: 250px; padding: 2rem; width: calc(100% - 250px); }
         
-        .main { margin-left: 250px; padding: 2rem; width: 100%; }
+        /* Sections */
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Stats Cards */
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--text); margin-top: 0.5rem; }
         .stat-label { color: #64748b; font-size: 0.9rem; }
+
+        /* Forms & Tables */
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+        .form-input, .form-select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; font-family: inherit; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
         
-        .loader-overlay { position: fixed; inset: 0; background: white; z-index: 999; display: flex; justify-content: center; align-items: center; }
+        /* Products Grid */
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .product-card { background: white; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .product-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
+        .badge { padding: 0.25rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        
+        /* Orders Table */
+        .table-container { background: white; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 1rem; color: #64748b; font-size: 0.85rem; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        tr:last-child td { border-bottom: none; }
+
+        .loader-overlay { position: fixed; inset: 0; background: white; z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .hidden { display: none !important; }
+        
+        /* File Upload */
+        .file-upload-box { border: 2px dashed #cbd5e1; padding: 2rem; text-align: center; border-radius: 0.5rem; cursor: pointer; }
+        .file-upload-box:hover { border-color: var(--primary); background: #f8fafc; }
+        
+        .alert { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: none; }
+        .alert-success { background: #dcfce7; color: #166534; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 60px; }
+            .brand span, .nav-btn span, .user-section { display: none; }
+            .nav-btn { justify-content: center; padding: 1rem 0; }
+            .main { margin-left: 60px; width: calc(100% - 60px); padding: 1rem; }
+        }
     </style>
 </head>
 <body>
     <div id="loader" class="loader-overlay">
-        <h2><i class="fas fa-spinner fa-spin"></i> Loading Dashboard...</h2>
+        <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+        <h3 id="loaderText">Loading Seller Dashboard...</h3>
     </div>
 
     <aside class="sidebar">
-        <div class="brand"><i class="fas fa-rocket"></i> QuickLocal Seller</div>
+        <div class="brand"><i class="fas fa-rocket"></i> <span>QuickLocal</span></div>
         <nav class="nav">
-            <a href="#" class="active"><i class="fas fa-home"></i> Overview</a>
-            <a href="seller-products.html"><i class="fas fa-box"></i> Products</a>
-            <a href="seller-orders.html"><i class="fas fa-shopping-bag"></i> Orders</a>
+            <button class="nav-btn active" onclick="switchTab('overview')">
+                <i class="fas fa-home"></i> <span>Overview</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('products')">
+                <i class="fas fa-box"></i> <span>My Products</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('add-product')">
+                <i class="fas fa-plus-circle"></i> <span>Add Product</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('orders')">
+                <i class="fas fa-shopping-bag"></i> <span>Orders</span>
+            </button>
         </nav>
         <div class="user-section">
-            <div id="sellerName" style="font-weight: 600;">Seller</div>
-            <button id="logoutBtn" style="margin-top: 0.5rem; border: none; background: none; color: #ef4444; cursor: pointer;">Logout</button>
+            <div id="sellerName" style="font-weight: 600; margin-bottom: 0.5rem;">Seller</div>
+            <button onclick="handleLogout()" style="border: none; background: none; color: #ef4444; cursor: pointer; font-size: 0.9rem;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </div>
     </aside>
 
     <main class="main">
-        <h1 style="margin-bottom: 1.5rem;">Dashboard Overview</h1>
-        
-        <div class="stats">
-            <div class="card">
-                <div class="stat-label">Total Revenue</div>
-                <div class="stat-val" id="revenue">₹0</div>
+        <div id="globalAlert" class="alert"></div>
+
+        <div id="overview" class="section active">
+            <h1 style="margin-bottom: 1.5rem;">Dashboard Overview</h1>
+            <div class="stats">
+                <div class="card">
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-val" id="revenue">₹0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Total Orders</div>
+                    <div class="stat-val" id="totalOrders">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Active Products</div>
+                    <div class="stat-val" id="activeProducts">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Low Stock</div>
+                    <div class="stat-val" id="lowStock" style="color: var(--warning);">0</div>
+                </div>
             </div>
             <div class="card">
-                <div class="stat-label">Total Orders</div>
-                <div class="stat-val" id="orders">0</div>
-            </div>
-            <div class="card">
-                <div class="stat-label">Active Products</div>
-                <div class="stat-val" id="products">0</div>
-            </div>
-            <div class="card">
-                <div class="stat-label">Low Stock Items</div>
-                <div class="stat-val" id="lowStock" style="color: #f59e0b;">0</div>
+                <h3><i class="fas fa-bolt" style="color: var(--warning)"></i> Recent Activity</h3>
+                <div id="recentActivityList" style="margin-top: 1rem; color: #64748b;">
+                    <p>Loading recent activity...</p>
+                </div>
             </div>
         </div>
 
-        <div class="card">
-            <h3>Recent Activity</h3>
-            <p style="color: #64748b; margin-top: 1rem;">System is connected. Real-time updates active.</p>
+        <div id="products" class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h1>My Products</h1>
+                <button class="btn btn-primary" onclick="switchTab('add-product')"><i class="fas fa-plus"></i> Add New</button>
+            </div>
+            <div id="productsList" class="products-grid">
+                </div>
+        </div>
+
+        <div id="add-product" class="section">
+            <h1 style="margin-bottom: 1.5rem;">Add New Product</h1>
+            <div class="card" style="max-width: 800px;">
+                <form id="addProductForm">
+                    <div class="form-group">
+                        <label class="form-label">Product Name</label>
+                        <input type="text" name="name" class="form-input" required placeholder="e.g. Organic Honey 500g">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-input" rows="3" required placeholder="Describe your product..."></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Price (₹)</label>
+                            <input type="number" name="price" class="form-input" required step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Original Price (Optional)</label>
+                            <input type="number" name="originalPrice" class="form-input" step="0.01">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Stock Quantity</label>
+                            <input type="number" name="stock" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="category" id="categorySelect" class="form-select" required>
+                                <option value="">Select Category</option>
+                                </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Product Image</label>
+                        <input type="file" id="productImage" accept="image/*" class="form-input">
+                        <small style="color: #64748b">Upload 1 image for the marketplace.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                        <i class="fas fa-save"></i> Publish Product
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="orders" class="section">
+            <h1 style="margin-bottom: 1.5rem;">Customer Orders</h1>
+            <div class="table-container">
+                <table id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody">
+                        <tr><td colspan="6" style="text-align: center;">Loading orders...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const loader = document.getElementById('loader');
+        const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        let currentUser = null;
 
-            // 1. SECURITY CHECK
-            // This is why you were being redirected!
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await initAuth();
+                loadDashboardStats();
+                loadCategories();
+            } catch (err) {
+                console.error("Init failed", err);
+                showAlert(err.message, 'error');
+            }
+        });
+
+        async function initAuth() {
             if (!window.HybridAuthClient) {
-                alert('Auth Client failed to load');
-                return;
+                throw new Error('Auth Client not found');
             }
 
-            // Wait for auth initialization
-            let attempts = 0;
-            while (!window.HybridAuthClient.getAuthMethod() && attempts < 10) {
+            // Wait for Auth Init
+            let tries = 0;
+            while (!window.HybridAuthClient.getAuthMethod() && tries < 10) {
                 await new Promise(r => setTimeout(r, 200));
-                attempts++;
+                tries++;
             }
 
             const isAuth = await window.HybridAuthClient.isAuthenticated();
             if (!isAuth) {
-                // Redirects to seller-login.html if not logged in
-                window.location.href = 'seller-login.html'; 
+                window.location.href = 'seller-login.html';
                 return;
             }
 
-            const user = window.HybridAuthClient.getCurrentUser();
-            document.getElementById('sellerName').textContent = user.name || 'Seller';
-
-            // 2. FETCH DATA
-            try {
-                const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
-                const result = await response.json();
-
-                if (result.success && result.data) {
-                    const overview = result.data.overview;
-                    document.getElementById('revenue').textContent = '₹' + (overview.totalRevenue || 0).toLocaleString();
-                    document.getElementById('orders').textContent = overview.totalOrders || 0;
-                    document.getElementById('products').textContent = overview.activeProducts || 0;
-                    document.getElementById('lowStock').textContent = overview.lowStockProducts || 0;
-                }
-            } catch (error) {
-                console.error('Dashboard load error:', error);
-            } finally {
-                loader.style.display = 'none';
+            currentUser = window.HybridAuthClient.getCurrentUser();
+            document.getElementById('sellerName').textContent = currentUser.name || 'Seller';
+            
+            if(currentUser.role !== 'seller' && currentUser.role !== 'admin') {
+                alert('Access Denied: Sellers only');
+                window.location.href = 'marketplace.html';
             }
 
-            // 3. LOGOUT
-            document.getElementById('logoutBtn').addEventListener('click', async () => {
-                await window.HybridAuthClient.logout();
-                window.location.href = 'seller-login.html';
-            });
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            // Update UI classes
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+            if(btn) btn.classList.add('active');
+
+            // Load specific data
+            if(tabId === 'products') loadSellerProducts();
+            if(tabId === 'orders') loadSellerOrders();
+        }
+
+        // --- Data Loading Functions ---
+
+        async function loadDashboardStats() {
+            try {
+                const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    const ov = data.data.overview;
+                    document.getElementById('revenue').textContent = `₹${(ov.totalRevenue || 0).toLocaleString()}`;
+                    document.getElementById('totalOrders').textContent = ov.totalOrders || 0;
+                    document.getElementById('activeProducts').textContent = ov.activeProducts || 0;
+                    document.getElementById('lowStock').textContent = ov.lowStockProducts || 0;
+                    
+                    // Populate Activity
+                    const activityList = document.getElementById('recentActivityList');
+                    if(ov.totalOrders > 0) {
+                         activityList.innerHTML = `<p>You have ${ov.totalOrders} total orders. Check the Orders tab for details.</p>`;
+                    } else {
+                        activityList.innerHTML = `<p>No recent activity.</p>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Stats error', error);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_URL}/categories`);
+                const data = await res.json();
+                if(data.success) {
+                    const select = document.getElementById('categorySelect');
+                    select.innerHTML = '<option value="">Select Category</option>';
+                    data.data.categories.forEach(cat => {
+                        select.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
+                    });
+                }
+            } catch(e) { console.error("Cat error", e); }
+        }
+
+        async function loadSellerProducts() {
+            const list = document.getElementById('productsList');
+            list.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                // Fetch all products and filter client side if backend doesn't support /seller/products endpoint yet
+                // Assuming backend might filter by token, or we just fetch all and match seller ID
+                const response = await window.HybridAuthClient.apiCall('/products?limit=100');
+                const data = await response.json();
+                
+                let products = [];
+                if(data.success) {
+                     // If API returns all products, we might want to verify ownership on backend
+                     // But for now, let's assume the list is what we own or filter if seller ID is present
+                     products = data.data.products || data.data; 
+                }
+
+                if (products.length === 0) {
+                    list.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;">No products found. Add one!</div>';
+                    return;
+                }
+
+                list.innerHTML = products.map(p => `
+                    <div class="product-card">
+                        <div class="product-header">
+                            <span class="badge badge-success">${p.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
+                            <span style="font-size: 0.8rem; color: #64748b">#${p.stock} units</span>
+                        </div>
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${p.name}</h3>
+                        <p style="color: var(--primary); font-weight: 700; margin-bottom: 0.5rem;">₹${p.price}</p>
+                        <div style="display:flex; gap: 0.5rem; margin-top: 1rem;">
+                            <button class="btn" style="border: 1px solid #cbd5e1; padding: 0.5rem; font-size: 0.8rem;" onclick="deleteProduct('${p._id || p.id}')">
+                                <i class="fas fa-trash" style="color: var(--danger)"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error loading products: ${err.message}</p>`;
+            }
+        }
+
+        async function loadSellerOrders() {
+            const tbody = document.getElementById('ordersBody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading...</td></tr>';
+
+            try {
+                // Fetch orders (assuming endpoint returns orders containing seller's products)
+                const response = await window.HybridAuthClient.apiCall('/seller/orders'); 
+                // Note: If /seller/orders doesn't exist on your specific backend version, 
+                // it might fail. Fallback to /orders usually gets "my" orders as a user.
+                
+                let orders = [];
+                if (response.ok) {
+                    const data = await response.json();
+                    orders = data.data || [];
+                } else {
+                    // Fallback for compatibility
+                    const res2 = await window.HybridAuthClient.apiCall('/orders');
+                    const data2 = await res2.json();
+                    orders = data2.data || [];
+                }
+
+                if (orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No orders received yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = orders.map(order => {
+                    const customerName = order.user ? order.user.name : 'Guest';
+                    const email = order.user ? order.user.email : '';
+                    const itemsHtml = order.items.map(i => 
+                        `<div>${i.product ? i.product.name : 'Unknown Item'} x ${i.quantity}</div>`
+                    ).join('');
+                    
+                    return `
+                    <tr>
+                        <td><span style="font-family:monospace; color: var(--primary)">#${order._id.slice(-6)}</span></td>
+                        <td>
+                            <div style="font-weight:600">${customerName}</div>
+                            <div style="font-size:0.8rem; color:#64748b">${email}</div>
+                        </td>
+                        <td>${itemsHtml}</td>
+                        <td><strong>₹${order.totalAmount}</strong></td>
+                        <td><span class="badge badge-${order.status === 'delivered' ? 'success' : 'warning'}">${order.status}</span></td>
+                        <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center">Error loading orders: ${err.message}</td></tr>`;
+            }
+        }
+
+        // --- Form Handling ---
+
+        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = 'Publishing...';
+
+            try {
+                const formData = new FormData(e.target);
+                // Handle Image
+                const fileInput = document.getElementById('productImage');
+                if (fileInput.files.length > 0) {
+                    formData.append('image', fileInput.files[0]);
+                }
+
+                // Convert to JSON or FormData depending on backend requirement. 
+                // The existing add-product.html used FormData, so we stick to that.
+                // However, we need to ensure 'category' is the ID.
+                
+                const response = await window.HybridAuthClient.apiCall('/products', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success || response.ok) {
+                    showAlert('Product published successfully!', 'success');
+                    e.target.reset();
+                    switchTab('products'); // Switch to list view
+                } else {
+                    throw new Error(result.message || 'Failed to create product');
+                }
+
+            } catch (err) {
+                showAlert(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         });
+
+        async function deleteProduct(id) {
+            if(!confirm('Are you sure you want to delete this product?')) return;
+            try {
+                await window.HybridAuthClient.apiCall(`/products/${id}`, { method: 'DELETE' });
+                showAlert('Product deleted', 'success');
+                loadSellerProducts();
+            } catch(e) {
+                showAlert(e.message, 'error');
+            }
+        }
+
+        async function handleLogout() {
+            await window.HybridAuthClient.logout();
+            window.location.href = 'seller-login.html';
+        }
+
+        function showAlert(msg, type) {
+            const el = document.getElementById('globalAlert');
+            el.className = `alert alert-${type}`;
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
     </script>
 </body>
 </html>
