@@ -405,11 +405,19 @@
 
                 // Client-side filtering safety net
                 // Only keep products where product.user OR product.seller matches current user ID
-                const currentUserId = currentUser._id || currentUser.id;
+                const currentUserId = (currentUser._id || currentUser.id)?.toString(); // Ensure user ID is a string
+                
                 if (currentUserId) {
                     products = products.filter(p => {
-                        // Handle various ways seller info might be stored (object or ID string)
-                        const pSellerId = p.seller?._id || p.seller?.id || p.seller || p.user?._id || p.user?.id || p.user;
+                        // Handle various ways seller info might be stored
+                        let pSellerId = p.seller?._id || p.seller?.id || p.seller || p.user?._id || p.user?.id || p.user;
+                        
+                        // Ensure product seller ID is also converted to a string before comparison
+                        if (pSellerId) {
+                            pSellerId = pSellerId.toString();
+                        }
+                        
+                        // The fix: compare two reliable string representations of the IDs
                         return pSellerId === currentUserId;
                     });
                 }
@@ -511,17 +519,17 @@
             try {
                 const formData = new FormData(e.target);
                 
-                // --- FIX 1: Explicit check for Category value ---
+                // FIX 1: Explicit check for Category value
                 if (!formData.get('category')) {
                     throw new Error("Validation Failed: Please select a product category.");
                 }
 
-                // --- FIX 2: Remove empty non-required fields (like originalPrice) ---
-                // The server might fail parsing if an empty string ("") is sent for a number type
+                // FIX 2: Remove empty non-required fields (like originalPrice)
                 if (formData.get('originalPrice') === "") {
                     formData.delete('originalPrice');
                 }
-                
+
+                // FIX 3: Add images
                 const fileInput = document.getElementById('productImage');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
@@ -530,14 +538,9 @@
                     }
                 }
 
-                // When submitting FormData (which includes files), we must omit the Content-Type header
-                // and let the browser set it to 'multipart/form-data'. By passing an empty options 
-                // object, we hope to override any 'application/json' default the client might set.
                 const response = await window.HybridAuthClient.apiCall('/products', {
                     method: 'POST',
                     body: formData,
-                    // NOTE: Explicitly passing 'headers: undefined' or 'headers: {}' is usually the fix 
-                    // if the client automatically adds 'application/json', but we'll stick to a clean call first.
                 });
 
                 const text = await response.text();
@@ -566,7 +569,6 @@
 
             } catch (err) {
                 console.error(err);
-                // Ensure error message is clear, especially for the validation fix
                 showAlert(err.message.includes('Validation Failed') ? err.message : `Error: ${err.message}`, 'error');
             } finally {
                 btn.disabled = false;
@@ -605,8 +607,7 @@
                 const formData = new FormData(e.target);
                 formData.delete('productId');
 
-                // --- FIX 2: Remove empty non-required fields (like OriginalPrice if it was an edit field) ---
-                // It's safer to remove any non-required fields that are empty strings
+                // Remove empty non-required fields (like OriginalPrice if it was an edit field)
                 if (formData.get('originalPrice') === "") {
                     formData.delete('originalPrice');
                 }
