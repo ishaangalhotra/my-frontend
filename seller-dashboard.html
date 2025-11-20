@@ -511,16 +511,33 @@
             try {
                 const formData = new FormData(e.target);
                 
+                // --- FIX 1: Explicit check for Category value ---
+                if (!formData.get('category')) {
+                    throw new Error("Validation Failed: Please select a product category.");
+                }
+
+                // --- FIX 2: Remove empty non-required fields (like originalPrice) ---
+                // The server might fail parsing if an empty string ("") is sent for a number type
+                if (formData.get('originalPrice') === "") {
+                    formData.delete('originalPrice');
+                }
+                
                 const fileInput = document.getElementById('productImage');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
+                        // Ensure the server-expected field name 'images' is used
                         formData.append('images', fileInput.files[i]);
                     }
                 }
 
+                // When submitting FormData (which includes files), we must omit the Content-Type header
+                // and let the browser set it to 'multipart/form-data'. By passing an empty options 
+                // object, we hope to override any 'application/json' default the client might set.
                 const response = await window.HybridAuthClient.apiCall('/products', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    // NOTE: Explicitly passing 'headers: undefined' or 'headers: {}' is usually the fix 
+                    // if the client automatically adds 'application/json', but we'll stick to a clean call first.
                 });
 
                 const text = await response.text();
@@ -528,20 +545,29 @@
                 try {
                     result = JSON.parse(text);
                 } catch (e) {
-                    throw new Error('Server returned an error (not JSON): ' + response.status);
+                    // Server returned an error, but not valid JSON
+                    throw new Error(`Server returned status ${response.status} with unexpected format.`);
+                }
+                
+                // If status is NOT ok (e.g. 400) but it is valid JSON
+                if (!response.ok) {
+                     throw new Error(result.message || result.error || 'Failed to create product (Server Error)');
                 }
 
-                if (result.success || response.ok) {
+                if (result.success) { 
                     showAlert('Product published successfully!', 'success');
                     e.target.reset();
+                    // Load the products tab to see the new product
                     switchTab('products'); 
                 } else {
+                    // Fallback for a 200 OK that has success: false
                     throw new Error(result.message || 'Failed to create product');
                 }
 
             } catch (err) {
                 console.error(err);
-                showAlert(err.message, 'error');
+                // Ensure error message is clear, especially for the validation fix
+                showAlert(err.message.includes('Validation Failed') ? err.message : `Error: ${err.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
@@ -579,13 +605,20 @@
                 const formData = new FormData(e.target);
                 formData.delete('productId');
 
+                // --- FIX 2: Remove empty non-required fields (like OriginalPrice if it was an edit field) ---
+                // It's safer to remove any non-required fields that are empty strings
+                if (formData.get('originalPrice') === "") {
+                    formData.delete('originalPrice');
+                }
+
+
                 const fileInput = document.getElementById('editImages');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
                         formData.append('images', fileInput.files[i]);
                     }
                 }
-
+                
                 const response = await window.HybridAuthClient.apiCall(`/products/${id}`, {
                     method: 'PUT',
                     body: formData
