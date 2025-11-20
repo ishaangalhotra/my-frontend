@@ -253,7 +253,6 @@
     <script>
         const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
         let currentUser = null;
-        // Store products locally to populate edit modal easily
         let currentProducts = []; 
 
         // --- Initialization ---
@@ -314,7 +313,6 @@
         // --- Data Loading Functions ---
 
         async function loadDashboardStats() {
-            // Try fetching stats, fallback to products count if 404
             try {
                 const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
                 
@@ -332,10 +330,25 @@
                 console.warn('Stats fallback: calculating from products/orders');
                 // Fallback: Just count products manually
                 try {
-                    const prodRes = await window.HybridAuthClient.apiCall('/products?limit=1');
-                    const prodData = await prodRes.json();
-                    const count = prodData.results || (prodData.data ? (prodData.data.products ? prodData.data.products.length : 0) : 0);
-                    document.getElementById('activeProducts').textContent = count || 'N/A';
+                    // Try to use the new seller products logic here too
+                    let products = [];
+                    let response = await window.HybridAuthClient.apiCall('/seller/products');
+                    if(!response.ok) response = await window.HybridAuthClient.apiCall('/products?limit=100');
+                    
+                    const data = await response.json();
+                    if(data.success) products = data.data.products || data.data;
+                    else if(Array.isArray(data)) products = data;
+
+                    // Filter manually if needed
+                    const userId = currentUser._id || currentUser.id;
+                    if (userId) {
+                        products = products.filter(p => {
+                            const pSellerId = p.seller?._id || p.seller?.id || p.seller || p.user?._id || p.user?.id || p.user;
+                            return pSellerId === userId;
+                        });
+                    }
+
+                    document.getElementById('activeProducts').textContent = products.length;
                     document.getElementById('revenue').textContent = 'N/A';
                     document.getElementById('totalOrders').textContent = 'Check Orders';
                     document.getElementById('recentActivityList').innerHTML = `<p>Backend statistics unavailable. Please check Orders tab.</p>`;
@@ -364,10 +377,23 @@
 
         async function loadSellerProducts() {
             const list = document.getElementById('productsList');
-            list.innerHTML = '<p>Loading products...</p>';
+            list.innerHTML = '<p>Loading your products...</p>';
             
             try {
-                const response = await window.HybridAuthClient.apiCall('/products?limit=100');
+                // 1. Try specific endpoint for logged in seller
+                let response = await window.HybridAuthClient.apiCall('/seller/products');
+                
+                // 2. If that fails (404), fallback to general products with query param
+                if (!response.ok) {
+                    const userId = currentUser._id || currentUser.id;
+                    response = await window.HybridAuthClient.apiCall(`/products?seller=${userId}`);
+                }
+                
+                // 3. If that fails, fetch all and filter client-side (Last Resort)
+                if (!response.ok) {
+                     response = await window.HybridAuthClient.apiCall('/products?limit=100');
+                }
+
                 const data = await response.json();
                 
                 let products = [];
@@ -375,6 +401,17 @@
                      products = data.data.products || data.data; 
                 } else if (Array.isArray(data)) {
                     products = data;
+                }
+
+                // Client-side filtering safety net
+                // Only keep products where product.user OR product.seller matches current user ID
+                const currentUserId = currentUser._id || currentUser.id;
+                if (currentUserId) {
+                    products = products.filter(p => {
+                        // Handle various ways seller info might be stored (object or ID string)
+                        const pSellerId = p.seller?._id || p.seller?.id || p.seller || p.user?._id || p.user?.id || p.user;
+                        return pSellerId === currentUserId;
+                    });
                 }
 
                 // Save for edit functionality
@@ -385,7 +422,6 @@
                     return;
                 }
 
-                // UPDATED: Added Edit Button
                 list.innerHTML = products.map((p, index) => `
                     <div class="product-card">
                         <div class="product-header">
@@ -405,6 +441,7 @@
                     </div>
                 `).join('');
             } catch (err) {
+                console.error(err);
                 list.innerHTML = `<p style="color:red">Error loading products. Server might be busy.</p>`;
             }
         }
@@ -435,7 +472,6 @@
                 }
 
                 tbody.innerHTML = orders.map(order => {
-                    // Safety check for missing user data in some backends
                     const customerName = order.user ? (order.user.name || 'Customer') : 'Guest';
                     const email = order.user ? order.user.email : 'N/A';
                     const items = order.items || [];
@@ -475,7 +511,6 @@
             try {
                 const formData = new FormData(e.target);
                 
-                // UPDATED: Loop through all selected files for multiple upload
                 const fileInput = document.getElementById('productImage');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
@@ -542,10 +577,8 @@
 
             try {
                 const formData = new FormData(e.target);
-                // Don't send ID in body, it's in URL
                 formData.delete('productId');
 
-                // Handle images for update
                 const fileInput = document.getElementById('editImages');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
@@ -563,7 +596,7 @@
                 if (response.ok) {
                     showAlert('Product updated successfully', 'success');
                     closeEditModal();
-                    loadSellerProducts(); // Refresh list
+                    loadSellerProducts();
                 } else {
                     throw new Error(data.message || 'Update failed');
                 }
