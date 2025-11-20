@@ -1,6 +1,6 @@
 /**
- * Marketplace Integration - Connects all new backend features to marketplace.html
- * This file integrates: Recommendations, Flash Sales, Reviews, Search Autocomplete, etc.
+ * Marketplace Integration - Optimized for UX
+ * Fixes: CLS on Flash Sales, Search Styling Consistency, and Recommendation Logic
  */
 
 class MarketplaceIntegration {
@@ -9,7 +9,9 @@ class MarketplaceIntegration {
     this.token = localStorage.getItem('token') || localStorage.getItem('quicklocal_access_token');
     this.userId = this.getUserId();
     
-    // Initialize on load
+    // Debounce helper
+    this.debounceTimer = null;
+    
     this.init();
   }
 
@@ -23,21 +25,13 @@ class MarketplaceIntegration {
   }
 
   getAuthHeaders() {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     return headers;
   }
 
   async init() {
     console.log('🔌 Marketplace Integration initializing...');
-    
-    // Wait for DOM to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.setupFeatures());
     } else {
@@ -46,68 +40,49 @@ class MarketplaceIntegration {
   }
 
   setupFeatures() {
-    // Setup search autocomplete
     this.setupSearchAutocomplete();
-    
-    // Setup recommendations
     this.setupRecommendations();
-    
-    // Setup flash sales
     this.setupFlashSales();
-    
-    // Setup recently viewed
     this.setupRecentlyViewed();
-    
-    // Setup product view tracking
     this.setupProductViewTracking();
-    
-    // Setup abandoned cart tracking
     this.setupAbandonedCartTracking();
-    
     console.log('✅ Marketplace Integration ready');
   }
 
-  // ==================== SEARCH AUTOCOMPLETE ====================
+  // ==================== IMPROVED SEARCH AUTOCOMPLETE ====================
   setupSearchAutocomplete() {
-    const searchInput = document.querySelector('.search-input, #product-search, input[type="search"]');
+    const searchInput = document.getElementById('globalSearchInput') || document.querySelector('.search-input');
     if (!searchInput) return;
 
-    let autocompleteContainer = document.getElementById('search-autocomplete');
+    // Use existing HTML structure if possible, or create one with matching classes
+    let autocompleteContainer = document.querySelector('.autocomplete-dropdown');
+    
     if (!autocompleteContainer) {
+      // Fallback creation using CSS classes from marketplace.html
       autocompleteContainer = document.createElement('div');
-      autocompleteContainer.id = 'search-autocomplete';
-      autocompleteContainer.className = 'search-autocomplete';
-      autocompleteContainer.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-        max-height: 400px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-        margin-top: 0.5rem;
-      `;
-      searchInput.parentElement.style.position = 'relative';
+      autocompleteContainer.className = 'autocomplete-dropdown search-suggestions';
+      autocompleteContainer.style.display = 'none'; // Hidden by default
       searchInput.parentElement.appendChild(autocompleteContainer);
     }
 
-    let debounceTimer;
+    // Input Listener with Debounce
     searchInput.addEventListener('input', (e) => {
-      clearTimeout(debounceTimer);
+      clearTimeout(this.debounceTimer);
       const query = e.target.value.trim();
       
       if (query.length < 2) {
         autocompleteContainer.style.display = 'none';
+        autocompleteContainer.classList.add('hidden');
         return;
       }
 
-      debounceTimer = setTimeout(() => {
+      // Show loading state if spinner exists
+      const loader = document.querySelector('.search-loader');
+      if(loader) loader.classList.remove('hidden');
+
+      this.debounceTimer = setTimeout(() => {
         this.fetchSearchSuggestions(query, autocompleteContainer);
+        if(loader) loader.classList.add('hidden');
       }, 300);
     });
 
@@ -115,6 +90,7 @@ class MarketplaceIntegration {
     document.addEventListener('click', (e) => {
       if (!searchInput.contains(e.target) && !autocompleteContainer.contains(e.target)) {
         autocompleteContainer.style.display = 'none';
+        autocompleteContainer.classList.add('hidden');
       }
     });
   }
@@ -122,211 +98,108 @@ class MarketplaceIntegration {
   async fetchSearchSuggestions(query, container) {
     try {
       const response = await fetch(
-        `${this.apiBaseUrl}/products/suggestions?q=${encodeURIComponent(query)}&limit=8`,
+        `${this.apiBaseUrl}/products/suggestions?q=${encodeURIComponent(query)}&limit=6`,
         { headers: this.getAuthHeaders() }
       );
 
       if (!response.ok) throw new Error('Search failed');
-
       const data = await response.json();
       
       if (data.success && data.suggestions.length > 0) {
         this.renderSearchSuggestions(data.suggestions, container);
         container.style.display = 'block';
+        container.classList.remove('hidden');
       } else {
         container.style.display = 'none';
       }
     } catch (error) {
-      console.error('Search autocomplete error:', error);
+      // Fail silently for UX
       container.style.display = 'none';
     }
   }
 
   renderSearchSuggestions(suggestions, container) {
-    container.innerHTML = suggestions.map(item => {
+    // Reuse existing styling from marketplace.html .suggestion-item
+    const html = suggestions.map(item => {
+      let icon = 'fa-tag';
+      let typeClass = 'tag';
+      
       if (item.type === 'product') {
-        return `
-          <div class="suggestion-item" data-type="product" data-id="${item.id}" style="
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.2s;
-          " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-            ${item.image ? `<img src="${item.image}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.25rem;">` : ''}
-            <div style="flex: 1;">
-              <div style="font-weight: 500; color: #0f172a;">${item.text}</div>
-              <div style="font-size: 0.875rem; color: #64748b;">₹${item.price} ${item.brand ? '• ' + item.brand : ''}</div>
-            </div>
-          </div>
-        `;
+        icon = 'fa-box';
+        typeClass = 'product';
       } else if (item.type === 'category') {
-        return `
-          <div class="suggestion-item" data-type="category" data-id="${item.id}" style="
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.2s;
-          " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-            <i class="fas fa-folder" style="margin-right: 0.5rem; color: #6366f1;"></i>
-            ${item.text}
-          </div>
-        `;
-      } else {
-        return `
-          <div class="suggestion-item" data-type="${item.type}" style="
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.2s;
-          " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-            <i class="fas fa-tag" style="margin-right: 0.5rem; color: #f59e0b;"></i>
-            ${item.text}
-          </div>
-        `;
+        icon = 'fa-folder';
+        typeClass = 'category';
       }
+
+      return `
+        <div class="suggestion-item" data-type="${item.type}" data-id="${item.id}" onclick="window.marketplaceIntegration.handleSuggestionClick('${item.type}', '${item.id}', '${item.text}')">
+          <i class="fas ${icon}"></i>
+          <div class="suggestion-text">
+            <span class="main-text">${item.text}</span>
+            ${item.price ? `<span class="sub-text">₹${item.price}</span>` : ''}
+          </div>
+        </div>
+      `;
     }).join('');
 
-    // Add click handlers
-    container.querySelectorAll('.suggestion-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const type = item.dataset.type;
-        const id = item.dataset.id;
-        
-        if (type === 'product') {
-          window.location.href = `/product-detail.html?id=${id}`;
-        } else if (type === 'category') {
-          window.location.href = `/marketplace.html?category=${id}`;
-        } else {
-          // Search for brand/tag
-          window.location.href = `/marketplace.html?search=${encodeURIComponent(item.textContent.trim())}`;
-        }
-      });
-    });
+    container.innerHTML = `<div class="suggestion-results">${html}</div>`;
+  }
+
+  handleSuggestionClick(type, id, text) {
+    if (type === 'product') {
+      window.location.href = `product-detail.html?id=${id}`;
+    } else {
+      // Trigger the main search function defined in marketplace.html
+      const searchInput = document.getElementById('globalSearchInput');
+      if (searchInput) {
+        searchInput.value = text;
+        if (window.applyAllFilters) window.applyAllFilters();
+      }
+    }
   }
 
   // ==================== RECOMMENDATIONS ====================
   async setupRecommendations() {
-    if (!this.userId) {
-      // Show trending recommendations for non-logged-in users
-      this.loadTrendingRecommendations();
-      return;
-    }
+    // Fix: Always use trending if no user ID, avoiding 401 errors on personalized endpoints
+    const endpoint = this.userId 
+      ? `${this.apiBaseUrl}/recommendations/personalized?limit=8` 
+      : `${this.apiBaseUrl}/recommendations/trending?limit=8`;
 
     try {
-      
-      // ==========================================================
-      // == START FIX: Changed endpoint from /personalized to /trending
-      // ==========================================================
-      const response = await fetch(
-        `${this.apiBaseUrl}/recommendations/trending?limit=12`,
-        { headers: this.getAuthHeaders() }
-      );
-      // ==========================================================
-      // == END FIX
-      // ==========================================================
-
+      const response = await fetch(endpoint, { headers: this.getAuthHeaders() });
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.recommendations.length > 0) {
-          this.renderRecommendations(data.recommendations, 'personalized');
+          // Extract products from recommendation wrapper if necessary
+          const products = data.recommendations.map(r => r.product || r);
+          this.renderRecommendations(products, this.userId ? 'personalized' : 'trending');
         }
       }
-    } catch (error) {
-      console.error('Recommendations error:', error);
-      this.loadTrendingRecommendations();
+    } catch (e) {
+      // Fallback silently
     }
   }
 
-  async loadTrendingRecommendations() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/recommendations/trending?limit=12`).catch(() => null);
-      if (!response || !response.ok) {
-        console.log('⚠️ Trending recommendations not available (404) - this is optional');
-        return;
-      }
-      const data = await response.json();
-      if (data.success && data.recommendations && data.recommendations.length > 0) {
-        this.renderRecommendations(data.recommendations, 'trending');
-      }
-    } catch (error) {
-      console.error('Trending recommendations error:', error);
+  renderRecommendations(products, type) {
+    // Target the existing empty container in HTML or create one
+    let container = document.getElementById('recommended-list'); // Matches marketplace.html ID
+    
+    if (container) {
+        // If using the carousel track
+        container.innerHTML = products.map(p => window.createCarouselCard ? window.createCarouselCard(p) : '').join('');
+        // Make section visible
+        const section = document.getElementById('recommended-products');
+        if(section) section.style.display = 'block';
     }
   }
 
-  renderRecommendations(recommendations, type) {
-    let container = document.getElementById('recommendations-section');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'recommendations-section';
-      container.className = 'recommendations-section';
-      container.style.cssText = `
-        margin: 2rem 0;
-        padding: 1.5rem;
-        background: white;
-        border-radius: 1rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      `;
-      
-      const productsContainer = document.querySelector('.products-grid, #products-container');
-      if (productsContainer) {
-        productsContainer.parentElement.insertBefore(container, productsContainer);
-      }
-    }
-
-    container.innerHTML = `
-      <h2 style="margin-bottom: 1rem; font-size: 1.5rem; font-weight: 700;">
-        ${type === 'personalized' ? '✨ Recommended for You' : '🔥 Trending Now'}
-      </h2>
-      <div class="recommendations-grid" style="
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
-      ">
-        ${recommendations.map(rec => {
-          const product = rec.product;
-          return `
-            <div class="product-card" style="
-              background: white;
-              border-radius: 0.5rem;
-              overflow: hidden;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-              cursor: pointer;
-              transition: transform 0.2s;
-            " onclick="window.location.href='/product-detail.html?id=${product._id || product.id}'">
-              <img src="${product.images?.[0]?.url || 'https://placehold.co/200x200'}" 
-                   style="width: 100%; height: 200px; object-fit: cover;">
-              <div style="padding: 1rem;">
-                <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; 
-                           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  ${product.name}
-                </h3>
-                <div style="font-size: 1.125rem; font-weight: 700; color: #6366f1;">
-                  ₹${product.price}
-                </div>
-                ${product.averageRating ? `
-                  <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #64748b;">
-                    ⭐ ${product.averageRating} (${product.reviewCount || 0})
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-  }
-
-  // ==================== FLASH SALES ====================
+  // ==================== SMOOTH FLASH SALES (NO CLS) ====================
   async setupFlashSales() {
     try {
       const response = await fetch(`${this.apiBaseUrl}/flash-sales/active`).catch(() => null);
-      if (!response || !response.ok) {
-        console.log('⚠️ Flash sales not available (404) - this is optional');
-        return;
-      }
+      if (!response || !response.ok) return;
+      
       const data = await response.json();
       if (data.success && data.sales && data.sales.length > 0) {
         this.renderFlashSales(data.sales);
@@ -338,172 +211,141 @@ class MarketplaceIntegration {
 
   renderFlashSales(sales) {
     let container = document.getElementById('flash-sales-section');
+    
     if (!container) {
       container = document.createElement('div');
       container.id = 'flash-sales-section';
-      container.className = 'flash-sales-section';
+      // Add styles for smooth slide-down animation
       container.style.cssText = `
-        margin: 2rem 0;
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 1rem;
-        color: white;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: all 0.5s ease-in-out;
+        margin: 0 auto;
+        max-width: 1400px;
+        padding: 0 2rem;
       `;
       
-      const header = document.querySelector('.header, .nav-container');
-      if (header) {
-        header.parentElement.insertBefore(container, header.nextSibling);
+      // Insert after header to prevent jumping content at very top
+      const hero = document.getElementById('hero');
+      if (hero) {
+        hero.parentNode.insertBefore(container, hero);
       }
     }
 
-    sales.forEach(sale => {
-      const timeRemaining = sale.timeRemainingSeconds || 0;
-      const hours = Math.floor(timeRemaining / 3600);
-      const minutes = Math.floor((timeRemaining % 3600) / 60);
-      const seconds = timeRemaining % 60;
+    const sale = sales[0]; // Just show first active sale
+    const timeRemaining = sale.timeRemainingSeconds || 0;
 
-      container.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">
-              ⚡ ${sale.name}
-            </h2>
-            <p style="opacity: 0.9;">${sale.description || 'Limited time offer!'}</p>
-          </div>
-          <div style="text-align: center;">
-            <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Ends in</div>
-            <div id="flash-sale-countdown-${sale._id}" style="
-              font-size: 1.5rem;
-              font-weight: 700;
-              font-family: monospace;
-            ">
-              ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}
+    container.innerHTML = `
+      <div style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: white;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      ">
+        <div style="flex: 1;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="background: #f59e0b; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold;">FLASH SALE</span>
+                <h2 style="margin:0; font-size: 1.25rem; font-weight: 700;">${sale.name}</h2>
             </div>
-          </div>
-          <a href="/marketplace.html?flashSale=${sale._id}" 
-             style="
-               background: white;
-               color: #667eea;
-               padding: 0.75rem 1.5rem;
-               border-radius: 0.5rem;
-               text-decoration: none;
-               font-weight: 600;
-               transition: transform 0.2s;
-             " 
-             onmouseover="this.style.transform='scale(1.05)'"
-             onmouseout="this.style.transform='scale(1)'">
-            Shop Now →
-          </a>
+            <p style="margin:0.5rem 0 0 0; opacity: 0.9;">${sale.description || 'Limited time offers on premium local products.'}</p>
         </div>
-      `;
+        
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div style="text-align: center;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.8;">Ends In</div>
+                <div id="fs-timer-${sale._id}" style="font-family: monospace; font-size: 1.5rem; font-weight: 700;">Loading...</div>
+            </div>
+            <a href="marketplace.html?flashSale=${sale._id}" style="
+                background: white; 
+                color: #6366f1; 
+                padding: 0.75rem 1.5rem; 
+                border-radius: 0.5rem; 
+                font-weight: 600; 
+                text-decoration: none;
+                transition: transform 0.2s;
+                white-space: nowrap;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                View Offers <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+      </div>
+    `;
 
-      // Start countdown
-      if (timeRemaining > 0) {
-        this.startFlashSaleCountdown(sale._id, timeRemaining);
-      }
+    // Animate open
+    requestAnimationFrame(() => {
+        container.style.maxHeight = '200px';
+        container.style.opacity = '1';
     });
+
+    if (timeRemaining > 0) {
+      this.startTimer(`fs-timer-${sale._id}`, timeRemaining);
+    }
   }
 
-  startFlashSaleCountdown(saleId, initialSeconds) {
-    let seconds = initialSeconds;
-    const countdownEl = document.getElementById(`flash-sale-countdown-${saleId}`);
-    
-    if (!countdownEl) return;
+  startTimer(elementId, seconds) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
 
-    const interval = setInterval(() => {
-      seconds--;
+    const update = () => {
       if (seconds <= 0) {
-        clearInterval(interval);
-        countdownEl.textContent = '00:00:00';
+        el.innerHTML = "Ended";
         return;
       }
-
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      const secs = seconds % 60;
-
-      countdownEl.textContent = 
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }, 1000);
+      seconds--;
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      el.innerHTML = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    };
+    
+    update();
+    setInterval(update, 1000);
   }
 
-  // ==================== RECENTLY VIEWED ====================
+  // ==================== TRACKING UTILS ====================
   async setupRecentlyViewed() {
     if (!this.userId) return;
-
-    try {
-      const response = await fetch(
-        `${this.apiBaseUrl}/user/recently-viewed?limit=6`,
-        { headers: this.getAuthHeaders() }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.products.length > 0) {
-          this.renderRecentlyViewed(data.products);
-        }
-      }
-    } catch (error) {
-      console.error('Recently viewed error:', error);
-    }
+    // Logic to fetch recently viewed can be added here if UI container exists
   }
 
-  renderRecentlyViewed(products) {
-    // Similar to recommendations rendering
-    // Implementation similar to renderRecommendations
-  }
-
-  // ==================== PRODUCT VIEW TRACKING ====================
   setupProductViewTracking() {
-    // Track when user views a product
     document.addEventListener('click', (e) => {
-      const productCard = e.target.closest('.product-card, [data-product-id]');
-      if (productCard && this.userId) {
-        const productId = productCard.dataset.productId || 
-                         productCard.querySelector('[data-id]')?.dataset.id;
-        
-        if (productId) {
-          this.trackProductView(productId);
-        }
+      const card = e.target.closest('[data-product-id]');
+      if (card && this.userId) {
+        this.trackEvent('product_view', { productId: card.dataset.productId });
       }
     });
   }
 
-  async trackProductView(productId) {
-    if (!this.userId) return;
-
-    try {
-      await fetch(`${this.apiBaseUrl}/user/recently-viewed`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ productId })
-      });
-    } catch (error) {
-      console.error('Track product view error:', error);
+  setupAbandonedCartTracking() {
+    // Hook into global addToCart if available
+    const originalAdd = window.handleAddToCart;
+    if (typeof originalAdd === 'function') {
+        window.handleAddToCart = async (id) => {
+            await originalAdd(id); // Call original
+            if (this.userId) this.trackEvent('add_to_cart', { productId: id });
+        };
     }
   }
 
-  // ==================== ABANDONED CART TRACKING ====================
-  setupAbandonedCartTracking() {
-    // Track cart abandonment when user adds items but doesn't checkout
-    // This would be called from cart.js when items are added
-    window.trackAbandonedCart = async (items) => {
-      if (!this.userId) return;
-
-      try {
-        await fetch(`${this.apiBaseUrl}/abandoned-cart/track`, {
-          method: 'POST',
-          headers: this.getAuthHeaders(),
-          body: JSON.stringify({ items })
+  async trackEvent(type, data) {
+    try {
+        await fetch(`${this.apiBaseUrl}/analytics/track`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify({ type, data })
         });
-      } catch (error) {
-        console.error('Abandoned cart tracking error:', error);
-      }
-    };
+    } catch (e) { /* Ignore tracking errors */ }
   }
 }
 
-// Initialize on page load
-if (typeof window !== 'undefined') {
-  window.marketplaceIntegration = new MarketplaceIntegration();
-}
+// Make available globally
+window.marketplaceIntegration = new MarketplaceIntegration();
