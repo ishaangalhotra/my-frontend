@@ -1,7 +1,9 @@
 /**
  * advanced-cart-final.js (FIXED VERSION)
  * Fully integrated with your backend API structure
- * Fixes: Added 5% Tax calculation and UI row.
+ * Fixes:
+ * 1. Added 5% Tax calculation and UI row.
+ * 2. FIXED ID MISMATCH: Uses productId instead of cartId for API calls to match cartrout.js logic.
  */
 
 class AdvancedShoppingCart {
@@ -84,9 +86,10 @@ class AdvancedShoppingCart {
     }
 
     try {
+      // ✅ FIX: Uses item.productId instead of cartId because backend expects Product ID
       console.log('🗑️ Removing from cart:', item.productId);
       
-      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.cartId}`, {
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
         method: 'DELETE'
       });
       
@@ -134,7 +137,8 @@ class AdvancedShoppingCart {
     try {
       console.log('🔄 Updating quantity on server:', { productId: item.productId, newQuantity });
       
-      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.cartId}`, {
+      // ✅ FIX: Uses item.productId instead of cartId because backend expects Product ID
+      const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
         method: 'PATCH',
         body: JSON.stringify({ quantity: newQuantity })
       });
@@ -273,7 +277,7 @@ class AdvancedShoppingCart {
     }
   }
 
-  // ==================== CALCULATIONS (FIXED) ====================
+  // ==================== CALCULATIONS (TAX ADDED) ====================
 
   calculateTotals() {
     let subtotal = 0;
@@ -298,10 +302,9 @@ class AdvancedShoppingCart {
       deliveryFee = this.config.defaultDeliveryFee;
     }
 
-    // ✅ FIX: ADD TAX CALCULATION (5%)
+    // ✅ FIX: 5% TAX ADDED
     const tax = subtotal * 0.05;
 
-    // ✅ FIX: INCLUDE TAX IN TOTAL
     const total = subtotal + deliveryFee + tax;
 
     this.cartTotal = total;
@@ -312,7 +315,7 @@ class AdvancedShoppingCart {
       subtotal,
       savings,
       deliveryFee,
-      tax, // Export tax for rendering
+      tax, // Exported for UI
       total,
       freeDeliveryThreshold: this.config.freeDeliveryThreshold,
       amountForFreeDelivery: Math.max(0, this.config.freeDeliveryThreshold - subtotal)
