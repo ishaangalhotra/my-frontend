@@ -666,8 +666,9 @@
         /* Enhanced Products Grid */
         .products-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 2rem;
+            width: 100%;
         }
 
         .product-card {
@@ -2977,15 +2978,17 @@ async function loadProducts() {
                     isBestSeller: product.rating >= 4.0 && product.reviews >= 100
                 }));
 
-                const cardsHtml = enhancedProducts.map(product => {
-                    return productCardUtils.generateProductCard(product);
-                }).join('');
                 
-                container.innerHTML = `<div class="products-grid">${cardsHtml}</div>`;
-                
-                setTimeout(() => {
-                    productCardUtils.attachVariantListeners();
-                }, 100);
+const cardsHtml = enhancedProducts.map(product => {
+    return productCardUtils.generateProductCard(product);
+}).join('');
+
+// THE FIX: Inject the cards directly. The container already has the 'products-grid' class.
+container.innerHTML = cardsHtml;
+
+setTimeout(() => {
+    productCardUtils.attachVariantListeners();
+}, 100);
             } else {
                 console.warn('Enhanced product card utilities not loaded, using fallback rendering');
                 
