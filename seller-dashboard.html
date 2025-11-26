@@ -234,7 +234,8 @@
                     <thead>
                         <tr>
                             <th>Order ID</th>
-                            <th>Customer</th>
+                            <th>Customer Details</th>
+                            <th>Shipping Address</th>
                             <th>Items</th>
                             <th>Total</th>
                             <th>Status</th>
@@ -242,7 +243,7 @@
                         </tr>
                     </thead>
                     <tbody id="ordersBody">
-                        <tr><td colspan="6" style="text-align: center;">Loading orders...</td></tr>
+                        <tr><td colspan="7" style="text-align: center;">Loading orders...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -473,54 +474,98 @@
 
         async function loadSellerOrders() {
             const tbody = document.getElementById('ordersBody');
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading...</td></tr>';
 
             try {
-                // Try seller specific endpoint first
+                // Try seller specific endpoint
                 let response = await window.HybridAuthClient.apiCall('/seller/orders');
                 
-                // If 404, fallback to generic orders endpoint
-                if (!response.ok) {
-                    console.log("Seller orders 404, falling back to /orders");
-                    response = await window.HybridAuthClient.apiCall('/orders');
-                }
-
                 let orders = [];
                 if (response.ok) {
                     const data = await response.json();
-                    orders = data.data || data.orders || [];
+                    orders = data.data || [];
                 }
 
                 if (orders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No orders found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No orders found.</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = orders.map(order => {
-                    const customerName = order.user ? (order.user.name || 'Customer') : 'Guest';
-                    const email = order.user ? order.user.email : 'N/A';
+                    // FIX: Robustly check for customer info in different possible locations
+                    const custInfo = order.customerInfo || {};
+                    const shipAddr = order.shippingAddress || {};
+                    
+                    const customerName = custInfo.name || shipAddr.fullName || 'Guest';
+                    const customerEmail = custInfo.email || 'N/A';
+                    const customerPhone = custInfo.phone || shipAddr.phoneNumber || 'N/A';
+
+                    // FIX: Format the address
+                    const fullAddress = `
+                        ${shipAddr.address || ''}<br>
+                        ${shipAddr.city || ''}, ${shipAddr.state || ''}<br>
+                        ${shipAddr.postalCode || ''}<br>
+                        Phone: ${shipAddr.phoneNumber || customerPhone}
+                    `;
+
                     const items = order.items || [];
                     const itemsHtml = items.map(i => 
-                        `<div>${i.product ? (i.product.name || 'Product') : 'Item'} x ${i.quantity}</div>`
+                        `<div style="font-size: 0.9em; margin-bottom: 4px;">
+                            • <b>${i.name || 'Product'}</b> x ${i.quantity}
+                        </div>`
                     ).join('');
                     
+                    // Handle subtotal vs total
+                    const amount = order.subtotal || order.total || 0;
+
                     return `
                     <tr>
-                        <td><span style="font-family:monospace; color: var(--primary)">#${(order._id || order.id).slice(-6)}</span></td>
+                        <td><span style="font-family:monospace; color: var(--primary); font-weight: bold;">#${(order.orderNumber || order.orderId || '').slice(-6)}</span></td>
                         <td>
                             <div style="font-weight:600">${customerName}</div>
-                            <div style="font-size:0.8rem; color:#64748b">${email}</div>
+                            <div style="font-size:0.8rem; color:#64748b">${customerEmail}</div>
+                        </td>
+                        <td>
+                            <div style="font-size: 0.85rem; line-height: 1.4;">${fullAddress}</div>
                         </td>
                         <td>${itemsHtml || 'No details'}</td>
-                        <td><strong>₹${order.totalAmount || 0}</strong></td>
-                        <td><span class="badge badge-${order.status === 'delivered' ? 'success' : 'warning'}">${order.status || 'Pending'}</span></td>
-                        <td>${new Date(order.createdAt || Date.now()).toLocaleDateString()}</td>
+                        <td><strong>₹${amount.toLocaleString()}</strong></td>
+                        <td>
+                             <select onchange="updateOrderStatus('${order._id || order.orderId}', this.value)" 
+                                    style="padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
+                                <option value="pending" ${items[0]?.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="processing" ${items[0]?.status === 'processing' ? 'selected' : ''}>Processing</option>
+                                <option value="shipped" ${items[0]?.status === 'shipped' ? 'selected' : ''}>Shipped</option>
+                                <option value="delivered" ${items[0]?.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                                <option value="cancelled" ${items[0]?.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            </select>
+                        </td>
+                        <td>${new Date(order.createdAt).toLocaleDateString()}</td>
                     </tr>
                     `;
                 }).join('');
 
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center">Unable to load orders: ${err.message}</td></tr>`;
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center">Unable to load orders: ${err.message}</td></tr>`;
+            }
+        }
+        
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const response = await window.HybridAuthClient.apiCall(`/seller/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ newStatus })
+                });
+                
+                if(response.ok) {
+                    showAlert('Order status updated to ' + newStatus, 'success');
+                } else {
+                    showAlert('Failed to update status', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                showAlert('Error updating status', 'error');
             }
         }
 
