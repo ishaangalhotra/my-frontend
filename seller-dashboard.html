@@ -10,6 +10,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); display: flex; min-height: 100vh; color: var(--text); }
 
+        /* Sidebar */
         .sidebar { width: 250px; background: white; border-right: 1px solid #e2e8f0; position: fixed; height: 100%; display: flex; flex-direction: column; z-index: 100; }
         .brand { padding: 1.5rem; font-size: 1.2rem; font-weight: 800; color: var(--primary); border-bottom: 1px solid #f1f5f9; }
         .nav { padding: 1rem; flex: 1; }
@@ -17,17 +18,21 @@
         .nav-btn:hover, .nav-btn.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
         .user-section { padding: 1rem; border-top: 1px solid #f1f5f9; }
 
+        /* Main Content */
         .main { margin-left: 250px; padding: 2rem; width: calc(100% - 250px); }
         
+        /* Sections */
         .section { display: none; animation: fadeIn 0.3s ease; }
         .section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Stats Cards */
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--text); margin-top: 0.5rem; }
         .stat-label { color: #64748b; font-size: 0.9rem; }
 
+        /* Forms & Tables */
         .form-group { margin-bottom: 1rem; }
         .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
         .form-input, .form-select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; font-family: inherit; }
@@ -37,6 +42,7 @@
         .btn-secondary { background: #e2e8f0; color: var(--text); }
         .btn-secondary:hover { background: #cbd5e1; }
         
+        /* Products Grid */
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
         .product-card { background: white; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .product-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
@@ -44,6 +50,7 @@
         .badge-success { background: #dcfce7; color: #166534; }
         .badge-warning { background: #fef3c7; color: #92400e; }
         
+        /* Orders Table */
         .table-container { background: white; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 1rem; color: #64748b; font-size: 0.85rem; border-bottom: 1px solid #e2e8f0; }
@@ -57,6 +64,7 @@
         .alert-success { background: #dcfce7; color: #166534; }
         .alert-error { background: #fee2e2; color: #991b1b; }
 
+        /* Modal */
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         .modal.active { opacity: 1; pointer-events: auto; }
         .modal-content { background: white; padding: 2rem; border-radius: 0.75rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
@@ -170,7 +178,7 @@
                 <button class="btn btn-primary" onclick="switchTab('add-product')"><i class="fas fa-plus"></i> Add New</button>
             </div>
             <div id="productsList" class="products-grid">
-            </div>
+                </div>
         </div>
 
         <div id="add-product" class="section">
@@ -248,6 +256,7 @@
         let currentUser = null;
         let currentProducts = []; 
 
+        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await initAuth();
@@ -264,38 +273,50 @@
             if (!window.HybridAuthClient) {
                 throw new Error('Auth Client not found');
             }
+
+            // Wait for Auth Init
             let tries = 0;
             while (!window.HybridAuthClient.getAuthMethod() && tries < 10) {
                 await new Promise(r => setTimeout(r, 200));
                 tries++;
             }
+
             const isAuth = await window.HybridAuthClient.isAuthenticated();
             if (!isAuth) {
                 window.location.href = 'seller-login.html';
                 return;
             }
+
             currentUser = window.HybridAuthClient.getCurrentUser();
             document.getElementById('sellerName').textContent = currentUser.name || 'Seller';
+            
             if(currentUser.role !== 'seller' && currentUser.role !== 'admin') {
                 alert('Access Denied: Sellers only account required.');
                 window.location.href = 'marketplace.html';
             }
+
             document.getElementById('loader').classList.add('hidden');
         }
 
+        // --- Navigation ---
         function switchTab(tabId) {
             document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
             document.getElementById(tabId).classList.add('active');
             const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
             if(btn) btn.classList.add('active');
+
             if(tabId === 'products') loadSellerProducts();
             if(tabId === 'orders') loadSellerOrders();
         }
 
+        // --- Data Loading Functions ---
+
         async function loadDashboardStats() {
             try {
                 const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
+                
                 if (response.ok) {
                     const data = await response.json();
                     const ov = data.data.overview;
@@ -303,6 +324,8 @@
                     document.getElementById('totalOrders').textContent = ov.totalOrders || 0;
                     document.getElementById('activeProducts').textContent = ov.activeProducts || 0;
                     document.getElementById('recentActivityList').innerHTML = `<p>${ov.totalOrders} total orders processed.</p>`;
+                } else {
+                    throw new Error('Stats endpoint failed');
                 }
             } catch (error) {
                 console.warn('Stats fallback enabled');
@@ -314,11 +337,14 @@
                 const res = await fetch(`${API_URL}/categories`);
                 const data = await res.json();
                 const select = document.getElementById('categorySelect');
+                
                 if(data.success && data.data.categories) {
                     select.innerHTML = '<option value="">Select Category</option>';
                     data.data.categories.forEach(cat => {
                         select.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
                     });
+                } else {
+                    select.innerHTML = '<option value="">Error loading categories</option>';
                 }
             } catch(e) { console.error("Cat error", e); }
         }
@@ -326,16 +352,21 @@
         async function loadSellerProducts() {
             const list = document.getElementById('productsList');
             list.innerHTML = '<p>Loading your products...</p>';
+            
             try {
-                // FIX: Simply ask the secure API for products. 
-                // It filters by logged-in user automatically. No manual filtering needed.
+                // Use the explicit seller products endpoint.
+                // The updated API call ensures only your products are returned by the backend.
                 let response = await window.HybridAuthClient.apiCall('/seller/products');
                 if (!response.ok) response = await window.HybridAuthClient.apiCall(`/products?seller=${currentUser._id}`);
                 
                 const data = await response.json();
                 let products = [];
-                if(data.success) products = data.data.products || data.data || [];
-                else if (Array.isArray(data)) products = data;
+                // Handle various API response structures
+                if(data.success) {
+                     products = data.data?.products || data.data || []; 
+                } else if (Array.isArray(data)) {
+                    products = data;
+                }
 
                 currentProducts = products;
 
@@ -363,6 +394,7 @@
                     </div>
                 `).join('');
             } catch (err) {
+                console.error(err);
                 list.innerHTML = `<p style="color:red">Error loading products: ${err.message}</p>`;
             }
         }
@@ -372,7 +404,9 @@
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading...</td></tr>';
 
             try {
+                // Try seller specific endpoint
                 let response = await window.HybridAuthClient.apiCall('/seller/orders');
+                
                 let orders = [];
                 if (response.ok) {
                     const data = await response.json();
@@ -385,7 +419,8 @@
                 }
 
                 tbody.innerHTML = orders.map(order => {
-                    // FIX: Robust Address Display
+                    // FIX: Robustly check for customer info in different possible locations
+                    // This uses the fields normalized by the backend controller
                     const custInfo = order.customerInfo || {};
                     const shipAddr = order.shippingAddress || {};
                     
@@ -393,6 +428,7 @@
                     const customerEmail = custInfo.email || 'N/A';
                     const customerPhone = custInfo.phone || shipAddr.phoneNumber || 'N/A';
 
+                    // FIX: Format the address nicely
                     const fullAddress = `
                         <div style="line-height: 1.4;">
                             ${shipAddr.address || ''}<br>
@@ -409,6 +445,7 @@
                         </div>`
                     ).join('');
                     
+                    // Handle subtotal vs total
                     const amount = order.subtotal || order.total || 0;
 
                     return `
@@ -437,20 +474,31 @@
                 }).join('');
 
             } catch (err) {
+                console.error(err);
                 tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center">Unable to load orders: ${err.message}</td></tr>`;
             }
         }
         
+        // Helper to handle status updates immediately
         async function updateOrderStatus(orderId, newStatus) {
             try {
                 const response = await window.HybridAuthClient.apiCall(`/seller/orders/${orderId}/status`, {
                     method: 'PATCH',
                     body: JSON.stringify({ newStatus })
                 });
-                if(response.ok) showAlert('Order status updated to ' + newStatus, 'success');
-                else showAlert('Failed to update status', 'error');
-            } catch(e) { showAlert('Error updating status', 'error'); }
+                
+                if(response.ok) {
+                    showAlert('Order status updated to ' + newStatus, 'success');
+                } else {
+                    showAlert('Failed to update status', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                showAlert('Error updating status', 'error');
+            }
         }
+
+        // --- Form Handling (ADD) ---
 
         document.getElementById('addProductForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -461,8 +509,14 @@
 
             try {
                 const formData = new FormData(e.target);
-                if (!formData.get('category')) throw new Error("Validation Failed: Please select a product category.");
-                if (formData.get('originalPrice') === "") formData.delete('originalPrice');
+                
+                if (!formData.get('category')) {
+                    throw new Error("Validation Failed: Please select a product category.");
+                }
+
+                if (formData.get('originalPrice') === "") {
+                    formData.delete('originalPrice');
+                }
 
                 const fileInput = document.getElementById('productImage');
                 if (fileInput.files.length > 0) {
@@ -478,9 +532,15 @@
 
                 const text = await response.text();
                 let result;
-                try { result = JSON.parse(text); } catch (e) { throw new Error(`Server Error: ${response.status}`); }
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Server returned status ${response.status} with unexpected format.`);
+                }
                 
-                if (!response.ok) throw new Error(result.message || result.error || 'Failed to create product');
+                if (!response.ok) {
+                     throw new Error(result.message || result.error || 'Failed to create product');
+                }
 
                 if (result.success) { 
                     showAlert('Product published successfully!', 'success');
@@ -489,22 +549,28 @@
                 } else {
                     throw new Error(result.message || 'Failed to create product');
                 }
+
             } catch (err) {
-                showAlert(err.message, 'error');
+                console.error(err);
+                showAlert(err.message.includes('Validation Failed') ? err.message : `Error: ${err.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
         });
+
+        // --- Form Handling (EDIT) ---
         
         function openEditModal(index) {
             const product = currentProducts[index];
             if (!product) return;
+
             document.getElementById('editProductId').value = product._id || product.id;
             document.getElementById('editName').value = product.name;
             document.getElementById('editPrice').value = product.price;
             document.getElementById('editStock').value = product.stock;
             document.getElementById('editDescription').value = product.description;
+            
             document.getElementById('editModal').classList.add('active');
         }
 
@@ -516,13 +582,17 @@
             e.preventDefault();
             const id = document.getElementById('editProductId').value;
             const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = 'Updating...';
 
             try {
                 const formData = new FormData(e.target);
                 formData.delete('productId');
-                if (formData.get('originalPrice') === "") formData.delete('originalPrice');
+
+                if (formData.get('originalPrice') === "") {
+                    formData.delete('originalPrice');
+                }
 
                 const fileInput = document.getElementById('editImages');
                 if (fileInput.files.length > 0) {
@@ -537,6 +607,7 @@
                 });
 
                 const data = await response.json();
+
                 if (response.ok) {
                     showAlert('Product updated successfully', 'success');
                     closeEditModal();
@@ -544,8 +615,12 @@
                 } else {
                     throw new Error(data.message || 'Update failed');
                 }
-            } catch(err) { showAlert(err.message, 'error'); } 
-            finally { btn.disabled = false; btn.innerHTML = 'Update Product'; }
+            } catch(err) {
+                showAlert(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         });
 
         async function deleteProduct(id) {
@@ -558,7 +633,9 @@
                 } else {
                     throw new Error('Failed to delete');
                 }
-            } catch(e) { showAlert(e.message, 'error'); }
+            } catch(e) {
+                showAlert(e.message, 'error');
+            }
         }
 
         async function handleLogout() {
