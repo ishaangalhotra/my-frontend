@@ -283,7 +283,8 @@
 
             const isAuth = await window.HybridAuthClient.isAuthenticated();
             if (!isAuth) {
-                window.location.href = 'seller-login.html';
+                // Redirect to login if not authenticated
+                window.location.href = 'seller-login.html'; 
                 return;
             }
 
@@ -291,7 +292,7 @@
             document.getElementById('sellerName').textContent = currentUser.name || 'Seller';
             
             if(currentUser.role !== 'seller' && currentUser.role !== 'admin') {
-                alert('Access Denied: Sellers only account required.');
+                alert('Access Denied: Seller account required.');
                 window.location.href = 'marketplace.html';
             }
 
@@ -315,38 +316,53 @@
 
         async function loadDashboardStats() {
             try {
-                const response = await window.HybridAuthClient.apiCall('/seller/dashboard');
+                // Try enterprise dashboard first, fall back to standard
+                let response = await window.HybridAuthClient.apiCall('/seller/enterprise/dashboard');
+                if (!response.ok) response = await window.HybridAuthClient.apiCall('/seller/dashboard');
                 
                 if (response.ok) {
                     const data = await response.json();
                     const ov = data.data.overview;
-                    document.getElementById('revenue').textContent = `₹${(ov.totalRevenue || 0).toLocaleString()}`;
-                    document.getElementById('totalOrders').textContent = ov.totalOrders || 0;
-                    document.getElementById('activeProducts').textContent = ov.activeProducts || 0;
-                    document.getElementById('recentActivityList').innerHTML = `<p>${ov.totalOrders} total orders processed.</p>`;
-                } else {
-                    throw new Error('Stats endpoint failed');
+                    // Handle different response structures safely
+                    const revenue = ov.revenue?.total || ov.totalRevenue || 0;
+                    const orders = ov.orders?.total || ov.totalOrders || 0;
+                    const active = ov.products?.active || ov.activeProducts || 0;
+
+                    document.getElementById('revenue').textContent = `₹${revenue.toLocaleString()}`;
+                    document.getElementById('totalOrders').textContent = orders;
+                    document.getElementById('activeProducts').textContent = active;
+                    
+                    document.getElementById('recentActivityList').innerHTML = `<p>${orders} total orders processed.</p>`;
                 }
             } catch (error) {
-                console.warn('Stats fallback enabled');
+                console.warn('Stats load failed', error);
+                document.getElementById('recentActivityList').innerHTML = `<p style="color:orange">Could not load stats.</p>`;
             }
         }
 
         async function loadCategories() {
             try {
-                const res = await fetch(`${API_URL}/categories`);
+                // Try seller specific categories first
+                let res = await window.HybridAuthClient.apiCall('/seller/categories');
+                if (!res.ok) {
+                    // Fallback to public endpoint
+                    res = await fetch(`${API_URL}/categories`);
+                }
+                
                 const data = await res.json();
                 const select = document.getElementById('categorySelect');
                 
-                if(data.success && data.data.categories) {
+                const categories = data.data?.categories || data.categories || data.data || [];
+                
+                if(categories.length > 0) {
                     select.innerHTML = '<option value="">Select Category</option>';
-                    data.data.categories.forEach(cat => {
+                    categories.forEach(cat => {
                         select.innerHTML += `<option value="${cat._id}">${cat.name}</option>`;
                     });
                 } else {
-                    select.innerHTML = '<option value="">Error loading categories</option>';
+                    select.innerHTML = '<option value="">No categories found</option>';
                 }
-            } catch(e) { console.error("Cat error", e); }
+            } catch(e) { console.error("Category error", e); }
         }
 
         async function loadSellerProducts() {
@@ -354,19 +370,11 @@
             list.innerHTML = '<p>Loading your products...</p>';
             
             try {
-                // Use the explicit seller products endpoint.
-                // The updated API call ensures only your products are returned by the backend.
-                let response = await window.HybridAuthClient.apiCall('/seller/products');
-                if (!response.ok) response = await window.HybridAuthClient.apiCall(`/products?seller=${currentUser._id}`);
-                
+                const response = await window.HybridAuthClient.apiCall('/seller/products');
                 const data = await response.json();
-                let products = [];
-                // Handle various API response structures
-                if(data.success) {
-                     products = data.data?.products || data.data || []; 
-                } else if (Array.isArray(data)) {
-                    products = data;
-                }
+                
+                let products = data.data?.products || data.data || [];
+                if (Array.isArray(data)) products = data;
 
                 currentProducts = products;
 
@@ -378,7 +386,7 @@
                 list.innerHTML = products.map((p, index) => `
                     <div class="product-card">
                         <div class="product-header">
-                            <span class="badge badge-success">${p.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
+                            <span class="badge ${p.stock > 0 ? 'badge-success' : 'badge-warning'}">${p.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
                             <span style="font-size: 0.8rem; color: #64748b">#${p.stock} units</span>
                         </div>
                         <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${p.name}</h3>
@@ -394,7 +402,6 @@
                     </div>
                 `).join('');
             } catch (err) {
-                console.error(err);
                 list.innerHTML = `<p style="color:red">Error loading products: ${err.message}</p>`;
             }
         }
@@ -404,14 +411,9 @@
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading...</td></tr>';
 
             try {
-                // Try seller specific endpoint
-                let response = await window.HybridAuthClient.apiCall('/seller/orders');
-                
-                let orders = [];
-                if (response.ok) {
-                    const data = await response.json();
-                    orders = data.data || [];
-                }
+                const response = await window.HybridAuthClient.apiCall('/seller/orders');
+                const data = await response.json();
+                const orders = data.data || [];
 
                 if (orders.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem;">No orders found.</td></tr>';
@@ -419,53 +421,31 @@
                 }
 
                 tbody.innerHTML = orders.map(order => {
-                    // FIX: Robustly check for customer info in different possible locations
-                    // This uses the fields normalized by the backend controller
                     const custInfo = order.customerInfo || {};
                     const shipAddr = order.shippingAddress || {};
                     
                     const customerName = custInfo.name || shipAddr.fullName || 'Guest';
-                    const customerEmail = custInfo.email || 'N/A';
-                    const customerPhone = custInfo.phone || shipAddr.phoneNumber || 'N/A';
-
-                    // FIX: Format the address nicely
-                    const fullAddress = `
-                        <div style="line-height: 1.4;">
-                            ${shipAddr.address || ''}<br>
-                            ${shipAddr.city || ''}, ${shipAddr.state || ''}<br>
-                            ${shipAddr.postalCode || ''}<br>
-                            <strong>Ph:</strong> ${shipAddr.phoneNumber || customerPhone}
-                        </div>
-                    `;
-
-                    const items = order.items || [];
-                    const itemsHtml = items.map(i => 
-                        `<div style="font-size: 0.9em; margin-bottom: 4px;">
-                            • <b>${i.name || 'Product'}</b> x ${i.quantity}
-                        </div>`
-                    ).join('');
-                    
-                    // Handle subtotal vs total
+                    const fullAddress = `${shipAddr.address || ''}, ${shipAddr.city || ''}`;
                     const amount = order.subtotal || order.total || 0;
+                    const status = order.items && order.items[0] ? order.items[0].status : 'pending';
 
                     return `
                     <tr>
                         <td><span style="font-family:monospace; color: var(--primary); font-weight: bold;">#${(order.orderNumber || order.orderId || '').slice(-6)}</span></td>
                         <td>
                             <div style="font-weight:600">${customerName}</div>
-                            <div style="font-size:0.8rem; color:#64748b">${customerEmail}</div>
                         </td>
                         <td>${fullAddress}</td>
-                        <td>${itemsHtml || 'No details'}</td>
+                        <td>${order.items ? order.items.length : 0} items</td>
                         <td><strong>₹${amount.toLocaleString()}</strong></td>
                         <td>
                              <select onchange="updateOrderStatus('${order._id || order.orderId}', this.value)" 
-                                    style="padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
-                                <option value="pending" ${items[0]?.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                <option value="processing" ${items[0]?.status === 'processing' ? 'selected' : ''}>Processing</option>
-                                <option value="shipped" ${items[0]?.status === 'shipped' ? 'selected' : ''}>Shipped</option>
-                                <option value="delivered" ${items[0]?.status === 'delivered' ? 'selected' : ''}>Delivered</option>
-                                <option value="cancelled" ${items[0]?.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                                    style="padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                                <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="processing" ${status === 'processing' ? 'selected' : ''}>Processing</option>
+                                <option value="shipped" ${status === 'shipped' ? 'selected' : ''}>Shipped</option>
+                                <option value="delivered" ${status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                                <option value="cancelled" ${status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                             </select>
                         </td>
                         <td>${new Date(order.createdAt).toLocaleDateString()}</td>
@@ -474,12 +454,10 @@
                 }).join('');
 
             } catch (err) {
-                console.error(err);
                 tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center">Unable to load orders: ${err.message}</td></tr>`;
             }
         }
-        
-        // Helper to handle status updates immediately
+
         async function updateOrderStatus(orderId, newStatus) {
             try {
                 const response = await window.HybridAuthClient.apiCall(`/seller/orders/${orderId}/status`, {
@@ -487,19 +465,14 @@
                     body: JSON.stringify({ newStatus })
                 });
                 
-                if(response.ok) {
-                    showAlert('Order status updated to ' + newStatus, 'success');
-                } else {
-                    showAlert('Failed to update status', 'error');
-                }
+                if(response.ok) showAlert(`Order status updated to ${newStatus}`, 'success');
+                else showAlert('Failed to update status', 'error');
             } catch(e) {
-                console.error(e);
                 showAlert('Error updating status', 'error');
             }
         }
 
-        // --- Form Handling (ADD) ---
-
+        // --- FIXED PRODUCT UPLOAD (Fixes 400 Error) ---
         document.getElementById('addProductForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
@@ -508,16 +481,38 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
 
             try {
-                const formData = new FormData(e.target);
+                // 1. Create a fresh FormData object
+                const formData = new FormData();
                 
-                if (!formData.get('category')) {
-                    throw new Error("Validation Failed: Please select a product category.");
+                // 2. Manually append fields to ensure correctness
+                const name = e.target.querySelector('[name="name"]').value;
+                const description = e.target.querySelector('[name="description"]').value;
+                const price = e.target.querySelector('[name="price"]').value;
+                const stock = e.target.querySelector('[name="stock"]').value;
+                const category = document.getElementById('categorySelect').value;
+                
+                // Validation
+                if (!category) throw new Error("Please select a product category");
+                if (!price || isNaN(price)) throw new Error("Invalid price");
+                
+                // Append core fields
+                formData.append('name', name);
+                formData.append('description', description);
+                formData.append('price', price);
+                formData.append('stock', stock);
+                formData.append('category', category);
+
+                const originalPrice = e.target.querySelector('[name="originalPrice"]').value;
+                if (originalPrice) formData.append('originalPrice', originalPrice);
+
+                // 3. Append Shop Name info
+                if (currentUser) {
+                    formData.append('seller', currentUser._id || currentUser.id);
+                    // This makes the shop name feature work!
+                    formData.append('storeName', currentUser.storeName || currentUser.businessName || currentUser.name);
                 }
 
-                if (formData.get('originalPrice') === "") {
-                    formData.delete('originalPrice');
-                }
-
+                // 4. Handle Images
                 const fileInput = document.getElementById('productImage');
                 if (fileInput.files.length > 0) {
                     for(let i=0; i < fileInput.files.length; i++) {
@@ -525,41 +520,34 @@
                     }
                 }
 
-                const response = await window.HybridAuthClient.apiCall('/products', {
+                // 5. Send Request using generic product endpoint (more reliable)
+                let response = await window.HybridAuthClient.apiCall('/products', {
                     method: 'POST',
-                    body: formData,
+                    body: formData
+                    // NOTE: Do not set Content-Type header manually when using FormData
                 });
 
-                const text = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(text);
-                } catch (e) {
-                    throw new Error(`Server returned status ${response.status} with unexpected format.`);
-                }
+                const result = await response.json();
                 
                 if (!response.ok) {
+                     if (result.errors) console.table(result.errors);
                      throw new Error(result.message || result.error || 'Failed to create product');
                 }
 
-                if (result.success) { 
-                    showAlert('Product published successfully!', 'success');
-                    e.target.reset();
-                    switchTab('products'); 
-                } else {
-                    throw new Error(result.message || 'Failed to create product');
-                }
+                showAlert('Product published successfully!', 'success');
+                e.target.reset();
+                switchTab('products'); 
 
             } catch (err) {
-                console.error(err);
-                showAlert(err.message.includes('Validation Failed') ? err.message : `Error: ${err.message}`, 'error');
+                console.error('Upload error:', err);
+                showAlert(err.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
         });
 
-        // --- Form Handling (EDIT) ---
+        // --- Form Handling (EDIT & DELETE) ---
         
         function openEditModal(index) {
             const product = currentProducts[index];
@@ -590,9 +578,8 @@
                 const formData = new FormData(e.target);
                 formData.delete('productId');
 
-                if (formData.get('originalPrice') === "") {
-                    formData.delete('originalPrice');
-                }
+                // Clean optional fields
+                if (!formData.get('originalPrice')) formData.delete('originalPrice');
 
                 const fileInput = document.getElementById('editImages');
                 if (fileInput.files.length > 0) {
