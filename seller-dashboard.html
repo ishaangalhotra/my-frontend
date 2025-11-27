@@ -120,7 +120,7 @@
                         <input type="text" name="name" id="editName" class="form-input" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Price (â‚¹)</label>
+                        <label class="form-label">Price (₹)</label>
                         <input type="number" name="price" id="editPrice" class="form-input" required step="0.01">
                     </div>
                     <div class="form-group">
@@ -195,7 +195,7 @@
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
-                            <label class="form-label">Price (â‚¹)</label>
+                            <label class="form-label">Price (₹)</label>
                             <input type="number" name="price" class="form-input" required step="0.01">
                         </div>
                         <div class="form-group">
@@ -328,7 +328,7 @@
                     const orders = ov.orders?.total || ov.totalOrders || 0;
                     const active = ov.products?.active || ov.activeProducts || 0;
 
-                    document.getElementById('revenue').textContent = `â‚¹${revenue.toLocaleString()}`;
+                    document.getElementById('revenue').textContent = `₹${revenue.toLocaleString()}`;
                     document.getElementById('totalOrders').textContent = orders;
                     document.getElementById('activeProducts').textContent = active;
                     
@@ -370,11 +370,24 @@
             list.innerHTML = '<p>Loading your products...</p>';
             
             try {
+                // This call will now work after fixing server.js
                 const response = await window.HybridAuthClient.apiCall('/seller/products');
                 const data = await response.json();
                 
-                let products = data.data?.products || data.data || [];
-                if (Array.isArray(data)) products = data;
+                // Debugging: Check exactly what data we are getting
+                console.log('Seller Products Data:', data);
+
+                // Handle the specific structure from sellerController.js: 
+                // res.json({ success: true, data: { products: [...] } })
+                let products = [];
+                
+                if (data.data && Array.isArray(data.data.products)) {
+                    products = data.data.products;
+                } else if (Array.isArray(data.data)) {
+                    products = data.data;
+                } else if (Array.isArray(data)) {
+                    products = data;
+                }
 
                 currentProducts = products;
 
@@ -389,8 +402,13 @@
                             <span class="badge ${p.stock > 0 ? 'badge-success' : 'badge-warning'}">${p.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
                             <span style="font-size: 0.8rem; color: #64748b">#${p.stock} units</span>
                         </div>
+                        <div style="height: 150px; overflow: hidden; border-radius: 4px; margin-bottom: 0.5rem; background: #f0f0f0;">
+                            <img src="${(p.images && p.images[0] && p.images[0].url) ? p.images[0].url : 'https://placehold.co/300x200?text=No+Image'}" 
+                                 style="width: 100%; height: 100%; object-fit: cover;" 
+                                 onerror="this.src='https://placehold.co/300x200?text=Error'">
+                        </div>
                         <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${p.name}</h3>
-                        <p style="color: var(--primary); font-weight: 700; margin-bottom: 0.5rem;">â‚¹${p.price}</p>
+                        <p style="color: var(--primary); font-weight: 700; margin-bottom: 0.5rem;">₹${p.price}</p>
                         <div style="display:flex; gap: 0.5rem; margin-top: 1rem;">
                              <button class="btn" style="border: 1px solid #6366f1; color: #6366f1; padding: 0.5rem; font-size: 0.8rem; flex: 1;" onclick="openEditModal(${index})">
                                 <i class="fas fa-edit"></i> Edit
@@ -402,6 +420,7 @@
                     </div>
                 `).join('');
             } catch (err) {
+                console.error("Load Products Error:", err);
                 list.innerHTML = `<p style="color:red">Error loading products: ${err.message}</p>`;
             }
         }
@@ -437,7 +456,7 @@
                         </td>
                         <td>${fullAddress}</td>
                         <td>${order.items ? order.items.length : 0} items</td>
-                        <td><strong>â‚¹${amount.toLocaleString()}</strong></td>
+                        <td><strong>₹${amount.toLocaleString()}</strong></td>
                         <td>
                              <select onchange="updateOrderStatus('${order._id || order.orderId}', this.value)" 
                                     style="padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
