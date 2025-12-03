@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuickLocal – Admin Category Creator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f3f4f6; padding:20px; }
+    .card { max-width:480px; margin:0 auto; background:#fff; padding:16px 20px; border-radius:10px; box-shadow:0 6px 18px rgba(15,23,42,.08); }
+    h1 { font-size:1.1rem; margin-top:0; }
+    label { display:block; font-size:.8rem; margin:8px 0 4px; }
+    input, textarea { width:100%; padding:6px 8px; border-radius:6px; border:1px solid #d1d5db; font-size:.85rem; }
+    button { margin-top:12px; padding:8px 12px; border:none; border-radius:999px; background:#4f46e5; color:#fff; font-size:.8rem; cursor:pointer; }
+    .log { margin-top:12px; font-size:.8rem; white-space:pre-wrap; background:#f9fafb; padding:8px; border-radius:6px; border:1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Create Category (Admin)</h1>
+    <form id="catForm">
+      <label>Name *</label>
+      <input id="name" required>
+
+      <label>Slug (lowercase-with-dashes) *</label>
+      <input id="slug" required placeholder="snacks-branded-foods">
+
+      <label>Description</label>
+      <textarea id="description" rows="3"></textarea>
+
+      <label>Parent Category ID (optional)</label>
+      <input id="parentCategory" placeholder="leave empty for root">
+
+      <label>Order (for sorting)</label>
+      <input id="order" type="number" value="0">
+
+      <label>
+        <input id="isActive" type="checkbox" checked>
+        Active
+      </label>
+      <label>
+        <input id="isFeatured" type="checkbox">
+        Featured
+      </label>
+
+      <button type="submit">Create Category</button>
+    </form>
+    <div class="log" id="log">Status: idle</div>
+  </div>
+
+  <!-- Hybrid Auth client -->
+  <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
+  <script>
+    const logEl = document.getElementById('log');
+
+    function log(msg) {
+      logEl.textContent = msg;
+      console.log('[Admin Category]', msg);
+    }
+
+    async function ensureAdmin() {
+      if (!window.HybridAuthClient) {
+        log('HybridAuthClient not loaded.');
+        return false;
+      }
+      const authed = await HybridAuthClient.isAuthenticated();
+      if (!authed) {
+        log('Not authenticated. Please log in as admin.');
+        window.location.href = 'admin-login.html';
+        return false;
+      }
+      const user = HybridAuthClient.getCurrentUser();
+      if (!user || user.role !== 'admin') {
+        log('You must be admin to create categories.');
+        return false;
+      }
+      log('Logged in as admin: ' + (user.name || user.email || user.id));
+      return true;
+    }
+
+    document.getElementById('catForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ok = await ensureAdmin();
+      if (!ok) return;
+
+      const body = {
+        name: document.getElementById('name').value.trim(),
+        slug: document.getElementById('slug').value.trim(),
+        description: document.getElementById('description').value.trim() || undefined,
+        order: Number(document.getElementById('order').value || 0),
+        isActive: document.getElementById('isActive').checked,
+        isFeatured: document.getElementById('isFeatured').checked
+      };
+
+      const parent = document.getElementById('parentCategory').value.trim();
+      if (parent) body.parentCategory = parent;
+
+      try {
+        log('Creating category...');
+        const res = await HybridAuthClient.apiCall('/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          log('✅ Created:\n' + JSON.stringify(data.data, null, 2));
+          e.target.reset();
+        } else {
+          log('❌ Failed:\n' + JSON.stringify(data, null, 2));
+        }
+      } catch (err) {
+        log('❌ Error: ' + err.message);
+      }
+    });
+
+    ensureAdmin();
+  </script>
+</body>
+</html>
