@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seller Central | Inventory</title>
-    <!-- Icons & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -152,16 +150,13 @@
 </head>
 <body>
 
-    <!-- Loader -->
     <div id="loader" class="loader" style="display: flex;">
         <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--secondary); margin-bottom: 15px;"></i>
         <h3>Loading Seller Central...</h3>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="alert-float"></div>
 
-    <!-- Navbar -->
     <nav class="top-nav">
         <div class="brand">
             <i class="fas fa-box-open" style="color: var(--secondary);"></i> QuickLocal <span style="font-weight: 300; opacity: 0.8;">Seller Central</span>
@@ -181,10 +176,8 @@
         </div>
     </nav>
 
-    <!-- Main Container -->
     <div class="container">
         
-        <!-- DASHBOARD SECTION -->
         <div id="dashboard" class="section active">
             <h1 class="inventory-title" style="margin-bottom: 20px;">Performance Overview</h1>
             
@@ -206,13 +199,11 @@
                 </div>
             </div>
 
-            <!-- Chart -->
-             <div class="widget-card" style="height: 400px;">
+            <div class="widget-card" style="height: 400px;">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
 
-        <!-- INVENTORY SECTION -->
         <div id="inventory" class="section">
             <div class="inventory-header">
                 <div class="inventory-title">Manage Inventory</div>
@@ -251,8 +242,7 @@
                         </tr>
                     </thead>
                     <tbody id="inventoryBody">
-                        <!-- Rows injected via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
             <div id="noProductsMsg" style="text-align: center; padding: 40px; display: none;">
@@ -261,7 +251,6 @@
             </div>
         </div>
         
-        <!-- ORDERS SECTION (Basic Placeholder) -->
         <div id="orders" class="section">
              <h1 class="inventory-title">Manage Orders</h1>
              <div class="widget-card">
@@ -288,7 +277,6 @@
 
     </div>
 
-    <!-- PRODUCT MODAL (Add/Edit) -->
     <div id="productModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -307,7 +295,6 @@
                 <form id="productForm">
                     <input type="hidden" id="editProductId">
 
-                    <!-- Vital Info Tab -->
                     <div id="tab-vital" class="form-section active">
                         <div class="form-row">
                             <label class="form-label">Product Name <span style="color:red">*</span></label>
@@ -332,7 +319,6 @@
                         </div>
                     </div>
 
-                    <!-- Offer Tab -->
                     <div id="tab-offer" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Your Price (₹) <span style="color:red">*</span></label>
@@ -354,7 +340,6 @@
                         </div>
                     </div>
 
-                    <!-- Images Tab -->
                     <div id="tab-images" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Main Image</label>
@@ -366,7 +351,6 @@
                         </div>
                     </div>
 
-                    <!-- Description Tab -->
                     <div id="tab-description" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Product Description <span style="color:red">*</span></label>
@@ -497,70 +481,177 @@
             });
         }
 
-        // --- INVENTORY MANAGEMENT (The Core Request) ---
+        // --- INVENTORY MANAGEMENT (FIXED) ---
         async function loadInventory() {
             const tbody = document.getElementById('inventoryBody');
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Loading inventory...</td></tr>';
 
             try {
-                // Ensure correct endpoint usage
-                const res = await window.HybridAuthClient.apiCall('/seller/products');
-                const data = await res.json();
+                console.log('🔄 Loading inventory...');
                 
-                // Robust data extraction
-                let products = [];
-                if(data.data && Array.isArray(data.data.products)) products = data.data.products;
-                else if(Array.isArray(data.data)) products = data.data;
-                else if(Array.isArray(data)) products = data;
+                // CRITICAL FIX 1: Clear service worker cache before loading
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'CLEAR_API_CACHE'
+                    });
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                }
 
-                globalProducts = products; // Store for filtering
+                // CRITICAL FIX 2: Add cache-busting parameter
+                const cacheBuster = `_t=${Date.now()}&_r=${Math.random()}`;
+                
+                // CRITICAL FIX 3: Try multiple endpoint formats
+                let res;
+                let products = [];
+                let errorMsg = '';
+                
+                // Try primary endpoint: /seller/products
+                try {
+                    console.log('📡 Attempting: /seller/products');
+                    res = await window.HybridAuthClient.apiCall(`/seller/products?${cacheBuster}`, {
+                        method: 'GET'
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        console.log('✅ Response from /seller/products:', data);
+                        
+                        // CRITICAL FIX 4: Robust data extraction with multiple fallbacks
+                        if (data.success && data.data) {
+                            if (Array.isArray(data.data.products)) {
+                                products = data.data.products;
+                            } else if (Array.isArray(data.data)) {
+                                products = data.data;
+                            } else if (data.data.products && typeof data.data.products === 'object') {
+                                products = Object.values(data.data.products);
+                            }
+                        } else if (Array.isArray(data.products)) {
+                            products = data.products;
+                        } else if (Array.isArray(data)) {
+                            products = data;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('⚠️ /seller/products failed:', err.message);
+                    errorMsg = err.message;
+                }
+
+                // Fallback: Try /products endpoint with seller filter
+                if (products.length === 0 && currentUser) {
+                    try {
+                        console.log('📡 Attempting fallback: /products');
+                        res = await window.HybridAuthClient.apiCall(`/products?seller=${currentUser._id || currentUser.id}&${cacheBuster}`, {
+                            method: 'GET'
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            console.log('✅ Response from /products:', data);
+                            
+                            if (data.success && data.data) {
+                                if (Array.isArray(data.data)) {
+                                    products = data.data;
+                                } else if (Array.isArray(data.data.products)) {
+                                    products = data.data.products;
+                                }
+                            } else if (Array.isArray(data)) {
+                                products = data;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ /products fallback failed:', err.message);
+                    }
+                }
+
+                // CRITICAL FIX 5: Validate and filter products
+                products = products.filter(p => {
+                    // Ensure product belongs to current seller
+                    const productSellerId = p.seller?._id || p.seller?.id || p.seller;
+                    const currentSellerId = currentUser._id || currentUser.id;
+                    return productSellerId === currentSellerId;
+                });
+
+                console.log(`✅ Loaded ${products.length} products`);
+                
+                // Store and render
+                globalProducts = products;
                 renderInventoryTable(products);
 
             } catch(err) {
-                console.error(err);
-                tbody.innerHTML = `<tr><td colspan="8" style="color:red; text-align:center;">Error loading inventory: ${err.message}</td></tr>`;
+                console.error('❌ Critical inventory load error:', err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="color:red; text-align:center; padding:20px;">
+                            <i class="fas fa-exclamation-triangle"></i><br>
+                            Error loading inventory: ${err.message}<br>
+                            <button class="btn btn-primary" onclick="loadInventory()" style="margin-top:10px;">
+                                <i class="fas fa-sync"></i> Retry
+                            </button>
+                        </td>
+                    </tr>
+                `;
             }
         }
 
         function renderInventoryTable(products) {
             const tbody = document.getElementById('inventoryBody');
+            const noProductsMsg = document.getElementById('noProductsMsg');
             
-            if(products.length === 0) {
+            console.log('🎨 Rendering', products.length, 'products');
+            
+            if(!products || products.length === 0) {
                 tbody.innerHTML = '';
-                document.getElementById('noProductsMsg').style.display = 'block';
+                noProductsMsg.style.display = 'block';
+                noProductsMsg.innerHTML = `
+                    <i class="fas fa-box-open" style="font-size: 40px; color: #ccc; margin-bottom: 10px;"></i>
+                    <p>No inventory found.</p>
+                    <button class="btn btn-primary" onclick="openProductModal()" style="margin-top: 10px;">
+                        <i class="fas fa-plus"></i> Add Your First Product
+                    </button>
+                `;
                 return;
             }
             
-            document.getElementById('noProductsMsg').style.display = 'none';
+            noProductsMsg.style.display = 'none';
             
             tbody.innerHTML = products.map(p => {
-                const img = (p.images && p.images[0]?.url) ? p.images[0].url : 'https://placehold.co/60x60?text=No+Img';
-                const status = p.stock > 0 ? 'Active' : 'Inactive';
-                const statusClass = p.stock > 0 ? 'status-active' : 'status-inactive';
+                // CRITICAL FIX 6: Safe property access with fallbacks
+                const img = p.images?.[0]?.url || 'https://placehold.co/60x60?text=No+Img';
+                const status = (p.stock > 0 && p.status === 'active') ? 'Active' : 'Inactive';
+                const statusClass = status === 'Active' ? 'status-active' : 'status-inactive';
                 const date = new Date(p.createdAt || Date.now()).toLocaleDateString();
-                const fee = (p.price * 0.15).toFixed(2); // Mock 15% fee
-                const id = p._id || p.id; // Handle both ID formats
-
+                const fee = (p.price * 0.15).toFixed(2);
+                const id = p._id || p.id;
+                
+                // Safe name extraction
+                const name = p.name || 'Unnamed Product';
+                const sku = id ? id.slice(-6).toUpperCase() : 'N/A';
+                const asin = id ? `B0${id.slice(-8).toUpperCase()}` : 'N/A';
+                
                 return `
-                <tr>
+                <tr data-product-id="${id}">
                     <td><span class="status-badge ${statusClass}">${status}</span></td>
-                    <td><img src="${img}" class="product-img"></td>
+                    <td><img src="${img}" class="product-img" alt="${name}"></td>
                     <td>
                         <div class="product-info">
-                            <a href="#" class="product-name" onclick="openEdit('${id}')">${p.name}</a>
-                            <div class="product-meta">SKU: ${id.slice(-6).toUpperCase()}</div>
-                            <div class="product-meta">ASIN: B0${id.slice(-8).toUpperCase()}</div>
+                            <a href="#" class="product-name" onclick="event.preventDefault(); openEdit('${id}')">${name}</a>
+                            <div class="product-meta">SKU: ${sku}</div>
+                            <div class="product-meta">ASIN: ${asin}</div>
                         </div>
                     </td>
                     <td style="color:#555;">${date}</td>
                     <td>
-                        <input type="number" class="editable-input" value="${p.stock}" onchange="quickUpdate('${id}', 'stock', this.value)">
+                        <input type="number" class="editable-input" value="${p.stock || 0}" 
+                               onchange="quickUpdate('${id}', 'stock', this.value)"
+                               min="0">
                     </td>
                     <td style="color:#555;">Est. Fee: ₹${fee}</td>
                     <td>
                         <div style="display:flex; align-items:center; gap:5px;">
                             <span>₹</span>
-                            <input type="number" class="editable-input" value="${p.price}" onchange="quickUpdate('${id}', 'price', this.value)">
+                            <input type="number" class="editable-input" value="${p.price || 0}" 
+                                   onchange="quickUpdate('${id}', 'price', this.value)"
+                                   min="0" step="0.01">
                         </div>
                     </td>
                     <td style="text-align: right;">
@@ -578,7 +669,7 @@
             const status = document.getElementById('statusFilter').value;
 
             const filtered = globalProducts.filter(p => {
-                const matchesSearch = p.name.toLowerCase().includes(term) || (p._id && p._id.includes(term));
+                const matchesSearch = p.name.toLowerCase().includes(term) || ((p._id || p.id).includes(term));
                 const isActive = p.stock > 0;
                 
                 let matchesStatus = true;
@@ -712,33 +803,93 @@
         async function deleteProduct(id) {
             if(!confirm("Are you sure you want to delete this listing? This cannot be undone.")) return;
             
+            const row = document.querySelector(`tr[data-product-id="${id}"]`);
+            if (row) {
+                row.style.opacity = '0.5';
+                row.style.pointerEvents = 'none';
+            }
+            
             try {
-                const res = await window.HybridAuthClient.apiCall(`/products/${id}`, { method: 'DELETE' });
-                if(res.ok) {
-                    showToast("Listing deleted", 'success');
-                    loadInventory();
-                } else throw new Error("Delete failed");
+                console.log('🗑️ Deleting product:', id);
+                
+                const res = await window.HybridAuthClient.apiCall(`/products/${id}`, { 
+                    method: 'DELETE' 
+                });
+                
+                if(res.ok || res.status === 204) {
+                    showToast("Listing deleted successfully", 'success');
+                    
+                    // Clear cache
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'CLEAR_API_CACHE'
+                        });
+                    }
+                    
+                    // Remove from global array
+                    globalProducts = globalProducts.filter(p => (p._id || p.id) !== id);
+                    
+                    // Re-render
+                    renderInventoryTable(globalProducts);
+                } else {
+                    throw new Error(`Delete failed with status ${res.status}`);
+                }
             } catch(e) {
-                showToast(e.message, 'error');
+                console.error('❌ Delete error:', e);
+                showToast(`Failed to delete: ${e.message}`, 'error');
+                
+                // Restore row
+                if (row) {
+                    row.style.opacity = '1';
+                    row.style.pointerEvents = 'auto';
+                }
             }
         }
 
         // --- QUICK UPDATE (Inline Editing) ---
         async function quickUpdate(id, field, value) {
+            const input = event?.target;
+            const originalValue = input?.dataset.originalValue || input?.defaultValue;
+            
+            if (input) {
+                input.disabled = true;
+                input.dataset.originalValue = originalValue;
+            }
+            
             try {
-                // We create a minimal body for PATCH or PUT
-                // Since API likely expects multipart/form-data for products, we use FormData
-                // Or JSON if your backend supports it for updates. Assuming FormData based on previous code.
+                console.log(`⚡ Quick update: ${field} = ${value} for product ${id}`);
+                
                 const formData = new FormData();
                 formData.append(field, value);
                 
-                // We use PUT because that's what was established, but typically PATCH is better for partials
-                const res = await window.HybridAuthClient.apiCall(`/products/${id}`, { method: 'PUT', body: formData });
+                const res = await window.HybridAuthClient.apiCall(`/products/${id}`, { 
+                    method: 'PUT', 
+                    body: formData 
+                });
                 
-                if(res.ok) showToast(`${field} updated`, 'success');
-                else showToast(`Failed to update ${field}`, 'error');
+                if(res.ok) {
+                    showToast(`${field} updated successfully`, 'success');
+                    
+                    // Update in global array
+                    const product = globalProducts.find(p => (p._id || p.id) === id);
+                    if (product) {
+                        product[field] = field === 'stock' || field === 'price' ? Number(value) : value;
+                    }
+                } else {
+                    throw new Error(`Update failed`);
+                }
             } catch(e) {
-                console.error(e);
+                console.error('❌ Quick update error:', e);
+                showToast(`Failed to update ${field}`, 'error');
+                
+                // Restore original value
+                if (input && originalValue) {
+                    input.value = originalValue;
+                }
+            } finally {
+                if (input) {
+                    input.disabled = false;
+                }
             }
         }
 
