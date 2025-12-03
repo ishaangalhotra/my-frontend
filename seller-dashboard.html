@@ -491,11 +491,7 @@
             font-size: 0.72rem;
         }
 
-        /* Orders section list cards reuse .stat-card */
-
-        /* Analytics small stats reuse .stat-card */
-
-        /* Inventory TABLE view (Amazon-style, adapted to QuickLocal theme) */
+        /* Inventory TABLE view */
         .inventory-header {
             display: flex;
             align-items: center;
@@ -753,7 +749,6 @@
             cursor: pointer;
         }
 
-        /* Category pills in modal */
         .category-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -854,7 +849,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .top-nav {
                 padding-inline: 1rem;
@@ -929,9 +923,7 @@
         </div>
     </nav>
 
-    <!-- Main Container -->
     <div class="container">
-        <!-- Alerts -->
         <div id="alertContainer"></div>
 
         <!-- DASHBOARD -->
@@ -1058,7 +1050,7 @@
             </div>
         </section>
 
-        <!-- INVENTORY (Table View, Amazon-style) -->
+        <!-- INVENTORY TABLE VIEW -->
         <section id="inventory" class="section">
             <div class="inventory-header">
                 <div>
@@ -1274,11 +1266,11 @@
         </div>
     </div>
 
-    <!-- Hybrid Auth client from your backend -->
+    <!-- Hybrid Auth client -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
 
     <script>
-        const API_BASE_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        const API_BASE_URL = window.HybridAuthClient?.backendUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
 
         let currentUser = null;
         let globalProducts = [];
@@ -1286,7 +1278,6 @@
         let selectedFiles = [];
         let selectedCategory = '';
 
-        // ==== INIT ====
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('[Seller] Initializing super dashboard...');
             await initializeAuth();
@@ -1331,9 +1322,7 @@
             document.getElementById('userInitials').textContent = initials;
         }
 
-        // ==== NAVIGATION & EVENTS ====
         function setupEventListeners() {
-            // Tabs
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.addEventListener('click', e => {
                     e.preventDefault();
@@ -1342,7 +1331,6 @@
                 });
             });
 
-            // Product search debounce
             const productSearch = document.getElementById('productSearch');
             if (productSearch) {
                 let debounce;
@@ -1352,13 +1340,11 @@
                 });
             }
 
-            // Product filters
             ['categoryFilter', 'statusFilter', 'stockFilter'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', filterProducts);
             });
 
-            // Inventory search + filter
             const invSearch = document.getElementById('inventorySearch');
             if (invSearch) {
                 let debounceInv;
@@ -1371,11 +1357,9 @@
             const invStatus = document.getElementById('inventoryStatusFilter');
             if (invStatus) invStatus.addEventListener('change', filterInventory);
 
-            // Image upload
             const imgInput = document.getElementById('productImages');
             if (imgInput) imgInput.addEventListener('change', handleImageUpload);
 
-            // File upload label click triggers file input
             document.querySelectorAll('.file-upload').forEach(el => {
                 el.addEventListener('click', () => {
                     const input = el.querySelector('input[type="file"]');
@@ -1385,17 +1369,14 @@
         }
 
         function switchTab(tabId) {
-            // nav active
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
             const activeLink = document.querySelector(`.nav-link[data-tab="${tabId}"]`);
             if (activeLink) activeLink.classList.add('active');
 
-            // section active
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             const target = document.getElementById(tabId);
             if (target) target.classList.add('active');
 
-            // data loading
             switch (tabId) {
                 case 'dashboard':
                     loadDashboardData();
@@ -1422,18 +1403,30 @@
         // ==== DASHBOARD ====
         async function loadDashboardData() {
             try {
-                const res = await window.HybridAuthClient.apiCall('/seller/enterprise/dashboard');
-                const data = await res.json();
-                if (data.success && data.data) {
-                    const overview = data.data.overview || {};
-                    document.getElementById('totalRevenue').textContent =
-                        `₹${(overview.revenue?.total || 0).toLocaleString()}`;
-                    document.getElementById('totalOrders').textContent = overview.orders?.total || 0;
-                    document.getElementById('totalProducts').textContent = overview.products?.active || 0;
-                    document.getElementById('lowStock').textContent = overview.products?.lowStock || 0;
-
-                    updateRecentOrders(data.data.recentOrders || []);
+                let res = await window.HybridAuthClient.apiCall('/seller/enterprise/dashboard');
+                if (!res.ok) {
+                    res = await window.HybridAuthClient.apiCall('/seller/dashboard');
                 }
+
+                if (!res.ok) {
+                    throw new Error(`Dashboard API returned ${res.status}`);
+                }
+
+                const data = await res.json();
+                if (!data || !data.data) return;
+
+                const overview = data.data.overview || {};
+
+                document.getElementById('totalRevenue').textContent =
+                    '₹' + (overview.revenue?.total || overview.totalRevenue || 0).toLocaleString();
+                document.getElementById('totalOrders').textContent =
+                    overview.orders?.total || overview.totalOrders || 0;
+                document.getElementById('totalProducts').textContent =
+                    overview.products?.active || overview.activeProducts || 0;
+                document.getElementById('lowStock').textContent =
+                    overview.products?.lowStock || overview.lowStock || 0;
+
+                updateRecentOrders(data.data.recentOrders || []);
             } catch (err) {
                 console.error('Dashboard load error', err);
                 showAlert('Failed to load dashboard data', 'error');
@@ -1466,14 +1459,15 @@
             `;
 
             try {
-                // poke SW cache to keep it fresh
                 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_API_CACHE' });
                     await new Promise(r => setTimeout(r, 80));
                 }
 
                 const cacheBuster = `_t=${Date.now()}`;
-                const res = await window.HybridAuthClient.apiCall(`/seller/products?${cacheBuster}`);
+                const res = await window.HybridAuthClient.apiCall(`/products?limit=1000&${cacheBuster}`, {
+                    method: 'GET'
+                });
                 const result = await res.json();
 
                 let products = [];
@@ -1486,7 +1480,6 @@
 
                 globalProducts = products || [];
                 renderProducts(globalProducts);
-                // also update inventory table when products load
                 renderInventoryTable(globalProducts);
 
             } catch (err) {
@@ -1544,7 +1537,6 @@
                             </div>
                             <span class="product-stock ${stockClass}">${stockText}</span>
                         </div>
-
                         <div class="product-details">
                             <div class="product-detail">
                                 <span class="detail-label">Price:</span>
@@ -1560,7 +1552,6 @@
                                 <span class="detail-value">${escapeHtml(product.brand)}</span>
                             </div>` : ''}
                         </div>
-
                         <div class="product-actions">
                             <button class="btn btn-secondary btn-sm"
                                 onclick="editProduct('${product._id || product.id}')">
@@ -1606,7 +1597,7 @@
             renderProducts(filtered);
         }
 
-        // ==== INVENTORY TABLE (from second design) ====
+        // ==== INVENTORY TABLE ====
         function renderInventoryTable(products) {
             const tbody = document.getElementById('inventoryBody');
             const empty = document.getElementById('inventoryEmpty');
@@ -1630,8 +1621,9 @@
                 const stock = p.stock || 0;
                 const fee = ((p.price || 0) * 0.15).toFixed(2);
 
-                const sku = id ? (id + '').slice(-6).toUpperCase() : 'SKU---';
-                const asin = id ? 'B0' + (id + '').slice(-8).toUpperCase() : 'B0-XXXX';
+                const idStr = (id + '') || '';
+                const sku = idStr ? idStr.slice(-6).toUpperCase() : 'SKU---';
+                const asin = idStr ? 'B0' + idStr.slice(-8).toUpperCase() : 'B0-XXXX';
 
                 return `
                     <tr>
@@ -1678,7 +1670,7 @@
 
             const filtered = globalProducts.filter(p => {
                 const name = (p.name || '').toLowerCase();
-                const id = (p._id || p.id || '').toLowerCase();
+                const id = (p._id || p.id || '').toString().toLowerCase();
                 const matchesSearch = !term || name.includes(term) || id.includes(term);
 
                 const isActive = (p.stock || 0) > 0;
@@ -1698,17 +1690,16 @@
                 const formData = new FormData();
                 formData.append(field, value);
 
-                const res = await window.HybridAuthClient.apiCall(`/seller/products/${id}`, {
+                const res = await window.HybridAuthClient.apiCall(`/products/${id}`, {
                     method: 'PUT',
                     body: formData
                 });
 
                 if (res.ok) {
                     showAlert(`${field} updated`, 'success');
-                    // sync local
                     const idx = globalProducts.findIndex(p => (p._id || p.id) === id);
                     if (idx !== -1) {
-                        globalProducts[idx][field] = field === 'price' || field === 'stock'
+                        globalProducts[idx][field] = (field === 'price' || field === 'stock')
                             ? Number(value) : value;
                     }
                     renderProducts(globalProducts);
@@ -1726,13 +1717,20 @@
         // ==== CATEGORIES ====
         async function loadCategories() {
             try {
-                const res = await window.HybridAuthClient.apiCall('/seller/categories');
-                const result = await res.json();
+                let response = await window.HybridAuthClient.apiCall('/categories?limit=50');
+                const result = await response.json();
 
+                let categories = [];
                 if (result.success && result.data) {
-                    globalCategories = result.data;
-                    populateCategoryFilters();
+                    categories = result.data.categories || result.data;
+                } else if (Array.isArray(result.categories)) {
+                    categories = result.categories;
+                } else if (Array.isArray(result)) {
+                    categories = result;
                 }
+
+                globalCategories = categories || [];
+                populateCategoryFilters();
             } catch (e) {
                 console.error('Category load error', e);
             }
@@ -1744,14 +1742,14 @@
 
             if (categorySelect) {
                 categorySelect.innerHTML =
-                    '<option value=\"\">All Categories</option>' +
-                    globalCategories.map(c =>
+                    '<option value="">All Categories</option>' +
+                    (globalCategories || []).map(c =>
                         `<option value="${c._id}">${escapeHtml(c.name)}</option>`
                     ).join('');
             }
 
             if (categoryOptions) {
-                categoryOptions.innerHTML = globalCategories.map(c => `
+                categoryOptions.innerHTML = (globalCategories || []).map(c => `
                     <div class="category-item" data-category-id="${c._id}">
                         <i class="fas fa-tag"></i>
                         <span>${escapeHtml(c.name)}</span>
@@ -1921,7 +1919,7 @@
 
                 selectedFiles.forEach(file => formData.append('images', file));
 
-                const url = isEdit ? `/seller/products/${productId}` : '/seller/products';
+                const url = isEdit ? `/products/${productId}` : '/products';
                 const method = isEdit ? 'PUT' : 'POST';
 
                 const res = await window.HybridAuthClient.apiCall(url, {
@@ -1934,7 +1932,6 @@
                     showAlert(isEdit ? 'Product updated successfully!' : 'Product created successfully!', 'success');
                     closeProductModal();
 
-                    // Clear SW cache
                     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_API_CACHE' });
                     }
@@ -1958,7 +1955,7 @@
 
             showLoading(true);
             try {
-                const res = await window.HybridAuthClient.apiCall(`/seller/products/${productId}`, {
+                const res = await window.HybridAuthClient.apiCall(`/products/${productId}`, {
                     method: 'DELETE'
                 });
 
