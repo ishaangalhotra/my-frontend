@@ -407,7 +407,7 @@
                 await Promise.all([
                     loadDashboard(),
                     loadInventory(),
-                    loadCategories()
+                    loadCategories()  // Load categories on initialization
                 ]);
             } catch (err) {
                 console.error(err);
@@ -623,6 +623,10 @@
             document.getElementById('productForm').reset();
             document.getElementById('editProductId').value = '';
             document.getElementById('imagePreview').innerHTML = '';
+            
+            // Make sure categories are loaded when modal opens
+            loadCategories();
+            
             document.getElementById('productModal').classList.add('active');
             switchFormTab('vital');
         }
@@ -769,22 +773,64 @@
             }
         }
 
-        // --- CATEGORIES ---
+        // --- CATEGORIES (FIXED VERSION) ---
         async function loadCategories() {
             try {
-                let res = await window.HybridAuthClient.apiCall('/seller/categories');
-                if(!res.ok) res = await fetch(`${API_URL}/categories`);
-                const data = await res.json();
+                // Use the same endpoint as add-product.html
+                const cacheBuster = `_t=${Date.now()}`;
+                let res;
                 
-                const cats = data.data?.categories || data.data || data.categories || [];
+                if (window.HybridAuthClient) {
+                    res = await window.HybridAuthClient.apiCall(`/categories?limit=50&${cacheBuster}`, {
+                        method: 'GET'
+                    });
+                } else {
+                    res = await fetch(`${API_URL}/categories?limit=50&${cacheBuster}`, {
+                        method: 'GET'
+                    });
+                }
+
+                const data = await res.json();
+                console.log('Categories API response:', data);
+
+                // Handle different response structures
+                let categories = [];
+                if (data.success && data.data) {
+                    categories = Array.isArray(data.data) ? data.data : 
+                                (data.data.categories ? data.data.categories : []);
+                } else if (Array.isArray(data)) {
+                    categories = data;
+                } else if (data.categories) {
+                    categories = data.categories;
+                }
+
                 const select = document.getElementById('pCategory');
                 select.innerHTML = '<option value="">Select Category...</option>';
-                cats.forEach(c => {
+                
+                categories.forEach(c => {
                     if (!c || !c._id) return;
-                    select.innerHTML += `<option value="${c._id}">${c.name}</option>`;
+                    const name = c.name || 'Unnamed Category';
+                    select.innerHTML += `<option value="${c._id}">${name}</option>`;
                 });
+
+                console.log(`Loaded ${categories.length} categories`);
+
             } catch(e) {
                 console.error("Category load error", e);
+                showToast("Failed to load categories", 'error');
+                
+                // Add some default categories as fallback
+                const select = document.getElementById('pCategory');
+                select.innerHTML = `
+                    <option value="">Select Category...</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="clothing">Clothing</option>
+                    <option value="home">Home & Garden</option>
+                    <option value="groceries">Groceries</option>
+                    <option value="fruits">Fruits & Vegetables</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="bakery">Bakery</option>
+                `;
             }
         }
 
