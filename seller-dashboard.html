@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seller Central | Inventory</title>
-    <!-- Icons & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -152,16 +150,13 @@
 </head>
 <body>
 
-    <!-- Loader -->
     <div id="loader" class="loader" style="display: flex;">
         <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--secondary); margin-bottom: 15px;"></i>
         <h3>Loading Seller Central...</h3>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="alert-float"></div>
 
-    <!-- Navbar -->
     <nav class="top-nav">
         <div class="brand">
             <i class="fas fa-box-open" style="color: var(--secondary);"></i> QuickLocal <span style="font-weight: 300; opacity: 0.8;">Seller Central</span>
@@ -181,10 +176,8 @@
         </div>
     </nav>
 
-    <!-- Main Container -->
     <div class="container">
         
-        <!-- DASHBOARD SECTION -->
         <div id="dashboard" class="section active">
             <h1 class="inventory-title" style="margin-bottom: 20px;">Performance Overview</h1>
             
@@ -206,13 +199,11 @@
                 </div>
             </div>
 
-            <!-- Chart -->
             <div class="widget-card" style="height: 400px;">
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
 
-        <!-- INVENTORY SECTION -->
         <div id="inventory" class="section">
             <div class="inventory-header">
                 <div class="inventory-title">Manage Inventory</div>
@@ -251,8 +242,7 @@
                         </tr>
                     </thead>
                     <tbody id="inventoryBody">
-                        <!-- Rows injected via JS -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
             <div id="noProductsMsg" style="text-align: center; padding: 40px; display: none;">
@@ -261,7 +251,6 @@
             </div>
         </div>
         
-        <!-- ORDERS SECTION -->
         <div id="orders" class="section">
             <h1 class="inventory-title">Manage Orders</h1>
             <div class="widget-card">
@@ -286,7 +275,6 @@
             </div>
         </div>
 
-        <!-- REPORTS SECTION (placeholder) -->
         <div id="reports" class="section">
             <h1 class="inventory-title">Reports</h1>
             <div class="widget-card">
@@ -296,7 +284,6 @@
 
     </div>
 
-    <!-- PRODUCT MODAL (Add/Edit) -->
     <div id="productModal" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -315,7 +302,6 @@
                 <form id="productForm">
                     <input type="hidden" id="editProductId">
 
-                    <!-- Vital Info Tab -->
                     <div id="tab-vital" class="form-section active">
                         <div class="form-row">
                             <label class="form-label">Product Name <span style="color:red">*</span></label>
@@ -340,7 +326,6 @@
                         </div>
                     </div>
 
-                    <!-- Offer Tab -->
                     <div id="tab-offer" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Your Price (₹) <span style="color:red">*</span></label>
@@ -362,7 +347,6 @@
                         </div>
                     </div>
 
-                    <!-- Images Tab -->
                     <div id="tab-images" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Main Image</label>
@@ -374,7 +358,6 @@
                         </div>
                     </div>
 
-                    <!-- Description Tab -->
                     <div id="tab-description" class="form-section">
                         <div class="form-row">
                             <label class="form-label">Product Description <span style="color:red">*</span></label>
@@ -691,32 +674,56 @@
             try {
                 const formData = new FormData();
                 
+                // 1. Basic Info
                 formData.append('name', document.getElementById('pName').value);
                 formData.append('brand', document.getElementById('pBrand').value);
-                formData.append('price', document.getElementById('pPrice').value);
-                formData.append('stock', document.getElementById('pStock').value);
                 formData.append('description', document.getElementById('pDescription').value);
                 formData.append('category', document.getElementById('pCategory').value);
                 
+                // 2. Price Handling (Crucial Fix)
+                const price = parseFloat(document.getElementById('pPrice').value);
+                formData.append('price', price);
+                // We send finalPrice to ensure the frontend renderer finds it immediately
+                formData.append('finalPrice', price); 
+                
                 const ogPrice = document.getElementById('pOriginalPrice').value;
-                if(ogPrice) formData.append('originalPrice', ogPrice);
+                if(ogPrice) {
+                    formData.append('originalPrice', parseFloat(ogPrice));
+                }
 
+                // 3. Stock & Unit
+                formData.append('stock', document.getElementById('pStock').value);
+                formData.append('unit', 'piece'); // Defaulting to piece as it was missing
+
+                // 4. Seller Metadata
                 if(currentUser) {
+                    // Note: The backend usually overrides 'seller' with req.user.id for security, 
+                    // but we send it for completeness.
                     formData.append('seller', currentUser._id || currentUser.id || '');
-                    formData.append('storeName', currentUser.storeName || currentUser.name || '');
+                    formData.append('sellerName', currentUser.storeName || currentUser.name || ''); 
                 }
 
+                // 5. Image Handling
                 const files = document.getElementById('pImageInput').files;
-                for(let i=0; i<files.length; i++) {
-                    formData.append('images', files[i]);
-                }
+                if(files.length > 0) {
+                    for(let i=0; i<files.length; i++) {
+                        formData.append('images', files[i]);
+                    }
+                } 
 
+                // 6. API Call
                 let url = '/seller/products';
                 let method = 'POST';
                 if(isEdit) {
                     url = `/seller/products/${id}`;
                     method = 'PUT';
                 }
+
+                console.log('Submitting product data:', {
+                    name: document.getElementById('pName').value,
+                    price: price,
+                    imageCount: files.length
+                });
 
                 const res = await window.HybridAuthClient.apiCall(url, { method, body: formData });
                 const result = await res.json();
@@ -730,7 +737,7 @@
                 }
 
             } catch(err) {
-                console.error(err);
+                console.error('Product submission error:', err);
                 showToast(err.message, 'error');
             } finally {
                 btn.innerText = originalText;

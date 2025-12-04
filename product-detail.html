@@ -743,8 +743,19 @@
         }
 
         function getSafeImageUrl(product, size = '500x400') {
-            let img = product.image || product.primaryImage?.url || product.images?.[0]?.url || product.images?.[0];
-            if(img && img.startsWith('http')) return img;
+            // Priority 1: Check the images array (can be strings or objects)
+            if(product.images && Array.isArray(product.images) && product.images.length > 0) {
+                const first = product.images[0];
+                if(typeof first === 'string' && first.startsWith('http')) return first;
+                if(typeof first === 'object' && first.url) return first.url;
+            }
+            
+            // Priority 2: Check legacy single image field
+            if(product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                return product.image;
+            }
+            
+            // Priority 3: Fallback placeholder
             const safeName = encodeURIComponent(product.name || 'Product').replace(/%20/g, '+');
             return `https://placehold.co/${size}/f1f5f9/0f172a?text=${safeName}`;
         }
@@ -757,11 +768,16 @@
                 productId = params.get('id') || params.get('productId');
                 const stored = localStorage.getItem('current_product');
 
+                console.log('Initializing Product Detail. ID:', productId);
+
                 if(productId) {
                     try {
+                        // Try fetching fresh data from API
                         const res = await api.get(`/products/${productId}`);
-                        currentProduct = res.data || res.product;
+                        // Handle different API response structures (res.data or res.product)
+                        currentProduct = res.data?.product || res.data || res.product;
                     } catch(e) {
+                        console.warn('API fetch failed, falling back to local storage', e);
                         if(stored) currentProduct = JSON.parse(stored);
                     }
                 } else if(stored) {
@@ -769,7 +785,10 @@
                     productId = currentProduct.id || currentProduct._id;
                 }
 
-                if(!currentProduct) throw new Error('Product not found');
+                if(!currentProduct) throw new Error('Product not found in API or Local Storage');
+
+                // Debug Log
+                console.log('Product Data Loaded:', currentProduct);
 
                 document.title = `${currentProduct.name} - QuickLocal`;
                 document.getElementById('breadcrumbProduct').textContent = currentProduct.name;
@@ -780,9 +799,11 @@
                 loadRelatedProducts();
 
             } catch(err) {
+                console.error('Critical Error loading product:', err);
                 document.getElementById('productDetail').innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; padding: 4rem;">
                         <h2 style="color: var(--text-secondary)">Product Not Found</h2>
+                        <p style="color: var(--text-light)">${err.message}</p>
                         <button class="action-btn btn-secondary" onclick="goHome()" style="margin: 1rem auto;">Go Home</button>
                     </div>
                 `;
@@ -792,17 +813,33 @@
         }
 
         function renderProductHTML() {
-            const price = currentProduct.finalPrice || currentProduct.price || 0;
-            const original = currentProduct.originalPrice || price;
-            const discount = original > price ? Math.round(((original - price)/original)*100) : 0;
-            const imgUrl = getSafeImageUrl(currentProduct);
+            // Price logic: prioritize finalPrice, fallback to price
+            const finalPrice = Number(currentProduct.finalPrice) || Number(currentProduct.price) || 0;
+            const originalPrice = Number(currentProduct.originalPrice) || finalPrice;
             
-            // Collect additional images
-            let images = [imgUrl];
-            if(currentProduct.images && Array.isArray(currentProduct.images) && currentProduct.images.length > 0) {
-                images = currentProduct.images.map(img => typeof img === 'string' ? img : img.url).filter(url => url && url.startsWith('http'));
+            const discount = originalPrice > finalPrice 
+                ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100) 
+                : 0;
+            
+            // Extract Images
+            let images = [];
+            if(currentProduct.images && Array.isArray(currentProduct.images)) {
+                images = currentProduct.images
+                    .map(img => (typeof img === 'object' ? img.url : img))
+                    .filter(url => url && url.startsWith('http'));
             }
-            if(images.length === 0) images = [imgUrl];
+            
+            // Fallback if array is empty but single image exists
+            if(images.length === 0) {
+                const safeImg = getSafeImageUrl(currentProduct);
+                images = [safeImg];
+            }
+            
+            // Seller Logic
+            const sellerName = currentProduct.seller?.name 
+                            || currentProduct.seller?.storeName 
+                            || currentProduct.sellerName 
+                            || 'QuickLocal Seller';
 
             const html = `
                 <div class="product-gallery">
@@ -818,34 +855,31 @@
                 </div>
 
                 <div class="product-info">
-                    <div class="category-pill">${currentProduct.category || 'General'}</div>
+                    <div class="category-pill">${currentProduct.category?.name || 'General'}</div>
                     <h1>${currentProduct.name}</h1>
-                    <!-- ADDED: Seller info -->
+                    
                     <div style="margin-bottom: 1rem; color: #64748b; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-store" style="color: var(--primary);"></i>
-                        <span>Sold by: <strong style="color: var(--text-primary);">${currentProduct.seller?.name || 'QuickLocal Seller'}</strong></span>
+                        <span>Sold by: <strong style="color: var(--text-primary);">${sellerName}</strong></span>
                     </div>
-
                     
                     <div class="meta-row">
-                        <div class="rating-badge">
-                            <i class="fas fa-star"></i> 4.5
-                        </div>
+                        <div class="rating-badge"><i class="fas fa-star"></i> 4.5</div>
                         <div class="reviews-count">120+ reviews</div>
-                        <div class="stock-badge">
-                            <i class="fas fa-check-circle"></i> In Stock
-                        </div>
+                        <div class="stock-badge"><i class="fas fa-check-circle"></i> In Stock</div>
                     </div>
 
                     <div class="price-container">
-                        <span class="current-price">₹${price.toLocaleString()}</span>
-                        ${original > price ? `
-                            <span class="original-price">₹${original.toLocaleString()}</span>
+                        <span class="current-price">₹${finalPrice.toLocaleString()}</span>
+                        ${originalPrice > finalPrice ? `
+                            <span class="original-price">₹${originalPrice.toLocaleString()}</span>
                             <span class="discount-badge">${discount}% OFF</span>
                         ` : ''}
                     </div>
 
-                    <p style="margin-bottom: 2rem; color: var(--text-secondary);">${currentProduct.description || 'Premium quality product sourced from trusted local vendors.'}</p>
+                    <p style="margin-bottom: 2rem; color: var(--text-secondary);">
+                        ${currentProduct.description || 'Premium quality product sourced from trusted local vendors.'}
+                    </p>
 
                     <div class="action-section">
                         <div class="quantity-wrapper">
