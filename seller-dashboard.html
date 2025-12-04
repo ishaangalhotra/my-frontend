@@ -1845,37 +1845,31 @@
         async function loadDashboardData() {
             if (!ensureHybridAuth()) return;
             try {
-                const res = await window.HybridAuthClient.apiCall('/seller/enterprise/dashboard');
+                // CHANGED: Pointing to basic dashboard instead of enterprise
+                const res = await window.HybridAuthClient.apiCall('/seller/dashboard');
                 const data = await res.json();
+
                 if (data.success && data.data) {
                     const overview = data.data.overview || {};
-                    document.getElementById('totalRevenue').textContent =
-                        `₹${(overview.revenue?.total || 0).toLocaleString()}`;
-                    document.getElementById('totalOrders').textContent = overview.orders?.total || 0;
-                    document.getElementById('totalProducts').textContent = overview.products?.active || 0;
-                    document.getElementById('lowStock').textContent = overview.products?.lowStock || 0;
 
-                    updateRecentOrders(data.data.recentOrders || []);
+                    // FIXED: Mapping to Basic Controller structure
+                    document.getElementById('totalRevenue').textContent =
+                        `₹${(overview.totalRevenue || 0).toLocaleString()}`;
+
+                    document.getElementById('totalOrders').textContent = overview.totalOrders || 0;
+                    document.getElementById('totalProducts').textContent = overview.activeProducts || 0;
+                    document.getElementById('lowStock').textContent = overview.lowStockProducts || 0;
+
+                    // Update recent orders with placeholder as basic API doesn't return them
+                    const recOrdersContainer = document.getElementById('recentOrders');
+                    if (recOrdersContainer) {
+                         recOrdersContainer.innerHTML = '<p class="empty-description">View the Orders tab for recent activity.</p>';
+                    }
                 }
             } catch (err) {
                 console.error('Dashboard load error:', err);
                 showAlert('Failed to load dashboard data', 'error');
             }
-        }
-
-        function updateRecentOrders(orders) {
-            const container = document.getElementById('recentOrders');
-            if (!orders || !orders.length) {
-                container.innerHTML = '<p class="empty-description">No recent orders.</p>';
-                return;
-            }
-
-            container.innerHTML = orders.slice(0, 5).map(o => `
-                <div class="product-detail" style="display:flex; justify-content:space-between; font-size:0.8rem; padding:0.3rem 0;">
-                    <span>Order #${o.orderNumber || (o._id || '').slice(-8)}</span>
-                    <span>₹${(o.total || 0).toFixed(2)}</span>
-                </div>
-            `).join('');
         }
 
         // ========= CATEGORIES =========
@@ -2483,20 +2477,11 @@
 
         // ========= ANALYTICS =========
         async function loadAnalytics() {
-            if (!ensureHybridAuth()) return;
-            try {
-                const res = await window.HybridAuthClient.apiCall('/seller/enterprise/analytics');
-                const result = await res.json();
-                if (result.success && result.data) {
-                    const data = result.data;
-                    document.getElementById('totalVisitors').textContent = data.visitors || 0;
-                    document.getElementById('conversionRate').textContent = `${(data.conversionRate || 0).toFixed(1)}%`;
-                    document.getElementById('avgOrderValue').textContent = `₹${(data.avgOrderValue || 0).toFixed(2)}`;
-                    document.getElementById('bestSelling').textContent = data.bestSelling || 0;
-                }
-            } catch (err) {
-                console.error('Analytics load error', err);
-            }
+             // Enterprise analytics disabled
+             document.getElementById('totalVisitors').textContent = "-";
+             document.getElementById('conversionRate').textContent = "-";
+             document.getElementById('avgOrderValue').textContent = "-";
+             document.getElementById('bestSelling').textContent = "-";
         }
 
         function setupCharts() {
