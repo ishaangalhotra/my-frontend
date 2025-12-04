@@ -49,25 +49,25 @@ self.addEventListener('install', (event) => {
 
 // CRITICAL FIX: Cleanup stale API cache with shorter TTL
 async function cleanupStaleAPICache() {
-    const cache = await caches.open(API_CACHE_NAME);
-    const requests = await cache.keys();
-    
-    const now = Date.now();
-    const MAX_AGE = 2 * 60 * 1000; // REDUCED to 2 minutes for API calls
-    
-    for (const request of requests) {
-        const response = await cache.match(request);
-        if (response) {
-            const dateHeader = response.headers.get('date');
-            if (dateHeader) {
-                const age = now - new Date(dateHeader).getTime();
-                if (age > MAX_AGE) {
-                    await cache.delete(request);
-                    console.log('[SW] ✅ Removed stale API cache:', request.url);
-                }
-            }
+  const cache = await caches.open(API_CACHE_NAME);
+  const requests = await cache.keys();
+  
+  const now = Date.now();
+  const MAX_AGE = 2 * 60 * 1000; // 2 minutes for API calls
+  
+  for (const request of requests) {
+    const response = await cache.match(request);
+    if (response) {
+      const dateHeader = response.headers.get('date');
+      if (dateHeader) {
+        const age = now - new Date(dateHeader).getTime();
+        if (age > MAX_AGE) {
+          await cache.delete(request);
+          console.log('[SW] ✅ Removed stale API cache:', request.url);
         }
+      }
     }
+  }
 }
 
 // Activate event - clean up old caches
@@ -123,7 +123,7 @@ self.addEventListener('fetch', (event) => {
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
   const isStatic = isStaticRequest(request.url);
 
-  // 1. CRITICAL FIX: API Cache Strategy - Network First with short-lived cache
+  // 1. API Cache Strategy - Network First with short-lived cache
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {
@@ -166,7 +166,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Image Cache Strategy (Cache-First, with expiry)
+  // 2. Image Cache Strategy (Cache-First, with revalidation)
   if (isImage) {
     event.respondWith(
       caches.open(IMAGE_CACHE_NAME).then((cache) => {
@@ -216,39 +216,61 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Messaging event for version control and cache management
+// ✅ Messaging event for version control and cache management (FIXED)
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  const data = event.data || {};
+  const replyPort = event.ports && event.ports[0] ? event.ports[0] : null;
+
+  if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 
-  if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_NAME });
-  }
-
-  // NEW: Force cache clear command
-  if (event.data && event.data.type === 'CLEAR_API_CACHE') {
-    caches.open(API_CACHE_NAME).then((cache) => {
-      cache.keys().then((requests) => {
-        requests.forEach((request) => {
-          cache.delete(request);
+  if (data.type === 'GET_VERSION') {
+    if (replyPort) {
+      replyPort.postMessage({ version: CACHE_NAME });
+    } else {
+      // Fallback: broadcast to all clients
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_VERSION', version: CACHE_NAME });
         });
       });
-    });
-    event.ports[0].postMessage({ success: true });
+    }
   }
 
-  // Handle offline data storage
-  if (event.data && event.data.type === 'STORE_OFFLINE_DATA') {
-    const { key, data } = event.data;
-    try {
-      localStorage.setItem(`offline_${key}`, JSON.stringify({
-        data: data,
-        timestamp: Date.now()
-      }));
-      event.ports[0].postMessage({ success: true });
-    } catch (error) {
-      event.ports[0].postMessage({ success: false, error: error.message });
+  // Force cache clear command – work even without MessageChannel
+  if (data.type === 'CLEAR_API_CACHE') {
+    const clearPromise = (async () => {
+      const cache = await caches.open(API_CACHE_NAME);
+      const requests = await cache.keys();
+      for (const request of requests) {
+        await cache.delete(request);
+      }
+      console.log('[SW] 🧹 API cache cleared via message');
+    })();
+
+    event.waitUntil(
+      clearPromise.then(() =>
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+          clients.forEach((client) => {
+            client.postMessage({ type: 'API_CACHE_CLEARED', timestamp: Date.now() });
+          });
+        })
+      )
+    );
+
+    if (replyPort) {
+      replyPort.postMessage({ success: true });
+    }
+  }
+
+  // Offline data storage (disabled here – SW cannot use localStorage)
+  if (data.type === 'STORE_OFFLINE_DATA') {
+    if (replyPort) {
+      replyPort.postMessage({
+        success: false,
+        error: 'Offline storage not implemented in service worker (no localStorage).'
+      });
     }
   }
 });
@@ -261,7 +283,7 @@ self.addEventListener('periodicsync', (event) => {
     event.waitUntil(updateOrderStatusInBackground());
   }
   
-  // NEW: Clean stale cache periodically
+  // Clean stale cache periodically
   if (event.tag === 'clean-cache') {
     event.waitUntil(cleanupStaleAPICache());
   }

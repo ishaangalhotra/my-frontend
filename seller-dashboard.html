@@ -1877,19 +1877,55 @@
             if (!ensureHybridAuth()) return;
 
             try {
-                let response = await window.HybridAuthClient.apiCall('/seller/categories');
-                if (!response.ok) {
-                    // fallback to global
-                    response = await window.HybridAuthClient.apiCall('/categories?limit=100');
-                }
-                const result = await response.json();
+                let categories = [];
 
-                if (result.success && result.data) {
-                    const cats = Array.isArray(result.data)
-                        ? result.data
-                        : (result.data.categories || []);
-                    globalCategories = cats;
+                // 1) Try seller-specific categories first
+                try {
+                    const sellerRes = await window.HybridAuthClient.apiCall('/seller/categories');
+                    const sellerJson = await sellerRes.json().catch(() => ({}));
+
+                    if (sellerRes.ok && sellerJson && sellerJson.success) {
+                        const raw = sellerJson.data || [];
+                        const sellerCats = Array.isArray(raw)
+                            ? raw
+                            : (raw.categories || []);
+                        
+                        if (Array.isArray(sellerCats) && sellerCats.length > 0) {
+                            categories = sellerCats;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Seller] Categories fetch failed, attempting fallback:', e);
+                }
+
+                // 2) If seller categories are empty (new seller) or request failed, fallback to global
+                if (!categories.length) {
+                    // console.log('[Seller] No specific categories found, loading global list...');
+                    try {
+                        const globalRes = await window.HybridAuthClient.apiCall('/categories?limit=100');
+                        const globalJson = await globalRes.json().catch(() => ({}));
+
+                        if (globalJson && globalJson.success && globalJson.data) {
+                            const raw = globalJson.data;
+                            const globalCats = Array.isArray(raw)
+                                ? raw
+                                : (raw.categories || []);
+                            
+                            if (Array.isArray(globalCats)) {
+                                categories = globalCats;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[Seller] Global categories fallback failed:', e);
+                    }
+                }
+
+                // 3) Update global state and UI
+                if (categories.length) {
+                    globalCategories = categories;
                     populateCategoryFilters();
+                } else {
+                    console.warn('[Seller] No categories found from either seller or global endpoints.');
                 }
             } catch (error) {
                 console.error('Categories load error:', error);
