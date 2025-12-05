@@ -956,7 +956,14 @@
             const shipping = order.shippingAddress || order.shipping || {}; 
             
             document.getElementById('ordCustName').textContent = shipping.name || shipping.fullName || 'N/A';
-            document.getElementById('ordCustPhone').textContent = shipping.phone || 'N/A';
+            
+            // --- FIX: Check phoneNumber first, then phone ---
+            document.getElementById('ordCustPhone').textContent = 
+                shipping.phoneNumber || 
+                shipping.phone || 
+                order.user?.phone || 
+                'N/A';
+
             document.getElementById('ordCustEmail').textContent = order.user?.email || shipping.email || 'N/A';
             
             const addressParts = [
