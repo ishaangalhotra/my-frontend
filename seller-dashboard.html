@@ -141,6 +141,101 @@
         .widget-value { font-size: 28px; font-weight: 300; color: var(--text-dark); }
         .widget-sub { font-size: 12px; color: var(--success); display: flex; align-items: center; gap: 5px; margin-top: 5px; }
 
+        /* Order Timeline Styles */
+        .order-timeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: 10px 0 15px;
+            position: relative;
+            gap: 10px;
+            font-size: 11px;
+        }
+
+        .timeline-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding-top: 18px;
+            color: var(--text-light);
+        }
+
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            top: 7px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            z-index: -1;
+        }
+
+        .timeline-step:first-child::after {
+            left: 50%;
+            width: 50%;
+        }
+
+        .timeline-step:last-child::after {
+            width: 50%;
+        }
+
+        .timeline-step:first-child::after,
+        .timeline-step:last-child::after {
+            transform: translateX(0);
+        }
+
+        .timeline-step.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .timeline-step.active::before {
+            border-color: var(--primary);
+            background: var(--primary);
+        }
+
+        .timeline-step.completed {
+            color: #28a745;
+        }
+
+        .timeline-step.completed::before {
+            border-color: #28a745;
+            background: #28a745;
+        }
+
+        .timeline-step-cancelled {
+            color: var(--danger);
+        }
+
+        .timeline-step-cancelled::before {
+            border-color: var(--danger);
+            background: var(--danger);
+        }
+
+        .timeline-label {
+            margin-bottom: 2px;
+        }
+
+        .timeline-time {
+            font-size: 10px;
+            color: var(--text-light);
+        }
+
         /* Alerts */
         .alert-float { position: fixed; top: 70px; right: 20px; padding: 15px 25px; border-radius: 4px; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 3000; display: none; }
         .alert-success { background: var(--success); }
@@ -242,7 +337,7 @@
                         </tr>
                     </thead>
                     <tbody id="inventoryBody">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
             <div id="noProductsMsg" style="text-align: center; padding: 40px; display: none;">
@@ -267,7 +362,8 @@
                                 <th>Customer</th>
                                 <th>Status</th>
                                 <th>Total</th>
-                                <th>Actions</th> </tr>
+                                <th>Actions</th> 
+                            </tr>
                         </thead>
                         <tbody id="ordersBody">
                             <tr><td colspan="6" style="text-align: center; padding: 20px;">Loading...</td></tr>
@@ -399,6 +495,11 @@
                     </div>
                 </div>
 
+                <!-- NEW: ORDER TIMELINE -->
+                <h4 style="margin-bottom: 8px; color: var(--text-dark);">Order Timeline</h4>
+                <div id="orderTimeline" class="order-timeline"></div>
+
+                <hr style="margin: 15px 0;">
                 <h4 style="margin-bottom: 10px; color: var(--text-dark);">Ordered Items</h4>
                 <div class="data-table-wrapper">
                     <table>
@@ -412,7 +513,7 @@
                             </tr>
                         </thead>
                         <tbody id="orderItemsBody">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
                 
@@ -432,7 +533,7 @@
         const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
         let currentUser = null;
         let globalProducts = [];
-        let globalOrders = []; // FIXED: Added to store orders for detail view
+        let globalOrders = [];
         let salesChartInstance = null;
 
         // --- INIT ---
@@ -442,7 +543,7 @@
                 await Promise.all([
                     loadDashboard(),
                     loadInventory(),
-                    loadCategories()  // Load categories on initialization
+                    loadCategories()
                 ]);
             } catch (err) {
                 console.error(err);
@@ -456,7 +557,6 @@
         async function initAuth() {
             if (!window.HybridAuthClient) throw new Error("Auth client missing");
             
-            // Wait for client init
             let tries = 0;
             while(!window.HybridAuthClient.getAuthMethod() && tries < 20) {
                 await new Promise(r => setTimeout(r, 100));
@@ -523,7 +623,6 @@
                 document.getElementById('activeListings').innerText = activeListings;
                 document.getElementById('todaySales').innerText = "₹" + Number(totalRevenue || 0).toLocaleString();
 
-                // Simple demo chart
                 initChart([1200, 1500, 800, 2300, 1800, 3200, 2500]);
             } catch(e) {
                 console.warn("Dashboard load error", e);
@@ -659,7 +758,6 @@
             document.getElementById('editProductId').value = '';
             document.getElementById('imagePreview').innerHTML = '';
             
-            // Make sure categories are loaded when modal opens
             loadCategories();
             
             document.getElementById('productModal').classList.add('active');
@@ -726,16 +824,13 @@
             try {
                 const formData = new FormData();
                 
-                // 1. Basic Info
                 formData.append('name', document.getElementById('pName').value);
                 formData.append('brand', document.getElementById('pBrand').value);
                 formData.append('description', document.getElementById('pDescription').value);
                 formData.append('category', document.getElementById('pCategory').value);
                 
-                // 2. Price Handling (Crucial Fix)
                 const price = parseFloat(document.getElementById('pPrice').value);
                 formData.append('price', price);
-                // We send finalPrice to ensure the frontend renderer finds it immediately
                 formData.append('finalPrice', price); 
                 
                 const ogPrice = document.getElementById('pOriginalPrice').value;
@@ -743,19 +838,14 @@
                     formData.append('originalPrice', parseFloat(ogPrice));
                 }
 
-                // 3. Stock & Unit
                 formData.append('stock', document.getElementById('pStock').value);
-                formData.append('unit', 'piece'); // Defaulting to piece as it was missing
+                formData.append('unit', 'piece');
 
-                // 4. Seller Metadata
                 if(currentUser) {
-                    // Note: The backend usually overrides 'seller' with req.user.id for security, 
-                    // but we send it for completeness.
                     formData.append('seller', currentUser._id || currentUser.id || '');
                     formData.append('sellerName', currentUser.storeName || currentUser.name || ''); 
                 }
 
-                // 5. Image Handling
                 const files = document.getElementById('pImageInput').files;
                 if(files.length > 0) {
                     for(let i=0; i<files.length; i++) {
@@ -763,19 +853,12 @@
                     }
                 } 
 
-                // 6. API Call
                 let url = '/seller/products';
                 let method = 'POST';
                 if(isEdit) {
                     url = `/seller/products/${id}`;
                     method = 'PUT';
                 }
-
-                console.log('Submitting product data:', {
-                    name: document.getElementById('pName').value,
-                    price: price,
-                    imageCount: files.length
-                });
 
                 const res = await window.HybridAuthClient.apiCall(url, { method, body: formData });
                 const result = await res.json();
@@ -832,10 +915,9 @@
             }
         }
 
-        // --- CATEGORIES (FIXED VERSION) ---
+        // --- CATEGORIES ---
         async function loadCategories() {
             try {
-                // Use the same endpoint as add-product.html
                 const cacheBuster = `_t=${Date.now()}`;
                 let res;
                 
@@ -850,9 +932,7 @@
                 }
 
                 const data = await res.json();
-                console.log('Categories API response:', data);
 
-                // Handle different response structures
                 let categories = [];
                 if (data.success && data.data) {
                     categories = Array.isArray(data.data) ? data.data : 
@@ -872,13 +952,10 @@
                     select.innerHTML += `<option value="${c._id}">${name}</option>`;
                 });
 
-                console.log(`Loaded ${categories.length} categories`);
-
             } catch(e) {
                 console.error("Category load error", e);
                 showToast("Failed to load categories", 'error');
                 
-                // Add some default categories as fallback
                 const select = document.getElementById('pCategory');
                 select.innerHTML = `
                     <option value="">Select Category...</option>
@@ -893,7 +970,96 @@
             }
         }
 
-        // --- FIXED: ORDERS LOGIC ---
+        // --- ORDER TIMELINE HELPERS ---
+        function getOrderStatusForTimeline(order) {
+            const statuses = [];
+
+            if (order.status) {
+                statuses.push(String(order.status).toLowerCase());
+            }
+
+            if (Array.isArray(order.items)) {
+                order.items.forEach(it => {
+                    if (it.status) {
+                        statuses.push(String(it.status).toLowerCase());
+                    }
+                });
+            }
+
+            if (!statuses.length) return 'pending';
+
+            if (statuses.some(s => ['cancelled', 'failed'].includes(s))) return 'cancelled';
+            if (statuses.some(s => ['delivered'].includes(s))) return 'delivered';
+            if (statuses.some(s => ['shipped', 'dispatched', 'out_for_delivery', 'ready_to_ship'].includes(s))) return 'shipped';
+            if (statuses.some(s => ['processing', 'confirmed', 'preparing', 'ready'].includes(s))) return 'processing';
+
+            return 'pending';
+        }
+
+        function renderOrderTimeline(order) {
+            const container = document.getElementById('orderTimeline');
+            if (!container) return;
+
+            const createdAt = order.createdAt ? new Date(order.createdAt) : null;
+            const currentStatus = getOrderStatusForTimeline(order);
+
+            const steps = [
+                { key: 'placed', label: 'Order Placed' },
+                { key: 'processing', label: 'Processing' },
+                { key: 'shipped', label: 'Shipped' },
+                { key: 'delivered', label: 'Delivered' }
+            ];
+
+            const statusToIndex = {
+                pending: 0,
+                placed: 0,
+                confirmed: 1,
+                processing: 1,
+                preparing: 1,
+                ready: 1,
+                ready_to_ship: 2,
+                shipped: 2,
+                dispatched: 2,
+                out_for_delivery: 2,
+                delivered: 3
+            };
+
+            const idx = statusToIndex[currentStatus] ?? 0;
+
+            // Build HTML
+            container.innerHTML = steps.map((step, i) => {
+                let cls = 'timeline-step';
+                if (currentStatus === 'cancelled') {
+                    if (i === 0) cls += ' completed';
+                } else {
+                    if (i < idx) cls += ' completed';
+                    if (i === idx) cls += ' active';
+                }
+
+                // Only show timestamp on first step (placed)
+                let timeLabel = '';
+                if (i === 0 && createdAt) {
+                    timeLabel = createdAt.toLocaleString();
+                }
+
+                return `
+                    <div class="${cls}">
+                        <div class="timeline-label">${step.label}</div>
+                        ${timeLabel ? `<div class="timeline-time">${timeLabel}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            if (currentStatus === 'cancelled') {
+                container.innerHTML += `
+                    <div style="margin-top: 6px; text-align:center; font-size: 11px; color: var(--danger);">
+                        This order was cancelled.
+                    </div>
+                `;
+            }
+        }
+
+        // --- ORDERS LIST + STATUS CHANGE ---
         async function loadSellerOrders() {
             const tbody = document.getElementById('ordersBody');
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading orders...</td></tr>';
@@ -901,7 +1067,7 @@
                 const res = await window.HybridAuthClient.apiCall('/seller/orders');
                 const data = await res.json();
                 const orders = data.data || [];
-                globalOrders = orders; // Store globally for viewOrderDetails
+                globalOrders = orders;
 
                 if(!orders.length) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found.</td></tr>';
@@ -913,7 +1079,6 @@
                     const orderCode = id ? id.slice(-8).toUpperCase() : 'ORDER';
                     const itemsCount = o.items?.length || 0;
                     
-                    // Handle different backend structures for address
                     const shipping = o.shippingAddress || o.shipping || {};
                     const customerName = shipping.fullName || shipping.name || 'Customer';
 
@@ -922,9 +1087,10 @@
                     
                     let badgeClass = 'status-inactive';
                     if (status === 'delivered') badgeClass = 'status-active';
-                    else if (status === 'shipped') badgeClass = 'status-active';
+                    else if (status === 'shipped' || status === 'processing') badgeClass = 'status-active';
 
                     const total = typeof o.totalAmount === 'number' ? o.totalAmount : (o.subtotal || 0);
+                    const orderId = o._id || o.id || '';
 
                     return `
                         <tr>
@@ -934,7 +1100,15 @@
                             <td><span class="status-badge ${badgeClass}">${status}</span></td>
                             <td style="font-weight:700;">₹${total.toFixed(2)}</td>
                             <td>
-                                <button class="btn btn-primary" style="padding: 4px 10px;" onclick="viewOrderDetails('${o._id || o.id}')">
+                                <select onchange="changeOrderStatus('${orderId}', this.value)" style="font-size:11px; padding:3px 5px; margin-bottom:4px;">
+                                    <option value="">Update status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="shipped">Shipped</option>
+                                    <option value="delivered">Delivered</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button class="btn btn-primary" style="padding: 4px 10px;" onclick="viewOrderDetails('${orderId}')">
                                     <i class="fas fa-eye"></i> View
                                 </button>
                             </td>
@@ -947,17 +1121,44 @@
             }
         }
 
-        // --- FIXED: ORDER DETAILS MODAL LOGIC ---
+        // --- CHANGE ORDER STATUS (CALLS BACKEND) ---
+        async function changeOrderStatus(orderId, newStatus) {
+            if (!newStatus) return;
+
+            try {
+                const res = await window.HybridAuthClient.apiCall(`/seller/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newStatus })
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.message || 'Failed to update order status');
+                }
+
+                showToast('Order status updated', 'success');
+                loadSellerOrders();
+            } catch (e) {
+                console.error('Status update error', e);
+                showToast(e.message || 'Failed to update order status', 'error');
+            }
+        }
+
+        // --- ORDER DETAILS MODAL ---
         function viewOrderDetails(orderId) {
             const order = globalOrders.find(o => (o._id || o.id) == orderId);
             if (!order) return showToast('Order details not found', 'error');
+
+            // NEW: Render order timeline
+            renderOrderTimeline(order);
 
             // 1. Populate Customer Info
             const shipping = order.shippingAddress || order.shipping || {}; 
             
             document.getElementById('ordCustName').textContent = shipping.name || shipping.fullName || 'N/A';
             
-            // --- FIX: Check phoneNumber first, then phone ---
             document.getElementById('ordCustPhone').textContent = 
                 shipping.phoneNumber || 
                 shipping.phone || 
@@ -976,7 +1177,6 @@
             
             document.getElementById('ordCustAddress').textContent = addressParts || 'No address provided';
 
-            // 2. Populate Items
             const tbody = document.getElementById('orderItemsBody');
             tbody.innerHTML = '';
             
@@ -1006,11 +1206,9 @@
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No items data available</td></tr>';
             }
 
-            // 3. Total
             const total = typeof order.totalAmount === 'number' ? order.totalAmount : (order.subtotal || 0);
             document.getElementById('ordTotalAmount').textContent = '₹' + total.toFixed(2);
 
-            // Show Modal
             document.getElementById('orderModal').classList.add('active');
         }
 
@@ -1027,7 +1225,6 @@
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        // Image Preview Handler
         document.getElementById('pImageInput').addEventListener('change', function(e) {
             const div = document.getElementById('imagePreview');
             div.innerHTML = '';
