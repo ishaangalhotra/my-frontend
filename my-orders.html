@@ -2,576 +2,484 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Orders - QuickLocal</title>
-    <script src="js/session-manager.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4338ca;
-            --primary-light: #a5b4fc;
-            --secondary: #f59e0b;
-            --accent: #10b981;
-            --accent-dark: #059669;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --info: #3b82f6;
-
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-light: #94a3b8;
-            --text-inverse: #ffffff;
-
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --bg-tertiary: #f1f5f9;
-            --bg-dark: #0f172a;
-
-            --border: #e2e8f0;
-            --border-light: #f1f5f9;
-            --border-dark: #cbd5e1;
-
-            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-
-            --radius: 0.5rem;
-            --radius-lg: 0.75rem;
-            --radius-xl: 1rem;
-            --radius-2xl: 1.5rem;
-            --radius-full: 9999px;
-
-            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --primary: #2563eb;
+            --primary-soft: #dbeafe;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #f97316;
+            --danger: #dc2626;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --border: #e5e7eb;
+            --text: #111827;
+            --text-light: #6b7280;
         }
 
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: radial-gradient(circle at top left, #eef2ff 0, #f9fafb 40%, #ffffff 100%);
-            color: var(--text-primary);
-            min-height: 100vh;
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top left, #eff6ff, #f9fafb);
+            color: var(--text);
         }
 
-        /* Top header */
-        .page-header {
-            background: linear-gradient(120deg, #4f46e5, #0ea5e9, #22c55e);
-            color: white;
-            padding: 1.5rem 1.25rem;
-            box-shadow: var(--shadow-md);
-        }
-
-        .page-header-inner {
-            max-width: 1200px;
-            margin: 0 auto;
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(14px);
+            background: rgba(15, 23, 42, 0.85);
+            color: #f9fafb;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
         }
-
-        .page-title-group {
+        .header-left {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
         }
-
-        .page-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 1rem;
-            background: rgba(255, 255, 255, 0.15);
+        .brand-logo {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 0 1px rgba(255,255,255,0.3);
+            background: radial-gradient(circle at 30% 20%, #facc15, #f97316);
+            color: #111827;
         }
-
-        .page-icon i {
-            font-size: 1.35rem;
-        }
-
-        .page-title-text {
+        .brand-text {
             display: flex;
             flex-direction: column;
-            gap: 0.2rem;
         }
-
-        .page-title-text h1 {
-            font-size: 1.4rem;
+        .brand-text .title {
             font-weight: 700;
-            letter-spacing: 0.02em;
+            font-size: 1rem;
+            letter-spacing: 0.04em;
         }
-
-        .page-title-text p {
-            font-size: 0.85rem;
-            opacity: 0.9;
+        .brand-text .subtitle {
+            font-size: 0.75rem;
+            opacity: 0.8;
         }
-
-        .page-header-actions {
+        .header-right {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
-
-        .btn-outline-light {
-            border-radius: var(--radius-full);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            background: rgba(15,23,42,0.1);
-            color: white;
-            font-size: 0.8rem;
+        .header-chip {
+            font-size: 0.75rem;
+            padding: 0.1rem 0.55rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            color: #e5e7eb;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .header-btn {
+            border-radius: 999px;
             padding: 0.45rem 0.9rem;
+            border: none;
+            font-size: 0.8rem;
+            background: #facc15;
+            color: #111827;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
+            box-shadow: 0 2px 10px rgba(250, 204, 21, 0.45);
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 1.5rem auto 2rem;
+            padding: 0 1rem 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .page-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .page-title span {
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: #e5f2ff;
+            color: #1e40af;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .page-subtitle {
+            margin-top: 0.25rem;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            padding: 0.45rem 0.9rem;
+            font-size: 0.9rem;
+            background: #fff;
+            color: var(--text);
             cursor: pointer;
-            transition: var(--transition);
-            text-decoration: none;
-        }
-
-        .btn-outline-light:hover {
-            background: rgba(15,23,42,0.2);
-            transform: translateY(-1px);
-        }
-
-        .badge-pill {
             display: inline-flex;
             align-items: center;
-            gap: 0.3rem;
-            border-radius: var(--radius-full);
-            background: rgba(15,23,42,0.18);
-            padding: 0.35rem 0.8rem;
-            font-size: 0.75rem;
+            gap: 0.4rem;
         }
 
-        /* Layout */
-        .page-content {
-            max-width: 1200px;
-            margin: 1.5rem auto 2.5rem;
-            padding: 0 1.25rem;
+        .btn-primary {
+            border-color: transparent;
+            background: linear-gradient(to right, #2563eb, #1d4ed8);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
         }
 
-        /* Stats cards */
-        .stats-grid {
+        .btn-icon {
+            padding: 0.45rem;
+            width: 2.3rem;
+            height: 2.3rem;
+            border-radius: 999px;
+            justify-content: center;
+        }
+
+        /* Filters & stats */
+        .filters-row {
+            display: grid;
+            grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) auto;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.55rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            padding-left: 2.3rem;
+            background: #ffffff;
+        }
+
+        .search-wrapper {
+            position: relative;
+            display: flex;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .select {
+            width: 100%;
+            padding: 0.55rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            background: #ffffff;
+        }
+
+        .refresh-btn {
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            padding: 0.45rem 0.8rem;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        /* Stats row */
+        .stats-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 1rem;
-            padding: 0.9rem 1rem;
-            box-shadow: var(--shadow-sm);
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 0.9rem;
             border: 1px solid rgba(226, 232, 240, 0.9);
+            padding: 0.8rem 0.9rem;
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .stat-icon {
+            width: 2.1rem;
+            height: 2.1rem;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 0.9rem;
+        }
+
+        .stat-content {
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
         }
 
         .stat-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
+            font-size: 0.8rem;
             color: var(--text-light);
         }
 
         .stat-value {
-            font-size: 1.35rem;
-            font-weight: 700;
+            font-size: 1.1rem;
+            font-weight: 600;
         }
 
-        .stat-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            font-size: 0.75rem;
-            border-radius: 999px;
-            padding: 0.2rem 0.6rem;
-            width: max-content;
-        }
-
-        .stat-chip.success {
-            background: rgba(22, 163, 74, 0.08);
-            color: #16a34a;
-        }
-
-        .stat-chip.info {
-            background: rgba(37, 99, 235, 0.08);
-            color: #2563eb;
-        }
-
-        .stat-chip.warning {
-            background: rgba(245, 158, 11, 0.08);
-            color: #d97706;
-        }
-
-        /* Filters bar */
-        .filters-bar {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 1rem;
-            padding: 0.75rem 1rem;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.2rem;
-        }
-
-        .filters-left,
-        .filters-right {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            align-items: center;
-        }
-
-        .search-group {
-            position: relative;
-        }
-
-        .search-input {
-            border-radius: 999px;
-            border: 1px solid var(--border-dark);
-            padding: 0.4rem 2.2rem 0.4rem 0.9rem;
-            font-size: 0.8rem;
-            outline: none;
-            min-width: 220px;
-            background: #f9fafb;
-        }
-
-        .search-group i {
-            position: absolute;
-            right: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.8rem;
+        /* States */
+        .loading-state,
+        .empty-state {
+            margin-top: 2.5rem;
+            text-align: center;
             color: var(--text-light);
         }
 
-        .filter-select {
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
             border-radius: 999px;
-            border: 1px solid var(--border-dark);
-            padding: 0.35rem 0.8rem;
-            font-size: 0.8rem;
-            background: #f9fafb;
-            outline: none;
+            border: 3px solid #d1d5db;
+            border-top-color: #2563eb;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 0.75rem;
         }
 
-        .btn-refresh {
-            border-radius: 999px;
-            border: none;
-            padding: 0.4rem 0.9rem;
-            font-size: 0.8rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            background: var(--bg-dark);
-            color: white;
-            cursor: pointer;
-            box-shadow: var(--shadow-sm);
-            transition: var(--transition);
-        }
-
-        .btn-refresh:hover {
-            transform: translateY(-1px);
-            background: #020617;
-        }
-
-        /* Orders list */
-        .orders-section {
-            background: rgba(255,255,255,0.95);
-            border-radius: 1rem;
-            padding: 1rem;
-            box-shadow: var(--shadow-md);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-        }
-
-        .orders-empty {
-            text-align: center;
-            padding: 2.5rem 1rem;
-        }
-
-        .orders-empty-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 1.5rem;
-            background: #eef2ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1rem;
-            color: #4f46e5;
-        }
-
-        .orders-empty h3 {
-            font-size: 1rem;
-            margin-bottom: 0.4rem;
-        }
-
-        .orders-empty p {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.8rem;
-        }
-
-        .btn-primary {
-            border-radius: 999px;
-            border: none;
-            padding: 0.5rem 1.2rem;
-            font-size: 0.85rem;
-            background: var(--primary);
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            cursor: pointer;
-            box-shadow: var(--shadow-sm);
-            text-decoration: none;
-            transition: var(--transition);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .orders-list {
+            margin-top: 0.5rem;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
         }
 
+        /* Order card */
         .order-card {
+            background: rgba(255, 255, 255, 0.98);
             border-radius: 0.9rem;
-            border: 1px solid var(--border);
-            padding: 0.8rem 0.9rem;
-            background: linear-gradient(135deg, #ffffff, #f8fafc);
-            box-shadow: var(--shadow-sm);
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
-            position: relative;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            padding: 0.85rem 1rem;
+            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
         }
 
         .order-card.highlight {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 1px rgba(99,102,241,0.4), var(--shadow-md);
+            border-color: #22c55e;
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.55), 0 10px 30px rgba(22, 163, 74, 0.35);
         }
 
-        .order-header {
+        .order-card-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            gap: 0.6rem;
+            gap: 0.85rem;
+            align-items: flex-start;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 0.45rem;
+            margin-bottom: 0.45rem;
         }
 
         .order-id {
-            font-size: 0.82rem;
+            font-size: 0.9rem;
             font-weight: 600;
-            color: var(--text-secondary);
-        }
-
-        .order-id span {
-            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            letter-spacing: 0.06em;
-            font-size: 0.75rem;
         }
 
         .order-meta {
+            margin-top: 0.15rem;
             display: flex;
+            gap: 0.75rem;
             flex-wrap: wrap;
-            gap: 0.4rem 0.9rem;
             font-size: 0.8rem;
             color: var(--text-light);
         }
 
-        .order-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-
-        .order-status-pill {
-            border-radius: 999px;
-            padding: 0.18rem 0.6rem;
-            font-size: 0.75rem;
-            font-weight: 600;
+        .badge {
             display: inline-flex;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.35rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            background: #eff6ff;
+            color: #1e40af;
         }
 
-        .order-status-pill.pending {
-            background: rgba(234, 179, 8, 0.08);
-            color: #854d0e;
-        }
-
-        .order-status-pill.processing {
-            background: rgba(59, 130, 246, 0.08);
+        .badge-status {
+            background: #e5f2ff;
             color: #1d4ed8;
         }
-
-        .order-status-pill.shipped {
-            background: rgba(56, 189, 248, 0.08);
-            color: #0369a1;
+        .badge-status.delivered {
+            background: #dcfce7;
+            color: #15803d;
         }
-
-        .order-status-pill.delivered {
-            background: rgba(22, 163, 74, 0.08);
-            color: #166534;
-        }
-
-        .order-status-pill.cancelled {
-            background: rgba(239, 68, 68, 0.08);
+        .badge-status.cancelled {
+            background: #fee2e2;
             color: #b91c1c;
         }
 
-        .order-main {
-            display: flex;
+        .order-summary-chip {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .order-card-body {
+            display: grid;
+            grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.4fr);
             gap: 0.75rem;
         }
 
-        .order-items-list {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
+        /* Items list in card */
+        .items-list {
+            display: grid;
+            gap: 0.55rem;
         }
 
-        .order-item-row {
-            display: flex;
-            gap: 0.5rem;
-            align-items: flex-start;
+        .item-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 0.6rem;
+            align-items: center;
         }
 
-        .item-thumbnail {
-            width: 56px;
-            height: 56px;
+        .item-image-wrapper {
+            width: 48px;
+            height: 48px;
             border-radius: 0.75rem;
-            border: 1px solid var(--border);
-            background: white;
+            background: #f3f4f6;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
         }
 
-        .item-thumbnail img {
+        .item-image {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .order-item-info {
+        .item-info {
             display: flex;
             flex-direction: column;
             gap: 0.15rem;
-            font-size: 0.78rem;
         }
 
-        .order-item-name {
-            font-weight: 600;
-            color: var(--text-primary);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .order-item-meta {
-            color: var(--text-light);
-            font-size: 0.74rem;
-        }
-
-        .order-item-price {
-            font-size: 0.78rem;
+        .item-name {
+            font-size: 0.9rem;
             font-weight: 500;
-            color: #16a34a;
         }
 
-        .order-summary {
-            text-align: right;
-            min-width: 120px;
+        .item-meta {
             font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .item-price {
+            text-align: right;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .more-items {
+            margin-top: 0.1rem;
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* Order right side: summary + timeline + actions */
+        .order-right {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .order-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
         }
 
         .order-amount {
+            font-weight: 600;
             font-size: 1rem;
-            font-weight: 700;
         }
 
-        .order-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-            justify-content: flex-end;
-            margin-top: 0.4rem;
-        }
-
-        .order-action {
-            border-radius: 999px;
-            border: 1px solid var(--border-dark);
-            background: white;
-            padding: 0.3rem 0.8rem;
+        .payment-chip {
             font-size: 0.75rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            cursor: pointer;
-            transition: var(--transition);
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #0f172a;
         }
 
-        .order-action.primary {
-            background: #0f172a;
-            border-color: #020617;
-            color: white;
-        }
-
-        .order-action.danger {
-            background: rgba(248, 113, 113, 0.1);
-            border-color: rgba(239, 68, 68, 0.6);
-            color: #b91c1c;
-        }
-
-        .order-action.secondary {
-            background: rgba(59, 130, 246, 0.05);
-            border-color: rgba(59, 130, 246, 0.5);
-            color: #1d4ed8;
-        }
-
-        .order-action:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* Delivery timeline inside each card (if available) */
         .delivery-timeline {
-            margin-top: 0.4rem;
-            padding-top: 0.4rem;
-            border-top: 1px dashed var(--border);
+            background: #f9fafb;
+            border-radius: 0.7rem;
+            padding: 0.5rem 0.6rem;
+            border: 1px dashed #e5e7eb;
+            max-height: 110px;
+            overflow-y: auto;
+        }
+
+        .timeline-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            color: #0f172a;
         }
 
         .timeline-item {
             display: flex;
+            gap: 0.45rem;
             align-items: flex-start;
-            gap: 0.5rem;
-            margin-bottom: 0.25rem;
         }
 
         .timeline-icon {
@@ -583,372 +491,282 @@
             justify-content: center;
             font-size: 0.7rem;
         }
-
         .timeline-icon.completed {
-            background: rgba(34, 197, 94, 0.1);
-            color: #16a34a;
+            background: #22c55e;
+            color: #f9fafb;
         }
-
         .timeline-icon.current {
-            background: rgba(59, 130, 246, 0.1);
-            color: #2563eb;
+            background: #2563eb;
+            color: #f9fafb;
         }
-
         .timeline-icon.pending {
-            background: rgba(148, 163, 184, 0.1);
-            color: #64748b;
+            background: #e5e7eb;
+            color: #6b7280;
         }
 
         .timeline-content {
-            font-size: 0.78rem;
-        }
-
-        .timeline-title {
-            font-weight: 500;
+            font-size: 0.8rem;
         }
 
         .timeline-time {
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: var(--text-light);
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
+        }
+
+        .order-actions button {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .order-actions .primary {
+            border-color: transparent;
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .order-actions .danger {
+            border-color: transparent;
+            background: #fee2e2;
+            color: #b91c1c;
         }
 
         /* Pagination */
         .pagination-section {
-            margin-top: 1rem;
-            padding-top: 0.7rem;
-            border-top: 1px solid var(--border-light);
+            margin-top: 1.1rem;
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             gap: 0.75rem;
-            font-size: 0.8rem;
-        }
-
-        .pagination-info {
-            color: var(--text-secondary);
+            font-size: 0.85rem;
         }
 
         .pagination-controls {
             display: flex;
+            gap: 0.35rem;
             align-items: center;
-            gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
-        .pagination-btn {
-            border-radius: 999px;
-            border: 1px solid var(--border-dark);
-            background: white;
-            padding: 0.25rem 0.7rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .pagination-btn:disabled {
-            opacity: 0.5;
-            cursor: default;
-            box-shadow: none;
-            transform: none;
-        }
-
-        .pagination-btn:not(:disabled):hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .page-numbers {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
+        .pagination-btn,
         .page-number {
-            min-width: 26px;
-            height: 26px;
             border-radius: 999px;
-            border: 1px solid var(--border-dark);
-            background: white;
-            font-size: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border: 1px solid var(--border);
+            background: #fff;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.65rem;
             cursor: pointer;
-            transition: var(--transition);
         }
 
         .page-number.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary-dark);
-        }
-
-        .page-number:hover:not(.active) {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
+            background: #2563eb;
+            color: #fff;
+            border-color: transparent;
         }
 
         /* Toast */
         .toast {
             position: fixed;
-            right: 1rem;
-            bottom: 1rem;
-            min-width: 220px;
-            max-width: 320px;
-            padding: 0.75rem 0.9rem;
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow-lg);
-            background: #0f172a;
-            color: white;
-            font-size: 0.78rem;
-            display: none;
-            z-index: 9999;
-        }
-
-        .toast.show {
-            display: block;
-            animation: toast-in 0.25s ease-out;
-        }
-
-        .toast.info { background: #0f172a; }
-        .toast.success { background: #15803d; }
-        .toast.error { background: #b91c1c; }
-        .toast.warning { background: #92400e; }
-
-        .toast-title {
-            font-weight: 600;
-            margin-bottom: 0.1rem;
-        }
-
-        .toast-message {
-            opacity: 0.9;
-        }
-
-        @keyframes toast-in {
-            from { opacity: 0; transform: translateY(10px) translateX(10px); }
-            to { opacity: 1; transform: translateY(0) translateX(0); }
-        }
-
-        /* Loader overlay */
-        .loader-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.06);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 999;
-        }
-
-        .loader-overlay.show {
-            display: flex;
-        }
-
-        .loader-card {
-            background: white;
-            padding: 1rem 1.3rem;
-            border-radius: 0.9rem;
-            box-shadow: var(--shadow-lg);
+            bottom: 1.25rem;
+            right: 1.25rem;
+            background: #111827;
+            color: #f9fafb;
+            padding: 0.6rem 0.85rem;
+            border-radius: 0.6rem;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            font-size: 0.9rem;
+            gap: 0.45rem;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.3);
+            z-index: 50;
         }
 
-        .loader-spinner {
-            width: 22px;
-            height: 22px;
-            border-radius: 999px;
-            border: 2px solid #e5e7eb;
-            border-top-color: #4f46e5;
-            animation: spin 0.7s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .toast.success { background: #16a34a; }
+        .toast.error { background: #dc2626; }
+        .toast.warning { background: #ea580c; }
+        .toast.info { background: #1d4ed8; }
 
         @media (max-width: 768px) {
-            .page-header-inner {
+            .page-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            .page-header-actions {
-                width: 100%;
-                justify-content: space-between;
+            .filters-row {
+                grid-template-columns: 1fr;
             }
-            .filters-bar {
+            .order-card-body {
+                grid-template-columns: 1fr;
+            }
+            .pagination-section {
                 flex-direction: column;
-                align-items: stretch;
+                align-items: flex-start;
             }
-            .filters-left, .filters-right {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .search-input {
-                width: 100%;
-            }
-            .order-main {
-                flex-direction: column;
-            }
-            .order-summary {
-                text-align: left;
-            }
-            .order-actions {
-                justify-content: flex-start;
+            .header {
+                flex-wrap: wrap;
+                gap: 0.75rem;
             }
         }
     </style>
 </head>
 <body>
-
-    <!-- Loader -->
-    <div id="loaderOverlay" class="loader-overlay">
-        <div class="loader-card">
-            <div class="loader-spinner"></div>
-            <div>Loading your orders...</div>
+    <header class="header">
+        <div class="header-left">
+            <div class="brand-logo">
+                <i class="fas fa-bag-shopping"></i>
+            </div>
+            <div class="brand-text">
+                <div class="title">QuickLocal</div>
+                <div class="subtitle">My Orders</div>
+            </div>
         </div>
-    </div>
-
-    <!-- Toast -->
-    <div id="toast" class="toast">
-        <div class="toast-title" id="toastTitle"></div>
-        <div class="toast-message" id="toastMessage"></div>
-    </div>
-
-    <!-- Header -->
-    <header class="page-header">
-        <div class="page-header-inner">
-            <div class="page-title-group">
-                <div class="page-icon">
-                    <i class="fas fa-box-open"></i>
-                </div>
-                <div class="page-title-text">
-                    <h1>My Orders</h1>
-                    <p>Track your deliveries, view order history, and manage cancellations.</p>
-                </div>
+        <div class="header-right">
+            <div class="header-chip">
+                <i class="fas fa-shield-heart"></i>
+                Buyer Protection
             </div>
-            <div class="page-header-actions">
-                <a href="marketplace.html" class="btn-outline-light">
-                    <i class="fas fa-arrow-left"></i>
-                    Back to shopping
-                </a>
-                <div class="badge-pill">
-                    <i class="fas fa-user-circle"></i>
-                    <span id="userNameBadge">Logged in</span>
-                </div>
-            </div>
+            <button class="header-btn" onclick="window.location.href='marketplace.html'">
+                <i class="fas fa-store"></i>
+                Shop more
+            </button>
         </div>
     </header>
 
-    <!-- Main content -->
-    <main class="page-content">
-        <!-- Stats -->
-        <section class="stats-grid">
-            <article class="stat-card">
-                <div class="stat-label">Total Orders</div>
-                <div class="stat-value" id="totalOrdersCount">0</div>
-                <div class="stat-chip info">
-                    <i class="fas fa-receipt"></i>
-                    Lifetime
+    <main>
+        <div class="page-header">
+            <div>
+                <div class="page-title">
+                    My Orders
+                    <span><i class="fas fa-clock"></i> last 6 months</span>
                 </div>
-            </article>
-            <article class="stat-card">
-                <div class="stat-label">Active Orders</div>
-                <div class="stat-value" id="activeOrdersCount">0</div>
-                <div class="stat-chip warning">
-                    <i class="fas fa-truck"></i>
-                    In progress
+                <div class="page-subtitle">
+                    Track your packages, view what you ordered, and manage returns in one place.
                 </div>
-            </article>
-            <article class="stat-card">
-                <div class="stat-label">Delivered</div>
-                <div class="stat-value" id="deliveredOrdersCount">0</div>
-                <div class="stat-chip success">
-                    <i class="fas fa-check-circle"></i>
-                    Completed
-                </div>
-            </article>
-            <article class="stat-card">
-                <div class="stat-label">Total Spent</div>
-                <div class="stat-value" id="totalSpentAmount">₹0</div>
-                <div class="stat-chip info">
-                    <i class="fas fa-indian-rupee-sign"></i>
-                    Across all time
-                </div>
-            </article>
-        </section>
-
-        <!-- Filters -->
-        <section class="filters-bar">
-            <div class="filters-left">
-                <div class="search-group">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Search orders by ID, product, seller...">
-                    <i class="fas fa-search"></i>
-                </div>
-                <select id="statusFilter" class="filter-select">
-                    <option value="all">All statuses</option>
-                    <option value="active">Active only</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
-                <select id="timeFilter" class="filter-select">
-                    <option value="all">Any time</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 3 months</option>
-                    <option value="180">Last 6 months</option>
-                    <option value="365">Last 12 months</option>
-                </select>
             </div>
-            <div class="filters-right">
-                <button id="refreshBtn" class="btn-refresh">
-                    <i class="fas fa-rotate-right"></i>
-                    Refresh
+            <div class="page-actions">
+                <button class="btn" onclick="window.location.href='order-tracking.html'">
+                    <i class="fas fa-location-crosshairs"></i>
+                    Track order
+                </button>
+                <button class="btn" onclick="window.location.href='returns.html'">
+                    <i class="fas fa-box-open"></i>
+                    Returns & refunds
                 </button>
             </div>
-        </section>
+        </div>
 
-        <!-- Orders -->
-        <section class="orders-section">
-            <div id="ordersEmptyState" class="orders-empty" style="display: none;">
-                <div class="orders-empty-icon">
-                    <i class="fas fa-shopping-basket fa-lg"></i>
-                </div>
-                <h3>No orders yet</h3>
-                <p>Start shopping to see your purchases here.</p>
-                <a href="marketplace.html" class="btn-primary">
-                    <i class="fas fa-shopping-cart"></i>
-                    Start Shopping
-                </a>
+        <!-- Filters -->
+        <div class="filters-row">
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input id="searchInput" class="search-input" placeholder="Search by product or order ID">
             </div>
+            <select id="statusFilter" class="select">
+                <option value="all">All statuses</option>
+                <option value="active">Active (not delivered/cancelled)</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled / Failed</option>
+            </select>
+            <select id="timeFilter" class="select">
+                <option value="all">All time</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 3 months</option>
+                <option value="180" selected>Last 6 months</option>
+            </select>
+            <button id="refreshBtn" class="refresh-btn" title="Refresh orders">
+                <i class="fas fa-rotate"></i>
+            </button>
+        </div>
 
-            <div id="ordersContainer" class="orders-list"></div>
-
-            <div id="paginationContainer" class="pagination-section" style="display: none;">
-                <div class="pagination-info">
-                    <span id="paginationInfo">Showing 1–10 of 0 orders</span>
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-boxes-stacked"></i>
                 </div>
-                <div class="pagination-controls">
-                    <button id="prevPageBtn" class="pagination-btn" disabled>
-                        <i class="fas fa-chevron-left"></i>
-                        Previous
-                    </button>
-                    <div class="page-numbers" id="pageNumbers"></div>
-                    <button id="nextPageBtn" class="pagination-btn">
-                        Next
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                <div class="stat-content">
+                    <div class="stat-label">Total orders</div>
+                    <div class="stat-value" id="statTotalOrders">0</div>
                 </div>
             </div>
-        </section>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-truck-fast"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Active</div>
+                    <div class="stat-value" id="statActiveOrders">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-circle-check"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Delivered</div>
+                    <div class="stat-value" id="statDeliveredOrders">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-indian-rupee-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Spent (approx)</div>
+                    <div class="stat-value" id="statTotalSpent">₹0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loadingState" class="loading-state" style="display:none;">
+            <div class="loading-spinner"></div>
+            <div>Loading your orders...</div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <i class="fas fa-box-open" style="font-size:2.4rem; margin-bottom:0.6rem;"></i>
+            <p>You don't have any orders yet.</p>
+            <button class="btn btn-primary" onclick="window.location.href='marketplace.html'">
+                <i class="fas fa-shopping-cart"></i>
+                Start shopping
+            </button>
+        </div>
+
+        <!-- Orders list -->
+        <div id="ordersContainer" class="orders-list"></div>
+
+        <!-- Pagination -->
+        <div id="paginationContainer" class="pagination-section" style="display:none;">
+            <div class="pagination-info">
+                <span id="paginationInfo">Showing 0–0 of 0 orders</span>
+            </div>
+            <div class="pagination-controls">
+                <button id="prevPageBtn" class="pagination-btn" disabled>
+                    <i class="fas fa-chevron-left"></i> Prev
+                </button>
+                <div id="pageNumbers" class="page-numbers"></div>
+                <button id="nextPageBtn" class="pagination-btn">
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
     </main>
 
-    <!-- Auth + services -->
+    <!-- Auth + notifications (same as other pages) -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="js/api/notification-service.js"></script>
@@ -961,11 +779,11 @@
         let filteredOrders = [];
         let highlightOrderId = null;
         let currentPage = 1;
-        let ordersPerPage = 10;
+        const ordersPerPage = 5;
 
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            highlightOrderId = urlParams.get('highlight');
+            highlightOrderId = urlParams.get('highlight') || null;
 
             setupEventListeners();
             initializeOrdersPage();
@@ -993,12 +811,9 @@
             });
         }
 
-        // Init with auth
         async function initializeOrdersPage() {
             showLoading(true);
-
             try {
-                // Wait for HybridAuthClient
                 let attempts = 0;
                 while (!window.HybridAuthClient && attempts < 50) {
                     await new Promise(r => setTimeout(r, 100));
@@ -1008,16 +823,11 @@
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     const isAuth = await window.HybridAuthClient.isAuthenticated();
                     if (!isAuth) {
-                        showToast('Please log in to view your orders', 'warning');
+                        showToast('Please login to view your orders.', 'warning');
                         setTimeout(() => {
                             window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`;
                         }, 1500);
                         return;
-                    }
-
-                    const user = window.HybridAuthClient.getCurrentUser();
-                    if (user && user.name) {
-                        document.getElementById('userNameBadge').textContent = user.name;
                     }
                 }
 
@@ -1025,20 +835,17 @@
             } catch (err) {
                 console.error('Initialization error:', err);
                 showEmptyState();
-                showToast('Failed to initialize orders page', 'error');
+                showToast('Failed to load orders.', 'error');
             } finally {
                 showLoading(false);
             }
         }
 
-        // Load orders
         async function loadOrders() {
             showLoading(true);
-
             try {
-                console.log('🔍 Loading user orders…');
-
-                const endpoint = '/orders?limit=50&page=1'; // HybridAuthClient adds /api/v1
+                console.log('🔍 Loading user orders...');
+                const endpoint = '/api/v1/orders?limit=50&page=1';
                 let response;
 
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
@@ -1054,355 +861,329 @@
                 const result = await response.json();
                 console.log('✅ Orders loaded:', result);
 
-                const ordersList = result.orders || result.data || result.results || [];
-                allOrders = Array.isArray(ordersList) ? ordersList : [];
+                const rawOrders = result.orders || result.data || result.results || [];
+                allOrders = Array.isArray(rawOrders) ? rawOrders.map(mapRawOrderToUIModel) : [];
 
-                // Transform for customer view
-                allOrders = allOrders.map(order => {
-                    const status = (order.status || 'pending').toLowerCase();
-
-                    const products = order.orderItems || order.items || [];
-                    const totalAmount = (order.pricing && typeof order.pricing.totalPrice === 'number')
-                        ? order.pricing.totalPrice
-                        : (order.totalAmount ?? order.total ?? 0);
-
-                    const earlyStatuses = ['pending', 'confirmed', 'processing', 'preparing'];
-                    const nonCancellable = ['cancelled', 'returned', 'refunded', 'failed'];
-
-                    const backendCanCancel = order.canCancel && order.canCancel.allowed === true;
-                    const backendCanReturn = order.canReturn && order.canReturn.allowed === true;
-
-                    const canCancel = backendCanCancel ||
-                        (earlyStatuses.includes(status) && !nonCancellable.includes(status));
-
-                    const canReturn = backendCanReturn || status === 'delivered';
-
-                    return {
-                        ...order,
-                        id: order._id || order.id,
-                        orderNumber: order.orderNumber || order.orderId || order._id,
-                        customer: order.customerInfo || order.user || {},
-                        products,
-                        totalAmount,
-                        orderDate: order.createdAt || order.orderDate || order.date,
-                        status,
-                        canCancel: { allowed: canCancel },
-                        canReturn: { allowed: canReturn }
-                    };
-                });
-
-                filteredOrders = [...allOrders];
-
-                if (!filteredOrders.length) {
+                if (!allOrders.length) {
                     showEmptyState();
-                } else {
-                    hideEmptyState();
-                    applyHighlightOrder();
-                    updateStats();
-                    renderCurrentPage();
+                    return;
                 }
+
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('ordersContainer').style.display = 'flex';
+
+                filteredOrders = allOrders.slice();
+                currentPage = 1;
+                filterOrders(); // this will call renderCurrentPage + updateStats
             } catch (err) {
-                console.error('Error loading orders:', err);
+                console.error('Load orders error:', err);
                 showEmptyState();
-                showToast('Failed to load your orders', 'error');
+                showToast(err.message || 'Failed to load orders', 'error');
             } finally {
                 showLoading(false);
             }
         }
 
-        function applyHighlightOrder() {
-            if (!highlightOrderId) return;
-            const idx = filteredOrders.findIndex(o => (o._id || o.id || '').toString() === highlightOrderId);
-            if (idx > 0) {
-                const [order] = filteredOrders.splice(idx, 1);
-                filteredOrders.unshift(order);
-            }
+        function mapRawOrderToUIModel(order) {
+            const status = (order.status || 'pending').toLowerCase();
+            const items = order.orderItems || order.items || [];
+
+            const products = items.map((it) => {
+                const product = it.product || it || {};
+                const qty = it.qty || it.quantity || product.quantity || 1;
+                const price =
+                    it.unitPrice ||
+                    it.price ||
+                    product.unitPrice ||
+                    product.price ||
+                    0;
+
+                return {
+                    id: product._id || product.id,
+                    name: product.name || 'Product item',
+                    qty,
+                    price,
+                    image: getSafeImageUrl(product)
+                };
+            });
+
+            // Build a simple timeline from deliveryTracking / status
+            const timeline = buildOrderTimeline(order, status);
+
+            return {
+                id: order._id || order.id,
+                orderNumber: order.orderNumber || order.orderId || order._id,
+                status,
+                createdAt: order.createdAt || order.orderDate || order.date,
+                totalAmount: order.pricing?.totalPrice || order.totalAmount || order.total || 0,
+                paymentMethod: order.paymentMethod || order.paymentInfo?.method || 'card',
+                products,
+                timeline,
+                canCancel: order.canBeCancelled ??
+                    ['pending', 'confirmed', 'processing', 'preparing'].includes(status),
+                canReturn: order.canBeReturned ?? (status === 'delivered')
+            };
         }
 
-        // Filtering
+        function buildOrderTimeline(order, status) {
+            const timeline = [];
+
+            timeline.push({
+                status: 'Order placed',
+                completed: true,
+                timestamp: order.createdAt
+            });
+
+            if (['confirmed', 'processing', 'preparing'].includes(status)) {
+                timeline.push({
+                    status: 'Processing',
+                    completed: status !== 'processing',
+                    timestamp: order.updatedAt || order.processingAt
+                });
+            }
+
+            if (['shipped', 'out_for_delivery', 'delivered'].includes(status)) {
+                timeline.push({
+                    status: 'Shipped',
+                    completed: ['out_for_delivery', 'delivered'].includes(status),
+                    timestamp: order.deliveryTracking?.shippedAt || order.shippedAt
+                });
+            }
+
+            if (['out_for_delivery', 'delivered'].includes(status)) {
+                timeline.push({
+                    status: 'Out for delivery',
+                    completed: status === 'delivered',
+                    timestamp: order.deliveryTracking?.outForDeliveryAt
+                });
+            }
+
+            if (status === 'delivered') {
+                timeline.push({
+                    status: 'Delivered',
+                    completed: true,
+                    timestamp: order.deliveryTracking?.deliveredAt || order.deliveredAt
+                });
+            }
+
+            if (status === 'cancelled' || status === 'failed') {
+                timeline.push({
+                    status: 'Order cancelled',
+                    completed: true,
+                    timestamp: order.cancelledAt || order.updatedAt
+                });
+            }
+
+            return timeline;
+        }
+
         function filterOrders() {
-            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
             const timeFilter = document.getElementById('timeFilter').value;
 
+            const now = new Date();
             filteredOrders = allOrders.filter(order => {
-                const status = (order.status || '').toLowerCase();
-                const createdAt = order.orderDate ? new Date(order.orderDate) : null;
+                // text search (orderNumber or product name)
+                const matchesSearch = !q ||
+                    String(order.orderNumber || '').toLowerCase().includes(q) ||
+                    order.products.some(p => (p.name || '').toLowerCase().includes(q));
 
-                // Status filter
-                if (statusFilter && statusFilter !== 'all') {
-                    if (statusFilter === 'active') {
-                        const activeStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery'];
-                        if (!activeStatuses.includes(status)) return false;
-                    } else if (status !== statusFilter) {
-                        return false;
-                    }
+                if (!matchesSearch) return false;
+
+                // status filter
+                let matchesStatus = true;
+                if (statusFilter === 'active') {
+                    matchesStatus = !['delivered', 'cancelled', 'failed'].includes(order.status);
+                } else if (statusFilter === 'delivered') {
+                    matchesStatus = order.status === 'delivered';
+                } else if (statusFilter === 'cancelled') {
+                    matchesStatus = ['cancelled', 'failed'].includes(order.status);
                 }
 
-                // Time filter
-                if (timeFilter && timeFilter !== 'all' && createdAt instanceof Date && !isNaN(createdAt)) {
-                    const days = parseInt(timeFilter, 10);
-                    const now = new Date();
-                    const diffDays = (now - createdAt) / (1000 * 60 * 60 * 24);
-                    if (diffDays > days) return false;
+                if (!matchesStatus) return false;
+
+                // time filter
+                let matchesTime = true;
+                if (timeFilter !== 'all') {
+                    const days = Number(timeFilter);
+                    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                    const created = order.createdAt ? new Date(order.createdAt) : null;
+                    if (!created || created < cutoff) matchesTime = false;
                 }
 
-                // Search filter
-                if (searchTerm) {
-                    const orderIdStr = (order.orderNumber || order.id || '').toString().toLowerCase();
-                    const customerName = (order.customer && order.customer.name || '').toLowerCase();
-
-                    const productsText = (order.products || []).map(p => {
-                        const prod = p.product || p;
-                        return [
-                            prod.name,
-                            prod.title,
-                            prod.brand,
-                            prod.sellerName
-                        ].filter(Boolean).join(' ');
-                    }).join(' ').toLowerCase();
-
-                    const combined = [orderIdStr, customerName, productsText].join(' ');
-                    if (!combined.includes(searchTerm)) return false;
-                }
-
-                return true;
+                return matchesTime;
             });
 
             currentPage = 1;
-            if (!filteredOrders.length) {
-                showEmptyState();
-            } else {
-                hideEmptyState();
-            }
             updateStats();
             renderCurrentPage();
         }
 
-        // Render current page
         function renderCurrentPage() {
             const container = document.getElementById('ordersContainer');
             container.innerHTML = '';
 
             if (!filteredOrders.length) {
-                document.getElementById('paginationContainer').style.display = 'none';
+                showEmptyState();
                 return;
             }
 
-            const startIndex = (currentPage - 1) * ordersPerPage;
-            const endIndex = startIndex + ordersPerPage;
-            const pageOrders = filteredOrders.slice(startIndex, endIndex);
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('ordersContainer').style.display = 'flex';
+
+            const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+            const startIdx = (currentPage - 1) * ordersPerPage;
+            const endIdx = Math.min(startIdx + ordersPerPage, filteredOrders.length);
+            const pageOrders = filteredOrders.slice(startIdx, endIdx);
 
             pageOrders.forEach(order => {
-                const card = renderOrderCard(order);
-                container.appendChild(card);
+                container.appendChild(renderOrderCard(order));
             });
 
-            updatePaginationUI();
-        }
+            // Pagination info
+            document.getElementById('paginationInfo').textContent =
+                `Showing ${startIdx + 1}–${endIdx} of ${filteredOrders.length} orders`;
+            document.getElementById('paginationContainer').style.display = totalPages > 1 ? 'flex' : 'none';
 
-        // Create card DOM - now shows ALL items with image + name + qty
-        function renderOrderCard(order) {
-            const card = document.createElement('article');
-            card.className = 'order-card';
-            if (highlightOrderId && (order.id || order._id) == highlightOrderId) {
-                card.classList.add('highlight');
+            // Prev/next buttons
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+
+            // page numbers
+            const pageNumbersContainer = document.getElementById('pageNumbers');
+            pageNumbersContainer.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'page-number' + (i === currentPage ? ' active' : '');
+                btn.textContent = i;
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderCurrentPage();
+                };
+                pageNumbersContainer.appendChild(btn);
             }
 
-            const statusClass = getStatusClass(order.status);
-            const statusLabel = getStatusLabel(order.status);
+            // scroll highlighted order into view once
+            if (highlightOrderId) {
+                const el = container.querySelector(`[data-order-id="${highlightOrderId}"]`);
+                if (el) {
+                    el.classList.add('highlight');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => el.classList.remove('highlight'), 3000);
+                    highlightOrderId = null;
+                }
+            }
+        }
 
-            const createdAt = order.orderDate ? new Date(order.orderDate) : null;
-            const formattedDate = createdAt ? formatDateTime(createdAt) : 'Date not available';
+        function renderOrderCard(order) {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.dataset.orderId = order.id;
 
-            const headerHTML = `
-                <div class="order-header">
+            const statusClass =
+                order.status === 'delivered' ? 'delivered' :
+                ['cancelled', 'failed'].includes(order.status) ? 'cancelled' : '';
+
+            const statusLabel = formatStatus(order.status);
+            const createdDate = order.createdAt ? formatDate(order.createdAt) : 'Unknown date';
+
+            const firstItems = order.products.slice(0, 3);
+            const remainingCount = order.products.length - firstItems.length;
+
+            card.innerHTML = `
+                <div class="order-card-header">
                     <div>
-                        <div class="order-id">
-                            Order <span>#${(order.orderNumber || order.id || '').toString().slice(-10).toUpperCase()}</span>
-                        </div>
+                        <div class="order-id">Order #${order.orderNumber}</div>
                         <div class="order-meta">
-                            <div class="order-meta-item">
-                                <i class="far fa-clock"></i>
-                                <span>${formattedDate}</span>
-                            </div>
-                            <div class="order-meta-item">
-                                <i class="fas fa-location-dot"></i>
-                                <span>${order.customer?.name || 'Delivery address'}</span>
-                            </div>
+                            <span>Placed on ${createdDate}</span>
+                            <span class="order-summary-chip">${order.products.length} item(s)</span>
                         </div>
                     </div>
-                    <div>
-                        <span class="order-status-pill ${statusClass}">
-                            <i class="fas fa-circle"></i>
+                    <div style="text-align:right;">
+                        <span class="badge badge-status ${statusClass}">
+                            <i class="fas fa-circle" style="font-size:0.55rem;"></i>
                             ${statusLabel}
                         </span>
                     </div>
                 </div>
-            `;
 
-            const items = order.products || [];
-            let itemsHTML = '';
-
-            if (items.length > 0) {
-                itemsHTML = `
-                    <div class="order-main">
-                        <div class="order-items-list">
-                            ${items.map(item => {
-                                const prod = item.product || item || {};
-                                const img =
-                                    (prod.images && prod.images[0] && prod.images[0].url) ||
-                                    prod.image ||
-                                    item.image ||
-                                    'https://placehold.co/80x80?text=Item';
-
-                                const name =
-                                    prod.name ||
-                                    prod.title ||
-                                    item.name ||
-                                    'Item';
-
-                                const qty = item.qty || item.quantity || 1;
-                                const price =
-                                    item.unitPrice ??
-                                    item.price ??
-                                    prod.price ??
-                                    0;
-
-                                const sellerName = prod.sellerName || item.sellerName || 'Seller';
-
-                                return `
-                                    <div class="order-item-row">
-                                        <div class="item-thumbnail">
-                                            <img src="${img}" alt="Product">
-                                        </div>
-                                        <div class="order-item-info">
-                                            <div class="order-item-name">${name}</div>
-                                            <div class="order-item-meta">
-                                                Qty: ${qty} • Seller: ${sellerName}
-                                            </div>
-                                            <div class="order-item-price">
-                                                ₹${Number(price).toLocaleString()}
-                                            </div>
-                                        </div>
+                <div class="order-card-body">
+                    <div>
+                        <div class="items-list">
+                            ${firstItems.map(item => `
+                                <div class="item-row">
+                                    <div class="item-image-wrapper">
+                                        <img src="${item.image}" class="item-image" alt="Product">
                                     </div>
-                                `;
-                            }).join('')}
-                        </div>
-                        <div class="order-summary">
-                            <div class="order-amount">₹${(order.totalAmount || 0).toLocaleString()}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-light);">
-                                Including taxes & delivery (if any)
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                itemsHTML = `
-                    <div class="order-main">
-                        <div class="order-items-list">
-                            <div class="order-item-row">
-                                <div class="order-item-info">
-                                    <div class="order-item-name">No item details available</div>
+                                    <div class="item-info">
+                                        <div class="item-name">${item.name}</div>
+                                        <div class="item-meta">Qty: ${item.qty}</div>
+                                    </div>
+                                    <div class="item-price">
+                                        ₹${(item.price * item.qty).toFixed(2)}
+                                    </div>
                                 </div>
+                            `).join('')}
+                        </div>
+                        ${remainingCount > 0 ? `<div class="more-items">+ ${remainingCount} more item(s)</div>` : ''}
+                    </div>
+
+                    <div class="order-right">
+                        <div class="order-total-row">
+                            <div>
+                                <div style="font-size:0.8rem; color:var(--text-light);">Total</div>
+                                <div class="order-amount">₹${order.totalAmount.toFixed(2)}</div>
+                            </div>
+                            <div class="payment-chip">
+                                <i class="fas fa-credit-card"></i>
+                                ${String(order.paymentMethod || '').toUpperCase()}
                             </div>
                         </div>
-                        <div class="order-summary">
-                            <div class="order-amount">₹${(order.totalAmount || 0).toLocaleString()}</div>
+
+                        ${renderDeliveryTimeline(order)}
+
+                        <div class="order-actions">
+                            <button class="primary" onclick="trackOrder('${order.orderNumber}')">
+                                <i class="fas fa-location-dot"></i> Track
+                            </button>
+                            ${order.canCancel ? `
+                            <button class="danger" onclick="cancelOrder('${order.id}')">
+                                <i class="fas fa-ban"></i> Cancel
+                            </button>` : ''}
+                            ${order.canReturn ? `
+                            <button onclick="returnOrder('${order.id}')">
+                                <i class="fas fa-rotate-left"></i> Return
+                            </button>` : ''}
+                            <button onclick="viewInvoice('${order.id}')">
+                                <i class="fas fa-file-invoice"></i> Invoice
+                            </button>
                         </div>
                     </div>
-                `;
-            }
-
-            const earlyStatuses = ['pending', 'confirmed', 'processing', 'preparing'];
-            const nonCancellable = ['cancelled', 'returned', 'refunded', 'failed'];
-
-            const canCancel =
-                (order.canCancel && order.canCancel.allowed === true) ||
-                (earlyStatuses.includes(order.status) && !nonCancellable.includes(order.status));
-
-            const canReturn =
-                (order.canReturn && order.canReturn.allowed === true) ||
-                order.status === 'delivered';
-
-            let actionsHTML = `
-                <button class="order-action primary" onclick="trackOrder('${order.orderNumber || order.id}')">
-                    <i class="fas fa-truck"></i>
-                    Track
-                </button>
-            `;
-
-            if (canCancel) {
-                actionsHTML += `
-                    <button class="order-action danger" onclick="cancelOrder('${order.id}')">
-                        <i class="fas fa-times-circle"></i>
-                        Cancel order
-                    </button>
-                `;
-            }
-
-            if (canReturn) {
-                actionsHTML += `
-                    <button class="order-action secondary" onclick="returnOrder('${order.id}')">
-                        <i class="fas fa-undo"></i>
-                        Return / issue
-                    </button>
-                `;
-            }
-
-            if (order.timeline && Array.isArray(order.timeline) && order.timeline.length > 0) {
-                itemsHTML += renderDeliveryTimeline(order);
-            }
-
-            card.innerHTML = headerHTML + itemsHTML + `
-                <div class="order-actions">
-                    ${actionsHTML}
                 </div>
             `;
 
             return card;
         }
 
-        // Map status to styling
-        function getStatusClass(status) {
-            const s = (status || '').toLowerCase();
-            if (s === 'delivered') return 'delivered';
-            if (['shipped', 'dispatched', 'out_for_delivery'].includes(s)) return 'shipped';
-            if (['processing', 'confirmed', 'preparing'].includes(s)) return 'processing';
-            if (['cancelled', 'failed'].includes(s)) return 'cancelled';
-            return 'pending';
-        }
-
-        function getStatusLabel(status) {
-            const s = (status || '').toLowerCase();
-            if (s === 'delivered') return 'Delivered';
-            if (['shipped', 'dispatched', 'out_for_delivery'].includes(s)) return 'Shipped';
-            if (['processing', 'confirmed', 'preparing'].includes(s)) return 'Processing';
-            if (['cancelled', 'failed'].includes(s)) return 'Cancelled';
-            return 'Pending';
-        }
-
-        // Timeline render (if backend provides order.timeline)
         function renderDeliveryTimeline(order) {
-            if (!order.timeline || !Array.isArray(order.timeline)) return '';
+            if (!order.timeline || !Array.isArray(order.timeline) || !order.timeline.length) return '';
 
             return `
                 <div class="delivery-timeline">
-                    <h4 style="margin-bottom: 0.4rem; font-size: 0.8rem; font-weight: 600;">Order timeline</h4>
+                    <div class="timeline-title">Order timeline</div>
                     ${order.timeline.map((item, index) => {
                         const isCompleted = item.completed;
-                        const firstIncompleteIdx = order.timeline.findIndex(t => !t.completed);
-                        const isCurrent = !isCompleted && index === (firstIncompleteIdx === -1 ? order.timeline.length - 1 : firstIncompleteIdx);
-
-                        const clazz = isCompleted ? 'completed' : isCurrent ? 'current' : 'pending';
+                        const firstIncompleteIndex = order.timeline.findIndex(t => !t.completed);
+                        const isCurrent = !isCompleted && index === firstIncompleteIndex;
 
                         return `
                             <div class="timeline-item">
-                                <div class="timeline-icon ${clazz}">
+                                <div class="timeline-icon ${isCompleted ? 'completed' : isCurrent ? 'current' : 'pending'}">
                                     <i class="fas ${isCompleted ? 'fa-check' : isCurrent ? 'fa-clock' : 'fa-circle'}"></i>
                                 </div>
                                 <div class="timeline-content">
-                                    <div class="timeline-title">${item.status}</div>
+                                    <div>${item.status}</div>
                                     ${item.timestamp ? `<div class="timeline-time">${formatDateTime(item.timestamp)}</div>` : ''}
                                 </div>
                             </div>
@@ -1412,166 +1193,176 @@
             `;
         }
 
-        // Stats
         function updateStats() {
             const totalOrders = filteredOrders.length;
             const activeOrders = filteredOrders.filter(o =>
-                ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery'].includes(o.status)
+                ['pending', 'confirmed', 'processing', 'preparing', 'shipped', 'out_for_delivery'].includes(o.status)
             ).length;
             const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
             const totalSpent = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-            document.getElementById('totalOrdersCount').textContent = totalOrders;
-            document.getElementById('activeOrdersCount').textContent = activeOrders;
-            document.getElementById('deliveredOrdersCount').textContent = deliveredOrders;
-            document.getElementById('totalSpentAmount').textContent = `₹${totalSpent.toLocaleString()}`;
+            document.getElementById('statTotalOrders').textContent = totalOrders;
+            document.getElementById('statActiveOrders').textContent = activeOrders;
+            document.getElementById('statDeliveredOrders').textContent = deliveredOrders;
+            document.getElementById('statTotalSpent').textContent = '₹' + totalSpent.toFixed(2);
         }
 
-        // Cancel order
+        // --- Actions ---
         async function cancelOrder(orderId) {
-            const order = filteredOrders.find(o => o.id === orderId);
-            const orderNumber = order?.orderNumber || orderId;
-
-            const confirmMessage =
-                'Are you sure you want to cancel this order?\n\n' +
-                'This action cannot be undone and cancellation may be blocked if order is already shipped.';
-
-            if (!confirm(confirmMessage)) return;
+            const confirmCancel = confirm('Are you sure you want to cancel this order?');
+            if (!confirmCancel) return;
 
             try {
-                showToast(`Cancelling order ${orderNumber}…`, 'info');
-
-                if (!window.HybridAuthClient) {
-                    throw new Error('Authentication system not available. Please refresh the page.');
-                }
-
-                const response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/cancel`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason: 'Customer requested cancellation' })
+                const response = await fetch(`/api/v1/orders/${orderId}/cancel`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
-                if (response && response.ok) {
-                    const result = await response.json().catch(() => ({}));
-                    if (result.success) {
-                        showToast(`Order ${orderNumber} cancelled successfully`, 'success');
-                        await loadOrders();
-                    } else {
-                        throw new Error(result.message || 'Cancellation failed');
-                    }
+                if (!response.ok) {
+                    throw new Error('Failed to cancel order');
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Order cancelled successfully', 'success');
+                    await loadOrders();
                 } else {
-                    const errorText = response ? await response.text().catch(() => '') : '';
-                    throw new Error(errorText || 'Cancellation failed');
+                    throw new Error(result.message || 'Cancellation failed');
                 }
             } catch (err) {
-                console.error('Cancel error:', err);
+                console.error('Cancel order error:', err);
                 showToast(err.message || 'Failed to cancel order', 'error');
             }
         }
 
-        // Track order
-        function trackOrder(orderNumber) {
-            try {
-                if (window.TrackingService && typeof window.TrackingService.openTrackingModal === 'function') {
-                    window.TrackingService.openTrackingModal(orderNumber);
-                } else {
-                    showToast('Tracking view coming soon', 'info');
-                }
-            } catch (err) {
-                console.error('Track error:', err);
-                showToast('Unable to open tracking right now', 'error');
-            }
-        }
-
-        // Return (placeholder)
         function returnOrder(orderId) {
-            showToast('Return / issue flow coming soon', 'info');
+            const order = filteredOrders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('Order not found', 'error');
+                return;
+            }
+
+            const orderNumber = order.orderNumber || orderId;
+            showToast(`Opening return request for order ${orderNumber}`, 'info');
+            setTimeout(() => {
+                window.location.href = `returns.html?orderNumber=${encodeURIComponent(orderNumber)}`;
+            }, 1200);
         }
 
-        // Pagination UI
-        function updatePaginationUI() {
-            const total = filteredOrders.length;
-            const totalPages = Math.ceil(total / ordersPerPage) || 1;
-            const start = (currentPage - 1) * ordersPerPage + 1;
-            const end = Math.min(currentPage * ordersPerPage, total);
+        function viewInvoice(orderId) {
+            window.open(`invoice.html?orderId=${encodeURIComponent(orderId)}`, '_blank');
+        }
 
-            document.getElementById('paginationContainer').style.display = total > ordersPerPage ? 'flex' : 'none';
-            document.getElementById('paginationInfo').textContent = `Showing ${start}–${end} of ${total} orders`;
+        function trackOrder(orderNumber) {
+            showToast('Opening order tracking', 'info');
+            const trackingUrl = `order-tracking.html?order=${encodeURIComponent(orderNumber)}`;
+            window.open(trackingUrl, '_blank');
 
-            const prevBtn = document.getElementById('prevPageBtn');
-            const nextBtn = document.getElementById('nextPageBtn');
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= totalPages;
-
-            const pageNumbers = document.getElementById('pageNumbers');
-            pageNumbers.innerHTML = '';
-
-            for (let i = 1; i <= totalPages; i++) {
-                const btn = document.createElement('button');
-                btn.className = 'page-number' + (i === currentPage ? ' active' : '');
-                btn.textContent = i;
-                btn.addEventListener('click', () => {
-                    currentPage = i;
-                    renderCurrentPage();
+            if (window.trackingService) {
+                window.trackingService.subscribeToOrderTracking(orderNumber, (data) => {
+                    console.log('Real-time tracking update:', data);
+                    if (data.type === 'status') {
+                        loadOrders();
+                    }
                 });
-                pageNumbers.appendChild(btn);
             }
         }
 
-        function showEmptyState() {
-            document.getElementById('ordersEmptyState').style.display = 'block';
-            document.getElementById('ordersContainer').innerHTML = '';
-            document.getElementById('paginationContainer').style.display = 'none';
+        // --- Utils ---
+        function getSafeImageUrl(product) {
+            const fallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e5e7eb'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='12' fill='%2394a3b8' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+
+            if (!product) return fallback;
+
+            if (Array.isArray(product.images) && product.images.length > 0) {
+                const img = product.images[0];
+                if (typeof img === 'string' && img.startsWith('http')) return img;
+                if (img && img.url && img.url.startsWith('http')) return img.url;
+            }
+
+            if (product.image && typeof product.image === 'string' && product.image.startsWith('http')) {
+                return product.image;
+            }
+
+            return fallback;
         }
 
-        function hideEmptyState() {
-            document.getElementById('ordersEmptyState').style.display = 'none';
+        function formatStatus(status) {
+            status = String(status || '').toLowerCase();
+            const map = {
+                pending: 'Order placed',
+                confirmed: 'Confirmed',
+                processing: 'Processing',
+                preparing: 'Preparing',
+                shipped: 'Shipped',
+                out_for_delivery: 'Out for delivery',
+                delivered: 'Delivered',
+                cancelled: 'Cancelled',
+                failed: 'Failed'
+            };
+            return map[status] || status.charAt(0).toUpperCase() + status.slice(1);
         }
 
-        // Utils
-        function showLoading(show) {
-            const overlay = document.getElementById('loaderOverlay');
-            overlay.classList.toggle('show', !!show);
-        }
-
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            const titleEl = document.getElementById('toastTitle');
-            const messageEl = document.getElementById('toastMessage');
-
-            let title = 'Info';
-            if (type === 'success') title = 'Success';
-            if (type === 'error') title = 'Error';
-            if (type === 'warning') title = 'Notice';
-
-            toast.className = `toast ${type}`;
-            titleEl.textContent = title;
-            messageEl.textContent = message;
-            toast.classList.add('show');
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3200);
-        }
-
-        function formatDateTime(value) {
-            if (!value) return '';
-            const d = (value instanceof Date) ? value : new Date(value);
-            if (isNaN(d)) return '';
-            return d.toLocaleString(undefined, {
-                day: '2-digit',
-                month: 'short',
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Unknown date';
+            return date.toLocaleDateString('en-IN', {
                 year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleString('en-IN', {
+                month: 'short',
+                day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
             });
         }
 
-        function debounce(fn, delay) {
+        function showLoading(show) {
+            document.getElementById('loadingState').style.display = show ? 'block' : 'none';
+        }
+
+        function showEmptyState() {
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('ordersContainer').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${getToastIcon(type)}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-circle-exclamation',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+            return icons[type] || icons.info;
+        }
+
+        function debounce(fn, wait) {
             let timeout;
-            return (...args) => {
+            return function (...args) {
                 clearTimeout(timeout);
-                timeout = setTimeout(() => fn.apply(null, args), delay);
+                timeout = setTimeout(() => fn.apply(this, args), wait);
             };
         }
     </script>
