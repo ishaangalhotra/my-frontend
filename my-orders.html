@@ -446,10 +446,17 @@
             gap: 0.75rem;
         }
 
-        .order-items-preview {
+        .order-items-list {
             flex: 1;
             display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .order-item-row {
+            display: flex;
             gap: 0.5rem;
+            align-items: flex-start;
         }
 
         .item-thumbnail {
@@ -462,6 +469,7 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .item-thumbnail img {
@@ -470,14 +478,14 @@
             object-fit: cover;
         }
 
-        .order-items-text {
+        .order-item-info {
             display: flex;
             flex-direction: column;
             gap: 0.15rem;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
         }
 
-        .order-product-title {
+        .order-item-name {
             font-weight: 600;
             color: var(--text-primary);
             display: -webkit-box;
@@ -486,14 +494,21 @@
             overflow: hidden;
         }
 
-        .order-product-meta {
+        .order-item-meta {
             color: var(--text-light);
-            font-size: 0.75rem;
+            font-size: 0.74rem;
+        }
+
+        .order-item-price {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #16a34a;
         }
 
         .order-summary {
             text-align: right;
             min-width: 120px;
+            font-size: 0.8rem;
         }
 
         .order-amount {
@@ -690,7 +705,6 @@
             font-size: 0.78rem;
             display: none;
             z-index: 9999;
-            display: none;
         }
 
         .toast.show {
@@ -1187,7 +1201,7 @@
             updatePaginationUI();
         }
 
-        // Create card DOM
+        // Create card DOM - now shows ALL items with image + name + qty
         function renderOrderCard(order) {
             const card = document.createElement('article');
             card.className = 'order-card';
@@ -1200,16 +1214,6 @@
 
             const createdAt = order.orderDate ? new Date(order.orderDate) : null;
             const formattedDate = createdAt ? formatDateTime(createdAt) : 'Date not available';
-
-            const items = order.products || [];
-            const first = items[0] || {};
-            const firstProduct = first.product || first || {};
-            const firstImage = (firstProduct.images && firstProduct.images[0] && firstProduct.images[0].url) ||
-                firstProduct.image ||
-                'https://placehold.co/80x80?text=Item';
-            const firstName = firstProduct.name || firstProduct.title || 'Item';
-
-            const otherCount = Math.max(0, items.length - 1);
 
             const headerHTML = `
                 <div class="order-header">
@@ -1224,7 +1228,7 @@
                             </div>
                             <div class="order-meta-item">
                                 <i class="fas fa-location-dot"></i>
-                                <span>${order.customer?.name || 'Delivery address'} </span>
+                                <span>${order.customer?.name || 'Delivery address'}</span>
                             </div>
                         </div>
                     </div>
@@ -1237,28 +1241,78 @@
                 </div>
             `;
 
-            let itemsHTML = `
-                <div class="order-main">
-                    <div class="order-items-preview">
-                        <div class="item-thumbnail">
-                            <img src="${firstImage}" alt="Product">
+            const items = order.products || [];
+            let itemsHTML = '';
+
+            if (items.length > 0) {
+                itemsHTML = `
+                    <div class="order-main">
+                        <div class="order-items-list">
+                            ${items.map(item => {
+                                const prod = item.product || item || {};
+                                const img =
+                                    (prod.images && prod.images[0] && prod.images[0].url) ||
+                                    prod.image ||
+                                    item.image ||
+                                    'https://placehold.co/80x80?text=Item';
+
+                                const name =
+                                    prod.name ||
+                                    prod.title ||
+                                    item.name ||
+                                    'Item';
+
+                                const qty = item.qty || item.quantity || 1;
+                                const price =
+                                    item.unitPrice ??
+                                    item.price ??
+                                    prod.price ??
+                                    0;
+
+                                const sellerName = prod.sellerName || item.sellerName || 'Seller';
+
+                                return `
+                                    <div class="order-item-row">
+                                        <div class="item-thumbnail">
+                                            <img src="${img}" alt="Product">
+                                        </div>
+                                        <div class="order-item-info">
+                                            <div class="order-item-name">${name}</div>
+                                            <div class="order-item-meta">
+                                                Qty: ${qty} • Seller: ${sellerName}
+                                            </div>
+                                            <div class="order-item-price">
+                                                ₹${Number(price).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
-                        <div class="order-items-text">
-                            <div class="order-product-title">${firstName}</div>
-                            <div class="order-product-meta">
-                                ${items.length} item${items.length !== 1 ? 's' : ''} • Seller: ${firstProduct.sellerName || 'QuickLocal Seller'}
+                        <div class="order-summary">
+                            <div class="order-amount">₹${(order.totalAmount || 0).toLocaleString()}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-light);">
+                                Including taxes & delivery (if any)
                             </div>
-                            ${otherCount > 0 ? `<div class="order-product-meta">+${otherCount} more item${otherCount > 1 ? 's' : ''}</div>` : ''}
                         </div>
                     </div>
-                    <div class="order-summary">
-                        <div class="order-amount">₹${(order.totalAmount || 0).toLocaleString()}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-light);">
-                            Including taxes & delivery (if any)
+                `;
+            } else {
+                itemsHTML = `
+                    <div class="order-main">
+                        <div class="order-items-list">
+                            <div class="order-item-row">
+                                <div class="order-item-info">
+                                    <div class="order-item-name">No item details available</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="order-summary">
+                            <div class="order-amount">₹${(order.totalAmount || 0).toLocaleString()}</div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
 
             const earlyStatuses = ['pending', 'confirmed', 'processing', 'preparing'];
             const nonCancellable = ['cancelled', 'returned', 'refunded', 'failed'];
