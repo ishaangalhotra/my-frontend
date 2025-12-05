@@ -254,8 +254,10 @@
         <div id="orders" class="section">
             <h1 class="inventory-title">Manage Orders</h1>
             <div class="widget-card">
-                <p>Order management module loaded.</p>
-                <button class="btn btn-primary" onclick="loadSellerOrders()">Refresh Orders</button>
+                <div class="inventory-header">
+                    <p>Order management module loaded.</p>
+                    <button class="btn btn-primary" onclick="loadSellerOrders()">Refresh Orders</button>
+                </div>
                 <div class="data-table-wrapper" style="margin-top: 20px;">
                     <table id="ordersTable">
                         <thead>
@@ -265,10 +267,10 @@
                                 <th>Customer</th>
                                 <th>Status</th>
                                 <th>Total</th>
-                            </tr>
+                                <th>Actions</th> </tr>
                         </thead>
                         <tbody id="ordersBody">
-                            <tr><td colspan="5" style="text-align: center; padding: 20px;">Loading...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; padding: 20px;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -376,11 +378,61 @@
         </div>
     </div>
 
+    <div id="orderModal" class="modal-overlay">
+        <div class="modal-container" style="width: 700px;">
+            <div class="modal-header">
+                <h3>Order Details</h3>
+                <button onclick="closeOrderModal()" style="border:none; background:none; cursor:pointer; font-size: 18px;">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid var(--border);">
+                    <h4 style="margin-bottom: 10px; color: var(--primary);">Customer Information</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><strong>Name:</strong> <span id="ordCustName"></span></div>
+                        <div><strong>Phone:</strong> <span id="ordCustPhone"></span></div>
+                        <div style="grid-column: span 2;"><strong>Email:</strong> <span id="ordCustEmail"></span></div>
+                        <div style="grid-column: span 2;">
+                            <strong>Shipping Address:</strong><br>
+                            <span id="ordCustAddress" style="color: var(--text-light);"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 10px; color: var(--text-dark);">Ordered Items</h4>
+                <div class="data-table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderItemsBody">
+                            </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 15px; text-align: right; font-size: 16px;">
+                    <strong>Total Amount: </strong> <span id="ordTotalAmount" style="color: var(--danger); font-weight: bold;"></span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeOrderModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script>
         const API_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
         let currentUser = null;
         let globalProducts = [];
+        let globalOrders = []; // FIXED: Added to store orders for detail view
         let salesChartInstance = null;
 
         // --- INIT ---
@@ -841,17 +893,18 @@
             }
         }
 
-        // --- ORDERS ---
+        // --- FIXED: ORDERS LOGIC ---
         async function loadSellerOrders() {
             const tbody = document.getElementById('ordersBody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading orders...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading orders...</td></tr>';
             try {
                 const res = await window.HybridAuthClient.apiCall('/seller/orders');
                 const data = await res.json();
                 const orders = data.data || [];
+                globalOrders = orders; // Store globally for viewOrderDetails
 
                 if(!orders.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No orders found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found.</td></tr>';
                     return;
                 }
                 
@@ -859,28 +912,103 @@
                     const id = (o.orderNumber || o._id || '').toString();
                     const orderCode = id ? id.slice(-8).toUpperCase() : 'ORDER';
                     const itemsCount = o.items?.length || 0;
-                    const customer = o.shipping?.fullName || o.shipping?.name || 'Customer';
+                    
+                    // Handle different backend structures for address
+                    const shipping = o.shippingAddress || o.shipping || {};
+                    const customerName = shipping.fullName || shipping.name || 'Customer';
 
                     const firstItem = o.items && o.items[0] ? o.items[0] : null;
-                    const status = (firstItem?.status || 'pending').toLowerCase();
-                    const badgeClass = status === 'delivered' ? 'status-active' : 'status-inactive';
+                    const status = (o.status || firstItem?.status || 'pending').toLowerCase();
+                    
+                    let badgeClass = 'status-inactive';
+                    if (status === 'delivered') badgeClass = 'status-active';
+                    else if (status === 'shipped') badgeClass = 'status-active';
 
-                    const total = typeof o.subtotal === 'number' ? o.subtotal : 0;
+                    const total = typeof o.totalAmount === 'number' ? o.totalAmount : (o.subtotal || 0);
 
                     return `
                         <tr>
                             <td style="color:var(--primary); font-weight:bold;">#${orderCode}</td>
                             <td>${itemsCount} item(s)</td>
-                            <td>${customer}</td>
+                            <td>${customerName}</td>
                             <td><span class="status-badge ${badgeClass}">${status}</span></td>
                             <td style="font-weight:700;">₹${total.toFixed(2)}</td>
+                            <td>
+                                <button class="btn btn-primary" style="padding: 4px 10px;" onclick="viewOrderDetails('${o._id || o.id}')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } catch(e) {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load orders.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Failed to load orders.</td></tr>';
             }
+        }
+
+        // --- FIXED: ORDER DETAILS MODAL LOGIC ---
+        function viewOrderDetails(orderId) {
+            const order = globalOrders.find(o => (o._id || o.id) == orderId);
+            if (!order) return showToast('Order details not found', 'error');
+
+            // 1. Populate Customer Info
+            const shipping = order.shippingAddress || order.shipping || {}; 
+            
+            document.getElementById('ordCustName').textContent = shipping.name || shipping.fullName || 'N/A';
+            document.getElementById('ordCustPhone').textContent = shipping.phone || 'N/A';
+            document.getElementById('ordCustEmail').textContent = order.user?.email || shipping.email || 'N/A';
+            
+            const addressParts = [
+                shipping.address,
+                shipping.city,
+                shipping.state,
+                shipping.postalCode || shipping.pincode,
+                shipping.country
+            ].filter(Boolean).join(', ');
+            
+            document.getElementById('ordCustAddress').textContent = addressParts || 'No address provided';
+
+            // 2. Populate Items
+            const tbody = document.getElementById('orderItemsBody');
+            tbody.innerHTML = '';
+            
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    const product = item.product || {};
+                    const name = product.name || 'Product Item';
+                    const img = (product.images && product.images[0]?.url) || product.image || 'https://placehold.co/50';
+                    const qty = item.quantity || 1;
+                    const price = item.price || product.price || 0;
+                    const itemTotal = price * qty;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><img src="${img}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;"></td>
+                            <td>
+                                <div style="font-weight:bold; font-size:12px;">${name}</div>
+                                <div style="font-size:10px; color:#666;">SKU: ${(product._id || '').slice(-6)}</div>
+                            </td>
+                            <td>${qty}</td>
+                            <td>₹${price}</td>
+                            <td>₹${itemTotal}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No items data available</td></tr>';
+            }
+
+            // 3. Total
+            const total = typeof order.totalAmount === 'number' ? order.totalAmount : (order.subtotal || 0);
+            document.getElementById('ordTotalAmount').textContent = '₹' + total.toFixed(2);
+
+            // Show Modal
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.remove('active');
         }
 
         // --- UTILS ---
