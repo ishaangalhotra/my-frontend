@@ -501,6 +501,46 @@
             font-weight: 700;
         }
 
+        /* 🔹 New: Full address + payment details section */
+        .order-extra {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+            gap: 1.2rem;
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px dashed var(--border);
+            font-size: 0.8rem;
+        }
+
+        .order-extra-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .order-extra-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .order-extra-label i {
+            font-size: 0.7rem;
+        }
+
+        .order-extra-value {
+            color: var(--text-primary);
+        }
+
+        .order-extra-value div {
+            line-height: 1.3;
+        }
+
         .order-actions {
             display: flex;
             flex-wrap: wrap;
@@ -784,6 +824,10 @@
             }
             .order-actions {
                 justify-content: flex-start;
+            }
+            /* 🔹 New: stack address & payment on mobile */
+            .order-extra {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -1211,6 +1255,68 @@
 
             const otherCount = Math.max(0, items.length - 1);
 
+            // 🔹 Shipping info from backend
+            const shipping = order.shippingAddress || order.shipping || {};
+            const recipientName =
+                shipping.fullName ||
+                shipping.name ||
+                (order.customer && (order.customer.fullName || order.customer.name)) ||
+                (order.user && (order.user.fullName || order.user.name)) ||
+                '';
+
+            const addressParts = [
+                shipping.address,
+                shipping.addressLine2,
+                shipping.landmark,
+                shipping.city,
+                shipping.state,
+                shipping.postalCode || shipping.pincode || shipping.zipCode
+            ].filter(Boolean);
+
+            const addressLine = addressParts.join(', ');
+
+            const phone =
+                shipping.phoneNumber ||
+                shipping.phone ||
+                (order.customer && (order.customer.phone || order.customer.mobile || order.customer.contactNumber)) ||
+                '';
+
+            // 🔹 Payment info from backend
+            const paymentMethodRaw =
+                order.paymentMethod ||
+                (order.payment && order.payment.method) ||
+                (order.paymentDetails && order.paymentDetails.method) ||
+                (order.paymentResult && (order.paymentResult.paymentMethod || order.paymentResult.method));
+
+            const paymentMethod = (paymentMethodRaw || '').toString().toLowerCase();
+
+            const paymentLabelMap = {
+                'credit_card': 'Card',
+                'card': 'Card',
+                'debit_card': 'Card',
+                'netbanking': 'Netbanking',
+                'upi': 'UPI',
+                'wallet': 'Wallet',
+                'cod': 'Cash on Delivery',
+                'cash_on_delivery': 'Cash on Delivery'
+            };
+
+            const paymentLabel = paymentLabelMap[paymentMethod] || (paymentMethodRaw || '').toString().toUpperCase() || '';
+
+            const paidFlag =
+                order.isPaid === true ||
+                (order.paymentStatus && order.paymentStatus.toLowerCase() === 'paid') ||
+                (order.paymentInfo && order.paymentInfo.status && order.paymentInfo.status.toLowerCase() === 'paid');
+
+            let paymentStatusText = '';
+            if (paidFlag) {
+                paymentStatusText = 'Paid';
+            } else if (paymentMethod === 'cod' || paymentMethod === 'cash_on_delivery') {
+                paymentStatusText = 'Pay on delivery';
+            } else if (paymentMethod) {
+                paymentStatusText = 'Payment pending';
+            }
+
             const headerHTML = `
                 <div class="order-header">
                     <div>
@@ -1224,7 +1330,10 @@
                             </div>
                             <div class="order-meta-item">
                                 <i class="fas fa-location-dot"></i>
-                                <span>${order.customer?.name || 'Delivery address'} </span>
+                                <span>
+                                    ${recipientName || 'Delivery address'}
+                                    ${addressLine ? ' • ' + addressLine : ''}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -1259,6 +1368,44 @@
                     </div>
                 </div>
             `;
+
+            // 🔹 Add full delivery + payment section
+            const contactLine = phone ? `Phone: ${phone}` : '';
+
+            const hasAddressBlock = recipientName || addressLine || contactLine;
+            const hasPaymentBlock = paymentLabel || paymentStatusText;
+
+            if (hasAddressBlock || hasPaymentBlock) {
+                itemsHTML += `
+                    <div class="order-extra">
+                        ${hasAddressBlock ? `
+                        <div class="order-extra-section">
+                            <div class="order-extra-label">
+                                <i class="fas fa-map-marker-alt"></i>
+                                Delivery address
+                            </div>
+                            <div class="order-extra-value">
+                                ${recipientName ? `<div>${recipientName}</div>` : ''}
+                                ${addressLine ? `<div>${addressLine}</div>` : ''}
+                                ${contactLine ? `<div>${contactLine}</div>` : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${hasPaymentBlock ? `
+                        <div class="order-extra-section">
+                            <div class="order-extra-label">
+                                <i class="fas fa-credit-card"></i>
+                                Payment
+                            </div>
+                            <div class="order-extra-value">
+                                ${paymentLabel ? `<div>${paymentLabel}</div>` : ''}
+                                ${paymentStatusText ? `<div>${paymentStatusText}</div>` : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
 
             const earlyStatuses = ['pending', 'confirmed', 'processing', 'preparing'];
             const nonCancellable = ['cancelled', 'returned', 'refunded', 'failed'];
