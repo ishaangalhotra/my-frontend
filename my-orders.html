@@ -730,7 +730,6 @@
             font-size: 0.78rem;
             display: none;
             z-index: 9999;
-            display: none;
         }
 
         .toast.show {
@@ -1023,6 +1022,67 @@
             });
         }
 
+        // ✅ Normalizes raw API response into consistent order objects
+        function normalizeOrders(raw) {
+            let list = [];
+            if (Array.isArray(raw)) list = raw;
+            else if (raw && Array.isArray(raw.orders)) list = raw.orders;
+            else if (raw && raw.data && Array.isArray(raw.data.orders)) list = raw.data.orders;
+            else if (raw && raw.data && Array.isArray(raw.data)) list = raw.data;
+
+            return list.map(order => {
+                const itemsRaw = order.orderItems || order.items || [];
+
+                const products = itemsRaw.map(item => {
+                    const prod = item.product || {};
+                    const images = Array.isArray(prod.images) ? prod.images : [];
+
+                    const imgCandidate =
+                        item.image ||
+                        (images[0] && (images[0].url || images[0].secure_url || images[0])) ||
+                        prod.image ||
+                        null;
+
+                    const displayQty = item.qty || item.quantity || 1;
+                    const displayPrice = Number(
+                        item.unitPrice ??
+                        item.price ??
+                        prod.price ??
+                        0
+                    ) || 0;
+
+                    return {
+                        ...item,
+                        product: prod,
+                        displayName: item.name || prod.name || 'Item',
+                        displayImage: imgCandidate || 'https://placehold.co/80x80?text=Item',
+                        displayQty,
+                        displayPrice
+                    };
+                });
+
+                const total =
+                    order.pricing?.totalPrice ??
+                    order.totalAmount ??
+                    order.total ??
+                    products.reduce((sum, p) => sum + p.displayPrice * p.displayQty, 0);
+
+                return {
+                    ...order,
+                    id: order._id || order.id,
+                    orderNumber: order.orderNumber || order.orderId || order._id,
+                    status: String(order.status || 'pending').toLowerCase(),
+                    orderDate: order.createdAt || order.orderDate || order.date,
+                    products,
+                    totalAmount: Number(total) || 0,
+                    shippingAddress: order.shippingAddress || order.address || {},
+                    paymentMethod: order.paymentMethod || 'N/A',
+                    paymentResult: order.paymentResult || {},
+                    customer: order.customerInfo || order.user || {}
+                };
+            });
+        }
+
         // Init with auth
         async function initializeOrdersPage() {
             showLoading(true);
@@ -1084,17 +1144,12 @@
                 const result = await response.json();
                 console.log('✅ Orders loaded:', result);
 
-                const ordersList = result.orders || result.data || result.results || [];
-                allOrders = Array.isArray(ordersList) ? ordersList : [];
+                // ✅ Normalize orders first
+                allOrders = normalizeOrders(result);
 
-                // Transform for customer view
+                // ✅ Add canCancel / canReturn flags on top of normalized data
                 allOrders = allOrders.map(order => {
                     const status = (order.status || 'pending').toLowerCase();
-
-                    const products = order.orderItems || order.items || [];
-                    const totalAmount = (order.pricing && typeof order.pricing.totalPrice === 'number')
-                        ? order.pricing.totalPrice
-                        : (order.totalAmount ?? order.total ?? 0);
 
                     const earlyStatuses = ['pending', 'confirmed', 'processing', 'preparing'];
                     const nonCancellable = ['cancelled', 'returned', 'refunded', 'failed'];
@@ -1109,12 +1164,6 @@
 
                     return {
                         ...order,
-                        id: order._id || order.id,
-                        orderNumber: order.orderNumber || order.orderId || order._id,
-                        customer: order.customerInfo || order.user || {},
-                        products,
-                        totalAmount,
-                        orderDate: order.createdAt || order.orderDate || order.date,
                         status,
                         canCancel: { allowed: canCancel },
                         canReturn: { allowed: canReturn }
@@ -1185,6 +1234,7 @@
                     const productsText = (order.products || []).map(p => {
                         const prod = p.product || p;
                         return [
+                            p.displayName,
                             prod.name,
                             prod.title,
                             prod.brand,
@@ -1247,15 +1297,21 @@
 
             const items = order.products || [];
             const first = items[0] || {};
-            const firstProduct = first.product || first || {};
-            const firstImage = (firstProduct.images && firstProduct.images[0] && firstProduct.images[0].url) ||
+            const firstProduct = first.product || {};
+            const firstImage =
+                first.displayImage ||
+                (firstProduct.images && firstProduct.images[0] && firstProduct.images[0].url) ||
                 firstProduct.image ||
                 'https://placehold.co/80x80?text=Item';
-            const firstName = firstProduct.name || firstProduct.title || 'Item';
+            const firstName =
+                first.displayName ||
+                firstProduct.name ||
+                firstProduct.title ||
+                'Item';
 
             const otherCount = Math.max(0, items.length - 1);
 
-            // 🔹 Shipping info from backend
+            // 🔹 Shipping info from normalized order
             const shipping = order.shippingAddress || order.shipping || {};
             const recipientName =
                 shipping.fullName ||
@@ -1281,7 +1337,7 @@
                 (order.customer && (order.customer.phone || order.customer.mobile || order.customer.contactNumber)) ||
                 '';
 
-            // 🔹 Payment info from backend
+            // 🔹 Payment info from normalized order
             const paymentMethodRaw =
                 order.paymentMethod ||
                 (order.payment && order.payment.method) ||
