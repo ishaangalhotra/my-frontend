@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Registration • QuickLocal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --card-border: #1e293b;
+      --primary: #6366f1;
+      --primary-dark: #4338ca;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --error: #f97373;
+      --success: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1d2340 0, #020617 55%, #020617 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.99));
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.8);
+      padding: 22px 20px 20px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #a5b4fc, #6366f1 60%, #4338ca 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.4), 0 12px 25px rgba(79, 70, 229, 0.7);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .warning-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(127, 29, 29, 0.35);
+      color: #fecaca;
+      margin-top: 8px;
+      border: 1px solid rgba(248, 113, 113, 0.7);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-top: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+      color: #cbd5f5;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+      width: 100%;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.88);
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.4);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .hint {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      display: none;
+      line-height: 1.35;
+    }
+    .status.error {
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.7);
+      color: #fecaca;
+    }
+    .status.success {
+      background: rgba(34, 197, 94, 0.11);
+      border: 1px solid rgba(34, 197, 94, 0.7);
+      color: #bbf7d0;
+    }
+    .status.info {
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.6);
+      color: #bfdbfe;
+    }
+
+    button[type="submit"] {
+      margin-top: 14px;
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(79, 70, 229, 0.7);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+    }
+
+    button[type="submit"]:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(79, 70, 229, 0.85);
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+    }
+
+    button[type="submit"]:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .footer {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .footer a {
+      color: #a5b4fc;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="card-header">
+        <div class="logo-badge">
+          <i class="fas fa-user-shield"></i>
+        </div>
+        <div>
+          <h1>Create Admin Account</h1>
+          <p class="subtitle">Use this page only for trusted admins.</p>
+          <div class="warning-pill">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>Security tip: remove or protect this page after setup.</span>
+          </div>
+        </div>
+      </div>
+
+      <form id="adminRegisterForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input id="name" type="text" placeholder="Admin Name" required />
+            <div class="hint">Name that will appear in the dashboard.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone (optional)</label>
+            <input id="phone" type="tel" placeholder="+91 98765 43210" />
+            <div class="hint">For contact / audit logs (optional).</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Admin Email</label>
+          <input id="email" type="email" placeholder="admin@quicklocal.shop" autocomplete="email" required />
+          <div class="hint">Must be unique and used only for admin sign-in.</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="Min 8 characters" required />
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input id="confirmPassword" type="password" placeholder="Retype password" required />
+          </div>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <button type="submit" id="submitBtn">
+          <i class="fas fa-user-plus"></i>
+          <span>Create Admin</span>
+        </button>
+      </form>
+
+      <div class="footer">
+        <span>Already have an admin account? </span>
+        <a href="admin-login.html">Go to Admin Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // Same backend base you used for login/dashboard
+      const API_BASE = 'https://ecommerce-backend-mlik.onrender.com';
+      const AUTH_API = API_BASE + '/api/v1/auth';
+
+      const form = document.getElementById('adminRegisterForm');
+      const statusEl = document.getElementById('status');
+      const submitBtn = document.getElementById('submitBtn');
+
+      function setStatus(message, type) {
+        statusEl.textContent = message || '';
+        statusEl.className = 'status ' + (type || 'info');
+        statusEl.style.display = message ? 'block' : 'none';
+      }
+
+      function setLoading(isLoading) {
+        submitBtn.disabled = isLoading;
+        submitBtn.innerHTML = isLoading
+          ? '<i class="fas fa-spinner fa-spin"></i><span>Creating admin...</span>'
+          : '<i class="fas fa-user-plus"></i><span>Create Admin</span>';
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!name || !email || !password || !confirmPassword) {
+          return setStatus('Please fill in all required fields.', 'error');
+        }
+
+        if (!email.includes('@')) {
+          return setStatus('Please enter a valid email address.', 'error');
+        }
+
+        if (password.length < 8) {
+          return setStatus('Password must be at least 8 characters long.', 'error');
+        }
+
+        if (password !== confirmPassword) {
+          return setStatus('Passwords do not match.', 'error');
+        }
+
+        setLoading(true);
+        setStatus('Creating admin account...', 'info');
+
+        try {
+          const res = await fetch(AUTH_API + '/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              name,
+              email,
+              password,
+              phone: phone || undefined,
+              // IMPORTANT: force admin role from here
+              role: 'admin'
+            })
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || !data.success) {
+            const msg =
+              data.message ||
+              (data.errors && data.errors[0] && data.errors[0].msg) ||
+              'Failed to create admin.';
+            throw new Error(msg);
+          }
+
+          setStatus('Admin account created successfully. Redirecting to login...', 'success');
+
+          // Optional: auto-redirect to admin login after a short delay
+          setTimeout(() => {
+            window.location.href = 'admin-login.html';
+          }, 1200);
+        } catch (err) {
+          console.error('Admin register error:', err);
+          setStatus(err.message || 'Unable to create admin user. Please try again.', 'error');
+        } finally {
+          setLoading(false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin • Products Management • QuickLocal</title>
+  <title>Admin • Users Management • QuickLocal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
 
@@ -205,23 +205,16 @@
     .filter-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      align-items: flex-end;
+      gap: 8px;
+      align-items: center;
     }
 
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .filter-group label {
+    .filter-row label {
       font-size: 0.75rem;
       color: var(--muted);
     }
 
-    .filter-input,
-    .filter-select {
+    .filter-input {
       padding: 6px 8px;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.4);
@@ -235,10 +228,14 @@
       color: #64748b;
     }
 
-    .filter-range {
-      display: flex;
-      gap: 6px;
-      align-items: center;
+    .filter-select {
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      font-size: 0.8rem;
+      min-width: 120px;
     }
 
     .filter-chip {
@@ -323,6 +320,18 @@
       border-bottom: none;
     }
 
+    .role-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      text-transform: capitalize;
+    }
+
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -330,13 +339,27 @@
       padding: 3px 7px;
       border-radius: 999px;
       font-size: 0.72rem;
-      text-transform: capitalize;
     }
 
-    .status-pill.active { background: rgba(34, 197, 94, 0.24); color: #bbf7d0; }
-    .status-pill.inactive { background: rgba(148, 163, 184, 0.3); color: #e5e7eb; }
-    .status-pill.pending { background: rgba(234, 179, 8, 0.24); color: #facc15; }
-    .status-pill.rejected { background: rgba(248, 113, 113, 0.24); color: #fecaca; }
+    .status-pill.active {
+      background: rgba(22, 163, 74, 0.2);
+      color: #bbf7d0;
+    }
+
+    .status-pill.inactive {
+      background: rgba(148, 163, 184, 0.3);
+      color: #e5e7eb;
+    }
+
+    .status-pill.suspended {
+      background: rgba(234, 179, 8, 0.2);
+      color: #facc15;
+    }
+
+    .status-pill.locked {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fecaca;
+    }
 
     .dot {
       width: 6px;
@@ -352,33 +375,19 @@
       background: rgba(15, 23, 42, 0.9);
       color: var(--text);
       font-size: 0.75rem;
-      text-transform: capitalize;
     }
 
-    .inline-input {
-      padding: 4px 6px;
-      border-radius: 8px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text);
-      font-size: 0.75rem;
-      width: 100%;
-    }
-
-    .product-meta {
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
       font-size: 0.72rem;
       color: var(--muted);
     }
 
-    .badge-small {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.6);
+    .toggle input {
+      accent-color: #22c55e;
     }
 
     .action-btn {
@@ -450,7 +459,7 @@
 </head>
 <body>
   <div class="layout">
-    <!-- Sidebar -->
+    <!-- Sidebar (simple nav, like dashboard) -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="badge-logo">
@@ -469,36 +478,34 @@
       </a>
 
       <div class="nav-section-title">Management</div>
-      <a href="admin-orders.html" class="nav-link">
+      <div class="nav-link">
         <i class="fas fa-receipt"></i>
         <span>Orders</span>
-      </a>
-      <a href="admin-users.html" class="nav-link">
+      </div>
+      <div class="nav-link active">
         <i class="fas fa-users"></i>
         <span>Users</span>
-      </a>
-      <a href="admin-products.html" class="nav-link active">
+      </div>
+      <div class="nav-link">
         <i class="fas fa-boxes-stacked"></i>
         <span>Products</span>
-      </a>
+      </div>
 
       <div class="sidebar-footer">
-        <div>Products management module</div>
-        <div style="margin-top: 4px;">v1.0 – Status & inventory</div>
+        <div>Users management module</div>
+        <div style="margin-top: 4px;">v1.0 – Basic control</div>
       </div>
     </aside>
 
-    <!-- Main -->
+    <!-- Main content -->
     <main class="main">
       <header class="main-header">
         <div>
           <div class="breadcrumbs">
-            <a href="admin-dashboard.html">Dashboard</a> &raquo; <span>Products</span>
+            <a href="admin-dashboard.html">Dashboard</a> &raquo; <span>Users</span>
           </div>
-          <div class="main-title">Products Management</div>
-          <div class="main-subtitle">
-            Search, filter, and control product visibility & status across the marketplace.
-          </div>
+          <div class="main-title">Users Management</div>
+          <div class="main-subtitle">Search, filter, and control all users in your marketplace.</div>
         </div>
 
         <div class="toolbar">
@@ -522,106 +529,65 @@
       <!-- Filters -->
       <section class="filters-card">
         <div class="filter-row">
-          <div class="filter-group">
+          <div style="display:flex; flex-direction:column; gap:3px;">
             <label for="searchInput">Search</label>
-            <input
-              id="searchInput"
-              class="filter-input"
-              type="text"
-              placeholder="Product name, SKU, keyword..."
-            />
+            <input id="searchInput" class="filter-input" type="text" placeholder="Search by name or email..." />
           </div>
 
-          <div class="filter-group">
-            <label for="statusFilter">Status</label>
-            <select id="statusFilter" class="filter-select">
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <label for="roleFilter">Role</label>
+            <select id="roleFilter" class="filter-select">
+              <option value="all">All roles</option>
+              <option value="customer">Customer</option>
+              <option value="seller">Seller</option>
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+              <option value="support">Support</option>
+              <option value="delivery_agent">Delivery Agent</option>
             </select>
-          </div>
-
-          <div class="filter-group">
-            <label for="categoryFilter">Category (slug / id)</label>
-            <input
-              id="categoryFilter"
-              class="filter-input"
-              type="text"
-              placeholder="category slug or id"
-            />
-          </div>
-
-          <div class="filter-group">
-            <label for="sellerFilter">Seller (id/email)</label>
-            <input
-              id="sellerFilter"
-              class="filter-input"
-              type="text"
-              placeholder="seller id or email"
-            />
-          </div>
-
-          <div class="filter-group">
-            <label>Price (₹)</label>
-            <div class="filter-range">
-              <input id="minPrice" class="filter-input" type="number" placeholder="Min" />
-              <input id="maxPrice" class="filter-input" type="number" placeholder="Max" />
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <label>Stock</label>
-            <div class="filter-range">
-              <input id="minStock" class="filter-input" type="number" placeholder="Min stock" />
-            </div>
           </div>
 
           <div style="flex:1;"></div>
 
-          <div class="filter-group">
-            <label>&nbsp;</label>
-            <span class="filter-chip" id="currentFilterSummary">Showing latest products</span>
+          <div>
+            <span class="filter-chip" id="currentFilterSummary">Showing latest users</span>
           </div>
         </div>
 
         <div id="notification" class="notification"></div>
       </section>
 
-      <!-- Products table -->
+      <!-- Users table -->
       <section class="card" style="margin-top:10px;">
         <div class="card-header-row">
           <div>
-            <div class="card-title">Products</div>
-            <div class="card-subtitle">
-              Approve, deactivate, or reject products and monitor basic performance.
-            </div>
+            <div class="card-title">Users</div>
+            <div class="card-subtitle">You can change roles or activate/deactivate accounts.</div>
           </div>
-          <span class="badge-count" id="productsCountLabel">0 products</span>
+          <span class="badge-count" id="usersCountLabel">0 users</span>
         </div>
 
         <div style="overflow-x:auto;">
           <table>
             <thead>
               <tr>
-                <th>Product</th>
+                <th>Name / Email</th>
+                <th>Role</th>
                 <th>Status</th>
-                <th>Price / Stock</th>
-                <th>Category / Seller</th>
-                <th style="min-width:190px;">Update</th>
+                <th>Created</th>
+                <th style="min-width:150px;">Actions</th>
               </tr>
             </thead>
-            <tbody id="productsTableBody">
+            <tbody id="usersTableBody">
               <tr>
-                <td colspan="5" style="text-align:center; padding:10px;">Loading products...</td>
+                <td colspan="5" style="text-align:center; padding:10px;">Loading users...</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <div id="paginationInfo">Page 1 of 1 • 0 products</div>
+          <div id="paginationInfo">Page 1 of 1 • 0 users</div>
           <div class="pagination-buttons">
             <button id="prevPageBtn" class="page-btn" disabled>&laquo; Prev</button>
             <button id="nextPageBtn" class="page-btn" disabled>Next &raquo;</button>
@@ -635,7 +601,6 @@
     (function () {
       const API_BASE = 'https://ecommerce-backend-mlik.onrender.com';
       const ADMIN_API = API_BASE + '/api/v1/admin';
-      const PRODUCT_STATUSES = ['active', 'inactive', 'pending', 'rejected'];
 
       const apiStatusEl = document.getElementById('apiStatus');
       const notifEl = document.getElementById('notification');
@@ -643,25 +608,19 @@
       const logoutBtn = document.getElementById('logoutBtn');
 
       const searchInput = document.getElementById('searchInput');
-      const statusFilter = document.getElementById('statusFilter');
-      const categoryFilter = document.getElementById('categoryFilter');
-      const sellerFilter = document.getElementById('sellerFilter');
-      const minPriceInput = document.getElementById('minPrice');
-      const maxPriceInput = document.getElementById('maxPrice');
-      const minStockInput = document.getElementById('minStock');
+      const roleFilter = document.getElementById('roleFilter');
       const currentFilterSummary = document.getElementById('currentFilterSummary');
-
-      const productsTableBody = document.getElementById('productsTableBody');
-      const productsCountLabel = document.getElementById('productsCountLabel');
+      const usersTableBody = document.getElementById('usersTableBody');
+      const usersCountLabel = document.getElementById('usersCountLabel');
       const paginationInfo = document.getElementById('paginationInfo');
       const prevPageBtn = document.getElementById('prevPageBtn');
       const nextPageBtn = document.getElementById('nextPageBtn');
 
       let currentPage = 1;
       let totalPages = 1;
-      let totalProducts = 0;
+      let totalUsers = 0;
       let currentSearch = '';
-      let currentStatus = 'all';
+      let currentRole = 'all';
       let isLoading = false;
       let debounceTimer = null;
 
@@ -702,42 +661,18 @@
         return d.toLocaleString();
       }
 
-      function formatCurrency(val) {
-        if (val == null || isNaN(val)) return '₹0';
-        return '₹' + Number(val).toFixed(0);
-      }
-
       function updateFilterSummary() {
-        const parts = [];
-        if (currentStatus && currentStatus !== 'all') {
-          parts.push('Status: ' + currentStatus);
+        let parts = [];
+        if (currentRole && currentRole !== 'all') {
+          parts.push('Role: ' + currentRole.replace('_', ' '));
         }
         if (currentSearch) {
           parts.push('Search: "' + currentSearch + '"');
         }
-        if (categoryFilter.value) {
-          parts.push('Category: ' + categoryFilter.value);
-        }
-        if (sellerFilter.value) {
-          parts.push('Seller: ' + sellerFilter.value);
-        }
-        if (minPriceInput.value || maxPriceInput.value) {
-          parts.push(
-            'Price: ' +
-              (minPriceInput.value || '0') +
-              ' - ' +
-              (maxPriceInput.value || '∞')
-          );
-        }
-        if (minStockInput.value) {
-          parts.push('Stock ≥ ' + minStockInput.value);
-        }
-        currentFilterSummary.textContent = parts.length
-          ? parts.join(' • ')
-          : 'Showing latest products';
+        currentFilterSummary.textContent = parts.length ? parts.join(' • ') : 'Showing latest users';
       }
 
-      async function loadProducts(page = 1) {
+      async function loadUsers(page = 1) {
         if (isLoading) return;
         const token = localStorage.getItem('adminToken');
         if (!token) {
@@ -749,22 +684,16 @@
         }
 
         isLoading = true;
-        showNotification('Loading products...', 'info');
+        showNotification('Loading users...', 'info');
 
         const params = new URLSearchParams();
         params.set('page', page);
         params.set('limit', 20);
-        if (currentStatus && currentStatus !== 'all') params.set('status', currentStatus);
+        if (currentRole && currentRole !== 'all') params.set('role', currentRole);
         if (currentSearch) params.set('search', currentSearch);
-        if (categoryFilter.value) params.set('category', categoryFilter.value);
-        if (sellerFilter.value) params.set('seller', sellerFilter.value);
-        if (minPriceInput.value) params.set('minPrice', minPriceInput.value);
-        if (maxPriceInput.value) params.set('maxPrice', maxPriceInput.value);
-        if (minStockInput.value) params.set('minStock', minStockInput.value);
-        // keep default sortBy/ sortOrder from backend
 
         try {
-          const res = await fetch(ADMIN_API + '/products?' + params.toString(), {
+          const res = await fetch(ADMIN_API + '/users?' + params.toString(), {
             headers: {
               'Authorization': 'Bearer ' + token,
               'Accept': 'application/json'
@@ -784,159 +713,124 @@
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to load products');
+            throw new Error(data.message || 'Failed to load users');
           }
 
           setApiStatus(true);
-          const products = Array.isArray(data.data) ? data.data : [];
+          const users = Array.isArray(data.data) ? data.data : [];
           const pagination = data.pagination || {};
-          currentPage = pagination.currentPage || pagination.page || 1;
-          totalProducts = pagination.totalProducts || pagination.total || products.length;
-          totalPages = pagination.totalPages || 1;
+          currentPage = pagination.page || 1;
+          totalUsers = pagination.total || users.length;
+          totalPages = pagination.pages || 1;
 
-          renderProducts(products);
+          renderUsers(users);
           updatePagination();
           updateFilterSummary();
           showNotification('', 'info'); // hide
         } catch (err) {
-          console.error('Load products error:', err);
+          console.error('Load users error:', err);
           setApiStatus(false);
-          renderProducts([]);
+          renderUsers([]);
           updatePagination();
-          showNotification(err.message || 'Unable to load products.', 'error');
+          showNotification(err.message || 'Unable to load users.', 'error');
         } finally {
           isLoading = false;
         }
       }
 
-      function renderProducts(products) {
-        productsTableBody.innerHTML = '';
-        productsCountLabel.textContent = (totalProducts || products.length) + ' products';
+      function renderUsers(users) {
+        usersTableBody.innerHTML = '';
+        usersCountLabel.textContent = (totalUsers || users.length) + ' users';
 
-        if (!products.length) {
+        if (!users.length) {
           const tr = document.createElement('tr');
           const td = document.createElement('td');
           td.colSpan = 5;
           td.style.textAlign = 'center';
           td.style.padding = '10px';
-          td.textContent = 'No products found for this filter.';
+          td.textContent = 'No users found for this filter.';
           tr.appendChild(td);
-          productsTableBody.appendChild(tr);
+          usersTableBody.appendChild(tr);
           return;
         }
 
-        products.forEach(product => {
+        const roles = ['customer', 'seller', 'admin', 'moderator', 'support', 'delivery_agent'];
+
+        users.forEach(user => {
           const tr = document.createElement('tr');
-          const productId = product._id || product.id;
-          tr.dataset.productId = productId;
+          tr.dataset.userId = user._id || user.id;
 
-          const status = (product.status || 'pending').toString().toLowerCase();
-          const seller = product.seller || {};
-          const category = product.category || {};
-          const price = product.price || 0;
-          const stock = product.stock != null ? product.stock : product.countInStock || 0;
-
-          // Product cell
-          const pTd = document.createElement('td');
+          // Name / Email
+          const nameTd = document.createElement('td');
           const nameLine = document.createElement('div');
-          nameLine.textContent = product.name || '—';
-          const metaLine = document.createElement('div');
-          metaLine.className = 'product-meta';
-          const skuText = product.sku ? 'SKU: ' + product.sku : '';
-          const idShort = productId ? 'ID: ' + String(productId).slice(-6) : '';
-          metaLine.textContent = [skuText, idShort].filter(Boolean).join(' • ');
-          pTd.appendChild(nameLine);
-          pTd.appendChild(metaLine);
+          nameLine.textContent = user.name || '—';
+          const emailLine = document.createElement('div');
+          emailLine.textContent = user.email || '—';
+          emailLine.style.fontSize = '0.72rem';
+          emailLine.style.color = 'var(--muted)';
+          nameTd.appendChild(nameLine);
+          nameTd.appendChild(emailLine);
 
-          // Status cell
+          // Role
+          const roleTd = document.createElement('td');
+          const roleSelect = document.createElement('select');
+          roleSelect.className = 'inline-select';
+          roleSelect.dataset.field = 'role';
+          roles.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r;
+            opt.textContent = r.replace('_', ' ');
+            if (user.role === r) opt.selected = true;
+            roleSelect.appendChild(opt);
+          });
+          roleTd.appendChild(roleSelect);
+
+          // Status
           const statusTd = document.createElement('td');
-          const pill = document.createElement('span');
-          pill.className = 'status-pill ' + status;
+          const isActive = user.isActive !== false; // default true if not present
+          const statusPill = document.createElement('span');
+          statusPill.className = 'status-pill ' + (isActive ? 'active' : 'inactive');
           const dot = document.createElement('span');
           dot.className = 'dot';
           const label = document.createElement('span');
-          label.textContent = status;
-          pill.appendChild(dot);
-          pill.appendChild(label);
+          label.textContent = isActive ? 'Active' : 'Inactive';
+          statusPill.appendChild(dot);
+          statusPill.appendChild(label);
 
-          const select = document.createElement('select');
-          select.className = 'inline-select';
-          select.dataset.field = 'status';
-          PRODUCT_STATUSES.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            if (s === status) opt.selected = true;
-            select.appendChild(opt);
-          });
+          const toggleLabel = document.createElement('label');
+          toggleLabel.className = 'toggle';
+          const toggleInput = document.createElement('input');
+          toggleInput.type = 'checkbox';
+          toggleInput.checked = isActive;
+          toggleInput.dataset.field = 'isActive';
+          const toggleText = document.createElement('span');
+          toggleText.textContent = 'Active';
+          toggleLabel.appendChild(toggleInput);
+          toggleLabel.appendChild(toggleText);
 
-          statusTd.appendChild(pill);
+          statusTd.appendChild(statusPill);
           statusTd.appendChild(document.createElement('br'));
-          statusTd.appendChild(select);
+          statusTd.appendChild(toggleLabel);
 
-          // Price / Stock
-          const psTd = document.createElement('td');
-          const priceLine = document.createElement('div');
-          priceLine.textContent = formatCurrency(price);
-          const stockLine = document.createElement('div');
-          stockLine.className = 'product-meta';
-          stockLine.textContent = 'Stock: ' + stock;
-          psTd.appendChild(priceLine);
-          psTd.appendChild(stockLine);
+          // Created
+          const createdTd = document.createElement('td');
+          createdTd.textContent = formatDate(user.createdAt);
 
-          // Category / Seller
-          const csTd = document.createElement('td');
-          const catLine = document.createElement('div');
-          catLine.className = 'product-meta';
-          catLine.textContent =
-            'Category: ' + (category.name || category.slug || '—');
+          // Actions
+          const actionsTd = document.createElement('td');
+          const saveBtn = document.createElement('button');
+          saveBtn.className = 'action-btn';
+          saveBtn.dataset.action = 'save';
+          saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Save</span>';
+          actionsTd.appendChild(saveBtn);
 
-          const sellerBadge = document.createElement('div');
-          sellerBadge.className = 'badge-small';
-          const sellerIcon = document.createElement('i');
-          sellerIcon.className = 'fas fa-store';
-          const sellerText = document.createElement('span');
-          sellerText.textContent =
-            seller.name ||
-            seller.shopName ||
-            seller.email ||
-            'Unknown seller';
-          sellerBadge.appendChild(sellerIcon);
-          sellerBadge.appendChild(sellerText);
-
-          csTd.appendChild(catLine);
-          csTd.appendChild(sellerBadge);
-
-          // Update cell
-          const uTd = document.createElement('td');
-          const notesInput = document.createElement('input');
-          notesInput.className = 'inline-input';
-          notesInput.placeholder = 'Status change note (optional)';
-          notesInput.dataset.field = 'notes';
-          notesInput.style.marginBottom = '4px';
-
-          const btn = document.createElement('button');
-          btn.className = 'action-btn';
-          btn.dataset.action = 'update-status';
-          btn.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Update</span>';
-
-          const infoLine = document.createElement('div');
-          infoLine.className = 'product-meta';
-          infoLine.textContent = 'Updated: ' + formatDate(product.updatedAt);
-
-          uTd.appendChild(notesInput);
-          uTd.appendChild(document.createElement('br'));
-          uTd.appendChild(btn);
-          uTd.appendChild(document.createElement('br'));
-          uTd.appendChild(infoLine);
-
-          tr.appendChild(pTd);
+          tr.appendChild(nameTd);
+          tr.appendChild(roleTd);
           tr.appendChild(statusTd);
-          tr.appendChild(psTd);
-          tr.appendChild(csTd);
-          tr.appendChild(uTd);
+          tr.appendChild(createdTd);
+          tr.appendChild(actionsTd);
 
-          productsTableBody.appendChild(tr);
+          usersTableBody.appendChild(tr);
         });
       }
 
@@ -947,14 +841,14 @@
           ' of ' +
           (totalPages || 1) +
           ' • ' +
-          (totalProducts || 0) +
-          ' products';
+          (totalUsers || 0) +
+          ' users';
 
         prevPageBtn.disabled = currentPage <= 1;
         nextPageBtn.disabled = currentPage >= totalPages;
       }
 
-      async function updateProductStatus(row) {
+      async function updateUser(row) {
         const token = localStorage.getItem('adminToken');
         if (!token) {
           showNotification('No admin session found. Redirecting to login...', 'error');
@@ -964,44 +858,38 @@
           return;
         }
 
-        const productId = row.dataset.productId;
-        if (!productId) return;
+        const userId = row.dataset.userId;
+        if (!userId) return;
 
-        const statusSelect = row.querySelector('select[data-field="status"]');
-        const notesInput = row.querySelector('input[data-field="notes"]');
-        const newStatus = statusSelect ? statusSelect.value : null;
-        const notes = notesInput ? notesInput.value.trim() : '';
+        const roleSelect = row.querySelector('select[data-field="role"]');
+        const activeCheckbox = row.querySelector('input[data-field="isActive"]');
 
-        if (!newStatus || !PRODUCT_STATUSES.includes(newStatus)) {
-          showNotification('Please select a valid product status.', 'error');
-          return;
-        }
+        const updateBody = {};
+        if (roleSelect) updateBody.role = roleSelect.value;
+        if (activeCheckbox) updateBody.isActive = !!activeCheckbox.checked;
 
         try {
-          const res = await fetch(
-            ADMIN_API + '/products/' + encodeURIComponent(productId) + '/status',
-            {
-              method: 'PUT',
-              headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({ status: newStatus, notes: notes || undefined })
-            }
-          );
+          const res = await fetch(ADMIN_API + '/users/' + encodeURIComponent(userId), {
+            method: 'PUT',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(updateBody)
+          });
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to update product status.');
+            throw new Error(data.message || 'Failed to update user.');
           }
 
-          showNotification('Product status updated successfully.', 'success');
-          // Reload current page to reflect changes
-          loadProducts(currentPage);
+          showNotification('User updated successfully.', 'success');
+          // Refresh list to reflect any computed changes
+          loadUsers(currentPage);
         } catch (err) {
-          console.error('Update product status error:', err);
-          showNotification(err.message || 'Unable to update product.', 'error');
+          console.error('Update user error:', err);
+          showNotification(err.message || 'Unable to update user.', 'error');
         }
       }
 
@@ -1017,13 +905,13 @@
 
       prevPageBtn.addEventListener('click', () => {
         if (currentPage > 1) {
-          loadProducts(currentPage - 1);
+          loadUsers(currentPage - 1);
         }
       });
 
       nextPageBtn.addEventListener('click', () => {
         if (currentPage < totalPages) {
-          loadProducts(currentPage + 1);
+          loadUsers(currentPage + 1);
         }
       });
 
@@ -1032,37 +920,30 @@
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           currentSearch = value;
-          loadProducts(1);
+          loadUsers(1);
         }, 400);
       });
 
-      statusFilter.addEventListener('change', () => {
-        currentStatus = statusFilter.value;
-        loadProducts(1);
+      roleFilter.addEventListener('change', () => {
+        currentRole = roleFilter.value;
+        loadUsers(1);
       });
 
-      [categoryFilter, sellerFilter, minPriceInput, maxPriceInput, minStockInput].forEach(
-        input => {
-          input.addEventListener('change', () => {
-            loadProducts(1);
-          });
-        }
-      );
-
-      productsTableBody.addEventListener('click', (e) => {
+      // Save button / toggle handler
+      usersTableBody.addEventListener('click', (e) => {
         const target = e.target;
-        const btn = target.closest('button[data-action="update-status"]');
+        const btn = target.closest('button[data-action="save"]');
         if (btn) {
           const row = btn.closest('tr');
           if (row) {
-            updateProductStatus(row);
+            updateUser(row);
           }
         }
       });
 
       // Init
       initAdminUser();
-      loadProducts(1);
+      loadUsers(1);
     })();
   </script>
 </body>

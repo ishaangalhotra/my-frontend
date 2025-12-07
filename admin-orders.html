@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin • Products Management • QuickLocal</title>
+  <title>Admin • Orders Management • QuickLocal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
 
@@ -333,10 +333,10 @@
       text-transform: capitalize;
     }
 
-    .status-pill.active { background: rgba(34, 197, 94, 0.24); color: #bbf7d0; }
-    .status-pill.inactive { background: rgba(148, 163, 184, 0.3); color: #e5e7eb; }
-    .status-pill.pending { background: rgba(234, 179, 8, 0.24); color: #facc15; }
-    .status-pill.rejected { background: rgba(248, 113, 113, 0.24); color: #fecaca; }
+    .status-pill.processing { background: rgba(59, 130, 246, 0.2); color: #bfdbfe; }
+    .status-pill.shipped { background: rgba(129, 140, 248, 0.2); color: #c7d2fe; }
+    .status-pill.delivered { background: rgba(34, 197, 94, 0.24); color: #bbf7d0; }
+    .status-pill.cancelled { background: rgba(248, 113, 113, 0.24); color: #fecaca; }
 
     .dot {
       width: 6px;
@@ -365,22 +365,6 @@
       width: 100%;
     }
 
-    .product-meta {
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    .badge-small {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.6);
-    }
-
     .action-btn {
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.6);
@@ -392,6 +376,11 @@
       align-items: center;
       gap: 5px;
       cursor: pointer;
+    }
+
+    .action-btn.secondary {
+      border-color: rgba(148, 163, 184, 0.4);
+      color: var(--muted);
     }
 
     .pagination {
@@ -469,7 +458,7 @@
       </a>
 
       <div class="nav-section-title">Management</div>
-      <a href="admin-orders.html" class="nav-link">
+      <a href="admin-orders.html" class="nav-link active">
         <i class="fas fa-receipt"></i>
         <span>Orders</span>
       </a>
@@ -477,14 +466,14 @@
         <i class="fas fa-users"></i>
         <span>Users</span>
       </a>
-      <a href="admin-products.html" class="nav-link active">
+      <div class="nav-link">
         <i class="fas fa-boxes-stacked"></i>
         <span>Products</span>
-      </a>
+      </div>
 
       <div class="sidebar-footer">
-        <div>Products management module</div>
-        <div style="margin-top: 4px;">v1.0 – Status & inventory</div>
+        <div>Orders management module</div>
+        <div style="margin-top: 4px;">v1.0 – Status control</div>
       </div>
     </aside>
 
@@ -493,12 +482,10 @@
       <header class="main-header">
         <div>
           <div class="breadcrumbs">
-            <a href="admin-dashboard.html">Dashboard</a> &raquo; <span>Products</span>
+            <a href="admin-dashboard.html">Dashboard</a> &raquo; <span>Orders</span>
           </div>
-          <div class="main-title">Products Management</div>
-          <div class="main-subtitle">
-            Search, filter, and control product visibility & status across the marketplace.
-          </div>
+          <div class="main-title">Orders Management</div>
+          <div class="main-subtitle">Search, filter, and update order statuses in real time.</div>
         </div>
 
         <div class="toolbar">
@@ -528,7 +515,7 @@
               id="searchInput"
               class="filter-input"
               type="text"
-              placeholder="Product name, SKU, keyword..."
+              placeholder="Order ID, customer name or email..."
             />
           </div>
 
@@ -536,45 +523,27 @@
             <label for="statusFilter">Status</label>
             <select id="statusFilter" class="filter-select">
               <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-              <option value="rejected">Rejected</option>
+              <option value="Processing">Processing</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
           </div>
 
           <div class="filter-group">
-            <label for="categoryFilter">Category (slug / id)</label>
-            <input
-              id="categoryFilter"
-              class="filter-input"
-              type="text"
-              placeholder="category slug or id"
-            />
-          </div>
-
-          <div class="filter-group">
-            <label for="sellerFilter">Seller (id/email)</label>
-            <input
-              id="sellerFilter"
-              class="filter-input"
-              type="text"
-              placeholder="seller id or email"
-            />
-          </div>
-
-          <div class="filter-group">
-            <label>Price (₹)</label>
+            <label>Date range</label>
             <div class="filter-range">
-              <input id="minPrice" class="filter-input" type="number" placeholder="Min" />
-              <input id="maxPrice" class="filter-input" type="number" placeholder="Max" />
+              <input id="startDate" class="filter-input" type="date" />
+              <span style="font-size:0.75rem;">to</span>
+              <input id="endDate" class="filter-input" type="date" />
             </div>
           </div>
 
           <div class="filter-group">
-            <label>Stock</label>
+            <label>Amount (₹)</label>
             <div class="filter-range">
-              <input id="minStock" class="filter-input" type="number" placeholder="Min stock" />
+              <input id="minAmount" class="filter-input" type="number" placeholder="Min" />
+              <input id="maxAmount" class="filter-input" type="number" placeholder="Max" />
             </div>
           </div>
 
@@ -582,46 +551,44 @@
 
           <div class="filter-group">
             <label>&nbsp;</label>
-            <span class="filter-chip" id="currentFilterSummary">Showing latest products</span>
+            <span class="filter-chip" id="currentFilterSummary">Showing latest orders</span>
           </div>
         </div>
 
         <div id="notification" class="notification"></div>
       </section>
 
-      <!-- Products table -->
+      <!-- Orders table -->
       <section class="card" style="margin-top:10px;">
         <div class="card-header-row">
           <div>
-            <div class="card-title">Products</div>
-            <div class="card-subtitle">
-              Approve, deactivate, or reject products and monitor basic performance.
-            </div>
+            <div class="card-title">Orders</div>
+            <div class="card-subtitle">Update order status and review basic order info.</div>
           </div>
-          <span class="badge-count" id="productsCountLabel">0 products</span>
+          <span class="badge-count" id="ordersCountLabel">0 orders</span>
         </div>
 
         <div style="overflow-x:auto;">
           <table>
             <thead>
               <tr>
-                <th>Product</th>
+                <th>Order / Customer</th>
                 <th>Status</th>
-                <th>Price / Stock</th>
-                <th>Category / Seller</th>
-                <th style="min-width:190px;">Update</th>
+                <th>Total</th>
+                <th>Placed</th>
+                <th style="min-width:180px;">Update</th>
               </tr>
             </thead>
-            <tbody id="productsTableBody">
+            <tbody id="ordersTableBody">
               <tr>
-                <td colspan="5" style="text-align:center; padding:10px;">Loading products...</td>
+                <td colspan="5" style="text-align:center; padding:10px;">Loading orders...</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div class="pagination">
-          <div id="paginationInfo">Page 1 of 1 • 0 products</div>
+          <div id="paginationInfo">Page 1 of 1 • 0 orders</div>
           <div class="pagination-buttons">
             <button id="prevPageBtn" class="page-btn" disabled>&laquo; Prev</button>
             <button id="nextPageBtn" class="page-btn" disabled>Next &raquo;</button>
@@ -635,7 +602,7 @@
     (function () {
       const API_BASE = 'https://ecommerce-backend-mlik.onrender.com';
       const ADMIN_API = API_BASE + '/api/v1/admin';
-      const PRODUCT_STATUSES = ['active', 'inactive', 'pending', 'rejected'];
+      const ORDER_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
       const apiStatusEl = document.getElementById('apiStatus');
       const notifEl = document.getElementById('notification');
@@ -644,22 +611,21 @@
 
       const searchInput = document.getElementById('searchInput');
       const statusFilter = document.getElementById('statusFilter');
-      const categoryFilter = document.getElementById('categoryFilter');
-      const sellerFilter = document.getElementById('sellerFilter');
-      const minPriceInput = document.getElementById('minPrice');
-      const maxPriceInput = document.getElementById('maxPrice');
-      const minStockInput = document.getElementById('minStock');
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      const minAmountInput = document.getElementById('minAmount');
+      const maxAmountInput = document.getElementById('maxAmount');
       const currentFilterSummary = document.getElementById('currentFilterSummary');
 
-      const productsTableBody = document.getElementById('productsTableBody');
-      const productsCountLabel = document.getElementById('productsCountLabel');
+      const ordersTableBody = document.getElementById('ordersTableBody');
+      const ordersCountLabel = document.getElementById('ordersCountLabel');
       const paginationInfo = document.getElementById('paginationInfo');
       const prevPageBtn = document.getElementById('prevPageBtn');
       const nextPageBtn = document.getElementById('nextPageBtn');
 
       let currentPage = 1;
       let totalPages = 1;
-      let totalProducts = 0;
+      let totalOrders = 0;
       let currentSearch = '';
       let currentStatus = 'all';
       let isLoading = false;
@@ -715,29 +681,28 @@
         if (currentSearch) {
           parts.push('Search: "' + currentSearch + '"');
         }
-        if (categoryFilter.value) {
-          parts.push('Category: ' + categoryFilter.value);
-        }
-        if (sellerFilter.value) {
-          parts.push('Seller: ' + sellerFilter.value);
-        }
-        if (minPriceInput.value || maxPriceInput.value) {
+        if (startDateInput.value || endDateInput.value) {
           parts.push(
-            'Price: ' +
-              (minPriceInput.value || '0') +
-              ' - ' +
-              (maxPriceInput.value || '∞')
+            'Date: ' +
+              (startDateInput.value || '…') +
+              ' to ' +
+              (endDateInput.value || '…')
           );
         }
-        if (minStockInput.value) {
-          parts.push('Stock ≥ ' + minStockInput.value);
+        if (minAmountInput.value || maxAmountInput.value) {
+          parts.push(
+            'Amount: ' +
+              (minAmountInput.value || '0') +
+              ' - ' +
+              (maxAmountInput.value || '∞')
+          );
         }
         currentFilterSummary.textContent = parts.length
           ? parts.join(' • ')
-          : 'Showing latest products';
+          : 'Showing latest orders';
       }
 
-      async function loadProducts(page = 1) {
+      async function loadOrders(page = 1) {
         if (isLoading) return;
         const token = localStorage.getItem('adminToken');
         if (!token) {
@@ -749,22 +714,20 @@
         }
 
         isLoading = true;
-        showNotification('Loading products...', 'info');
+        showNotification('Loading orders...', 'info');
 
         const params = new URLSearchParams();
         params.set('page', page);
         params.set('limit', 20);
         if (currentStatus && currentStatus !== 'all') params.set('status', currentStatus);
         if (currentSearch) params.set('search', currentSearch);
-        if (categoryFilter.value) params.set('category', categoryFilter.value);
-        if (sellerFilter.value) params.set('seller', sellerFilter.value);
-        if (minPriceInput.value) params.set('minPrice', minPriceInput.value);
-        if (maxPriceInput.value) params.set('maxPrice', maxPriceInput.value);
-        if (minStockInput.value) params.set('minStock', minStockInput.value);
-        // keep default sortBy/ sortOrder from backend
+        if (startDateInput.value) params.set('startDate', startDateInput.value);
+        if (endDateInput.value) params.set('endDate', endDateInput.value);
+        if (minAmountInput.value) params.set('minAmount', minAmountInput.value);
+        if (maxAmountInput.value) params.set('maxAmount', maxAmountInput.value);
 
         try {
-          const res = await fetch(ADMIN_API + '/products?' + params.toString(), {
+          const res = await fetch(ADMIN_API + '/orders?' + params.toString(), {
             headers: {
               'Authorization': 'Bearer ' + token,
               'Accept': 'application/json'
@@ -784,89 +747,86 @@
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to load products');
+            throw new Error(data.message || 'Failed to load orders');
           }
 
           setApiStatus(true);
-          const products = Array.isArray(data.data) ? data.data : [];
+          const orders = Array.isArray(data.data) ? data.data : [];
           const pagination = data.pagination || {};
           currentPage = pagination.currentPage || pagination.page || 1;
-          totalProducts = pagination.totalProducts || pagination.total || products.length;
+          totalOrders = pagination.totalOrders || pagination.total || orders.length;
           totalPages = pagination.totalPages || 1;
 
-          renderProducts(products);
+          renderOrders(orders);
           updatePagination();
           updateFilterSummary();
           showNotification('', 'info'); // hide
         } catch (err) {
-          console.error('Load products error:', err);
+          console.error('Load orders error:', err);
           setApiStatus(false);
-          renderProducts([]);
+          renderOrders([]);
           updatePagination();
-          showNotification(err.message || 'Unable to load products.', 'error');
+          showNotification(err.message || 'Unable to load orders.', 'error');
         } finally {
           isLoading = false;
         }
       }
 
-      function renderProducts(products) {
-        productsTableBody.innerHTML = '';
-        productsCountLabel.textContent = (totalProducts || products.length) + ' products';
+      function renderOrders(orders) {
+        ordersTableBody.innerHTML = '';
+        ordersCountLabel.textContent = (totalOrders || orders.length) + ' orders';
 
-        if (!products.length) {
+        if (!orders.length) {
           const tr = document.createElement('tr');
           const td = document.createElement('td');
           td.colSpan = 5;
           td.style.textAlign = 'center';
           td.style.padding = '10px';
-          td.textContent = 'No products found for this filter.';
+          td.textContent = 'No orders found for this filter.';
           tr.appendChild(td);
-          productsTableBody.appendChild(tr);
+          ordersTableBody.appendChild(tr);
           return;
         }
 
-        products.forEach(product => {
+        orders.forEach(order => {
           const tr = document.createElement('tr');
-          const productId = product._id || product.id;
-          tr.dataset.productId = productId;
+          const orderId = order._id || order.id;
+          tr.dataset.orderId = orderId;
 
-          const status = (product.status || 'pending').toString().toLowerCase();
-          const seller = product.seller || {};
-          const category = product.category || {};
-          const price = product.price || 0;
-          const stock = product.stock != null ? product.stock : product.countInStock || 0;
+          const user = order.user || {};
+          const statusRaw = order.status || 'Processing';
+          const statusLower = statusRaw.toString().toLowerCase();
 
-          // Product cell
-          const pTd = document.createElement('td');
-          const nameLine = document.createElement('div');
-          nameLine.textContent = product.name || '—';
-          const metaLine = document.createElement('div');
-          metaLine.className = 'product-meta';
-          const skuText = product.sku ? 'SKU: ' + product.sku : '';
-          const idShort = productId ? 'ID: ' + String(productId).slice(-6) : '';
-          metaLine.textContent = [skuText, idShort].filter(Boolean).join(' • ');
-          pTd.appendChild(nameLine);
-          pTd.appendChild(metaLine);
+          // Order / Customer
+          const mainTd = document.createElement('td');
+          const idLine = document.createElement('div');
+          idLine.textContent = orderId || '—';
+          const userLine = document.createElement('div');
+          userLine.textContent = (user.name || 'Unknown') + ' • ' + (user.email || 'no email');
+          userLine.style.fontSize = '0.72rem';
+          userLine.style.color = 'var(--muted)';
+          mainTd.appendChild(idLine);
+          mainTd.appendChild(userLine);
 
-          // Status cell
+          // Status
           const statusTd = document.createElement('td');
           const pill = document.createElement('span');
-          pill.className = 'status-pill ' + status;
+          pill.className = 'status-pill ' + statusLower;
           const dot = document.createElement('span');
           dot.className = 'dot';
           const label = document.createElement('span');
-          label.textContent = status;
+          label.textContent = statusRaw;
           pill.appendChild(dot);
           pill.appendChild(label);
 
           const select = document.createElement('select');
           select.className = 'inline-select';
           select.dataset.field = 'status';
-          PRODUCT_STATUSES.forEach(s => {
+          ORDER_STATUSES.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s;
             opt.textContent = s;
-            if (s === status) opt.selected = true;
+            if (s === statusRaw) opt.selected = true;
             select.appendChild(opt);
           });
 
@@ -874,69 +834,39 @@
           statusTd.appendChild(document.createElement('br'));
           statusTd.appendChild(select);
 
-          // Price / Stock
-          const psTd = document.createElement('td');
-          const priceLine = document.createElement('div');
-          priceLine.textContent = formatCurrency(price);
-          const stockLine = document.createElement('div');
-          stockLine.className = 'product-meta';
-          stockLine.textContent = 'Stock: ' + stock;
-          psTd.appendChild(priceLine);
-          psTd.appendChild(stockLine);
+          // Total
+          const totalTd = document.createElement('td');
+          const total = order.total || order.totalPrice || 0;
+          totalTd.textContent = formatCurrency(total);
 
-          // Category / Seller
-          const csTd = document.createElement('td');
-          const catLine = document.createElement('div');
-          catLine.className = 'product-meta';
-          catLine.textContent =
-            'Category: ' + (category.name || category.slug || '—');
+          // Placed
+          const dateTd = document.createElement('td');
+          dateTd.textContent = formatDate(order.createdAt);
 
-          const sellerBadge = document.createElement('div');
-          sellerBadge.className = 'badge-small';
-          const sellerIcon = document.createElement('i');
-          sellerIcon.className = 'fas fa-store';
-          const sellerText = document.createElement('span');
-          sellerText.textContent =
-            seller.name ||
-            seller.shopName ||
-            seller.email ||
-            'Unknown seller';
-          sellerBadge.appendChild(sellerIcon);
-          sellerBadge.appendChild(sellerText);
-
-          csTd.appendChild(catLine);
-          csTd.appendChild(sellerBadge);
-
-          // Update cell
-          const uTd = document.createElement('td');
+          // Update
+          const actionsTd = document.createElement('td');
           const notesInput = document.createElement('input');
           notesInput.className = 'inline-input';
           notesInput.placeholder = 'Status change note (optional)';
           notesInput.dataset.field = 'notes';
           notesInput.style.marginBottom = '4px';
 
-          const btn = document.createElement('button');
-          btn.className = 'action-btn';
-          btn.dataset.action = 'update-status';
-          btn.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Update</span>';
+          const updateBtn = document.createElement('button');
+          updateBtn.className = 'action-btn';
+          updateBtn.dataset.action = 'update-status';
+          updateBtn.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Update</span>';
 
-          const infoLine = document.createElement('div');
-          infoLine.className = 'product-meta';
-          infoLine.textContent = 'Updated: ' + formatDate(product.updatedAt);
+          actionsTd.appendChild(notesInput);
+          actionsTd.appendChild(document.createElement('br'));
+          actionsTd.appendChild(updateBtn);
 
-          uTd.appendChild(notesInput);
-          uTd.appendChild(document.createElement('br'));
-          uTd.appendChild(btn);
-          uTd.appendChild(document.createElement('br'));
-          uTd.appendChild(infoLine);
-
-          tr.appendChild(pTd);
+          tr.appendChild(mainTd);
           tr.appendChild(statusTd);
-          tr.appendChild(psTd);
-          tr.appendChild(csTd);
-          tr.appendChild(uTd);
+          tr.appendChild(totalTd);
+          tr.appendChild(dateTd);
+          tr.appendChild(actionsTd);
 
-          productsTableBody.appendChild(tr);
+          ordersTableBody.appendChild(tr);
         });
       }
 
@@ -947,14 +877,14 @@
           ' of ' +
           (totalPages || 1) +
           ' • ' +
-          (totalProducts || 0) +
-          ' products';
+          (totalOrders || 0) +
+          ' orders';
 
         prevPageBtn.disabled = currentPage <= 1;
         nextPageBtn.disabled = currentPage >= totalPages;
       }
 
-      async function updateProductStatus(row) {
+      async function updateOrderStatus(row) {
         const token = localStorage.getItem('adminToken');
         if (!token) {
           showNotification('No admin session found. Redirecting to login...', 'error');
@@ -964,22 +894,22 @@
           return;
         }
 
-        const productId = row.dataset.productId;
-        if (!productId) return;
+        const orderId = row.dataset.orderId;
+        if (!orderId) return;
 
         const statusSelect = row.querySelector('select[data-field="status"]');
         const notesInput = row.querySelector('input[data-field="notes"]');
         const newStatus = statusSelect ? statusSelect.value : null;
         const notes = notesInput ? notesInput.value.trim() : '';
 
-        if (!newStatus || !PRODUCT_STATUSES.includes(newStatus)) {
-          showNotification('Please select a valid product status.', 'error');
+        if (!newStatus || !ORDER_STATUSES.includes(newStatus)) {
+          showNotification('Please select a valid status.', 'error');
           return;
         }
 
         try {
           const res = await fetch(
-            ADMIN_API + '/products/' + encodeURIComponent(productId) + '/status',
+            ADMIN_API + '/orders/' + encodeURIComponent(orderId) + '/status',
             {
               method: 'PUT',
               headers: {
@@ -993,15 +923,15 @@
 
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to update product status.');
+            throw new Error(data.message || 'Failed to update order status.');
           }
 
-          showNotification('Product status updated successfully.', 'success');
+          showNotification('Order status updated successfully.', 'success');
           // Reload current page to reflect changes
-          loadProducts(currentPage);
+          loadOrders(currentPage);
         } catch (err) {
-          console.error('Update product status error:', err);
-          showNotification(err.message || 'Unable to update product.', 'error');
+          console.error('Update order status error:', err);
+          showNotification(err.message || 'Unable to update order.', 'error');
         }
       }
 
@@ -1017,13 +947,13 @@
 
       prevPageBtn.addEventListener('click', () => {
         if (currentPage > 1) {
-          loadProducts(currentPage - 1);
+          loadOrders(currentPage - 1);
         }
       });
 
       nextPageBtn.addEventListener('click', () => {
         if (currentPage < totalPages) {
-          loadProducts(currentPage + 1);
+          loadOrders(currentPage + 1);
         }
       });
 
@@ -1032,37 +962,35 @@
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           currentSearch = value;
-          loadProducts(1);
+          loadOrders(1);
         }, 400);
       });
 
       statusFilter.addEventListener('change', () => {
         currentStatus = statusFilter.value;
-        loadProducts(1);
+        loadOrders(1);
       });
 
-      [categoryFilter, sellerFilter, minPriceInput, maxPriceInput, minStockInput].forEach(
-        input => {
-          input.addEventListener('change', () => {
-            loadProducts(1);
-          });
-        }
-      );
+      [startDateInput, endDateInput, minAmountInput, maxAmountInput].forEach(input => {
+        input.addEventListener('change', () => {
+          loadOrders(1);
+        });
+      });
 
-      productsTableBody.addEventListener('click', (e) => {
+      ordersTableBody.addEventListener('click', (e) => {
         const target = e.target;
         const btn = target.closest('button[data-action="update-status"]');
         if (btn) {
           const row = btn.closest('tr');
           if (row) {
-            updateProductStatus(row);
+            updateOrderStatus(row);
           }
         }
       });
 
       // Init
       initAdminUser();
-      loadProducts(1);
+      loadOrders(1);
     })();
   </script>
 </body>

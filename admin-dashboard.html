@@ -22,6 +22,7 @@
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             --radius: 0.75rem;
+            --sidebar-width: 260px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -32,12 +33,112 @@
             min-height: 100vh;
             color: var(--text-primary);
             line-height: 1.6;
+            display: flex;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .badge-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-title {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin: 1.5rem 0 0.75rem 0;
+            font-weight: 600;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--primary);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
+            width: 100%;
         }
 
         .header {
@@ -210,12 +311,92 @@
             flex-wrap: wrap;
         }
 
+        /* Quick link cards styles */
+        .quick-link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0 3rem 0;
+        }
+
+        .quick-link-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+        }
+
+        .quick-link-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .card-chip {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pill-amber {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .pill-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
         @media (max-width: 768px) {
-            .container { padding: 1rem; }
-            .header h1 { font-size: 2rem; }
-            .dashboard-grid { grid-template-columns: 1fr; }
-            .card-actions { flex-direction: column; }
-            .action-buttons { flex-direction: column; align-items: center; }
+            body {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                margin-bottom: 1rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 0;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard-grid,
+            .quick-link-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .card-actions,
+            .action-buttons {
+                flex-direction: column;
+            }
         }
 
         .status-indicator {
@@ -252,139 +433,225 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-rocket"></i> QuickLocal Admin</h1>
-            <p>Manage your marketplace with powerful admin tools</p>
-        </div>
-
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="stat-number" id="totalProducts">-</div>
-                <div class="stat-label">Total Products</div>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="badge-logo">
+                <i class="fas fa-bolt"></i>
             </div>
-            <div class="stat-card">
-                <div class="stat-number" id="totalCategories">-</div>
-                <div class="stat-label">Categories</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">95%</div>
-                <div class="stat-label">Site Ready</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number pulse" id="apiStatus">...</div>
-                <div class="stat-label">API Status</div>
+            <div>
+                <div class="sidebar-title">QuickLocal Admin</div>
+                <div class="sidebar-subtitle">Control center</div>
             </div>
         </div>
 
-        <div class="dashboard-grid">
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-tags"></i>
-                    </div>
-                    <div>
-                        <h3 class="card-title">Categories Management</h3>
+        <div class="nav-section-title">Overview</div>
+        <a href="admin-dashboard.html" class="nav-link active">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+        </a>
+
+        <div class="nav-section-title">Management</div>
+        <a href="admin-orders.html" class="nav-link">
+            <i class="fas fa-receipt"></i>
+            <span>Orders</span>
+        </a>
+        <a href="admin-users.html" class="nav-link">
+            <i class="fas fa-users"></i>
+            <span>Users</span>
+        </a>
+        <a href="admin-products.html" class="nav-link">
+            <i class="fas fa-boxes-stacked"></i>
+            <span>Products</span>
+        </a>
+
+        <div class="sidebar-footer">
+            <div>Admin overview</div>
+            <div style="margin-top: 4px;">v1.0 – Core panels</div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="header">
+                <h1><i class="fas fa-rocket"></i> QuickLocal Admin</h1>
+                <p>Manage your marketplace with powerful admin tools</p>
+            </div>
+
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalProducts">-</div>
+                    <div class="stat-label">Total Products</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCategories">-</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">95%</div>
+                    <div class="stat-label">Site Ready</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number pulse" id="apiStatus">...</div>
+                    <div class="stat-label">API Status</div>
+                </div>
+            </div>
+
+            <div class="quick-link-grid">
+                <div class="quick-link-card" onclick="window.location.href='admin-orders.html'">
+                    <div class="card-header-row">
+                        <div>
+                            <div class="card-title">Manage Orders</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary);">
+                                View and update order statuses.
+                            </div>
+                        </div>
+                        <span class="card-chip pill-amber">
+                            <i class="fas fa-receipt"></i>
+                            <span>Go to Orders</span>
+                        </span>
                     </div>
                 </div>
-                <p class="card-description">
-                    Set up and manage product categories for your marketplace. Categories help organize products and improve customer navigation.
-                </p>
-                <div id="categoryStatus" class="status-indicator">
-                    <i class="fas fa-spinner fa-spin"></i> Checking categories...
+
+                <div class="quick-link-card" onclick="window.location.href='admin-users.html'">
+                    <div class="card-header-row">
+                        <div>
+                            <div class="card-title">Manage Users</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary);">
+                                Control roles & account status.
+                            </div>
+                        </div>
+                        <span class="card-chip pill-green">
+                            <i class="fas fa-users"></i>
+                            <span>Go to Users</span>
+                        </span>
+                    </div>
                 </div>
-                <div class="card-actions">
-                    <a href="setup-categories.html" class="btn btn-primary">
-                        <i class="fas fa-cog"></i> Setup Categories
-                    </a>
-                    <button onclick="checkCategories()" class="btn btn-secondary">
-                        <i class="fas fa-refresh"></i> Check Status
+
+                <div class="quick-link-card" onclick="window.location.href='admin-products.html'">
+                    <div class="card-header-row">
+                        <div>
+                            <div class="card-title">Manage Products</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary);">
+                                Approve / hide products and see stock.
+                            </div>
+                        </div>
+                        <span class="card-chip pill-amber">
+                            <i class="fas fa-boxes-stacked"></i>
+                            <span>Go to Products</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title">Categories Management</h3>
+                        </div>
+                    </div>
+                    <p class="card-description">
+                        Set up and manage product categories for your marketplace. Categories help organize products and improve customer navigation.
+                    </p>
+                    <div id="categoryStatus" class="status-indicator">
+                        <i class="fas fa-spinner fa-spin"></i> Checking categories...
+                    </div>
+                    <div class="card-actions">
+                        <a href="setup-categories.html" class="btn btn-primary">
+                            <i class="fas fa-cog"></i> Setup Categories
+                        </a>
+                        <button onclick="checkCategories()" class="btn btn-secondary">
+                            <i class="fas fa-refresh"></i> Check Status
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title">Add Products</h3>
+                        </div>
+                    </div>
+                    <p class="card-description">
+                        Add new products to your marketplace with images, pricing, inventory, and detailed descriptions. Quick and easy product management.
+                    </p>
+                    <div class="card-actions">
+                        <a href="add-product.html" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Add New Product
+                        </a>
+                        <a href="admin-products.html" class="btn btn-primary">
+                            <i class="fas fa-table"></i> Manage Products
+                        </a>
+                        <a href="marketplace.html" class="btn btn-secondary">
+                            <i class="fas fa-eye"></i> View Marketplace
+                        </a>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-store"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title">Marketplace View</h3>
+                        </div>
+                    </div>
+                    <p class="card-description">
+                        View your live marketplace as customers see it. Browse products, test functionality, and ensure everything works perfectly.
+                    </p>
+                    <div class="card-actions">
+                        <a href="marketplace.html" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Open Marketplace
+                        </a>
+                        <a href="https://www.quicklocal.shop" target="_blank" class="btn btn-success">
+                            <i class="fas fa-globe"></i> Live Site
+                        </a>
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <div class="card-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title">Advanced Tools</h3>
+                        </div>
+                    </div>
+                    <p class="card-description">
+                        Access advanced product management, bulk operations, and detailed analytics for your marketplace operations.
+                    </p>
+                    <div class="card-actions">
+                        <a href="seller-dashboard-main.html" class="btn btn-primary">
+                            <i class="fas fa-table"></i> Seller Dashboard
+                        </a>
+                        <a href="https://ecommerce-backend-mlik.onrender.com/health" target="_blank" class="btn btn-secondary">
+                            <i class="fas fa-heart"></i> API Health
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+                <div class="action-buttons">
+                    <button onclick="testAPI()" class="btn btn-warning">
+                        <i class="fas fa-plug"></i> Test API Connection
                     </button>
-                </div>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-plus-circle"></i>
-                    </div>
-                    <div>
-                        <h3 class="card-title">Add Products</h3>
-                    </div>
-                </div>
-                <p class="card-description">
-                    Add new products to your marketplace with images, pricing, inventory, and detailed descriptions. Quick and easy product management.
-                </p>
-                <div class="card-actions">
-                    <a href="add-product.html" class="btn btn-success">
-                        <i class="fas fa-plus"></i> Add New Product
-                    </a>
-                    <a href="admin-products.html" class="btn btn-primary">
-                        <i class="fas fa-table"></i> Manage Products
-                    </a>
-                    <a href="marketplace.html" class="btn btn-secondary">
-                        <i class="fas fa-eye"></i> View Marketplace
-                    </a>
-                </div>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-store"></i>
-                    </div>
-                    <div>
-                        <h3 class="card-title">Marketplace View</h3>
-                    </div>
-                </div>
-                <p class="card-description">
-                    View your live marketplace as customers see it. Browse products, test functionality, and ensure everything works perfectly.
-                </p>
-                <div class="card-actions">
-                    <a href="marketplace.html" class="btn btn-primary">
-                        <i class="fas fa-external-link-alt"></i> Open Marketplace
-                    </a>
+                    <button onclick="loadStats()" class="btn btn-secondary">
+                        <i class="fas fa-chart-bar"></i> Refresh Stats
+                    </button>
                     <a href="https://www.quicklocal.shop" target="_blank" class="btn btn-success">
-                        <i class="fas fa-globe"></i> Live Site
+                        <i class="fas fa-rocket"></i> Launch Live Site
                     </a>
                 </div>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-cogs"></i>
-                    </div>
-                    <div>
-                        <h3 class="card-title">Advanced Tools</h3>
-                    </div>
-                </div>
-                <p class="card-description">
-                    Access advanced product management, bulk operations, and detailed analytics for your marketplace operations.
-                </p>
-                <div class="card-actions">
-                    <a href="seller-dashboard-main.html" class="btn btn-primary">
-                        <i class="fas fa-table"></i> Seller Dashboard
-                    </a>
-                    <a href="https://ecommerce-backend-mlik.onrender.com/health" target="_blank" class="btn btn-secondary">
-                        <i class="fas fa-heart"></i> API Health
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="quick-actions">
-            <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
-            <div class="action-buttons">
-                <button onclick="testAPI()" class="btn btn-warning">
-                    <i class="fas fa-plug"></i> Test API Connection
-                </button>
-                <button onclick="loadStats()" class="btn btn-secondary">
-                    <i class="fas fa-chart-bar"></i> Refresh Stats
-                </button>
-                <a href="https://www.quicklocal.shop" target="_blank" class="btn btn-success">
-                    <i class="fas fa-rocket"></i> Launch Live Site
-                </a>
             </div>
         </div>
     </div>
@@ -392,14 +659,35 @@
     <script>
         const API_BASE_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // ⭐ FIX 1: Admin Authentication Check
+        document.addEventListener("DOMContentLoaded", function () {
+            const token = localStorage.getItem("adminToken");
+
+            if (!token) {
+                alert("Your admin session has expired. Please login again.");
+                // Redirect to login page, assuming it is named admin-login.html
+                window.location.href = "admin-login.html"; 
+                return;
+            }
+
+            const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+
+            // Optional: show admin name in dashboard (for debugging/console)
+            if (adminUser.name) {
+                console.log("Logged in as:", adminUser.name);
+            }
+
+            // Continue with loading stats and checks only if authenticated
             loadStats();
             checkCategories();
         });
 
+
         async function loadStats() {
+            const token = localStorage.getItem("adminToken"); // Get token for authorized calls
+
             try {
-                // Test API connection
+                // Test API connection (usually health endpoint doesn't need auth, but keeping it as is)
                 const healthResponse = await fetch(`https://ecommerce-backend-mlik.onrender.com/health`);
                 const apiStatusEl = document.getElementById('apiStatus');
                 
@@ -410,32 +698,46 @@
                     apiStatusEl.textContent = '❌';
                 }
 
-                // Load products count
+                // Load products count - ⭐ FIX 2: Added Authorization header
                 try {
-                    const productsResponse = await fetch(`${API_BASE_URL}/products`);
+                    const productsResponse = await fetch(`${API_BASE_URL}/products`, {
+                        headers: {
+                            "Authorization": "Bearer " + token
+                        }
+                    });
                     const productsResult = await productsResponse.json();
                     
                     if (productsResult.success) {
                         const productCount = Array.isArray(productsResult.data) ? productsResult.data.length : 
                                            (productsResult.data.products ? productsResult.data.products.length : 0);
                         document.getElementById('totalProducts').textContent = productCount;
+                    } else {
+                        // Handle potential auth failure response
+                         document.getElementById('totalProducts').textContent = 'Auth ❌';
                     }
                 } catch (error) {
-                    document.getElementById('totalProducts').textContent = '0';
+                    document.getElementById('totalProducts').textContent = 'Error';
                 }
 
-                // Load categories count
+                // Load categories count - ⭐ FIX 2: Added Authorization header
                 try {
-                    const categoriesResponse = await fetch(`${API_BASE_URL}/categories`);
+                    const categoriesResponse = await fetch(`${API_BASE_URL}/categories`, {
+                        headers: {
+                            "Authorization": "Bearer " + token
+                        }
+                    });
                     const categoriesResult = await categoriesResponse.json();
                     
                     if (categoriesResult.success && categoriesResult.data) {
                         const categories = categoriesResult.data.categories || categoriesResult.data;
                         const count = Array.isArray(categories) ? categories.length : 0;
                         document.getElementById('totalCategories').textContent = count;
+                    } else {
+                        // Handle potential auth failure response
+                        document.getElementById('totalCategories').textContent = 'Auth ❌';
                     }
                 } catch (error) {
-                    document.getElementById('totalCategories').textContent = '0';
+                    document.getElementById('totalCategories').textContent = 'Error';
                 }
 
             } catch (error) {
@@ -445,13 +747,19 @@
         }
 
         async function checkCategories() {
+            const token = localStorage.getItem("adminToken"); // Get token for authorized calls
             const statusEl = document.getElementById('categoryStatus');
             
             try {
-                const response = await fetch(`${API_BASE_URL}/categories`);
+                // ⭐ FIX 2: Added Authorization header to checkCategories
+                const response = await fetch(`${API_BASE_URL}/categories`, {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
                 const result = await response.json();
 
-                if (result.success && result.data) {
+                if (response.ok && result.success && result.data) {
                     const categories = result.data.categories || result.data;
                     const count = Array.isArray(categories) ? categories.length : 0;
                     
@@ -463,8 +771,9 @@
                         statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> No categories found - Setup required';
                     }
                 } else {
+                    // This handles API responding with an error status (e.g., 401 Unauthorized)
                     statusEl.className = 'status-indicator status-offline';
-                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to load categories';
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to load categories (Auth Error?)';
                 }
             } catch (error) {
                 statusEl.className = 'status-indicator status-offline';
@@ -473,6 +782,7 @@
         }
 
         async function testAPI() {
+            // Note: Keeping testAPI without Authorization header, assuming the /health endpoint is public.
             const originalText = event.target.innerHTML;
             event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
             event.target.disabled = true;
