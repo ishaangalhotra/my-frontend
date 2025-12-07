@@ -833,7 +833,6 @@
 </head>
 <body>
 
-    <!-- Loader -->
     <div id="loaderOverlay" class="loader-overlay">
         <div class="loader-card">
             <div class="loader-spinner"></div>
@@ -841,13 +840,11 @@
         </div>
     </div>
 
-    <!-- Toast -->
     <div id="toast" class="toast">
         <div class="toast-title" id="toastTitle"></div>
         <div class="toast-message" id="toastMessage"></div>
     </div>
 
-    <!-- Header -->
     <header class="page-header">
         <div class="page-header-inner">
             <div class="page-title-group">
@@ -872,9 +869,7 @@
         </div>
     </header>
 
-    <!-- Main content -->
     <main class="page-content">
-        <!-- Stats -->
         <section class="stats-grid">
             <article class="stat-card">
                 <div class="stat-label">Total Orders</div>
@@ -910,7 +905,6 @@
             </article>
         </section>
 
-        <!-- Filters -->
         <section class="filters-bar">
             <div class="filters-left">
                 <div class="search-group">
@@ -942,7 +936,6 @@
             </div>
         </section>
 
-        <!-- Orders -->
         <section class="orders-section">
             <div id="ordersEmptyState" class="orders-empty" style="display: none;">
                 <div class="orders-empty-icon">
@@ -977,7 +970,6 @@
         </section>
     </main>
 
-    <!-- Auth + services -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="js/api/notification-service.js"></script>
@@ -1473,12 +1465,7 @@
                 (order.canReturn && order.canReturn.allowed === true) ||
                 order.status === 'delivered';
 
-            let actionsHTML = `
-                <button class="order-action primary" onclick="trackOrder('${order.orderNumber || order.id}')">
-                    <i class="fas fa-truck"></i>
-                    Track
-                </button>
-            `;
+            let actionsHTML = '';
 
             if (canCancel) {
                 actionsHTML += `
@@ -1614,20 +1601,6 @@
             } catch (err) {
                 console.error('Cancel error:', err);
                 showToast(err.message || 'Failed to cancel order', 'error');
-            }
-        }
-
-        // Track order
-        function trackOrder(orderNumber) {
-            try {
-                if (window.TrackingService && typeof window.TrackingService.openTrackingModal === 'function') {
-                    window.TrackingService.openTrackingModal(orderNumber);
-                } else {
-                    showToast('Tracking view coming soon', 'info');
-                }
-            } catch (err) {
-                console.error('Track error:', err);
-                showToast('Unable to open tracking right now', 'error');
             }
         }
 
