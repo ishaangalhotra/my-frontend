@@ -5,7 +5,6 @@
     <title>🚀 QuickLocal - Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Icons & Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -424,7 +423,6 @@
 </head>
 <body>
     <div class="auth-wrapper">
-        <!-- Left side illustration / marketing -->
         <section class="auth-illustration">
             <div class="auth-illustration-inner">
                 <div class="brand-pill">
@@ -451,7 +449,6 @@
             </div>
         </section>
 
-        <!-- Right side auth form -->
         <section class="auth-card">
             <header class="auth-header">
                 <div class="auth-header-title">
@@ -469,12 +466,10 @@
                 </div>
             </header>
 
-            <!-- Messages -->
             <div id="errorMessage" class="message error"></div>
             <div id="successMessage" class="message success"></div>
             <div id="infoMessage" class="message info"></div>
 
-            <!-- Login Form -->
             <form id="loginForm" novalidate>
                 <div class="form-group">
                     <label for="identifier" class="form-label">Email or Phone</label>
@@ -537,13 +532,10 @@
         </section>
     </div>
 
-    <!-- Toast container -->
     <div id="toastContainer"></div>
 
-    <!-- Hybrid Auth client -->
     <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
 
-    <!-- App config (keep same values you had before) -->
     <script>
         window.APP_CONFIG = {
             API_BASE_URL: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
@@ -638,34 +630,24 @@
                 }
             }
 
+            // --- CHANGED METHOD START ---
             async handleForgotPassword(e) {
                 e.preventDefault();
-                const identifier = document.getElementById('identifier').value.trim();
-                const email = identifier.includes('@')
-                    ? identifier
-                    : prompt('Please enter your account email address:');
 
-                if (!email || !email.includes('@')) {
-                    return this.showToast('Please provide a valid email address for password reset.', 'error');
+                // Get whatever the user typed into the identifier box
+                const identifierInput = document.getElementById('identifier');
+                const identifier = identifierInput ? identifierInput.value.trim() : '';
+
+                // If it's already an email, pass it along in the URL for convenience
+                let target = 'forgot-password.html';
+                if (identifier && identifier.includes('@')) {
+                    target += '?email=' + encodeURIComponent(identifier);
                 }
 
-                this.showLoading(true, 'Sending instructions...');
-                try {
-                    const result = await this.authClient.requestPasswordReset(email);
-                    if (result.success) {
-                        this.showMessage(
-                            `Password reset instructions sent to ${email}. Please check your inbox.`,
-                            'success'
-                        );
-                    } else {
-                        throw new Error(result.message || 'Failed to send reset email.');
-                    }
-                } catch (error) {
-                    this.handleLoginError(error);
-                } finally {
-                    this.showLoading(false);
-                }
+                // Just navigate to the full forgot password page (no popup)
+                window.location.href = target;
             }
+            // --- CHANGED METHOD END ---
 
             // 🔐 Updated: role-aware session check
             async checkExistingSession() {
