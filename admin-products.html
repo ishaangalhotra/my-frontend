@@ -220,7 +220,7 @@
     if (search) params.append("search", search);
     if (seller) params.append("seller", seller);
     if (category) params.append("category", category);
-    // NOTE: backend doesn't understand our derived status, so we don't send statusFilter
+    // backend doesn't understand our derived status, so we don't send statusFilter
 
     try {
       const res = await fetch(`${API_V1}/products?` + params.toString(), {
@@ -240,7 +240,7 @@
         return;
       }
 
-      // Official shape: { success, count, pagination, data: results } :contentReference[oaicite:1]{index=1}
+      // Official shape: { success, count, pagination, data: results }
       let products = null;
       if (Array.isArray(data.data)) products = data.data;
       else if (Array.isArray(data.products)) products = data.products;
@@ -273,7 +273,7 @@
     // Prefer real status if backend sends it
     if (p.status) return String(p.status).toLowerCase();
 
-    // Otherwise derive from isPublished (field from getProducts select) :contentReference[oaicite:2]{index=2}
+    // Otherwise derive from isPublished (field from getProducts select)
     if (p.isPublished === true) return 'active';
     if (p.isPublished === false) return 'inactive';
 
@@ -315,7 +315,7 @@
         <td>${stock}</td>
         <td><span class="badge ${status}">${status}</span></td>
         <td>
-          <button class="action-btn" onclick="updateProduct('${id}', ${stock}, '${status}')">
+          <button class="action-btn" onclick="updateProduct('${id}', ${stock}, ${price}, '${status}')">
             Update
           </button>
         </td>
@@ -325,8 +325,8 @@
     });
   }
 
-  // ---------- UPDATE STATUS + STOCK ----------
-  async function updateProduct(id, currentStock, currentStatus) {
+  // ---------- UPDATE STATUS + STOCK + PRICE ----------
+  async function updateProduct(id, currentStock, currentPrice, currentStatus) {
     const token = localStorage.getItem("adminToken");
     if (!token) {
       alert("Please login as admin.");
@@ -334,6 +334,7 @@
       return;
     }
 
+    // New status
     const newStatusInput = prompt(
       `Current status: ${currentStatus}\n\nEnter new status (active / inactive / pending / rejected) or leave blank to keep same:`
     );
@@ -341,6 +342,7 @@
       ? newStatusInput.trim().toLowerCase()
       : null;
 
+    // New stock
     const stockInput = prompt(
       `Current stock: ${currentStock}\n\nEnter new stock quantity (leave blank to keep same):`
     );
@@ -355,10 +357,25 @@
       newStock = parsed;
     }
 
+    // New price
+    const priceInput = prompt(
+      `Current price: ₹${currentPrice}\n\nEnter new price (leave blank to keep same):`
+    );
+
+    let newPrice = null;
+    if (priceInput !== null && priceInput.trim() !== '') {
+      const parsedPrice = parseFloat(priceInput.trim());
+      if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+        alert("Invalid price. Please enter a non-negative number.");
+        return;
+      }
+      newPrice = parsedPrice;
+    }
+
     const notes = prompt("Notes / reason (optional):") || "";
 
     // If user changed nothing
-    if (!newStatus && newStock === null) {
+    if (!newStatus && newStock === null && newPrice === null) {
       alert("No changes to update.");
       return;
     }
@@ -366,6 +383,7 @@
     const body = {};
     if (newStatus) body.status = newStatus;
     if (newStock !== null) body.stock = newStock;
+    if (newPrice !== null) body.price = newPrice;
     if (notes) body.notes = notes;
 
     try {
