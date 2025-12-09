@@ -87,6 +87,7 @@
     .badge.inactive { background: #6b7280; }
     .badge.pending { background: #f59e0b; }
     .badge.rejected { background: #ef4444; }
+    .badge.unknown { background: #9ca3af; }
     .action-btn {
       padding: 6px 10px;
       font-size: 0.8rem;
@@ -140,10 +141,9 @@
       <input id="searchInput" type="text" placeholder="Search products..." />
       <select id="statusFilter">
         <option value="all">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-        <option value="pending">Pending</option>
-        <option value="rejected">Rejected</option>
+        <option value="active">Active (published)</option>
+        <option value="inactive">Inactive (unpublished)</option>
+        <option value="unknown">Unknown</option>
       </select>
       <input id="sellerFilter" type="text" placeholder="Seller ID or email" />
       <input id="categoryFilter" type="text" placeholder="Category" />
@@ -208,7 +208,7 @@
     }
 
     const search = document.getElementById('searchInput').value.trim();
-    const status = document.getElementById('statusFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
     const seller = document.getElementById('sellerFilter').value.trim();
     const category = document.getElementById('categoryFilter').value.trim();
 
@@ -220,7 +220,7 @@
     if (search) params.append("search", search);
     if (seller) params.append("seller", seller);
     if (category) params.append("category", category);
-    if (status !== "all") params.append("status", status);
+    // NOTE: backend doesn't understand our derived status, so we don't send statusFilter
 
     try {
       const res = await fetch(`${API_V1}/products?` + params.toString(), {
@@ -240,7 +240,7 @@
         return;
       }
 
-      // Try typical shapes first
+      // Official shape: { success, count, pagination, data: results } :contentReference[oaicite:1]{index=1}
       let products = null;
       if (Array.isArray(data.data)) products = data.data;
       else if (Array.isArray(data.products)) products = data.products;
@@ -251,7 +251,14 @@
       totalPages = pagination.totalPages || pagination.pages || 1;
       const totalCount = pagination.total || data.count || products.length;
 
-      renderProducts(products);
+      // client-side filter by derived status
+      const filtered = products.filter(p => {
+        const derivedStatus = deriveStatus(p);
+        if (statusFilter === 'all') return true;
+        return derivedStatus === statusFilter;
+      });
+
+      renderProducts(filtered);
       updatePagination(currentPage, totalPages, totalCount);
 
     } catch (err) {
@@ -259,6 +266,18 @@
       renderProducts([]);
       updatePagination(1, 1, 0);
     }
+  }
+
+  // ---------- DERIVE STATUS FROM PRODUCT ----------
+  function deriveStatus(p) {
+    // Prefer real status if backend sends it
+    if (p.status) return String(p.status).toLowerCase();
+
+    // Otherwise derive from isPublished (field from getProducts select) :contentReference[oaicite:2]{index=2}
+    if (p.isPublished === true) return 'active';
+    if (p.isPublished === false) return 'inactive';
+
+    return 'unknown';
   }
 
   // ---------- RENDER PRODUCTS ----------
@@ -285,7 +304,7 @@
 
       const price = p.price != null ? p.price : p.sellingPrice || 0;
       const stock = p.stock != null ? p.stock : p.stockQuantity || p.countInStock || 0;
-      const status = p.status || "inactive";
+      const status = deriveStatus(p);
       const id = p._id || p.id;
 
       tr.innerHTML = `
@@ -296,7 +315,9 @@
         <td>${stock}</td>
         <td><span class="badge ${status}">${status}</span></td>
         <td>
-          <button class="action-btn" onclick="updateStatus('${id}')">Update</button>
+          <button class="action-btn" onclick="updateProduct('${id}', ${stock}, '${status}')">
+            Update
+          </button>
         </td>
       `;
 
@@ -304,8 +325,8 @@
     });
   }
 
-  // ---------- UPDATE STATUS (NORMAL PRODUCT ROUTE) ----------
-  async function updateStatus(id) {
+  // ---------- UPDATE STATUS + STOCK ----------
+  async function updateProduct(id, currentStock, currentStatus) {
     const token = localStorage.getItem("adminToken");
     if (!token) {
       alert("Please login as admin.");
@@ -313,10 +334,39 @@
       return;
     }
 
-    const newStatus = prompt("Enter new status: active / inactive / pending / rejected");
-    if (!newStatus) return;
+    const newStatusInput = prompt(
+      `Current status: ${currentStatus}\n\nEnter new status (active / inactive / pending / rejected) or leave blank to keep same:`
+    );
+    const newStatus = newStatusInput && newStatusInput.trim() !== ''
+      ? newStatusInput.trim().toLowerCase()
+      : null;
 
-    const reason = prompt("Reason (optional):") || "";
+    const stockInput = prompt(
+      `Current stock: ${currentStock}\n\nEnter new stock quantity (leave blank to keep same):`
+    );
+
+    let newStock = null;
+    if (stockInput !== null && stockInput.trim() !== '') {
+      const parsed = parseInt(stockInput.trim(), 10);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        alert("Invalid stock quantity. Please enter a non-negative number.");
+        return;
+      }
+      newStock = parsed;
+    }
+
+    const notes = prompt("Notes / reason (optional):") || "";
+
+    // If user changed nothing
+    if (!newStatus && newStock === null) {
+      alert("No changes to update.");
+      return;
+    }
+
+    const body = {};
+    if (newStatus) body.status = newStatus;
+    if (newStock !== null) body.stock = newStock;
+    if (notes) body.notes = notes;
 
     try {
       const res = await fetch(
@@ -328,10 +378,7 @@
             "Content-Type": "application/json",
             "Accept": "application/json"
           },
-          body: JSON.stringify({
-            status: newStatus,
-            notes: reason || undefined
-          })
+          body: JSON.stringify(body)
         }
       );
 
@@ -344,7 +391,7 @@
         return;
       }
 
-      alert("Product status updated successfully!");
+      alert("Product updated successfully!");
       loadProducts(currentPage);
     } catch (err) {
       console.error("Update error:", err);
@@ -400,6 +447,9 @@
       currentPage = 1;
       loadProducts(currentPage);
     });
+
+    document.getElementById("prevBtn").addEventListener("click", prevPage);
+    document.getElementById("nextBtn").addEventListener("click", nextPage);
 
     loadProducts(currentPage);
   });
