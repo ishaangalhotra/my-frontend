@@ -96,16 +96,6 @@
       background: #4f46e5;
       color: white;
     }
-    .action-btn-secondary {
-      padding: 4px 8px;
-      font-size: 0.75rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      cursor: pointer;
-      background: white;
-      color: #111827;
-      margin-left: 6px;
-    }
     .pagination {
       margin-top: 15px;
       display: flex;
@@ -125,11 +115,6 @@
     .pagination button:disabled {
       opacity: 0.5;
       cursor: default;
-    }
-    .status-text {
-      font-size: 0.8rem;
-      color: #6b7280;
-      margin-left: 6px;
     }
   </style>
 </head>
@@ -198,6 +183,33 @@
   let currentPage = 1;
   let totalPages = 1;
 
+  // ---------- SMALL HELPER: find first array in response ----------
+  function findProductsArray(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+
+    const stack = [obj];
+
+    while (stack.length) {
+      const node = stack.pop();
+
+      // If this node itself is an array, assume it's products
+      if (Array.isArray(node)) {
+        return node;
+      }
+
+      for (const key of Object.keys(node)) {
+        const val = node[key];
+        if (Array.isArray(val)) {
+          return val;
+        }
+        if (val && typeof val === 'object') {
+          stack.push(val);
+        }
+      }
+    }
+    return null;
+  }
+
   // ---------- LOAD PRODUCTS ----------
   async function loadProducts(page = 1) {
     const token = localStorage.getItem("adminToken");
@@ -240,15 +252,22 @@
         return;
       }
 
-      // backend: { success, count, pagination, data: results }
-      const products = Array.isArray(data.data) ? data.data : [];
-      const pagination = data.pagination || {};
+      // 🔍 NEW: automatically find the first array in the response
+      let products = findProductsArray(data);
+      if (!Array.isArray(products)) {
+        console.error("Could not locate products array in response, showing empty list.");
+        products = [];
+      }
 
+      // Try to read pagination if present
+      const pagination = data.pagination || data.meta || {};
       currentPage = pagination.currentPage || pagination.page || page || 1;
       totalPages = pagination.totalPages || pagination.pages || 1;
 
+      const totalCount = pagination.total || data.count || products.length;
+
       renderProducts(products);
-      updatePagination(currentPage, totalPages, data.count || products.length);
+      updatePagination(currentPage, totalPages, totalCount);
 
     } catch (err) {
       console.error("Load products error:", err);
@@ -397,8 +416,6 @@
       currentPage = 1;
       loadProducts(currentPage);
     });
-
-    // Pagination buttons already wired in HTML via id + functions
 
     loadProducts(currentPage);
   });
