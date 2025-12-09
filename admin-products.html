@@ -178,33 +178,21 @@
   // ---------- CONFIG ----------
   const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
   const API_V1 = API_BASE + "/api/v1";
-  const ADMIN_API = API_V1 + "/admin";
 
   let currentPage = 1;
   let totalPages = 1;
 
-  // ---------- SMALL HELPER: find first array in response ----------
+  // helper: find first array in response (fallback)
   function findProductsArray(obj) {
     if (!obj || typeof obj !== 'object') return null;
-
     const stack = [obj];
-
     while (stack.length) {
       const node = stack.pop();
-
-      // If this node itself is an array, assume it's products
-      if (Array.isArray(node)) {
-        return node;
-      }
-
+      if (Array.isArray(node)) return node;
       for (const key of Object.keys(node)) {
         const val = node[key];
-        if (Array.isArray(val)) {
-          return val;
-        }
-        if (val && typeof val === 'object') {
-          stack.push(val);
-        }
+        if (Array.isArray(val)) return val;
+        if (val && typeof val === 'object') stack.push(val);
       }
     }
     return null;
@@ -252,18 +240,15 @@
         return;
       }
 
-      // 🔍 NEW: automatically find the first array in the response
-      let products = findProductsArray(data);
-      if (!Array.isArray(products)) {
-        console.error("Could not locate products array in response, showing empty list.");
-        products = [];
-      }
+      // Try typical shapes first
+      let products = null;
+      if (Array.isArray(data.data)) products = data.data;
+      else if (Array.isArray(data.products)) products = data.products;
+      else products = findProductsArray(data) || [];
 
-      // Try to read pagination if present
       const pagination = data.pagination || data.meta || {};
       currentPage = pagination.currentPage || pagination.page || page || 1;
       totalPages = pagination.totalPages || pagination.pages || 1;
-
       const totalCount = pagination.total || data.count || products.length;
 
       renderProducts(products);
@@ -319,7 +304,7 @@
     });
   }
 
-  // ---------- UPDATE STATUS (ADMIN ROUTE) ----------
+  // ---------- UPDATE STATUS (NORMAL PRODUCT ROUTE) ----------
   async function updateStatus(id) {
     const token = localStorage.getItem("adminToken");
     if (!token) {
@@ -331,13 +316,13 @@
     const newStatus = prompt("Enter new status: active / inactive / pending / rejected");
     if (!newStatus) return;
 
-    const reason = prompt("Reason (optional, required for rejected):") || "";
+    const reason = prompt("Reason (optional):") || "";
 
     try {
       const res = await fetch(
-        `${ADMIN_API}/products/${encodeURIComponent(id)}/status`,
+        `${API_V1}/products/${encodeURIComponent(id)}`,
         {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "Authorization": "Bearer " + token,
             "Content-Type": "application/json",
@@ -345,7 +330,7 @@
           },
           body: JSON.stringify({
             status: newStatus,
-            reason: reason || undefined
+            notes: reason || undefined
           })
         }
       );
@@ -399,7 +384,6 @@
       return;
     }
 
-    // Filters listeners
     document.getElementById("searchInput").addEventListener("input", () => {
       currentPage = 1;
       loadProducts(currentPage);
