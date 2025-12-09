@@ -191,31 +191,46 @@ async function loadProducts(page = 1) {
 
     const data = await res.json();
 
-    // ⭐ DEBUG LOG: See exactly what the API returns in the console
     console.log("DEBUG products API response:", data);
 
-    if (!res.ok) {
+    if (!res.ok || data.success === false) {
       console.error("Products API error:", data);
+      renderProducts([]);
       return;
     }
 
-    // ⭐ FIX: Robust check for the array location
-    // This handles: { products: [] }, { data: [] }, { docs: [] }, etc.
-    const products = 
-      data.products || 
-      data.data || 
-      data.docs || 
-      data.result || 
-      [];
+    // 🔍 Auto-detect which field actually contains the array
+    const candidateArrays = [
+      data.data,
+      data.products,
+      data.docs,
+      data.result,
+      data.items
+    ];
+
+    let products = candidateArrays.find(Array.isArray);
+
+    // Also handle nested shapes like { data: { products: [...] } }
+    if (!products && data.data && typeof data.data === 'object') {
+      const nestedCandidates = [
+        data.data.products,
+        data.data.items,
+        data.data.docs,
+        data.data.result
+      ];
+      products = nestedCandidates.find(Array.isArray);
+    }
 
     if (!Array.isArray(products)) {
-      console.error("Critical Error: 'products' is not an array!", products);
+      console.error("Critical Error: could not find array of products in response!", data);
+      renderProducts([]);
       return;
     }
 
     renderProducts(products);
   } catch (err) {
     console.error("Load products error:", err);
+    renderProducts([]);
   }
 }
 
@@ -234,17 +249,23 @@ function renderProducts(products) {
   products.forEach(p => {
     const tr = document.createElement("tr");
 
-    // Handle potential missing seller object
-    const sellerEmail = p.seller ? (p.seller.email || p.seller) : "N/A";
+    const sellerEmail = p.seller
+      ? (p.seller.email || p.seller.name || p.seller)
+      : "N/A";
+
+    const categoryLabel =
+      typeof p.category === "string"
+        ? p.category
+        : p.category?.name || p.category?.slug || "N/A";
 
     tr.innerHTML = `
       <td>${p.name || "Unknown"}</td>
       <td>${sellerEmail}</td>
-      <td>${p.category || "N/A"}</td>
+      <td>${categoryLabel}</td>
       <td>₹${p.price || 0}</td>
-      <td>${p.stock || 0}</td>
+      <td>${p.stock || p.stockQuantity || 0}</td>
       <td><span class="badge ${p.status || 'inactive'}">${p.status || 'inactive'}</span></td>
-      <td><button class="action-btn" onclick="updateStatus('${p._id}')">Update</button></td>
+      <td><button class="action-btn" onclick="updateStatus('${p._id || p.id}')">Update</button></td>
     `;
 
     tbody.appendChild(tr);
@@ -272,8 +293,9 @@ async function updateStatus(id) {
 
     const data = await res.json();
 
-    if (!res.ok) {
+    if (!res.ok || data.success === false) {
       alert("Update failed: " + (data.message || "Unknown error"));
+      console.error("Update error:", data);
       return;
     }
 
