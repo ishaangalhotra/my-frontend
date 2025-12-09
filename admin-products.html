@@ -21,6 +21,11 @@
       color: white;
       padding: 20px;
     }
+    .sidebar h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
     .sidebar a {
       display: block;
       padding: 10px;
@@ -28,6 +33,7 @@
       color: #e5e7eb;
       text-decoration: none;
       border-radius: 6px;
+      font-size: 0.9rem;
     }
     .sidebar a.active, .sidebar a:hover {
       background: #4f46e5;
@@ -51,7 +57,8 @@
     .filters input, .filters select {
       padding: 8px 10px;
       border-radius: 6px;
-      border: 1px solid #ccc;
+      border: 1px solid #d1d5db;
+      font-size: 0.85rem;
     }
     table {
       width: 100%;
@@ -67,12 +74,14 @@
     }
     table th {
       background: #f3f4f6;
+      font-weight: 600;
     }
     .badge {
       padding: 4px 8px;
       border-radius: 6px;
       font-size: 0.75rem;
       color: white;
+      text-transform: capitalize;
     }
     .badge.active { background: #22c55e; }
     .badge.inactive { background: #6b7280; }
@@ -87,26 +96,49 @@
       background: #4f46e5;
       color: white;
     }
+    .action-btn-secondary {
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      cursor: pointer;
+      background: white;
+      color: #111827;
+      margin-left: 6px;
+    }
     .pagination {
       margin-top: 15px;
       display: flex;
       gap: 10px;
+      align-items: center;
+      font-size: 0.85rem;
     }
     .pagination button {
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 6px;
       border: none;
       cursor: pointer;
       background: #111827;
       color: white;
+      font-size: 0.8rem;
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .status-text {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-left: 6px;
     }
   </style>
 </head>
 <body>
 <div class="container">
 
+  <!-- Sidebar -->
   <aside class="sidebar">
-    <h2>Admin Panel</h2>
+    <h2>QuickLocal Admin</h2>
     <a href="admin-dashboard.html">Dashboard</a>
     <a href="admin-orders.html">Orders</a>
     <a href="admin-users.html">Users</a>
@@ -114,9 +146,11 @@
     <a href="admin-login.html">Logout</a>
   </aside>
 
+  <!-- Main -->
   <main class="content">
     <h1>Manage Products</h1>
 
+    <!-- Filters -->
     <div class="filters">
       <input id="searchInput" type="text" placeholder="Search products..." />
       <select id="statusFilter">
@@ -126,10 +160,11 @@
         <option value="pending">Pending</option>
         <option value="rejected">Rejected</option>
       </select>
-      <input id="sellerFilter" type="text" placeholder="Seller ID/email" />
+      <input id="sellerFilter" type="text" placeholder="Seller ID or email" />
       <input id="categoryFilter" type="text" placeholder="Category" />
     </div>
 
+    <!-- Table -->
     <table id="productsTable">
       <thead>
         <tr>
@@ -145,193 +180,228 @@
       <tbody></tbody>
     </table>
 
+    <!-- Pagination -->
     <div class="pagination">
-      <button onclick="prevPage()">Prev</button>
-      <button onclick="nextPage()">Next</button>
+      <button id="prevBtn">Prev</button>
+      <button id="nextBtn">Next</button>
+      <span id="pageInfo"></span>
     </div>
-
   </main>
 </div>
 
 <script>
-/* -----------------------------------------
-   CONFIG
------------------------------------------ */
-const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
-const API_V1 = API_BASE + "/api/v1";   
-let currentPage = 1;
+  // ---------- CONFIG ----------
+  const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
+  const API_V1 = API_BASE + "/api/v1";
+  const ADMIN_API = API_V1 + "/admin";
 
-/* -----------------------------------------
-   LOAD PRODUCTS
------------------------------------------ */
-async function loadProducts(page = 1) {
-  const token = localStorage.getItem("adminToken");
-  const search = document.getElementById('searchInput').value.trim();
-  const status = document.getElementById('statusFilter').value;
-  const seller = document.getElementById('sellerFilter').value.trim();
-  const category = document.getElementById('categoryFilter').value.trim();
+  let currentPage = 1;
+  let totalPages = 1;
 
-  const params = new URLSearchParams({
-    page,
-    limit: 20
-  });
+  // ---------- LOAD PRODUCTS ----------
+  async function loadProducts(page = 1) {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
 
-  if (search) params.append("search", search);
-  if (seller) params.append("seller", seller);
-  if (category) params.append("category", category);
-  if (status !== "all") params.append("status", status);
+    const search = document.getElementById('searchInput').value.trim();
+    const status = document.getElementById('statusFilter').value;
+    const seller = document.getElementById('sellerFilter').value.trim();
+    const category = document.getElementById('categoryFilter').value.trim();
 
-  try {
-    const res = await fetch(`${API_V1}/products?` + params.toString(), {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Accept": "application/json"
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: "20"
+    });
+
+    if (search) params.append("search", search);
+    if (seller) params.append("seller", seller);
+    if (category) params.append("category", category);
+    if (status !== "all") params.append("status", status);
+
+    try {
+      const res = await fetch(`${API_V1}/products?` + params.toString(), {
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Accept": "application/json"
+        }
+      });
+
+      const data = await res.json();
+      console.log("DEBUG products API response:", data);
+
+      if (!res.ok || data.success === false) {
+        console.error("Products API error:", data);
+        renderProducts([]);
+        updatePagination(1, 1, 0);
+        return;
       }
+
+      // backend: { success, count, pagination, data: results }
+      const products = Array.isArray(data.data) ? data.data : [];
+      const pagination = data.pagination || {};
+
+      currentPage = pagination.currentPage || pagination.page || page || 1;
+      totalPages = pagination.totalPages || pagination.pages || 1;
+
+      renderProducts(products);
+      updatePagination(currentPage, totalPages, data.count || products.length);
+
+    } catch (err) {
+      console.error("Load products error:", err);
+      renderProducts([]);
+      updatePagination(1, 1, 0);
+    }
+  }
+
+  // ---------- RENDER PRODUCTS ----------
+  function renderProducts(products) {
+    const tbody = document.querySelector("#productsTable tbody");
+    tbody.innerHTML = "";
+
+    if (!products || products.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='7'>No products found.</td></tr>";
+      return;
+    }
+
+    products.forEach(p => {
+      const tr = document.createElement("tr");
+
+      const sellerEmail = p.seller
+        ? (p.seller.email || p.seller.name || p.seller)
+        : "N/A";
+
+      const categoryLabel =
+        typeof p.category === "string"
+          ? p.category
+          : p.category?.name || p.category?.slug || "N/A";
+
+      const price = p.price != null ? p.price : p.sellingPrice || 0;
+      const stock = p.stock != null ? p.stock : p.stockQuantity || p.countInStock || 0;
+      const status = p.status || "inactive";
+      const id = p._id || p.id;
+
+      tr.innerHTML = `
+        <td>${p.name || "Unknown"}</td>
+        <td>${sellerEmail}</td>
+        <td>${categoryLabel}</td>
+        <td>₹${price}</td>
+        <td>${stock}</td>
+        <td><span class="badge ${status}">${status}</span></td>
+        <td>
+          <button class="action-btn" onclick="updateStatus('${id}')">Update</button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- UPDATE STATUS (ADMIN ROUTE) ----------
+  async function updateStatus(id) {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
+
+    const newStatus = prompt("Enter new status: active / inactive / pending / rejected");
+    if (!newStatus) return;
+
+    const reason = prompt("Reason (optional, required for rejected):") || "";
+
+    try {
+      const res = await fetch(
+        `${ADMIN_API}/products/${encodeURIComponent(id)}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            status: newStatus,
+            reason: reason || undefined
+          })
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+      console.log("Update response:", data);
+
+      if (!res.ok || data.success === false) {
+        console.error("Update error:", data);
+        alert("Update failed: " + (data.message || "Unknown error"));
+        return;
+      }
+
+      alert("Product status updated successfully!");
+      loadProducts(currentPage);
+    } catch (err) {
+      console.error("Update error:", err);
+      alert("Error updating product: " + err.message);
+    }
+  }
+
+  // ---------- PAGINATION ----------
+  function updatePagination(current, total, count) {
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageInfo = document.getElementById("pageInfo");
+
+    prevBtn.disabled = current <= 1;
+    nextBtn.disabled = current >= total;
+
+    pageInfo.textContent = `Page ${current} of ${total} • ${count} products`;
+  }
+
+  function nextPage() {
+    if (currentPage < totalPages) {
+      loadProducts(currentPage + 1);
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 1) {
+      loadProducts(currentPage - 1);
+    }
+  }
+
+  // ---------- INIT ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!localStorage.getItem("adminToken")) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
+
+    // Filters listeners
+    document.getElementById("searchInput").addEventListener("input", () => {
+      currentPage = 1;
+      loadProducts(currentPage);
+    });
+    document.getElementById("statusFilter").addEventListener("change", () => {
+      currentPage = 1;
+      loadProducts(currentPage);
+    });
+    document.getElementById("sellerFilter").addEventListener("change", () => {
+      currentPage = 1;
+      loadProducts(currentPage);
+    });
+    document.getElementById("categoryFilter").addEventListener("change", () => {
+      currentPage = 1;
+      loadProducts(currentPage);
     });
 
-    const data = await res.json();
+    // Pagination buttons already wired in HTML via id + functions
 
-    console.log("DEBUG products API response:", data);
-
-    if (!res.ok || data.success === false) {
-      console.error("Products API error:", data);
-      renderProducts([]);
-      return;
-    }
-
-    // 🔍 Auto-detect which field actually contains the array
-    const candidateArrays = [
-      data.data,
-      data.products,
-      data.docs,
-      data.result,
-      data.items
-    ];
-
-    let products = candidateArrays.find(Array.isArray);
-
-    // Also handle nested shapes like { data: { products: [...] } }
-    if (!products && data.data && typeof data.data === 'object') {
-      const nestedCandidates = [
-        data.data.products,
-        data.data.items,
-        data.data.docs,
-        data.data.result
-      ];
-      products = nestedCandidates.find(Array.isArray);
-    }
-
-    if (!Array.isArray(products)) {
-      console.error("Critical Error: could not find array of products in response!", data);
-      renderProducts([]);
-      return;
-    }
-
-    renderProducts(products);
-  } catch (err) {
-    console.error("Load products error:", err);
-    renderProducts([]);
-  }
-}
-
-/* -----------------------------------------
-   RENDER TABLE
------------------------------------------ */
-function renderProducts(products) {
-  const tbody = document.querySelector("#productsTable tbody");
-  tbody.innerHTML = "";
-
-  if (!products || products.length === 0) {
-    tbody.innerHTML = "<tr><td colspan='7'>No products found.</td></tr>";
-    return;
-  }
-
-  products.forEach(p => {
-    const tr = document.createElement("tr");
-
-    const sellerEmail = p.seller
-      ? (p.seller.email || p.seller.name || p.seller)
-      : "N/A";
-
-    const categoryLabel =
-      typeof p.category === "string"
-        ? p.category
-        : p.category?.name || p.category?.slug || "N/A";
-
-    tr.innerHTML = `
-      <td>${p.name || "Unknown"}</td>
-      <td>${sellerEmail}</td>
-      <td>${categoryLabel}</td>
-      <td>₹${p.price || 0}</td>
-      <td>${p.stock || p.stockQuantity || 0}</td>
-      <td><span class="badge ${p.status || 'inactive'}">${p.status || 'inactive'}</span></td>
-      <td><button class="action-btn" onclick="updateStatus('${p._id || p.id}')">Update</button></td>
-    `;
-
-    tbody.appendChild(tr);
+    loadProducts(currentPage);
   });
-}
-
-/* -----------------------------------------
-   UPDATE STATUS
------------------------------------------ */
-async function updateStatus(id) {
-  const token = localStorage.getItem("adminToken");
-
-  const newStatus = prompt("Enter new status: active / inactive / pending / rejected");
-  if (!newStatus) return;
-
-  try {
-    const res = await fetch(`${API_V1}/products/${id}`, {
-      method: "PUT",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ status: newStatus })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || data.success === false) {
-      alert("Update failed: " + (data.message || "Unknown error"));
-      console.error("Update error:", data);
-      return;
-    }
-
-    alert("Product updated successfully!");
-    loadProducts(currentPage);
-  } catch (err) {
-    alert("Error updating product");
-    console.error(err);
-  }
-}
-
-/* -----------------------------------------
-   PAGINATION
------------------------------------------ */
-function nextPage() {
-  currentPage++;
-  loadProducts(currentPage);
-}
-function prevPage() {
-  if (currentPage > 1) {
-    currentPage--;
-    loadProducts(currentPage);
-  }
-}
-
-/* -----------------------------------------
-   INIT
------------------------------------------ */
-document.addEventListener("DOMContentLoaded", () => {
-  if (!localStorage.getItem("adminToken")) {
-    alert("Please login as admin.");
-    window.location.href = "admin-login.html";
-    return;
-  }
-  loadProducts();
-});
 </script>
 </body>
 </html>
