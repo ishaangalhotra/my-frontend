@@ -459,6 +459,7 @@
 </head>
 <body>
   <div class="layout">
+    <!-- Sidebar (simple nav, like dashboard) -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="badge-logo">
@@ -477,18 +478,18 @@
       </a>
 
       <div class="nav-section-title">Management</div>
-      <a href="admin-orders.html" class="nav-link">
+      <div class="nav-link">
         <i class="fas fa-receipt"></i>
         <span>Orders</span>
-      </a>
-      <a href="admin-users.html" class="nav-link active">
+      </div>
+      <div class="nav-link active">
         <i class="fas fa-users"></i>
         <span>Users</span>
-      </a>
-      <a href="admin-products.html" class="nav-link">
+      </div>
+      <div class="nav-link">
         <i class="fas fa-boxes-stacked"></i>
         <span>Products</span>
-      </a>
+      </div>
 
       <div class="sidebar-footer">
         <div>Users management module</div>
@@ -496,6 +497,7 @@
       </div>
     </aside>
 
+    <!-- Main content -->
     <main class="main">
       <header class="main-header">
         <div>
@@ -524,6 +526,7 @@
         </div>
       </header>
 
+      <!-- Filters -->
       <section class="filters-card">
         <div class="filter-row">
           <div style="display:flex; flex-direction:column; gap:3px;">
@@ -554,6 +557,7 @@
         <div id="notification" class="notification"></div>
       </section>
 
+      <!-- Users table -->
       <section class="card" style="margin-top:10px;">
         <div class="card-header-row">
           <div>
@@ -595,9 +599,8 @@
 
   <script>
     (function () {
-      // ✅ FIXED: Using direct /users endpoint which handles admin listing
       const API_BASE = 'https://ecommerce-backend-mlik.onrender.com';
-      const USERS_API = API_BASE + '/api/v1/users'; 
+      const ADMIN_API = API_BASE + '/api/v1/admin';
 
       const apiStatusEl = document.getElementById('apiStatus');
       const notifEl = document.getElementById('notification');
@@ -674,7 +677,9 @@
         const token = localStorage.getItem('adminToken');
         if (!token) {
           showNotification('No admin session found. Redirecting to login...', 'error');
-          setTimeout(() => { window.location.href = 'admin-login.html'; }, 800);
+          setTimeout(() => {
+            window.location.href = 'admin-login.html';
+          }, 800);
           return;
         }
 
@@ -688,7 +693,7 @@
         if (currentSearch) params.set('search', currentSearch);
 
         try {
-          const res = await fetch(USERS_API + '?' + params.toString(), {
+          const res = await fetch(ADMIN_API + '/users?' + params.toString(), {
             headers: {
               'Authorization': 'Bearer ' + token,
               'Accept': 'application/json'
@@ -698,8 +703,11 @@
           if (res.status === 401 || res.status === 403) {
             showNotification('Session expired or unauthorized. Please login again.', 'error');
             localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
             setApiStatus(false);
-            setTimeout(() => { window.location.href = 'admin-login.html'; }, 900);
+            setTimeout(() => {
+              window.location.href = 'admin-login.html';
+            }, 900);
             return;
           }
 
@@ -709,22 +717,16 @@
           }
 
           setApiStatus(true);
-
-          // ✅ FIXED: Handle data nesting (users.js returns { data: { users: [] } })
-          const users = Array.isArray(data.data) 
-            ? data.data 
-            : (data.data && Array.isArray(data.data.users) ? data.data.users : []);
-            
-          const pagination = data.pagination || (data.data && data.data.pagination) || {};
-
+          const users = Array.isArray(data.data) ? data.data : [];
+          const pagination = data.pagination || {};
           currentPage = pagination.page || 1;
-          totalUsers = pagination.totalUsers || pagination.total || users.length;
-          totalPages = pagination.totalPages || pagination.pages || 1;
+          totalUsers = pagination.total || users.length;
+          totalPages = pagination.pages || 1;
 
           renderUsers(users);
           updatePagination();
           updateFilterSummary();
-          showNotification('', 'info');
+          showNotification('', 'info'); // hide
         } catch (err) {
           console.error('Load users error:', err);
           setApiStatus(false);
@@ -785,7 +787,7 @@
 
           // Status
           const statusTd = document.createElement('td');
-          const isActive = user.isActive !== false;
+          const isActive = user.isActive !== false; // default true if not present
           const statusPill = document.createElement('span');
           statusPill.className = 'status-pill ' + (isActive ? 'active' : 'inactive');
           const dot = document.createElement('span');
@@ -833,15 +835,31 @@
       }
 
       function updatePagination() {
-        paginationInfo.textContent = 'Page ' + (currentPage || 1) + ' of ' + (totalPages || 1) + ' • ' + (totalUsers || 0) + ' users';
+        paginationInfo.textContent =
+          'Page ' +
+          (currentPage || 1) +
+          ' of ' +
+          (totalPages || 1) +
+          ' • ' +
+          (totalUsers || 0) +
+          ' users';
+
         prevPageBtn.disabled = currentPage <= 1;
         nextPageBtn.disabled = currentPage >= totalPages;
       }
 
       async function updateUser(row) {
         const token = localStorage.getItem('adminToken');
+        if (!token) {
+          showNotification('No admin session found. Redirecting to login...', 'error');
+          setTimeout(() => {
+            window.location.href = 'admin-login.html';
+          }, 800);
+          return;
+        }
+
         const userId = row.dataset.userId;
-        if (!token || !userId) return;
+        if (!userId) return;
 
         const roleSelect = row.querySelector('select[data-field="role"]');
         const activeCheckbox = row.querySelector('input[data-field="isActive"]');
@@ -850,9 +868,8 @@
         if (roleSelect) updateBody.role = roleSelect.value;
         if (activeCheckbox) updateBody.isActive = !!activeCheckbox.checked;
 
-        // ✅ FIXED: Using direct /users endpoint (and we updated users.js to handle PUT)
         try {
-          const res = await fetch(USERS_API + '/' + encodeURIComponent(userId), {
+          const res = await fetch(ADMIN_API + '/users/' + encodeURIComponent(userId), {
             method: 'PUT',
             headers: {
               'Authorization': 'Bearer ' + token,
@@ -868,6 +885,7 @@
           }
 
           showNotification('User updated successfully.', 'success');
+          // Refresh list to reflect any computed changes
           loadUsers(currentPage);
         } catch (err) {
           console.error('Update user error:', err);
@@ -879,28 +897,51 @@
       logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
-        window.location.href = 'admin-login.html';
+        showNotification('Logged out successfully.', 'info');
+        setTimeout(() => {
+          window.location.href = 'admin-login.html';
+        }, 600);
       });
 
-      prevPageBtn.addEventListener('click', () => { if (currentPage > 1) loadUsers(currentPage - 1); });
-      nextPageBtn.addEventListener('click', () => { if (currentPage < totalPages) loadUsers(currentPage + 1); });
+      prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          loadUsers(currentPage - 1);
+        }
+      });
+
+      nextPageBtn.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          loadUsers(currentPage + 1);
+        }
+      });
 
       searchInput.addEventListener('input', () => {
         const value = searchInput.value.trim();
         if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => { currentSearch = value; loadUsers(1); }, 400);
+        debounceTimer = setTimeout(() => {
+          currentSearch = value;
+          loadUsers(1);
+        }, 400);
       });
 
-      roleFilter.addEventListener('change', () => { currentRole = roleFilter.value; loadUsers(1); });
+      roleFilter.addEventListener('change', () => {
+        currentRole = roleFilter.value;
+        loadUsers(1);
+      });
 
+      // Save button / toggle handler
       usersTableBody.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-action="save"]');
+        const target = e.target;
+        const btn = target.closest('button[data-action="save"]');
         if (btn) {
           const row = btn.closest('tr');
-          if (row) updateUser(row);
+          if (row) {
+            updateUser(row);
+          }
         }
       });
 
+      // Init
       initAdminUser();
       loadUsers(1);
     })();
