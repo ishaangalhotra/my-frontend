@@ -2,949 +2,410 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin • Users Management • QuickLocal</title>
+  <title>Admin Users • QuickLocal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-
   <style>
-    :root {
-      --bg: #020617;
-      --bg-soft: #0f172a;
-      --card: #020617;
-      --card-border: #1e293b;
-      --primary: #6366f1;
-      --primary-soft: rgba(99, 102, 241, 0.15);
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --danger: #f97373;
-      --success: #22c55e;
-      --warning: #facc15;
-    }
-
-    * { box-sizing: border-box; }
-
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #1d2340 0, #020617 55%, #020617 100%);
-      color: var(--text);
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
     }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 240px minmax(0, 1fr);
+    .container {
+      display: flex;
       min-height: 100vh;
     }
-
     .sidebar {
-      background: linear-gradient(180deg, #020617, #020617);
-      border-right: 1px solid var(--card-border);
-      padding: 18px 14px;
-    }
-
-    .sidebar-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-
-    .badge-logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 0, #a5b4fc, #6366f1 60%, #4338ca 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 240px;
+      background: #111827;
       color: white;
-      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.4), 0 8px 20px rgba(79, 70, 229, 0.7);
-      font-size: 0.9rem;
+      padding: 20px;
     }
-
-    .sidebar-title {
-      font-weight: 600;
-      font-size: 0.98rem;
+    .sidebar h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
     }
-
-    .sidebar-subtitle {
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    .nav-section-title {
-      margin: 14px 0 6px;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #64748b;
-    }
-
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 9px;
-      margin-bottom: 4px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      color: var(--muted);
-      text-decoration: none;
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease;
-    }
-
-    .nav-link.active,
-    .nav-link:hover {
-      background: var(--primary-soft);
-      color: #e5e7eb;
-    }
-
-    .nav-link i {
-      font-size: 0.85rem;
-      width: 16px;
-      text-align: center;
-    }
-
-    .sidebar-footer {
-      margin-top: 24px;
-      font-size: 0.7rem;
-      color: var(--muted);
-    }
-
-    .main {
-      padding: 18px 18px 20px;
-    }
-
-    .main-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .main-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-
-    .main-subtitle {
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .breadcrumbs {
-      font-size: 0.78rem;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-
-    .breadcrumbs a {
-      color: #a5b4fc;
-      text-decoration: none;
-    }
-    .breadcrumbs a:hover {
-      text-decoration: underline;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-    }
-
-    .badge-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 9px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: rgba(15, 118, 110, 0.14);
-      color: #a5f3fc;
-    }
-
-    .user-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      padding: 4px 9px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.4);
-    }
-
-    .logout-btn {
-      border: 1px solid rgba(248, 113, 113, 0.5);
-      background: rgba(127, 29, 29, 0.25);
-      color: #fecaca;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-    }
-    .logout-btn:hover {
-      background: rgba(127, 29, 29, 0.4);
-    }
-
-    .filters-card {
-      background: rgba(15, 23, 42, 0.98);
-      border-radius: 14px;
-      border: 1px solid var(--card-border);
-      padding: 10px 11px;
-      margin-bottom: 10px;
-    }
-
-    .filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .filter-row label {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .filter-input {
-      padding: 6px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text);
-      font-size: 0.8rem;
-      min-width: 140px;
-    }
-
-    .filter-input::placeholder {
-      color: #64748b;
-    }
-
-    .filter-select {
-      padding: 6px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text);
-      font-size: 0.8rem;
-      min-width: 120px;
-    }
-
-    .filter-chip {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .notification {
-      margin-top: 8px;
-      padding: 8px 9px;
-      border-radius: 10px;
-      font-size: 0.78rem;
-      display: none;
-    }
-    .notification.error {
-      background: rgba(127, 29, 29, 0.5);
-      border: 1px solid rgba(248, 113, 113, 0.7);
-      color: #fecaca;
-    }
-    .notification.info {
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      color: var(--muted);
-    }
-    .notification.success {
-      background: rgba(22, 163, 74, 0.4);
-      border: 1px solid rgba(34, 197, 94, 0.7);
-      color: #bbf7d0;
-    }
-
-    .card {
-      background: rgba(15, 23, 42, 0.98);
-      border-radius: 14px;
-      border: 1px solid var(--card-border);
-      padding: 10px 11px;
-    }
-
-    .card-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .sidebar a {
+      display: block;
+      padding: 10px;
       margin-bottom: 6px;
-    }
-
-    .card-title {
+      color: #e5e7eb;
+      text-decoration: none;
+      border-radius: 6px;
       font-size: 0.9rem;
-      font-weight: 500;
     }
-
-    .card-subtitle {
-      font-size: 0.76rem;
-      color: var(--muted);
+    .sidebar a.active, .sidebar a:hover {
+      background: #4f46e5;
+      color: white;
     }
-
-    .badge-count {
-      font-size: 0.75rem;
-      padding: 3px 7px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      color: var(--muted);
+    .content {
+      flex: 1;
+      padding: 25px;
     }
-
+    h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .filters input, .filters select {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 0.85rem;
+    }
     table {
       width: 100%;
+      background: white;
       border-collapse: collapse;
-      font-size: 0.78rem;
+      margin-top: 15px;
     }
-
-    th, td {
-      padding: 7px 6px;
+    table th, table td {
+      padding: 10px;
+      border: 1px solid #e5e5e5;
+      font-size: 0.9rem;
       text-align: left;
-      border-bottom: 1px solid rgba(30, 64, 175, 0.4);
     }
-
-    th {
-      font-weight: 500;
-      color: var(--muted);
+    table th {
+      background: #f3f4f6;
+      font-weight: 600;
     }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    .role-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.6);
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: white;
       text-transform: capitalize;
     }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      font-size: 0.72rem;
-    }
-
-    .status-pill.active {
-      background: rgba(22, 163, 74, 0.2);
-      color: #bbf7d0;
-    }
-
-    .status-pill.inactive {
-      background: rgba(148, 163, 184, 0.3);
-      color: #e5e7eb;
-    }
-
-    .status-pill.suspended {
-      background: rgba(234, 179, 8, 0.2);
-      color: #facc15;
-    }
-
-    .status-pill.locked {
-      background: rgba(248, 113, 113, 0.2);
-      color: #fecaca;
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: currentColor;
-    }
-
-    .inline-select {
-      padding: 4px 6px;
-      border-radius: 8px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text);
-      font-size: 0.75rem;
-    }
-
-    .toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    .toggle input {
-      accent-color: #22c55e;
-    }
-
+    /* Role Badges */
+    .badge.admin { background: #7c3aed; }
+    .badge.seller { background: #0891b2; }
+    .badge.customer { background: #3b82f6; }
+    .badge.moderator { background: #db2777; }
+    
+    /* Status Badges */
+    .badge.active { background: #22c55e; }
+    .badge.inactive { background: #9ca3af; }
+    .badge.suspended { background: #f59e0b; }
+    
     .action-btn {
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      padding: 3px 8px;
-      font-size: 0.72rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
+      background: #4f46e5;
+      color: white;
     }
-
     .pagination {
+      margin-top: 15px;
       display: flex;
-      justify-content: space-between;
+      gap: 10px;
       align-items: center;
-      margin-top: 8px;
-      font-size: 0.76rem;
-      color: var(--muted);
+      font-size: 0.85rem;
     }
-
-    .pagination-buttons {
-      display: flex;
-      gap: 6px;
-    }
-
-    .page-btn {
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      font-size: 0.75rem;
+    .pagination button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
       cursor: pointer;
+      background: #111827;
+      color: white;
+      font-size: 0.8rem;
     }
-
-    .page-btn:disabled {
+    .pagination button:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 800px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-      .sidebar {
-        display: none;
-      }
-      .main {
-        padding: 16px 12px 18px;
-      }
-      .main-header {
-        flex-direction: column;
-      }
-      .toolbar {
-        align-items: flex-start;
-      }
-      table {
-        font-size: 0.72rem;
-      }
-      th, td {
-        padding: 5px 4px;
-      }
+      cursor: default;
     }
   </style>
 </head>
 <body>
-  <div class="layout">
-    <!-- Sidebar (simple nav, like dashboard) -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="badge-logo">
-          <i class="fas fa-bolt"></i>
-        </div>
-        <div>
-          <div class="sidebar-title">QuickLocal Admin</div>
-          <div class="sidebar-subtitle">Control center</div>
-        </div>
-      </div>
+<div class="container">
 
-      <div class="nav-section-title">Overview</div>
-      <a href="admin-dashboard.html" class="nav-link">
-        <i class="fas fa-chart-line"></i>
-        <span>Dashboard</span>
-      </a>
+  <aside class="sidebar">
+    <h2>QuickLocal Admin</h2>
+    <a href="admin-dashboard.html">Dashboard</a>
+    <a href="admin-orders.html">Orders</a>
+    <a class="active" href="admin-users.html">Users</a>
+    <a href="admin-products.html">Products</a>
+    <a href="admin-login.html" id="logoutLink">Logout</a>
+  </aside>
 
-      <div class="nav-section-title">Management</div>
-      <div class="nav-link">
-        <i class="fas fa-receipt"></i>
-        <span>Orders</span>
-      </div>
-      <div class="nav-link active">
-        <i class="fas fa-users"></i>
-        <span>Users</span>
-      </div>
-      <div class="nav-link">
-        <i class="fas fa-boxes-stacked"></i>
-        <span>Products</span>
-      </div>
+  <main class="content">
+    <h1>Manage Users</h1>
 
-      <div class="sidebar-footer">
-        <div>Users management module</div>
-        <div style="margin-top: 4px;">v1.0 – Basic control</div>
-      </div>
-    </aside>
+    <div class="filters">
+      <input id="searchInput" type="text" placeholder="Search name, email, phone..." />
+      <select id="roleFilter">
+        <option value="">All Roles</option>
+        <option value="customer">Customer</option>
+        <option value="seller">Seller</option>
+        <option value="admin">Admin</option>
+        <option value="moderator">Moderator</option>
+        <option value="delivery_agent">Delivery Agent</option>
+      </select>
+      <select id="statusFilter">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
 
-    <!-- Main content -->
-    <main class="main">
-      <header class="main-header">
-        <div>
-          <div class="breadcrumbs">
-            <a href="admin-dashboard.html">Dashboard</a> &raquo; <span>Users</span>
-          </div>
-          <div class="main-title">Users Management</div>
-          <div class="main-subtitle">Search, filter, and control all users in your marketplace.</div>
-        </div>
+    <table id="usersTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Update</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="7">Loading users...</td></tr>
+      </tbody>
+    </table>
 
-        <div class="toolbar">
-          <div class="badge-pill" id="apiStatus">
-            <i class="fas fa-circle-notch fa-spin"></i>
-            <span>Checking API...</span>
-          </div>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <div class="user-pill">
-              <i class="fas fa-user-shield"></i>
-              <span id="adminUserName">Admin</span>
-            </div>
-            <button id="logoutBtn" class="logout-btn">
-              <i class="fas fa-arrow-right-from-bracket"></i>
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div class="pagination">
+      <button id="prevBtn">Prev</button>
+      <button id="nextBtn">Next</button>
+      <span id="pageInfo"></span>
+    </div>
+  </main>
+</div>
 
-      <!-- Filters -->
-      <section class="filters-card">
-        <div class="filter-row">
-          <div style="display:flex; flex-direction:column; gap:3px;">
-            <label for="searchInput">Search</label>
-            <input id="searchInput" class="filter-input" type="text" placeholder="Search by name or email..." />
-          </div>
+<script>
+  // ---------- CONFIG ----------
+  const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
+  const ADMIN_API = API_BASE + "/api/v1/admin";
 
-          <div style="display:flex; flex-direction:column; gap:3px;">
-            <label for="roleFilter">Role</label>
-            <select id="roleFilter" class="filter-select">
-              <option value="all">All roles</option>
-              <option value="customer">Customer</option>
-              <option value="seller">Seller</option>
-              <option value="admin">Admin</option>
-              <option value="moderator">Moderator</option>
-              <option value="support">Support</option>
-              <option value="delivery_agent">Delivery Agent</option>
-            </select>
-          </div>
+  let currentPage = 1;
+  let totalPages = 1;
 
-          <div style="flex:1;"></div>
+  // ---------- LOAD USERS ----------
+  async function loadUsers(page = 1) {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
 
-          <div>
-            <span class="filter-chip" id="currentFilterSummary">Showing latest users</span>
-          </div>
-        </div>
+    const search = document.getElementById('searchInput').value.trim();
+    const role = document.getElementById('roleFilter').value;
+    const status = document.getElementById('statusFilter').value;
 
-        <div id="notification" class="notification"></div>
-      </section>
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: "20"
+    });
 
-      <!-- Users table -->
-      <section class="card" style="margin-top:10px;">
-        <div class="card-header-row">
-          <div>
-            <div class="card-title">Users</div>
-            <div class="card-subtitle">You can change roles or activate/deactivate accounts.</div>
-          </div>
-          <span class="badge-count" id="usersCountLabel">0 users</span>
-        </div>
+    if (search) params.append("search", search);
+    if (role) params.append("role", role);
+    if (status) params.append("status", status);
 
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Name / Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th style="min-width:150px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody">
-              <tr>
-                <td colspan="5" style="text-align:center; padding:10px;">Loading users...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="pagination">
-          <div id="paginationInfo">Page 1 of 1 • 0 users</div>
-          <div class="pagination-buttons">
-            <button id="prevPageBtn" class="page-btn" disabled>&laquo; Prev</button>
-            <button id="nextPageBtn" class="page-btn" disabled>Next &raquo;</button>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <script>
-    (function () {
-      const API_BASE = 'https://ecommerce-backend-mlik.onrender.com';
-      const ADMIN_API = API_BASE + '/api/v1/admin';
-
-      const apiStatusEl = document.getElementById('apiStatus');
-      const notifEl = document.getElementById('notification');
-      const adminUserNameEl = document.getElementById('adminUserName');
-      const logoutBtn = document.getElementById('logoutBtn');
-
-      const searchInput = document.getElementById('searchInput');
-      const roleFilter = document.getElementById('roleFilter');
-      const currentFilterSummary = document.getElementById('currentFilterSummary');
-      const usersTableBody = document.getElementById('usersTableBody');
-      const usersCountLabel = document.getElementById('usersCountLabel');
-      const paginationInfo = document.getElementById('paginationInfo');
-      const prevPageBtn = document.getElementById('prevPageBtn');
-      const nextPageBtn = document.getElementById('nextPageBtn');
-
-      let currentPage = 1;
-      let totalPages = 1;
-      let totalUsers = 0;
-      let currentSearch = '';
-      let currentRole = 'all';
-      let isLoading = false;
-      let debounceTimer = null;
-
-      function setApiStatus(ok) {
-        if (!apiStatusEl) return;
-        if (ok) {
-          apiStatusEl.innerHTML = '<i class="fas fa-circle" style="color:#22c55e;"></i><span>API Connected</span>';
-        } else {
-          apiStatusEl.innerHTML = '<i class="fas fa-circle" style="color:#f97373;"></i><span>API Offline</span>';
-        }
-      }
-
-      function showNotification(message, type) {
-        if (!notifEl) return;
-        notifEl.textContent = message || '';
-        notifEl.className = 'notification ' + (type || 'info');
-        notifEl.style.display = message ? 'block' : 'none';
-      }
-
-      function initAdminUser() {
-        try {
-          const adminUserJson = localStorage.getItem('adminUser');
-          if (adminUserJson) {
-            const user = JSON.parse(adminUserJson);
-            if (user && user.name) {
-              adminUserNameEl.textContent = user.name + ' (Admin)';
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to parse adminUser:', e);
-        }
-      }
-
-      function formatDate(value) {
-        if (!value) return '—';
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '—';
-        return d.toLocaleString();
-      }
-
-      function updateFilterSummary() {
-        let parts = [];
-        if (currentRole && currentRole !== 'all') {
-          parts.push('Role: ' + currentRole.replace('_', ' '));
-        }
-        if (currentSearch) {
-          parts.push('Search: "' + currentSearch + '"');
-        }
-        currentFilterSummary.textContent = parts.length ? parts.join(' • ') : 'Showing latest users';
-      }
-
-      async function loadUsers(page = 1) {
-        if (isLoading) return;
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-          showNotification('No admin session found. Redirecting to login...', 'error');
-          setTimeout(() => {
-            window.location.href = 'admin-login.html';
-          }, 800);
-          return;
-        }
-
-        isLoading = true;
-        showNotification('Loading users...', 'info');
-
-        const params = new URLSearchParams();
-        params.set('page', page);
-        params.set('limit', 20);
-        if (currentRole && currentRole !== 'all') params.set('role', currentRole);
-        if (currentSearch) params.set('search', currentSearch);
-
-        try {
-          const res = await fetch(ADMIN_API + '/users?' + params.toString(), {
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Accept': 'application/json'
-            }
-          });
-
-          if (res.status === 401 || res.status === 403) {
-            showNotification('Session expired or unauthorized. Please login again.', 'error');
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-            setApiStatus(false);
-            setTimeout(() => {
-              window.location.href = 'admin-login.html';
-            }, 900);
-            return;
-          }
-
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to load users');
-          }
-
-          setApiStatus(true);
-          const users = Array.isArray(data.data) ? data.data : [];
-          const pagination = data.pagination || {};
-          currentPage = pagination.page || 1;
-          totalUsers = pagination.total || users.length;
-          totalPages = pagination.pages || 1;
-
-          renderUsers(users);
-          updatePagination();
-          updateFilterSummary();
-          showNotification('', 'info'); // hide
-        } catch (err) {
-          console.error('Load users error:', err);
-          setApiStatus(false);
-          renderUsers([]);
-          updatePagination();
-          showNotification(err.message || 'Unable to load users.', 'error');
-        } finally {
-          isLoading = false;
-        }
-      }
-
-      function renderUsers(users) {
-        usersTableBody.innerHTML = '';
-        usersCountLabel.textContent = (totalUsers || users.length) + ' users';
-
-        if (!users.length) {
-          const tr = document.createElement('tr');
-          const td = document.createElement('td');
-          td.colSpan = 5;
-          td.style.textAlign = 'center';
-          td.style.padding = '10px';
-          td.textContent = 'No users found for this filter.';
-          tr.appendChild(td);
-          usersTableBody.appendChild(tr);
-          return;
-        }
-
-        const roles = ['customer', 'seller', 'admin', 'moderator', 'support', 'delivery_agent'];
-
-        users.forEach(user => {
-          const tr = document.createElement('tr');
-          tr.dataset.userId = user._id || user.id;
-
-          // Name / Email
-          const nameTd = document.createElement('td');
-          const nameLine = document.createElement('div');
-          nameLine.textContent = user.name || '—';
-          const emailLine = document.createElement('div');
-          emailLine.textContent = user.email || '—';
-          emailLine.style.fontSize = '0.72rem';
-          emailLine.style.color = 'var(--muted)';
-          nameTd.appendChild(nameLine);
-          nameTd.appendChild(emailLine);
-
-          // Role
-          const roleTd = document.createElement('td');
-          const roleSelect = document.createElement('select');
-          roleSelect.className = 'inline-select';
-          roleSelect.dataset.field = 'role';
-          roles.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r;
-            opt.textContent = r.replace('_', ' ');
-            if (user.role === r) opt.selected = true;
-            roleSelect.appendChild(opt);
-          });
-          roleTd.appendChild(roleSelect);
-
-          // Status
-          const statusTd = document.createElement('td');
-          const isActive = user.isActive !== false; // default true if not present
-          const statusPill = document.createElement('span');
-          statusPill.className = 'status-pill ' + (isActive ? 'active' : 'inactive');
-          const dot = document.createElement('span');
-          dot.className = 'dot';
-          const label = document.createElement('span');
-          label.textContent = isActive ? 'Active' : 'Inactive';
-          statusPill.appendChild(dot);
-          statusPill.appendChild(label);
-
-          const toggleLabel = document.createElement('label');
-          toggleLabel.className = 'toggle';
-          const toggleInput = document.createElement('input');
-          toggleInput.type = 'checkbox';
-          toggleInput.checked = isActive;
-          toggleInput.dataset.field = 'isActive';
-          const toggleText = document.createElement('span');
-          toggleText.textContent = 'Active';
-          toggleLabel.appendChild(toggleInput);
-          toggleLabel.appendChild(toggleText);
-
-          statusTd.appendChild(statusPill);
-          statusTd.appendChild(document.createElement('br'));
-          statusTd.appendChild(toggleLabel);
-
-          // Created
-          const createdTd = document.createElement('td');
-          createdTd.textContent = formatDate(user.createdAt);
-
-          // Actions
-          const actionsTd = document.createElement('td');
-          const saveBtn = document.createElement('button');
-          saveBtn.className = 'action-btn';
-          saveBtn.dataset.action = 'save';
-          saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Save</span>';
-          actionsTd.appendChild(saveBtn);
-
-          tr.appendChild(nameTd);
-          tr.appendChild(roleTd);
-          tr.appendChild(statusTd);
-          tr.appendChild(createdTd);
-          tr.appendChild(actionsTd);
-
-          usersTableBody.appendChild(tr);
-        });
-      }
-
-      function updatePagination() {
-        paginationInfo.textContent =
-          'Page ' +
-          (currentPage || 1) +
-          ' of ' +
-          (totalPages || 1) +
-          ' • ' +
-          (totalUsers || 0) +
-          ' users';
-
-        prevPageBtn.disabled = currentPage <= 1;
-        nextPageBtn.disabled = currentPage >= totalPages;
-      }
-
-      async function updateUser(row) {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-          showNotification('No admin session found. Redirecting to login...', 'error');
-          setTimeout(() => {
-            window.location.href = 'admin-login.html';
-          }, 800);
-          return;
-        }
-
-        const userId = row.dataset.userId;
-        if (!userId) return;
-
-        const roleSelect = row.querySelector('select[data-field="role"]');
-        const activeCheckbox = row.querySelector('input[data-field="isActive"]');
-
-        const updateBody = {};
-        if (roleSelect) updateBody.role = roleSelect.value;
-        if (activeCheckbox) updateBody.isActive = !!activeCheckbox.checked;
-
-        try {
-          const res = await fetch(ADMIN_API + '/users/' + encodeURIComponent(userId), {
-            method: 'PUT',
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(updateBody)
-          });
-
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Failed to update user.');
-          }
-
-          showNotification('User updated successfully.', 'success');
-          // Refresh list to reflect any computed changes
-          loadUsers(currentPage);
-        } catch (err) {
-          console.error('Update user error:', err);
-          showNotification(err.message || 'Unable to update user.', 'error');
-        }
-      }
-
-      // Event listeners
-      logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-        showNotification('Logged out successfully.', 'info');
-        setTimeout(() => {
-          window.location.href = 'admin-login.html';
-        }, 600);
-      });
-
-      prevPageBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-          loadUsers(currentPage - 1);
+    try {
+      const res = await fetch(`${ADMIN_API}/users?` + params.toString(), {
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Accept": "application/json"
         }
       });
 
-      nextPageBtn.addEventListener('click', () => {
-        if (currentPage < totalPages) {
-          loadUsers(currentPage + 1);
+      if (res.status === 401 || res.status === 403) {
+        alert("Session expired. Please login again.");
+        window.location.href = "admin-login.html";
+        return;
+      }
+
+      const data = await res.json();
+      console.log("Users API response:", data);
+
+      if (!res.ok || data.success === false) {
+        console.error("Users API error:", data);
+        renderUsers([]);
+        updatePagination(1, 1, 0);
+        return;
+      }
+
+      const users = data.data || [];
+      const pagination = data.pagination || {};
+      
+      currentPage = pagination.currentPage || pagination.page || page || 1;
+      totalPages = pagination.totalPages || pagination.pages || 1;
+      const totalCount = pagination.totalUsers || pagination.total || users.length;
+
+      renderUsers(users);
+      updatePagination(currentPage, totalPages, totalCount);
+
+    } catch (err) {
+      console.error("Load users error:", err);
+      renderUsers([]);
+      updatePagination(1, 1, 0);
+    }
+  }
+
+  // ---------- RENDER USERS ----------
+  function renderUsers(users) {
+    const tbody = document.querySelector("#usersTable tbody");
+    tbody.innerHTML = "";
+
+    if (!users || users.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='7'>No users found.</td></tr>";
+      return;
+    }
+
+    users.forEach(u => {
+      const tr = document.createElement("tr");
+
+      const name = u.name || "Unknown";
+      const email = u.email || "—";
+      const phone = u.phone || "—";
+      const role = u.role || "customer";
+      
+      // Determine status safely
+      let status = "active";
+      if (u.status) status = u.status;
+      else if (u.isActive === false) status = "inactive";
+      
+      const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—";
+      const id = u._id || u.id;
+
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${email}</td>
+        <td>${phone}</td>
+        <td><span class="badge ${role}">${role}</span></td>
+        <td><span class="badge ${status}">${status}</span></td>
+        <td>${joined}</td>
+        <td>
+          <button class="action-btn" onclick="updateUser('${id}', '${role}', '${status}')">
+            Update
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- UPDATE USER (Matches Products style) ----------
+  async function updateUser(id, currentRole, currentStatus) {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
+
+    // Role Prompt
+    const newRoleInput = prompt(
+      `Current Role: ${currentRole}\n\nEnter new role (customer / seller / admin / moderator / delivery_agent) or leave blank to keep same:`
+    );
+    
+    // Status Prompt
+    const newStatusInput = prompt(
+      `Current Status: ${currentStatus}\n\nEnter new status (active / inactive / suspended) or leave blank to keep same:`
+    );
+
+    // If user changed nothing
+    if ((!newRoleInput || newRoleInput.trim() === "") && (!newStatusInput || newStatusInput.trim() === "")) {
+      return; 
+    }
+
+    const body = {};
+    if (newRoleInput && newRoleInput.trim() !== "") body.role = newRoleInput.trim().toLowerCase();
+    
+    // Handle Status
+    if (newStatusInput && newStatusInput.trim() !== "") {
+      const s = newStatusInput.trim().toLowerCase();
+      body.status = s;
+      // Handle legacy boolean if needed by backend
+      if (s === 'active') body.isActive = true;
+      if (s === 'inactive') body.isActive = false;
+    }
+
+    try {
+      const res = await fetch(
+        `${ADMIN_API}/users/${encodeURIComponent(id)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(body)
         }
-      });
+      );
 
-      searchInput.addEventListener('input', () => {
-        const value = searchInput.value.trim();
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          currentSearch = value;
-          loadUsers(1);
-        }, 400);
-      });
+      const data = await res.json().catch(() => ({}));
 
-      roleFilter.addEventListener('change', () => {
-        currentRole = roleFilter.value;
-        loadUsers(1);
-      });
+      if (!res.ok || data.success === false) {
+        alert("Update failed: " + (data.message || "Unknown error"));
+        return;
+      }
 
-      // Save button / toggle handler
-      usersTableBody.addEventListener('click', (e) => {
-        const target = e.target;
-        const btn = target.closest('button[data-action="save"]');
-        if (btn) {
-          const row = btn.closest('tr');
-          if (row) {
-            updateUser(row);
-          }
-        }
-      });
+      alert("User updated successfully!");
+      loadUsers(currentPage);
+    } catch (err) {
+      console.error("Update error:", err);
+      alert("Error updating user: " + err.message);
+    }
+  }
 
-      // Init
-      initAdminUser();
+  // ---------- PAGINATION ----------
+  function updatePagination(current, total, count) {
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageInfo = document.getElementById("pageInfo");
+
+    prevBtn.disabled = current <= 1;
+    nextBtn.disabled = current >= total;
+
+    pageInfo.textContent = `Page ${current} of ${total} • ${count} users`;
+  }
+
+  // ---------- EVENTS ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    // Logout Handler
+    document.getElementById("logoutLink").addEventListener("click", (e) => {
+      e.preventDefault();
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+      window.location.href = "admin-login.html";
+    });
+
+    // Filters
+    document.getElementById("searchInput").addEventListener("input", () => {
       loadUsers(1);
-    })();
-  </script>
+    });
+    document.getElementById("roleFilter").addEventListener("change", () => {
+      loadUsers(1);
+    });
+    document.getElementById("statusFilter").addEventListener("change", () => {
+      loadUsers(1);
+    });
+
+    // Pagination
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (currentPage > 1) loadUsers(currentPage - 1);
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if (currentPage < totalPages) loadUsers(currentPage + 1);
+    });
+
+    // Init
+    loadUsers(1);
+  });
+</script>
 </body>
 </html>
