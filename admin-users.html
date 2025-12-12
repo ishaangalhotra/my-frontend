@@ -88,6 +88,7 @@
     .badge.seller { background: #0891b2; }
     .badge.customer { background: #3b82f6; }
     .badge.moderator { background: #db2777; }
+    .badge.delivery_agent { background: #f97316; }
     
     /* Status Badges */
     .badge.active { background: #22c55e; }
@@ -170,7 +171,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="7">Loading users...</td></tr>
+        <tr><td colspan="7" style="text-align:center;">Loading users...</td></tr>
       </tbody>
     </table>
 
@@ -185,7 +186,9 @@
 <script>
   // ---------- CONFIG ----------
   const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
+  // We define both endpoints to be robust
   const ADMIN_API = API_BASE + "/api/v1/admin";
+  const USERS_API = API_BASE + "/api/v1/users";
 
   let currentPage = 1;
   let totalPages = 1;
@@ -198,6 +201,9 @@
       window.location.href = "admin-login.html";
       return;
     }
+
+    const tbody = document.querySelector("#usersTable tbody");
+    tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Loading users...</td></tr>";
 
     const search = document.getElementById('searchInput').value.trim();
     const role = document.getElementById('roleFilter').value;
@@ -213,12 +219,24 @@
     if (status) params.append("status", status);
 
     try {
-      const res = await fetch(`${ADMIN_API}/users?` + params.toString(), {
+      // 1. Try the Dedicated Admin Endpoint first
+      let res = await fetch(`${ADMIN_API}/users?` + params.toString(), {
         headers: {
           "Authorization": "Bearer " + token,
           "Accept": "application/json"
         }
       });
+
+      // 2. If 404 (Route missing), Fallback to Standard Users Endpoint
+      if (res.status === 404) {
+        console.warn("Admin route /admin/users missing (404). Falling back to /users...");
+        res = await fetch(`${USERS_API}?` + params.toString(), {
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Accept": "application/json"
+          }
+        });
+      }
 
       if (res.status === 401 || res.status === 403) {
         alert("Session expired. Please login again.");
@@ -236,20 +254,38 @@
         return;
       }
 
-      const users = data.data || [];
-      const pagination = data.pagination || {};
-      
+      // 3. Normalise Data (Handle different response structures)
+      let users = [];
+      let pagination = {};
+      let totalCount = 0;
+
+      // Handle Admin.js style response
+      if (Array.isArray(data.data)) {
+        users = data.data;
+        pagination = data.pagination || {};
+        totalCount = pagination.totalUsers || pagination.total || users.length;
+      } 
+      // Handle Users.js style response
+      else if (data.data && Array.isArray(data.data.users)) {
+        users = data.data.users;
+        pagination = data.data.pagination || data.pagination || {};
+        totalCount = pagination.totalUsers || pagination.total || users.length;
+      } 
+      // Fallback
+      else if (data.users && Array.isArray(data.users)) {
+        users = data.users;
+        totalCount = users.length;
+      }
+
       currentPage = pagination.currentPage || pagination.page || page || 1;
-      totalPages = pagination.totalPages || pagination.pages || 1;
-      const totalCount = pagination.totalUsers || pagination.total || users.length;
+      totalPages = pagination.totalPages || pagination.pages || Math.ceil(totalCount / 20) || 1;
 
       renderUsers(users);
       updatePagination(currentPage, totalPages, totalCount);
 
     } catch (err) {
       console.error("Load users error:", err);
-      renderUsers([]);
-      updatePagination(1, 1, 0);
+      tbody.innerHTML = `<tr><td colspan='7' style='color:red; text-align:center'>Error loading users: ${err.message}</td></tr>`;
     }
   }
 
@@ -259,7 +295,7 @@
     tbody.innerHTML = "";
 
     if (!users || users.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='7'>No users found.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>No users found.</td></tr>";
       return;
     }
 
@@ -275,6 +311,7 @@
       let status = "active";
       if (u.status) status = u.status;
       else if (u.isActive === false) status = "inactive";
+      else if (u.accountStatus) status = u.accountStatus;
       
       const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—";
       const id = u._id || u.id;
@@ -297,7 +334,7 @@
     });
   }
 
-  // ---------- UPDATE USER (Matches Products style) ----------
+  // ---------- UPDATE USER ----------
   async function updateUser(id, currentRole, currentStatus) {
     const token = localStorage.getItem("adminToken");
     if (!token) {
@@ -306,17 +343,14 @@
       return;
     }
 
-    // Role Prompt
     const newRoleInput = prompt(
       `Current Role: ${currentRole}\n\nEnter new role (customer / seller / admin / moderator / delivery_agent) or leave blank to keep same:`
     );
     
-    // Status Prompt
     const newStatusInput = prompt(
       `Current Status: ${currentStatus}\n\nEnter new status (active / inactive / suspended) or leave blank to keep same:`
     );
 
-    // If user changed nothing
     if ((!newRoleInput || newRoleInput.trim() === "") && (!newStatusInput || newStatusInput.trim() === "")) {
       return; 
     }
@@ -324,28 +358,43 @@
     const body = {};
     if (newRoleInput && newRoleInput.trim() !== "") body.role = newRoleInput.trim().toLowerCase();
     
-    // Handle Status
     if (newStatusInput && newStatusInput.trim() !== "") {
       const s = newStatusInput.trim().toLowerCase();
       body.status = s;
-      // Handle legacy boolean if needed by backend
+      // Handle active/inactive mapping
       if (s === 'active') body.isActive = true;
       if (s === 'inactive') body.isActive = false;
     }
 
     try {
-      const res = await fetch(
-        `${ADMIN_API}/users/${encodeURIComponent(id)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify(body)
-        }
-      );
+      // 1. Try Admin Endpoint
+      let url = `${ADMIN_API}/users/${encodeURIComponent(id)}`;
+      let method = "PUT";
+      
+      let res = await fetch(url, {
+        method: method,
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      // 2. If Admin Endpoint fails (404) and we are changing role, try Users Endpoint
+      if (res.status === 404 && body.role) {
+         console.log("Admin update failed, trying users role endpoint...");
+         url = `${USERS_API}/${encodeURIComponent(id)}/role`;
+         res = await fetch(url, {
+            method: "PATCH",
+            headers: {
+              "Authorization": "Bearer " + token,
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({ role: body.role })
+         });
+      }
 
       const data = await res.json().catch(() => ({}));
 
@@ -385,15 +434,9 @@
     });
 
     // Filters
-    document.getElementById("searchInput").addEventListener("input", () => {
-      loadUsers(1);
-    });
-    document.getElementById("roleFilter").addEventListener("change", () => {
-      loadUsers(1);
-    });
-    document.getElementById("statusFilter").addEventListener("change", () => {
-      loadUsers(1);
-    });
+    document.getElementById("searchInput").addEventListener("input", () => loadUsers(1));
+    document.getElementById("roleFilter").addEventListener("change", () => loadUsers(1));
+    document.getElementById("statusFilter").addEventListener("change", () => loadUsers(1));
 
     // Pagination
     document.getElementById("prevBtn").addEventListener("click", () => {
