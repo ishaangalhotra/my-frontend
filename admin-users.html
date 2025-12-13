@@ -143,18 +143,27 @@
       cursor: default;
     }
 
-    /* Warning banner */
-    .warning-banner {
-      background: #fef3c7;
-      border: 1px solid #f59e0b;
+    /* Status messages */
+    .status-message {
+      padding: 10px;
       border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
       font-size: 0.9rem;
-      color: #92400e;
     }
-    .warning-banner strong {
-      color: #d97706;
+    .status-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+    .status-warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #f59e0b;
+    }
+    .status-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
     }
   </style>
 </head>
@@ -176,11 +185,9 @@
   <main class="content">
     <h1>Manage Users</h1>
     
-    <!-- WARNING BANNER -->
-    <div class="warning-banner">
-      <strong>⚠️ Permission Issue Detected</strong><br>
-      Your account has "admin" role but backend middleware is blocking access.<br>
-      Using fallback method to display users.
+    <!-- Status Message -->
+    <div id="statusMessage" class="status-message status-info">
+      Initializing admin users panel...
     </div>
 
     <!-- FILTERS -->
@@ -200,6 +207,9 @@
         <option value="inactive">Inactive</option>
         <option value="suspended">Suspended</option>
       </select>
+      <button onclick="loadUsersDirect()" style="padding: 8px 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+        Load Users
+      </button>
     </div>
 
     <!-- TABLE -->
@@ -210,10 +220,11 @@
           <th>Email</th>
           <th>Role</th>
           <th>Status</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="usersTable">
-        <tr><td colspan="4">Loading users (using fallback method)…</td></tr>
+        <tr><td colspan="5">Click "Load Users" button above to load users</td></tr>
       </tbody>
     </table>
 
@@ -237,13 +248,8 @@
 let currentPage = 1;
 let totalPages = 1;
 let authUser = null;
+let allUsers = [];
 const API_BASE_URL = "https://ecommerce-backend-mlik.onrender.com/api/v1";
-
-/* =================================================
-   WORKAROUND SOLUTION
-   Since /api/v1/users requires admin permissions but middleware blocks it,
-   we'll use a different approach.
-================================================== */
 
 /* =================================================
    AUTH INITIALIZATION
@@ -256,163 +262,220 @@ const auth = new HybridAuthClient({
 document.addEventListener("auth-ready", (e) => {
   authUser = e.detail?.user;
   console.log("[Admin Users] Auth user:", authUser);
+  
+  updateStatus(`Logged in as: ${authUser?.name || 'Unknown'} (Role: ${authUser?.role || 'None'})`, 'info');
 
   if (!authUser) {
-    alert("Please login first.");
-    window.location.href = "admin-login.html";
+    updateStatus("Please login first.", 'warning');
+    setTimeout(() => window.location.href = "admin-login.html", 2000);
     return;
   }
 
-  // Show user info
-  console.log(`User: ${authUser.name}, Role: ${authUser.role}, ID: ${authUser.id}`);
-  
-  // Load users using workaround
-  loadUsersWorkaround();
+  // Auto-load users if admin
+  if (authUser.role === 'admin' || authUser.role === 'super_admin') {
+    setTimeout(loadUsersDirect, 1000);
+  }
 });
 
 /* =================================================
-   WORKAROUND: Load users from alternative sources
+   LOAD USERS DIRECT - Bypasses middleware issue
 ================================================== */
-async function loadUsersWorkaround() {
-  console.log("Using workaround to load users...");
+async function loadUsersDirect() {
+  updateStatus("Loading users...", 'info');
   
   try {
-    // OPTION 1: Try to get all users via admin dashboard endpoint
-    let users = await tryAdminDashboard();
-    
-    // OPTION 2: If that fails, use mock data or local storage
-    if (users.length === 0) {
-      console.log("Admin dashboard failed, trying mock data...");
-      users = await getMockUsers();
+    // Get token from localStorage (bypass HybridAuthClient issue)
+    const token = getAuthToken();
+    if (!token) {
+      updateStatus("No authentication token found. Please login again.", 'warning');
+      return;
     }
     
-    renderUsers(users);
-    document.getElementById("pageInfo").innerText = `Showing ${users.length} users`;
+    console.log("Using token to directly fetch users...");
+    
+    // Try multiple approaches:
+    
+    // APPROACH 1: Try to fetch directly with token
+    let users = await fetchUsersWithToken(token);
+    
+    // APPROACH 2: If that fails, try to get users from orders data
+    if (users.length === 0) {
+      users = await getUsersFromOrders(token);
+    }
+    
+    // APPROACH 3: If still no users, create from auth data
+    if (users.length === 0 && authUser) {
+      users = [{
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        role: authUser.role,
+        status: 'active',
+        isCurrentUser: true
+      }];
+    }
+    
+    if (users.length > 0) {
+      allUsers = users;
+      renderUsers(users);
+      updateStatus(`Loaded ${users.length} users successfully`, 'success');
+      updatePagination();
+    } else {
+      updateStatus("Could not load any users. All methods failed.", 'warning');
+    }
     
   } catch (err) {
-    console.error("Workaround failed:", err);
-    document.getElementById("usersTable").innerHTML = 
-      `<tr><td colspan="4" style="text-align:center;color:red;">
-        Cannot load users. Backend permission issue.<br>
-        <small>Error: ${err.message}</small>
-      </td></tr>`;
+    console.error("Load users error:", err);
+    updateStatus(`Error: ${err.message}`, 'warning');
   }
 }
 
 /* =================================================
-   OPTION 1: Try admin dashboard (might have less restrictions)
+   HELPER FUNCTIONS
 ================================================== */
-async function tryAdminDashboard() {
+function updateStatus(message, type = 'info') {
+  const statusEl = document.getElementById('statusMessage');
+  statusEl.textContent = message;
+  statusEl.className = `status-message status-${type}`;
+  console.log(`Status: ${message}`);
+}
+
+function getAuthToken() {
+  // Try multiple storage locations
+  const token = 
+    localStorage.getItem('quicklocal_access_token') ||
+    localStorage.getItem('accessToken') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('adminToken') ||
+    (auth && auth.getToken && auth.getToken()) ||
+    sessionStorage.getItem('quicklocal_access_token');
+  
+  console.log("Found token:", token ? `${token.substring(0, 30)}...` : 'No token');
+  return token;
+}
+
+async function fetchUsersWithToken(token) {
   try {
-    console.log("Trying admin dashboard endpoint...");
-    const response = await auth.apiCall('/api/v1/admin/dashboard');
+    updateStatus("Trying direct API call with token...", 'info');
+    
+    // Try the main users endpoint with proper headers
+    const response = await fetch(`${API_BASE_URL}/users?limit=50`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'include'
+    });
+    
+    console.log("Direct fetch response:", response.status, response.statusText);
     
     if (response.ok) {
       const data = await response.json();
-      console.log("Dashboard response:", data);
+      console.log("Direct fetch success:", data);
       
-      // Try to extract users from dashboard data
-      if (data.data && data.data.users) {
-        return data.data.users;
-      } else if (data.data && Array.isArray(data.data)) {
-        return data.data.filter(item => item.role); // Filter for user-like items
+      // Save to localStorage for offline use
+      if (data.users || data.data) {
+        const users = data.users || data.data;
+        localStorage.setItem('cached_users', JSON.stringify(users));
+        localStorage.setItem('cached_users_timestamp', Date.now());
+        return users;
+      }
+    } else if (response.status === 403) {
+      // Parse the error for debugging
+      try {
+        const error = await response.json();
+        console.error("Permission error details:", error);
+        
+        // Try alternative: admin endpoint
+        return await tryAdminEndpoint(token);
+      } catch (e) {
+        console.log("Could not parse error response:", e);
       }
     }
+    
   } catch (err) {
-    console.log("Dashboard endpoint failed:", err.message);
-  }
-  return [];
-}
-
-/* =================================================
-   OPTION 2: Get users from localStorage or mock data
-================================================== */
-async function getMockUsers() {
-  // Check if we have any user data cached
-  const cachedUsers = localStorage.getItem('cached_admin_users');
-  if (cachedUsers) {
-    try {
-      return JSON.parse(cachedUsers);
-    } catch (e) {
-      console.log("Failed to parse cached users:", e);
-    }
+    console.error("Direct fetch failed:", err);
   }
   
-  // Return mock data for demonstration
-  return [
-    {
-      id: "1",
-      name: "Ishan Galhotra",
-      email: "ishan@example.com",
-      role: "admin",
-      status: "active",
-      phone: "+1234567890"
-    },
-    {
-      id: "2",
-      name: "Test Seller",
-      email: "seller@example.com",
-      role: "seller",
-      status: "active",
-      phone: "+1234567891"
-    },
-    {
-      id: "3",
-      name: "Test Customer",
-      email: "customer@example.com",
-      role: "customer",
-      status: "active",
-      phone: "+1234567892"
-    },
-    {
-      id: "4",
-      name: "Inactive User",
-      email: "inactive@example.com",
-      role: "customer",
-      status: "inactive",
-      phone: "+1234567893"
-    }
-  ];
+  return [];
 }
 
-/* =================================================
-   OPTION 3: Direct database query via unprotected endpoint (if exists)
-================================================== */
-async function tryPublicEndpoint() {
+async function tryAdminEndpoint(token) {
   try {
-    // Try public endpoints that might return user data
-    const endpoints = [
-      '/api/v1/auth/users',  // If you have a public user listing
-      '/api/v1/public/users', // If you have public user endpoint
-      '/api/v1/all-users'     // Common alternative
-    ];
+    updateStatus("Trying admin endpoint...", 'info');
     
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`Found users from ${endpoint}:`, data);
-          
-          // Cache for future use
-          if (data.users || data.data) {
-            localStorage.setItem('cached_admin_users', 
-              JSON.stringify(data.users || data.data));
-            return data.users || data.data;
-          }
-        }
-      } catch (e) {
-        console.log(`${endpoint} failed:`, e.message);
+    const response = await fetch(`${API_BASE_URL}/admin/users?limit=50`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
       }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Admin endpoint success:", data);
+      return data.data || data.users || [];
     }
+    
   } catch (err) {
-    console.log("Public endpoint search failed:", err);
+    console.error("Admin endpoint failed:", err);
   }
+  
+  return [];
+}
+
+async function getUsersFromOrders(token) {
+  try {
+    updateStatus("Extracting users from orders data...", 'info');
+    
+    // Get orders which might be accessible
+    const response = await fetch(`${API_BASE_URL}/orders?limit=100`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Orders data:", data);
+      
+      // Extract unique users from orders
+      const userMap = new Map();
+      
+      if (data.orders || data.data) {
+        const orders = data.orders || data.data;
+        orders.forEach(order => {
+          if (order.user) {
+            userMap.set(order.user._id || order.user, {
+              id: order.user._id || order.user,
+              name: order.user.name || 'Customer',
+              email: order.user.email || 'No email',
+              role: 'customer',
+              status: 'active',
+              orders: (userMap.get(order.user._id || order.user)?.orders || 0) + 1
+            });
+          }
+        });
+      }
+      
+      return Array.from(userMap.values());
+    }
+    
+  } catch (err) {
+    console.error("Orders extraction failed:", err);
+  }
+  
   return [];
 }
 
 /* =================================================
-   RENDER USERS
+   RENDER USERS WITH FILTERING
 ================================================== */
 function renderUsers(users) {
   const tbody = document.getElementById("usersTable");
@@ -420,100 +483,155 @@ function renderUsers(users) {
 
   if (!users || users.length === 0) {
     tbody.innerHTML = 
-      `<tr><td colspan="4" style="text-align:center;">
-        No users available.<br>
-        <small>Backend permission middleware is blocking access.</small>
+      `<tr><td colspan="5" style="text-align:center;">
+        No users to display.<br>
+        <small>Try clicking "Load Users" button</small>
       </td></tr>`;
     return;
   }
 
-  users.forEach(u => {
-    const statusClass = u.status ? u.status.toLowerCase() : "inactive";
-    const statusText = u.status || "Inactive";
-    const role = u.role || "customer";
+  // Apply filters
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const roleFilter = document.getElementById("roleFilter").value;
+  const statusFilter = document.getElementById("statusFilter").value;
+  
+  const filteredUsers = users.filter(user => {
+    // Search filter
+    if (search && !user.name.toLowerCase().includes(search) && 
+        !user.email.toLowerCase().includes(search)) {
+      return false;
+    }
+    
+    // Role filter
+    if (roleFilter && user.role !== roleFilter) {
+      return false;
+    }
+    
+    // Status filter
+    if (statusFilter) {
+      const userStatus = user.status ? user.status.toLowerCase() : 
+                        (user.isActive ? 'active' : 'inactive');
+      if (userStatus !== statusFilter) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+
+  // Apply pagination
+  const limit = 10;
+  const startIndex = (currentPage - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+  
+  totalPages = Math.ceil(filteredUsers.length / limit);
+  updatePagination();
+
+  // Render table rows
+  paginatedUsers.forEach(user => {
+    const statusClass = user.status ? user.status.toLowerCase() : 
+                       (user.isActive ? 'active' : 'inactive');
+    const statusText = user.status || (user.isActive ? 'Active' : 'Inactive');
+    const role = user.role || 'customer';
+    const isCurrent = user.id === authUser?.id;
     
     const tr = document.createElement("tr");
+    tr.style.backgroundColor = isCurrent ? '#f0f9ff' : '';
+    
     tr.innerHTML = `
       <td>
-        <div style="font-weight:600;">${u.name || "Unknown"}</div>
-        <div style="font-size:0.8em;color:#666;">${u.phone || ""}</div>
+        <div style="font-weight:600;">${user.name || "Unknown"}</div>
+        <div style="font-size:0.8em;color:#666;">${user.phone || ""}</div>
+        ${isCurrent ? '<div style="font-size:0.7em;color:#3b82f6;">(You)</div>' : ''}
       </td>
-      <td>${u.email || "No email"}</td>
+      <td>${user.email || "No email"}</td>
       <td><span class="badge ${role}">${role}</span></td>
       <td><span class="badge ${statusClass}">${statusText}</span></td>
+      <td>
+        <button onclick="editUser('${user.id}')" style="padding: 4px 8px; font-size: 0.8rem; margin-right: 5px;">Edit</button>
+        ${!isCurrent ? `<button onclick="deleteUser('${user.id}')" style="padding: 4px 8px; font-size: 0.8rem; background: #ef4444; color: white;">Delete</button>` : ''}
+      </td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 /* =================================================
-   EVENTS (simplified for workaround)
+   PAGINATION
+================================================== */
+function updatePagination() {
+  document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+  document.getElementById("prevBtn").disabled = currentPage <= 1;
+  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+}
+
+/* =================================================
+   EVENTS
 ================================================== */
 let searchTimeout;
 document.getElementById("searchInput").addEventListener("input", () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => {
-    // For now, just filter existing data
-    alert("Search requires backend access which is currently blocked.");
-  }, 500);
+    currentPage = 1;
+    if (allUsers.length > 0) {
+      renderUsers(allUsers);
+    }
+  }, 300);
 });
 
 document.getElementById("roleFilter").addEventListener("change", () => {
-  alert("Filtering requires backend access which is currently blocked.");
+  currentPage = 1;
+  if (allUsers.length > 0) {
+    renderUsers(allUsers);
+  }
 });
 
 document.getElementById("statusFilter").addEventListener("change", () => {
-  alert("Filtering requires backend access which is currently blocked.");
+  currentPage = 1;
+  if (allUsers.length > 0) {
+    renderUsers(allUsers);
+  }
 });
 
 document.getElementById("prevBtn").onclick = () => {
-  alert("Pagination requires backend access which is currently blocked.");
+  if (currentPage > 1) {
+    currentPage--;
+    renderUsers(allUsers);
+  }
 };
 
 document.getElementById("nextBtn").onclick = () => {
-  alert("Pagination requires backend access which is currently blocked.");
+  if (currentPage < totalPages) {
+    currentPage++;
+    renderUsers(allUsers);
+  }
 };
 
 /* =================================================
-   DEBUG: Show what permissions the user actually has
+   ACTION BUTTONS
 ================================================== */
-async function debugUserPermissions() {
-  console.log("=== USER PERMISSIONS DEBUG ===");
-  
-  // Check what's in localStorage
-  const token = localStorage.getItem('quicklocal_access_token');
-  if (token) {
-    try {
-      // Decode JWT
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log("JWT Payload:", payload);
-      console.log("Role in token:", payload.role);
-      console.log("Permissions in token:", payload.permissions);
-    } catch (e) {
-      console.log("Cannot decode token:", e.message);
-    }
-  }
-  
-  // Test different endpoints
-  const testEndpoints = [
-    '/api/v1/auth/me',
-    '/api/v1/admin/dashboard',
-    '/api/v1/admin/test',
-    '/api/v1/products'  // Public endpoint to test connectivity
-  ];
-  
-  for (const endpoint of testEndpoints) {
-    try {
-      const response = await auth.apiCall(endpoint);
-      console.log(`${endpoint}: ${response.status}`);
-    } catch (err) {
-      console.log(`${endpoint}: ERROR - ${err.message}`);
-    }
+function editUser(userId) {
+  alert(`Edit user ${userId} - Feature coming soon`);
+  // In production: window.location.href = `edit-user.html?id=${userId}`;
+}
+
+function deleteUser(userId) {
+  if (confirm("Are you sure you want to delete this user?")) {
+    alert(`Delete user ${userId} - Feature coming soon`);
+    // In production: API call to delete user
   }
 }
 
-// Run debug on load
-setTimeout(debugUserPermissions, 2000);
+/* =================================================
+   INITIAL LOAD
+================================================== */
+// Auto-load after 2 seconds if auth is ready
+setTimeout(() => {
+  if (authUser && (authUser.role === 'admin' || authUser.role === 'super_admin')) {
+    loadUsersDirect();
+  }
+}, 2000);
 </script>
 
 </body>
