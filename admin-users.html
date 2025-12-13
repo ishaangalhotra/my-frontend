@@ -4,28 +4,34 @@
   <meta charset="UTF-8" />
   <title>Admin Users • QuickLocal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
   <style>
     body {
       margin: 0;
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: #f5f5f5;
     }
+
     .container {
       display: flex;
       min-height: 100vh;
     }
+
+    /* SIDEBAR */
     .sidebar {
       width: 240px;
       background: #111827;
       color: white;
       padding: 20px;
     }
+
     .sidebar h2 {
-      margin-top: 0;
-      margin-bottom: 15px;
+      margin: 0 0 20px;
       font-size: 1.2rem;
     }
+
     .sidebar a {
       display: block;
       padding: 10px;
@@ -35,47 +41,61 @@
       border-radius: 6px;
       font-size: 0.9rem;
     }
-    .sidebar a.active, .sidebar a:hover {
+
+    .sidebar a.active,
+    .sidebar a:hover {
       background: #4f46e5;
       color: white;
     }
+
+    /* CONTENT */
     .content {
       flex: 1;
       padding: 25px;
     }
+
     h1 {
       margin-top: 0;
-      font-size: 1.4rem;
       margin-bottom: 15px;
+      font-size: 1.5rem;
     }
+
+    /* FILTERS */
     .filters {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
-    .filters input, .filters select {
+
+    .filters input,
+    .filters select {
       padding: 8px 10px;
       border-radius: 6px;
       border: 1px solid #d1d5db;
       font-size: 0.85rem;
     }
+
+    /* TABLE */
     table {
       width: 100%;
       background: white;
       border-collapse: collapse;
-      margin-top: 15px;
+      margin-top: 10px;
     }
-    table th, table td {
+
+    th, td {
       padding: 10px;
-      border: 1px solid #e5e5e5;
+      border: 1px solid #e5e7eb;
       font-size: 0.9rem;
       text-align: left;
     }
-    table th {
+
+    th {
       background: #f3f4f6;
-      font-weight: 600;
     }
+
+    /* BADGES */
     .badge {
       padding: 4px 8px;
       border-radius: 6px;
@@ -83,27 +103,18 @@
       color: white;
       text-transform: capitalize;
     }
-    /* Role Badges */
+
     .badge.admin { background: #7c3aed; }
     .badge.seller { background: #0891b2; }
     .badge.customer { background: #3b82f6; }
     .badge.moderator { background: #db2777; }
     .badge.delivery_agent { background: #f97316; }
-    
-    /* Status Badges */
+
     .badge.active { background: #22c55e; }
     .badge.inactive { background: #9ca3af; }
     .badge.suspended { background: #f59e0b; }
-    
-    .action-btn {
-      padding: 6px 10px;
-      font-size: 0.8rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      background: #4f46e5;
-      color: white;
-    }
+
+    /* PAGINATION */
     .pagination {
       margin-top: 15px;
       display: flex;
@@ -111,6 +122,7 @@
       align-items: center;
       font-size: 0.85rem;
     }
+
     .pagination button {
       padding: 6px 10px;
       border-radius: 6px;
@@ -120,34 +132,39 @@
       color: white;
       font-size: 0.8rem;
     }
+
     .pagination button:disabled {
       opacity: 0.5;
       cursor: default;
     }
   </style>
 </head>
+
 <body>
 <div class="container">
 
+  <!-- SIDEBAR -->
   <aside class="sidebar">
     <h2>QuickLocal Admin</h2>
     <a href="admin-dashboard.html">Dashboard</a>
     <a href="admin-orders.html">Orders</a>
     <a class="active" href="admin-users.html">Users</a>
     <a href="admin-products.html">Products</a>
-    <a href="admin-login.html" id="logoutLink">Logout</a>
+    <a href="admin-login.html">Logout</a>
   </aside>
 
+  <!-- CONTENT -->
   <main class="content">
     <h1>Manage Users</h1>
 
+    <!-- FILTERS -->
     <div class="filters">
-      <input id="searchInput" type="text" placeholder="Search name, email, phone..." />
+      <input id="searchInput" type="text" placeholder="Search name or email"/>
       <select id="roleFilter">
         <option value="">All Roles</option>
-        <option value="customer">Customer</option>
-        <option value="seller">Seller</option>
         <option value="admin">Admin</option>
+        <option value="seller">Seller</option>
+        <option value="customer">Customer</option>
         <option value="moderator">Moderator</option>
         <option value="delivery_agent">Delivery Agent</option>
       </select>
@@ -155,315 +172,174 @@
         <option value="">All Status</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
+        <option value="suspended">Suspended</option>
       </select>
     </div>
 
-    <table id="usersTable">
+    <!-- TABLE -->
+    <table>
       <thead>
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th>Phone</th>
           <th>Role</th>
           <th>Status</th>
-          <th>Joined</th>
-          <th>Update</th>
         </tr>
       </thead>
-      <tbody>
-        <tr><td colspan="7" style="text-align:center;">Loading users...</td></tr>
+      <tbody id="usersTable">
+        <tr><td colspan="4">Loading users…</td></tr>
       </tbody>
     </table>
 
+    <!-- PAGINATION -->
     <div class="pagination">
       <button id="prevBtn">Prev</button>
+      <span id="pageInfo">Page 1</span>
       <button id="nextBtn">Next</button>
-      <span id="pageInfo"></span>
     </div>
   </main>
+
 </div>
 
+<!-- AUTH -->
+<script src="js/hybrid-auth-client.js"></script>
+
 <script>
-  // ---------- CONFIG ----------
-  const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
-  const API_V1 = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : (API_BASE + "/api/v1");
-  const ADMIN_API = API_V1 + "/admin";
-  const USERS_API = API_V1 + "/users";
+/* ================================
+   GLOBAL STATE
+================================ */
+let currentPage = 1;
+let totalPages = 1;
+let authUser = null;
 
-  let currentPage = 1;
-  let totalPages = 1;
+/* ================================
+   AUTH INIT (FIXED)
+================================ */
+const auth = new HybridAuthClient({
+  autoInitialize: true,
+  enableSessionWatcher: true
+});
 
-  async function fetchUsersWithFallback(params, token) {
-    let res;
-    let data = {};
-    const headers = {
-      "Authorization": "Bearer " + token,
-      "Accept": "application/json"
-    };
-    const urls = [
-      `${ADMIN_API}/users?` + params.toString(),
-      `${ADMIN_API}/users/?` + params.toString(),
-      `${ADMIN_API}/users/list?` + params.toString()
-    ];
-    for (const url of urls) {
-      try {
-        res = await fetch(url, { headers, credentials: "include" });
-        if (res.ok) {
-          data = await res.json().catch(() => ({}));
-          return { res, data };
-        }
-        if (res.status !== 404) {
-          data = await res.json().catch(() => ({}));
-          return { res, data };
-        }
-      } catch (_) {}
-    }
-    res = await fetch(`${USERS_API}?` + params.toString(), { headers, credentials: "include" });
-    data = await res.json().catch(() => ({}));
-    return { res, data };
+document.addEventListener("auth-ready", (e) => {
+  authUser = e.detail?.user;
+
+  console.log("[Admin Users] Auth user:", authUser);
+
+  if (!authUser || authUser.role !== "admin") {
+    alert("Access denied. Admin login required.");
+    window.location.href = "admin-login.html";
+    return;
   }
 
-  // ---------- LOAD USERS ----------
-  async function loadUsers(page = 1) {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      alert("Please login as admin.");
-      window.location.href = "admin-login.html";
-      return;
-    }
+  loadUsers();
+});
 
-    const tbody = document.querySelector("#usersTable tbody");
-    tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Loading users...</td></tr>";
+/* ================================
+   LOAD USERS
+================================ */
+async function loadUsers() {
+  const search = document.getElementById("searchInput").value.trim();
+  const role = document.getElementById("roleFilter").value;
+  const status = document.getElementById("statusFilter").value;
 
-    const search = document.getElementById('searchInput').value.trim();
-    const role = document.getElementById('roleFilter').value;
-    const status = document.getElementById('statusFilter').value;
+  const token =
+    localStorage.getItem("supabase_access_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken");
 
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: "20"
-    });
-
-    if (search) params.append("search", search);
-    if (role) params.append("role", role);
-    if (status) params.append("status", status);
-
-    try {
-      const { res, data } = await fetchUsersWithFallback(params, token);
-
-      // 3. Handle Errors with detailed message
-      if (!res.ok) {
-        if (res.status === 401) {
-          alert(`Session expired. Please login again.`);
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminUser");
-          // We removed the auto-redirect so you can see the message. 
-          // Uncomment next line to re-enable auto-redirect.
-          window.location.href = "admin-login.html";
-          return;
-        }
-        if (res.status === 403) {
-          alert(`Access denied. Please ensure you are logged in with an admin account.`);
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminUser");
-          window.location.href = "admin-login.html";
-          return;
-        }
-        
-        console.error("API Error:", res.status, data);
-        throw new Error(`API Error ${res.status}: ${data.message || res.statusText}`);
-      }
-
-      console.log("Users API response:", data);
-
-      // 4. Normalise Data (Handle different response structures)
-      let users = [];
-      let pagination = {};
-      let totalCount = 0;
-
-      // Handle Admin.js style response (flat data array)
-      if (Array.isArray(data.data)) {
-        users = data.data;
-        pagination = data.pagination || {};
-        totalCount = pagination.totalUsers || pagination.total || users.length;
-      } 
-      // Handle Users.js style response (nested users array)
-      else if (data.data && Array.isArray(data.data.users)) {
-        users = data.data.users;
-        pagination = data.data.pagination || data.pagination || {};
-        totalCount = pagination.totalUsers || pagination.total || users.length;
-      } 
-      // Fallback for older formats
-      else if (data.users && Array.isArray(data.users)) {
-        users = data.users;
-        totalCount = users.length;
-      }
-
-      currentPage = pagination.currentPage || pagination.page || page || 1;
-      totalPages = pagination.totalPages || pagination.pages || Math.ceil(totalCount / 20) || 1;
-
-      renderUsers(users);
-      updatePagination(currentPage, totalPages, totalCount);
-
-    } catch (err) {
-      console.error("Load users error:", err);
-      tbody.innerHTML = `<tr><td colspan='7' style='color:red; text-align:center'>${err.message}</td></tr>`;
-    }
-  }
-
-  // ---------- RENDER USERS ----------
-  function renderUsers(users) {
-    const tbody = document.querySelector("#usersTable tbody");
-    tbody.innerHTML = "";
-
-    if (!users || users.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>No users found.</td></tr>";
-      return;
-    }
-
-    users.forEach(u => {
-      const tr = document.createElement("tr");
-
-      const name = u.name || "Unknown";
-      const email = u.email || "—";
-      const phone = u.phone || "—";
-      const role = u.role || "customer";
-      
-      // Determine status safely
-      let status = "active";
-      if (u.status) status = u.status;
-      else if (u.isActive === false) status = "inactive";
-      else if (u.accountStatus) status = u.accountStatus;
-      
-      const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—";
-      const id = u._id || u.id;
-
-      tr.innerHTML = `
-        <td>${name}</td>
-        <td>${email}</td>
-        <td>${phone}</td>
-        <td><span class="badge ${role}">${role}</span></td>
-        <td><span class="badge ${status}">${status}</span></td>
-        <td>${joined}</td>
-        <td>
-          <button class="action-btn" onclick="updateUser('${id}', '${role}', '${status}')">
-            Update
-          </button>
-        </td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-  }
-
-  // ---------- UPDATE USER ----------
-  async function updateUser(id, currentRole, currentStatus) {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      alert("Please login as admin.");
-      window.location.href = "admin-login.html";
-      return;
-    }
-
-    const newRoleInput = prompt(
-      `Current Role: ${currentRole}\n\nEnter new role (customer / seller / admin / moderator / delivery_agent) or leave blank to keep same:`
-    );
-    
-    const newStatusInput = prompt(
-      `Current Status: ${currentStatus}\n\nEnter new status (active / inactive / suspended) or leave blank to keep same:`
-    );
-
-    if ((!newRoleInput || newRoleInput.trim() === "") && (!newStatusInput || newStatusInput.trim() === "")) {
-      return; 
-    }
-
-    const body = {};
-    if (newRoleInput && newRoleInput.trim() !== "") body.role = newRoleInput.trim().toLowerCase();
-    
-    if (newStatusInput && newStatusInput.trim() !== "") {
-      const s = newStatusInput.trim().toLowerCase();
-      body.status = s;
-      if (s === 'active') body.isActive = true;
-      if (s === 'inactive') body.isActive = false;
-    }
-
-    try {
-      // 1. Try Admin Endpoint
-      let url = `${ADMIN_API}/users/${encodeURIComponent(id)}`;
-      let res = await fetch(url, {
-        method: "PUT",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      // 2. If Admin Endpoint fails (404/403), try Users Endpoint
-      if ((res.status === 404 || res.status === 403) && body.role) {
-         console.log("Admin update failed, trying users role endpoint...");
-         url = `${USERS_API}/${encodeURIComponent(id)}/role`;
-         res = await fetch(url, {
-            method: "PATCH",
-            headers: {
-              "Authorization": "Bearer " + token,
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
-            body: JSON.stringify({ role: body.role })
-         });
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        alert("Update failed: " + (data.message || res.statusText));
-        return;
-      }
-
-      alert("User updated successfully!");
-      loadUsers(currentPage);
-    } catch (err) {
-      console.error("Update error:", err);
-      alert("Error updating user: " + err.message);
-    }
-  }
-
-  // ---------- PAGINATION ----------
-  function updatePagination(current, total, count) {
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const pageInfo = document.getElementById("pageInfo");
-
-    prevBtn.disabled = current <= 1;
-    nextBtn.disabled = current >= total;
-
-    pageInfo.textContent = `Page ${current} of ${total} • ${count} users`;
-  }
-
-  // ---------- EVENTS ----------
-  document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("logoutLink").addEventListener("click", (e) => {
-      e.preventDefault();
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminUser");
-      window.location.href = "admin-login.html";
-    });
-
-    document.getElementById("searchInput").addEventListener("input", () => loadUsers(1));
-    document.getElementById("roleFilter").addEventListener("change", () => loadUsers(1));
-    document.getElementById("statusFilter").addEventListener("change", () => loadUsers(1));
-
-    document.getElementById("prevBtn").addEventListener("click", () => {
-      if (currentPage > 1) loadUsers(currentPage - 1);
-    });
-    document.getElementById("nextBtn").addEventListener("click", () => {
-      if (currentPage < totalPages) loadUsers(currentPage + 1);
-    });
-
-    loadUsers(1);
+  const params = new URLSearchParams({
+    page: currentPage,
+    limit: 10
   });
+
+  if (search) params.append("search", search);
+  if (role) params.append("role", role);
+  if (status) params.append("status", status);
+
+  try {
+    const res = await fetch(
+      `https://ecommerce-backend-mlik.onrender.com/api/v1/admin/users?${params}`,
+      {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("Unauthorized");
+    }
+
+    const json = await res.json();
+    renderUsers(json.data || json.users || []);
+    totalPages = json.pagination?.totalPages || 1;
+    document.getElementById("pageInfo").innerText =
+      `Page ${currentPage} of ${totalPages}`;
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("usersTable").innerHTML =
+      `<tr><td colspan="4">Failed to load users</td></tr>`;
+  }
+}
+
+/* ================================
+   RENDER USERS
+================================ */
+function renderUsers(users) {
+  const tbody = document.getElementById("usersTable");
+  tbody.innerHTML = "";
+
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="4">No users found</td></tr>`;
+    return;
+  }
+
+  users.forEach(u => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${u.name || "-"}</td>
+      <td>${u.email}</td>
+      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td><span class="badge ${u.status || "active"}">${u.status || "active"}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ================================
+   EVENTS
+================================ */
+document.getElementById("searchInput").addEventListener("input", () => {
+  currentPage = 1;
+  loadUsers();
+});
+
+document.getElementById("roleFilter").addEventListener("change", () => {
+  currentPage = 1;
+  loadUsers();
+});
+
+document.getElementById("statusFilter").addEventListener("change", () => {
+  currentPage = 1;
+  loadUsers();
+});
+
+document.getElementById("prevBtn").onclick = () => {
+  if (currentPage > 1) {
+    currentPage--;
+    loadUsers();
+  }
+};
+
+document.getElementById("nextBtn").onclick = () => {
+  if (currentPage < totalPages) {
+    currentPage++;
+    loadUsers();
+  }
+};
 </script>
+
 </body>
 </html>
