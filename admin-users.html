@@ -70,6 +70,7 @@
       gap: 10px;
       flex-wrap: wrap;
       margin-bottom: 15px;
+      align-items: center;
     }
 
     .filters input,
@@ -80,24 +81,49 @@
       font-size: 0.85rem;
     }
 
+    .load-btn {
+      padding: 8px 15px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .load-btn:hover {
+      background: #0da271;
+    }
+    .load-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
     /* ================= TABLE ================= */
     table {
       width: 100%;
       background: white;
       border-collapse: collapse;
       margin-top: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     th,
     td {
-      padding: 10px;
+      padding: 12px;
       border: 1px solid #e5e7eb;
       font-size: 0.9rem;
       text-align: left;
     }
 
     th {
-      background: #f3f4f6;
+      background: #f8fafc;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    tr:hover {
+      background: #f9fafb;
     }
 
     /* ================= BADGES ================= */
@@ -107,6 +133,9 @@
       font-size: 0.75rem;
       color: white;
       text-transform: capitalize;
+      display: inline-block;
+      min-width: 70px;
+      text-align: center;
     }
 
     .badge.admin { background: #7c3aed; }
@@ -118,6 +147,7 @@
     .badge.active { background: #22c55e; }
     .badge.inactive { background: #9ca3af; }
     .badge.suspended { background: #f59e0b; }
+    .badge.pending { background: #f59e0b; }
 
     /* ================= PAGINATION ================= */
     .pagination {
@@ -129,13 +159,17 @@
     }
 
     .pagination button {
-      padding: 6px 10px;
+      padding: 6px 12px;
       border-radius: 6px;
       border: none;
       cursor: pointer;
       background: #111827;
       color: white;
       font-size: 0.8rem;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background: #374151;
     }
 
     .pagination button:disabled {
@@ -145,10 +179,13 @@
 
     /* Status messages */
     .status-message {
-      padding: 10px;
+      padding: 12px 15px;
       border-radius: 6px;
       margin-bottom: 15px;
       font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .status-info {
       background: #dbeafe;
@@ -164,6 +201,76 @@
       background: #d1fae5;
       color: #065f46;
       border: 1px solid #6ee7b7;
+    }
+    .status-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .status-icon {
+      font-size: 1rem;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      background: white;
+      padding: 12px 15px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      min-width: 120px;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    /* Action buttons */
+    .action-btn {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      background: white;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+    .action-btn:hover {
+      background: #f3f4f6;
+    }
+    .action-btn.delete {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+    .action-btn.delete:hover {
+      background: #fecaca;
+    }
+    .action-btn.edit {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1e40af;
+    }
+    .action-btn.edit:hover {
+      background: #bfdbfe;
+    }
+
+    /* Current user highlight */
+    .current-user {
+      background: #f0f9ff !important;
+      border-left: 3px solid #3b82f6;
     }
   </style>
 </head>
@@ -187,7 +294,28 @@
     
     <!-- Status Message -->
     <div id="statusMessage" class="status-message status-info">
-      Initializing admin users panel...
+      <span class="status-icon">⏳</span>
+      <span id="statusText">Initializing admin users panel...</span>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-label">Total Users</div>
+        <div id="totalUsers" class="stat-value">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Active</div>
+        <div id="activeUsers" class="stat-value">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Customers</div>
+        <div id="customerCount" class="stat-value">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Sellers</div>
+        <div id="sellerCount" class="stat-value">0</div>
+      </div>
     </div>
 
     <!-- FILTERS -->
@@ -206,9 +334,14 @@
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
         <option value="suspended">Suspended</option>
+        <option value="pending">Pending</option>
       </select>
-      <button onclick="loadUsersDirect()" style="padding: 8px 15px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
-        Load Users
+      <button id="loadBtn" class="load-btn" onclick="loadUsers()">
+        <span id="loadBtnText">Load Users</span>
+        <span id="loadSpinner" style="display:none;">⌛</span>
+      </button>
+      <button class="load-btn" onclick="refreshUsers()" style="background: #3b82f6;">
+        Refresh
       </button>
     </div>
 
@@ -220,19 +353,23 @@
           <th>Email</th>
           <th>Role</th>
           <th>Status</th>
+          <th>Orders</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="usersTable">
-        <tr><td colspan="5">Click "Load Users" button above to load users</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding: 30px;">Click "Load Users" to load user data</td></tr>
       </tbody>
     </table>
 
     <!-- PAGINATION -->
     <div class="pagination">
       <button id="prevBtn">Prev</button>
-      <span id="pageInfo">Page 1</span>
+      <span id="pageInfo">Page 1 of 1</span>
       <button id="nextBtn">Next</button>
+      <span style="margin-left: auto; color: #6b7280; font-size: 0.8rem;">
+        Showing <span id="showingCount">0</span> of <span id="totalCount">0</span> users
+      </span>
     </div>
   </main>
 
@@ -246,9 +383,11 @@
    GLOBAL STATE
 ================================================== */
 let currentPage = 1;
+const limitPerPage = 10;
 let totalPages = 1;
 let authUser = null;
 let allUsers = [];
+let filteredUsers = [];
 const API_BASE_URL = "https://ecommerce-backend-mlik.onrender.com/api/v1";
 
 /* =================================================
@@ -271,63 +410,101 @@ document.addEventListener("auth-ready", (e) => {
     return;
   }
 
-  // Auto-load users if admin
+  // Auto-load if admin
   if (authUser.role === 'admin' || authUser.role === 'super_admin') {
-    setTimeout(loadUsersDirect, 1000);
+    setTimeout(() => {
+      updateStatus('Ready to load users. Click "Load Users" button.', 'info');
+    }, 500);
+  } else {
+    updateStatus('Access denied. Admin privileges required.', 'error');
   }
 });
 
 /* =================================================
-   LOAD USERS DIRECT - Bypasses middleware issue
+   MAIN LOAD FUNCTION
 ================================================== */
-async function loadUsersDirect() {
-  updateStatus("Loading users...", 'info');
+async function loadUsers() {
+  const loadBtn = document.getElementById('loadBtn');
+  const loadBtnText = document.getElementById('loadBtnText');
+  const loadSpinner = document.getElementById('loadSpinner');
+  
+  // Show loading state
+  loadBtn.disabled = true;
+  loadBtnText.textContent = 'Loading...';
+  loadSpinner.style.display = 'inline';
+  
+  updateStatus("Loading user data from orders...", 'info');
   
   try {
-    // Get token from localStorage (bypass HybridAuthClient issue)
+    // Get token from localStorage
     const token = getAuthToken();
     if (!token) {
-      updateStatus("No authentication token found. Please login again.", 'warning');
-      return;
+      throw new Error("No authentication token found");
     }
     
-    console.log("Using token to directly fetch users...");
+    // Load orders to extract users
+    const orders = await loadOrders(token);
     
-    // Try multiple approaches:
+    // Extract users from orders
+    const users = extractUsersFromOrders(orders);
     
-    // APPROACH 1: Try to fetch directly with token
-    let users = await fetchUsersWithToken(token);
-    
-    // APPROACH 2: If that fails, try to get users from orders data
-    if (users.length === 0) {
-      users = await getUsersFromOrders(token);
-    }
-    
-    // APPROACH 3: If still no users, create from auth data
-    if (users.length === 0 && authUser) {
-      users = [{
+    // Add current user if not in list
+    if (authUser && !users.find(u => u.id === authUser.id)) {
+      users.unshift({
         id: authUser.id,
         name: authUser.name,
         email: authUser.email,
         role: authUser.role,
         status: 'active',
-        isCurrentUser: true
-      }];
+        isCurrentUser: true,
+        orderCount: 0
+      });
     }
     
-    if (users.length > 0) {
-      allUsers = users;
-      renderUsers(users);
-      updateStatus(`Loaded ${users.length} users successfully`, 'success');
-      updatePagination();
-    } else {
-      updateStatus("Could not load any users. All methods failed.", 'warning');
-    }
+    // Store and display
+    allUsers = users;
+    filteredUsers = [...users];
+    
+    // Update UI
+    updateStats(users);
+    renderUsers();
+    updateStatus(`Successfully loaded ${users.length} users from order history`, 'success');
+    
+    // Cache for future
+    localStorage.setItem('cached_users', JSON.stringify(users));
+    localStorage.setItem('cached_users_timestamp', Date.now());
     
   } catch (err) {
     console.error("Load users error:", err);
-    updateStatus(`Error: ${err.message}`, 'warning');
+    updateStatus(`Error: ${err.message}`, 'error');
+    
+    // Try to load cached data
+    const cached = localStorage.getItem('cached_users');
+    if (cached) {
+      try {
+        allUsers = JSON.parse(cached);
+        filteredUsers = [...allUsers];
+        updateStats(allUsers);
+        renderUsers();
+        updateStatus(`Loaded ${allUsers.length} cached users`, 'warning');
+      } catch (e) {
+        console.error("Failed to load cached users:", e);
+      }
+    }
+    
+  } finally {
+    // Reset button state
+    loadBtn.disabled = false;
+    loadBtnText.textContent = 'Load Users';
+    loadSpinner.style.display = 'none';
   }
+}
+
+async function refreshUsers() {
+  // Clear cache and reload
+  localStorage.removeItem('cached_users');
+  localStorage.removeItem('cached_users_timestamp');
+  loadUsers();
 }
 
 /* =================================================
@@ -335,8 +512,22 @@ async function loadUsersDirect() {
 ================================================== */
 function updateStatus(message, type = 'info') {
   const statusEl = document.getElementById('statusMessage');
-  statusEl.textContent = message;
+  const statusText = document.getElementById('statusText');
+  
+  // Update classes
   statusEl.className = `status-message status-${type}`;
+  
+  // Update icon
+  const iconMap = {
+    'info': 'ℹ️',
+    'warning': '⚠️',
+    'success': '✅',
+    'error': '❌'
+  };
+  statusEl.querySelector('.status-icon').textContent = iconMap[type] || 'ℹ️';
+  
+  // Update text
+  statusText.textContent = message;
   console.log(`Status: ${message}`);
 }
 
@@ -350,156 +541,118 @@ function getAuthToken() {
     (auth && auth.getToken && auth.getToken()) ||
     sessionStorage.getItem('quicklocal_access_token');
   
-  console.log("Found token:", token ? `${token.substring(0, 30)}...` : 'No token');
   return token;
 }
 
-async function fetchUsersWithToken(token) {
+async function loadOrders(token) {
   try {
-    updateStatus("Trying direct API call with token...", 'info');
-    
-    // Try the main users endpoint with proper headers
-    const response = await fetch(`${API_BASE_URL}/users?limit=50`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      credentials: 'include'
-    });
-    
-    console.log("Direct fetch response:", response.status, response.statusText);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Direct fetch success:", data);
-      
-      // Save to localStorage for offline use
-      if (data.users || data.data) {
-        const users = data.users || data.data;
-        localStorage.setItem('cached_users', JSON.stringify(users));
-        localStorage.setItem('cached_users_timestamp', Date.now());
-        return users;
-      }
-    } else if (response.status === 403) {
-      // Parse the error for debugging
-      try {
-        const error = await response.json();
-        console.error("Permission error details:", error);
-        
-        // Try alternative: admin endpoint
-        return await tryAdminEndpoint(token);
-      } catch (e) {
-        console.log("Could not parse error response:", e);
-      }
-    }
-    
-  } catch (err) {
-    console.error("Direct fetch failed:", err);
-  }
-  
-  return [];
-}
-
-async function tryAdminEndpoint(token) {
-  try {
-    updateStatus("Trying admin endpoint...", 'info');
-    
-    const response = await fetch(`${API_BASE_URL}/admin/users?limit=50`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Admin endpoint success:", data);
-      return data.data || data.users || [];
-    }
-    
-  } catch (err) {
-    console.error("Admin endpoint failed:", err);
-  }
-  
-  return [];
-}
-
-async function getUsersFromOrders(token) {
-  try {
-    updateStatus("Extracting users from orders data...", 'info');
-    
-    // Get orders which might be accessible
     const response = await fetch(`${API_BASE_URL}/orders?limit=100`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     });
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Orders data:", data);
-      
-      // Extract unique users from orders
-      const userMap = new Map();
-      
-      if (data.orders || data.data) {
-        const orders = data.orders || data.data;
-        orders.forEach(order => {
-          if (order.user) {
-            userMap.set(order.user._id || order.user, {
-              id: order.user._id || order.user,
-              name: order.user.name || 'Customer',
-              email: order.user.email || 'No email',
-              role: 'customer',
-              status: 'active',
-              orders: (userMap.get(order.user._id || order.user)?.orders || 0) + 1
-            });
-          }
-        });
-      }
-      
-      return Array.from(userMap.values());
+    if (!response.ok) {
+      throw new Error(`Failed to load orders: ${response.status}`);
     }
     
+    const data = await response.json();
+    return data.orders || data.data || [];
+    
   } catch (err) {
-    console.error("Orders extraction failed:", err);
+    console.error("Load orders error:", err);
+    throw err;
+  }
+}
+
+function extractUsersFromOrders(orders) {
+  const userMap = new Map();
+  
+  // Add current user first
+  if (authUser) {
+    userMap.set(authUser.id, {
+      id: authUser.id,
+      name: authUser.name,
+      email: authUser.email,
+      role: authUser.role,
+      status: 'active',
+      isCurrentUser: true,
+      orderCount: 0,
+      totalSpent: 0,
+      lastOrder: null
+    });
   }
   
-  return [];
+  // Process orders
+  orders.forEach(order => {
+    if (order.user && order.user._id) {
+      const userId = order.user._id;
+      const existingUser = userMap.get(userId);
+      
+      if (existingUser) {
+        // Update existing user
+        existingUser.orderCount = (existingUser.orderCount || 0) + 1;
+        existingUser.totalSpent = (existingUser.totalSpent || 0) + (order.totalAmount || order.total || 0);
+        if (!existingUser.lastOrder || new Date(order.createdAt) > new Date(existingUser.lastOrder)) {
+          existingUser.lastOrder = order.createdAt;
+        }
+      } else {
+        // Create new user
+        userMap.set(userId, {
+          id: userId,
+          name: order.user.name || 'Customer',
+          email: order.user.email || 'No email',
+          phone: order.user.phone || '',
+          role: order.user.role || 'customer',
+          status: 'active',
+          orderCount: 1,
+          totalSpent: order.totalAmount || order.total || 0,
+          lastOrder: order.createdAt,
+          createdAt: order.createdAt
+        });
+      }
+    }
+  });
+  
+  return Array.from(userMap.values()).sort((a, b) => {
+    // Sort by: current user first, then by order count, then by name
+    if (a.isCurrentUser) return -1;
+    if (b.isCurrentUser) return 1;
+    return (b.orderCount || 0) - (a.orderCount || 0);
+  });
+}
+
+function updateStats(users) {
+  const total = users.length;
+  const active = users.filter(u => u.status === 'active').length;
+  const customers = users.filter(u => u.role === 'customer').length;
+  const sellers = users.filter(u => u.role === 'seller').length;
+  
+  document.getElementById('totalUsers').textContent = total;
+  document.getElementById('activeUsers').textContent = active;
+  document.getElementById('customerCount').textContent = customers;
+  document.getElementById('sellerCount').textContent = sellers;
 }
 
 /* =================================================
-   RENDER USERS WITH FILTERING
+   RENDER & FILTER FUNCTIONS
 ================================================== */
-function renderUsers(users) {
-  const tbody = document.getElementById("usersTable");
-  tbody.innerHTML = "";
-
-  if (!users || users.length === 0) {
-    tbody.innerHTML = 
-      `<tr><td colspan="5" style="text-align:center;">
-        No users to display.<br>
-        <small>Try clicking "Load Users" button</small>
-      </td></tr>`;
-    return;
-  }
-
-  // Apply filters
+function applyFilters() {
   const search = document.getElementById("searchInput").value.toLowerCase();
   const roleFilter = document.getElementById("roleFilter").value;
   const statusFilter = document.getElementById("statusFilter").value;
   
-  const filteredUsers = users.filter(user => {
+  filteredUsers = allUsers.filter(user => {
     // Search filter
-    if (search && !user.name.toLowerCase().includes(search) && 
-        !user.email.toLowerCase().includes(search)) {
-      return false;
+    if (search) {
+      const searchMatch = 
+        (user.name && user.name.toLowerCase().includes(search)) ||
+        (user.email && user.email.toLowerCase().includes(search)) ||
+        (user.phone && user.phone.toLowerCase().includes(search));
+      if (!searchMatch) return false;
     }
     
     // Role filter
@@ -508,130 +661,160 @@ function renderUsers(users) {
     }
     
     // Status filter
-    if (statusFilter) {
-      const userStatus = user.status ? user.status.toLowerCase() : 
-                        (user.isActive ? 'active' : 'inactive');
-      if (userStatus !== statusFilter) {
-        return false;
-      }
+    if (statusFilter && user.status !== statusFilter) {
+      return false;
     }
     
     return true;
   });
-
-  // Apply pagination
-  const limit = 10;
-  const startIndex = (currentPage - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
   
-  totalPages = Math.ceil(filteredUsers.length / limit);
-  updatePagination();
-
-  // Render table rows
-  paginatedUsers.forEach(user => {
-    const statusClass = user.status ? user.status.toLowerCase() : 
-                       (user.isActive ? 'active' : 'inactive');
-    const statusText = user.status || (user.isActive ? 'Active' : 'Inactive');
-    const role = user.role || 'customer';
-    const isCurrent = user.id === authUser?.id;
-    
-    const tr = document.createElement("tr");
-    tr.style.backgroundColor = isCurrent ? '#f0f9ff' : '';
-    
-    tr.innerHTML = `
-      <td>
-        <div style="font-weight:600;">${user.name || "Unknown"}</div>
-        <div style="font-size:0.8em;color:#666;">${user.phone || ""}</div>
-        ${isCurrent ? '<div style="font-size:0.7em;color:#3b82f6;">(You)</div>' : ''}
-      </td>
-      <td>${user.email || "No email"}</td>
-      <td><span class="badge ${role}">${role}</span></td>
-      <td><span class="badge ${statusClass}">${statusText}</span></td>
-      <td>
-        <button onclick="editUser('${user.id}')" style="padding: 4px 8px; font-size: 0.8rem; margin-right: 5px;">Edit</button>
-        ${!isCurrent ? `<button onclick="deleteUser('${user.id}')" style="padding: 4px 8px; font-size: 0.8rem; background: #ef4444; color: white;">Delete</button>` : ''}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+  currentPage = 1; // Reset to first page when filtering
+  renderUsers();
 }
 
-/* =================================================
-   PAGINATION
-================================================== */
+function renderUsers() {
+  const tbody = document.getElementById("usersTable");
+  
+  if (filteredUsers.length === 0) {
+    tbody.innerHTML = 
+      `<tr><td colspan="6" style="text-align:center;padding: 30px;color: #6b7280;">
+        No users match your filters.<br>
+        <small>Try changing search or filter criteria</small>
+      </td></tr>`;
+    updatePagination();
+    return;
+  }
+  
+  // Apply pagination
+  const startIndex = (currentPage - 1) * limitPerPage;
+  const endIndex = startIndex + limitPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+  
+  // Calculate totals
+  totalPages = Math.ceil(filteredUsers.length / limitPerPage);
+  
+  // Generate table rows
+  let html = '';
+  paginatedUsers.forEach(user => {
+    const isCurrent = user.isCurrentUser || user.id === authUser?.id;
+    const rowClass = isCurrent ? 'current-user' : '';
+    
+    // Format last order date
+    let lastOrderText = 'No orders';
+    if (user.lastOrder) {
+      const date = new Date(user.lastOrder);
+      lastOrderText = date.toLocaleDateString();
+    }
+    
+    html += `
+      <tr class="${rowClass}">
+        <td>
+          <div style="font-weight:600;">${user.name || "Unknown"}</div>
+          ${isCurrent ? '<div style="font-size:0.7em;color:#3b82f6;">(Current User)</div>' : ''}
+          ${user.phone ? `<div style="font-size:0.8em;color:#666;">${user.phone}</div>` : ''}
+        </td>
+        <td>${user.email || "No email"}</td>
+        <td><span class="badge ${user.role || 'customer'}">${user.role || 'customer'}</span></td>
+        <td><span class="badge ${user.status || 'active'}">${user.status || 'Active'}</span></td>
+        <td>
+          <div style="font-weight:500;">${user.orderCount || 0}</div>
+          ${user.totalSpent ? `<div style="font-size:0.8em;color:#666;">$${user.totalSpent.toFixed(2)} spent</div>` : ''}
+          <div style="font-size:0.7em;color:#9ca3af;">Last: ${lastOrderText}</div>
+        </td>
+        <td>
+          <button class="action-btn edit" onclick="editUser('${user.id}')">Edit</button>
+          ${!isCurrent ? `<button class="action-btn delete" onclick="deleteUser('${user.id}')">Delete</button>` : ''}
+        </td>
+      </tr>
+    `;
+  });
+  
+  tbody.innerHTML = html;
+  updatePagination();
+}
+
 function updatePagination() {
-  document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+  const totalFiltered = filteredUsers.length;
+  const startItem = totalFiltered > 0 ? ((currentPage - 1) * limitPerPage) + 1 : 0;
+  const endItem = Math.min(currentPage * limitPerPage, totalFiltered);
+  
+  document.getElementById("pageInfo").textContent = `Page ${currentPage} of ${totalPages}`;
+  document.getElementById("showingCount").textContent = `${startItem}-${endItem}`;
+  document.getElementById("totalCount").textContent = totalFiltered;
+  
   document.getElementById("prevBtn").disabled = currentPage <= 1;
   document.getElementById("nextBtn").disabled = currentPage >= totalPages;
 }
 
 /* =================================================
-   EVENTS
+   EVENT HANDLERS
 ================================================== */
-let searchTimeout;
-document.getElementById("searchInput").addEventListener("input", () => {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    currentPage = 1;
-    if (allUsers.length > 0) {
-      renderUsers(allUsers);
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Search input with debounce
+  let searchTimeout;
+  document.getElementById("searchInput").addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 300);
+  });
+  
+  // Filter dropdowns
+  document.getElementById("roleFilter").addEventListener("change", applyFilters);
+  document.getElementById("statusFilter").addEventListener("change", applyFilters);
+  
+  // Pagination buttons
+  document.getElementById("prevBtn").onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderUsers();
     }
-  }, 300);
+  };
+  
+  document.getElementById("nextBtn").onclick = () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderUsers();
+    }
+  };
+  
+  // Auto-load cached data if available
+  setTimeout(() => {
+    const cached = localStorage.getItem('cached_users');
+    const timestamp = localStorage.getItem('cached_users_timestamp');
+    const cacheAge = timestamp ? (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60) : 24; // hours
+    
+    if (cached && cacheAge < 1) { // Use cache if less than 1 hour old
+      try {
+        allUsers = JSON.parse(cached);
+        filteredUsers = [...allUsers];
+        updateStats(allUsers);
+        renderUsers();
+        updateStatus(`Loaded ${allUsers.length} cached users`, 'info');
+      } catch (e) {
+        console.error("Failed to load cached users:", e);
+      }
+    }
+  }, 1000);
 });
-
-document.getElementById("roleFilter").addEventListener("change", () => {
-  currentPage = 1;
-  if (allUsers.length > 0) {
-    renderUsers(allUsers);
-  }
-});
-
-document.getElementById("statusFilter").addEventListener("change", () => {
-  currentPage = 1;
-  if (allUsers.length > 0) {
-    renderUsers(allUsers);
-  }
-});
-
-document.getElementById("prevBtn").onclick = () => {
-  if (currentPage > 1) {
-    currentPage--;
-    renderUsers(allUsers);
-  }
-};
-
-document.getElementById("nextBtn").onclick = () => {
-  if (currentPage < totalPages) {
-    currentPage++;
-    renderUsers(allUsers);
-  }
-};
 
 /* =================================================
    ACTION BUTTONS
 ================================================== */
 function editUser(userId) {
-  alert(`Edit user ${userId} - Feature coming soon`);
-  // In production: window.location.href = `edit-user.html?id=${userId}`;
+  const user = allUsers.find(u => u.id === userId);
+  if (user) {
+    alert(`Edit User: ${user.name}\n\nFeature coming soon!`);
+    // In production: window.location.href = `edit-user.html?id=${userId}`;
+  }
 }
 
 function deleteUser(userId) {
-  if (confirm("Are you sure you want to delete this user?")) {
-    alert(`Delete user ${userId} - Feature coming soon`);
+  const user = allUsers.find(u => u.id === userId);
+  if (user && confirm(`Are you sure you want to delete ${user.name}?\n\nThis action cannot be undone.`)) {
+    alert(`Delete User: ${user.name}\n\nFeature coming soon!`);
     // In production: API call to delete user
   }
 }
-
-/* =================================================
-   INITIAL LOAD
-================================================== */
-// Auto-load after 2 seconds if auth is ready
-setTimeout(() => {
-  if (authUser && (authUser.role === 'admin' || authUser.role === 'super_admin')) {
-    loadUsersDirect();
-  }
-}, 2000);
 </script>
 
 </body>
