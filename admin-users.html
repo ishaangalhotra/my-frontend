@@ -216,8 +216,6 @@
 let currentPage = 1;
 let totalPages = 1;
 let authUser = null;
-const API_BASE_URL = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : "https://ecommerce-backend-mlik.onrender.com/api/v1";
-const ADMIN_USERS_API = API_BASE_URL + "/admin/users";
 
 /* =================================================
    AUTH INITIALIZATION
@@ -240,12 +238,8 @@ document.addEventListener("auth-ready", (e) => {
   loadUsers();
 });
 
-setTimeout(() => {
-  if (!authUser) loadUsers();
-}, 1500);
-
 /* =================================================
-   LOAD USERS (FIXED – apiCall)
+   LOAD USERS (CORRECT - Uses auth.apiCall() only)
 ================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
@@ -262,72 +256,76 @@ async function loadUsers() {
   if (status) params.append("status", status);
 
   try {
-    let json;
-    if (auth && typeof auth.apiCall === "function" && authUser && authUser.role === "admin") {
-      let res = await auth.apiCall(`/api/v1/admin/users?${params}`);
+    // ✅ CORRECT: Use HybridAuthClient helper for all API calls
+    const res = await auth.apiCall(`/api/v1/admin/users?${params}`);
+
+    if (!res.ok) {
+      // Try alternative endpoint if admin endpoint fails
       if (res.status === 404) {
-        res = await auth.apiCall(`/api/v1/users?${params}`);
-      }
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Failed to fetch users");
-      }
-      json = await res.json();
-    } else {
-      let header = "";
-      try {
-        if (auth && typeof auth.getAuthHeader === "function") {
-          const h = auth.getAuthHeader();
-          if (h && h.startsWith("Bearer")) header = h;
+        const altRes = await auth.apiCall(`/api/v1/users?${params}`);
+        if (!altRes.ok) {
+          const err = await altRes.json().catch(() => ({}));
+          throw new Error(err.message || `HTTP ${altRes.status}`);
         }
-      } catch {}
-      if (!header) {
-        const t = localStorage.getItem("adminToken") || localStorage.getItem("quicklocal_access_token") || localStorage.getItem("token") || localStorage.getItem("accessToken");
-        if (t) header = `Bearer ${t}`;
+        const json = await altRes.json();
+        processResponse(json);
+        return;
       }
-      let res = await fetch(`${ADMIN_USERS_API}?${params}`, {
-        headers: {
-          "Accept": "application/json",
-          ...(header ? { "Authorization": header } : {})
-        },
-        credentials: "include"
-      });
-      if (res.status === 404) {
-        res = await fetch(`${API_BASE_URL}/users?${params}`, {
-          headers: {
-            "Accept": "application/json",
-            ...(header ? { "Authorization": header } : {})
-          },
-          credentials: "include"
-        });
+      
+      const err = await res.json().catch(() => ({}));
+      
+      // Handle auth errors
+      if (res.status === 401 || res.status === 403) {
+        const errorMessage = err.message || "Access denied. Admin privileges required.";
+        alert(errorMessage);
+        window.location.href = "admin-login.html";
+        return;
       }
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        if (res.status === 401 || res.status === 403) {
-          throw new Error(errData.message || `Unauthorized`);
-        }
-        throw new Error(errData.message || `HTTP ${res.status}`);
-      }
-      json = await res.json();
+      
+      throw new Error(err.message || `HTTP ${res.status}`);
     }
-    const list =
-      (Array.isArray(json.data) ? json.data : null) ||
-      (json.data && Array.isArray(json.data.users) ? json.data.users : null) ||
-      (Array.isArray(json.users) ? json.users : null) ||
-      (Array.isArray(json.results) ? json.results : null) ||
-      (Array.isArray(json.items) ? json.items : []);
-    renderUsers(list || []);
-    const p = json.pagination || json.meta || (json.data && json.data.pagination) || {};
-    totalPages = p.totalPages || p.pages || 1;
-    document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+
+    const json = await res.json();
+    processResponse(json);
 
   } catch (err) {
     console.error("Load users error:", err);
     document.getElementById("usersTable").innerHTML =
       `<tr><td colspan="4" style="text-align:center;color:red;">
-        Error loading users: ${err.message}
+        ${err.message}
       </td></tr>`;
   }
+}
+
+/* =================================================
+   PROCESS RESPONSE (Handles multiple formats)
+================================================== */
+function processResponse(json) {
+  console.log("API Response:", json);
+
+  // Extract users from various response formats
+  const users =
+    (Array.isArray(json.data) ? json.data : null) ||
+    (Array.isArray(json.users) ? json.users : null) ||
+    (json.data && Array.isArray(json.data.users) ? json.data.users : null) ||
+    (json.data && Array.isArray(json.data.sellers) ? json.data.sellers : null) ||
+    (Array.isArray(json.results) ? json.results : null) ||
+    (Array.isArray(json.items) ? json.items : []);
+
+  renderUsers(users);
+
+  // Extract pagination from various formats
+  const pagination = 
+    json.pagination || 
+    json.data?.pagination || 
+    json.meta || {};
+
+  totalPages = pagination.totalPages || pagination.pages || 1;
+  document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+  
+  // Update button states
+  document.getElementById("prevBtn").disabled = currentPage <= 1;
+  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
 }
 
 /* =================================================
@@ -344,19 +342,28 @@ function renderUsers(users) {
   }
 
   users.forEach(u => {
-    const statusClass =
-      u.status ? u.status.toLowerCase() : (u.isActive ? "active" : "inactive");
-    const statusText =
-      u.status || (u.isActive ? "Active" : "Inactive");
+    const statusClass = 
+      u.status ? u.status.toLowerCase() : 
+      (u.isActive === true ? "active" : 
+       u.isActive === false ? "inactive" : 
+       u.accountStatus || "inactive");
+    
+    const statusText = 
+      u.status || 
+      (u.isActive === true ? "Active" : 
+       u.isActive === false ? "Inactive" : 
+       u.accountStatus || "Inactive");
 
+    const role = u.role || "customer";
+    
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>
         <div style="font-weight:600;">${u.name || "Unknown"}</div>
         <div style="font-size:0.8em;color:#666;">${u.phone || ""}</div>
       </td>
-      <td>${u.email}</td>
-      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td>${u.email || "No email"}</td>
+      <td><span class="badge ${role}">${role}</span></td>
       <td><span class="badge ${statusClass}">${statusText}</span></td>
     `;
     tbody.appendChild(tr);
