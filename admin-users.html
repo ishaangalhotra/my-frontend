@@ -216,6 +216,8 @@
 let currentPage = 1;
 let totalPages = 1;
 let authUser = null;
+const API_BASE_URL = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : "https://ecommerce-backend-mlik.onrender.com/api/v1";
+const ADMIN_USERS_API = API_BASE_URL + "/admin/users";
 
 /* =================================================
    AUTH INITIALIZATION
@@ -238,6 +240,10 @@ document.addEventListener("auth-ready", (e) => {
   loadUsers();
 });
 
+setTimeout(() => {
+  if (!authUser) loadUsers();
+}, 1500);
+
 /* =================================================
    LOAD USERS (FIXED – apiCall)
 ================================================== */
@@ -256,16 +262,46 @@ async function loadUsers() {
   if (status) params.append("status", status);
 
   try {
-    const res = await auth.apiCall(`/api/v1/admin/users?${params}`);
-
-    if (!res.ok) throw new Error("Failed to fetch users");
-
-    const json = await res.json();
-    renderUsers(json.data || json.users || []);
-
-    totalPages = json.pagination?.totalPages || 1;
-    document.getElementById("pageInfo").innerText =
-      `Page ${currentPage} of ${totalPages}`;
+    let json;
+    if (auth && typeof auth.apiCall === "function" && authUser && authUser.role === "admin") {
+      const res = await auth.apiCall(`/api/v1/admin/users?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch users");
+      json = await res.json();
+    } else {
+      let header = "";
+      try {
+        if (auth && typeof auth.getAuthHeader === "function") {
+          const h = auth.getAuthHeader();
+          if (h && h.startsWith("Bearer")) header = h;
+        }
+      } catch {}
+      if (!header) {
+        const t = localStorage.getItem("adminToken") || localStorage.getItem("quicklocal_access_token") || localStorage.getItem("token") || localStorage.getItem("accessToken");
+        if (t) header = `Bearer ${t}`;
+      }
+      const res = await fetch(`${ADMIN_USERS_API}?${params}`, {
+        headers: {
+          "Accept": "application/json",
+          ...(header ? { "Authorization": header } : {})
+        },
+        credentials: "include"
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${res.status}`);
+      }
+      json = await res.json();
+    }
+    const list =
+      (Array.isArray(json.data) ? json.data : null) ||
+      (json.data && Array.isArray(json.data.users) ? json.data.users : null) ||
+      (Array.isArray(json.users) ? json.users : null) ||
+      (Array.isArray(json.results) ? json.results : null) ||
+      (Array.isArray(json.items) ? json.items : []);
+    renderUsers(list || []);
+    const p = json.pagination || json.meta || (json.data && json.data.pagination) || {};
+    totalPages = p.totalPages || p.pages || 1;
+    document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
 
   } catch (err) {
     console.error("Load users error:", err);
