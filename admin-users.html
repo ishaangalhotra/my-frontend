@@ -279,15 +279,27 @@ async function loadUsers() {
         const t = localStorage.getItem("adminToken") || localStorage.getItem("quicklocal_access_token") || localStorage.getItem("token") || localStorage.getItem("accessToken");
         if (t) header = `Bearer ${t}`;
       }
-      const res = await fetch(`${ADMIN_USERS_API}?${params}`, {
+      let res = await fetch(`${ADMIN_USERS_API}?${params}`, {
         headers: {
           "Accept": "application/json",
           ...(header ? { "Authorization": header } : {})
         },
         credentials: "include"
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_BASE_URL}/users?${params}`, {
+          headers: {
+            "Accept": "application/json",
+            ...(header ? { "Authorization": header } : {})
+          },
+          credentials: "include"
+        });
+      }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          throw new Error(errData.message || `Unauthorized`);
+        }
         throw new Error(errData.message || `HTTP ${res.status}`);
       }
       json = await res.json();
