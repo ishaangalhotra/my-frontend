@@ -186,11 +186,42 @@
 <script>
   // ---------- CONFIG ----------
   const API_BASE = "https://ecommerce-backend-mlik.onrender.com";
-  const ADMIN_API = API_BASE + "/api/v1/admin";
-  const USERS_API = API_BASE + "/api/v1/users";
+  const API_V1 = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) ? window.APP_CONFIG.API_BASE_URL : (API_BASE + "/api/v1");
+  const ADMIN_API = API_V1 + "/admin";
+  const USERS_API = API_V1 + "/users";
 
   let currentPage = 1;
   let totalPages = 1;
+
+  async function fetchUsersWithFallback(params, token) {
+    let res;
+    let data = {};
+    const headers = {
+      "Authorization": "Bearer " + token,
+      "Accept": "application/json"
+    };
+    const urls = [
+      `${ADMIN_API}/users?` + params.toString(),
+      `${ADMIN_API}/users/?` + params.toString(),
+      `${ADMIN_API}/users/list?` + params.toString()
+    ];
+    for (const url of urls) {
+      try {
+        res = await fetch(url, { headers, credentials: "include" });
+        if (res.ok) {
+          data = await res.json().catch(() => ({}));
+          return { res, data };
+        }
+        if (res.status !== 404) {
+          data = await res.json().catch(() => ({}));
+          return { res, data };
+        }
+      } catch (_) {}
+    }
+    res = await fetch(`${USERS_API}?` + params.toString(), { headers, credentials: "include" });
+    data = await res.json().catch(() => ({}));
+    return { res, data };
+  }
 
   // ---------- LOAD USERS ----------
   async function loadUsers(page = 1) {
@@ -218,43 +249,31 @@
     if (status) params.append("status", status);
 
     try {
-      // 1. Try the Dedicated Admin Endpoint first
-      let res = await fetch(`${ADMIN_API}/users?` + params.toString(), {
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Accept": "application/json"
-        }
-      });
-
-      // 2. Fallback Logic:
-      // If Admin Route is 404 (Not Found) OR 403 (Forbidden/Permission Issue),
-      // we attempt the Standard Users Endpoint which might allow access.
-      if (res.status === 404 || res.status === 403) {
-        console.warn(`Admin route ${res.status}. Falling back to standard users API...`);
-        res = await fetch(`${USERS_API}?` + params.toString(), {
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Accept": "application/json"
-          }
-        });
-      }
+      const { res, data } = await fetchUsersWithFallback(params, token);
 
       // 3. Handle Errors with detailed message
       if (!res.ok) {
         if (res.status === 401) {
-          alert(`Session expired (401 Unauthorized). Please logout and login again.`);
+          alert(`Session expired. Please login again.`);
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminUser");
           // We removed the auto-redirect so you can see the message. 
           // Uncomment next line to re-enable auto-redirect.
-          // window.location.href = "admin-login.html";
+          window.location.href = "admin-login.html";
+          return;
+        }
+        if (res.status === 403) {
+          alert(`Access denied. Please ensure you are logged in with an admin account.`);
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminUser");
+          window.location.href = "admin-login.html";
           return;
         }
         
-        const errorData = await res.json().catch(() => ({}));
-        console.error("API Error:", res.status, errorData);
-        throw new Error(`API Error ${res.status}: ${errorData.message || res.statusText}`);
+        console.error("API Error:", res.status, data);
+        throw new Error(`API Error ${res.status}: ${data.message || res.statusText}`);
       }
 
-      const data = await res.json();
       console.log("Users API response:", data);
 
       // 4. Normalise Data (Handle different response structures)
