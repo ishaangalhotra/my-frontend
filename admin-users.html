@@ -206,9 +206,7 @@
 
 </div>
 
-<!-- =================================================
-     🔐 HYBRID AUTH CLIENT (FROM BACKEND /public)
-================================================== -->
+<!-- 🔐 Hybrid Auth Client (served from backend /public) -->
 <script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
 
 <script>
@@ -220,7 +218,7 @@ let totalPages = 1;
 let authUser = null;
 
 /* =================================================
-   AUTH INITIALIZATION (FIXED)
+   AUTH INITIALIZATION
 ================================================== */
 const auth = new HybridAuthClient({
   autoInitialize: true,
@@ -241,17 +239,12 @@ document.addEventListener("auth-ready", (e) => {
 });
 
 /* =================================================
-   LOAD USERS
+   LOAD USERS (FIXED – apiCall)
 ================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
   const role = document.getElementById("roleFilter").value;
   const status = document.getElementById("statusFilter").value;
-
-  const token =
-    localStorage.getItem("supabase_access_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("accessToken");
 
   const params = new URLSearchParams({
     page: currentPage,
@@ -263,29 +256,23 @@ async function loadUsers() {
   if (status) params.append("status", status);
 
   try {
-    const res = await fetch(
-      `https://ecommerce-backend-mlik.onrender.com/api/v1/admin/users?${params}`,
-      {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    const res = await auth.apiCall(`/api/v1/admin/users?${params}`);
 
-    if (!res.ok) throw new Error("Unauthorized");
+    if (!res.ok) throw new Error("Failed to fetch users");
 
     const json = await res.json();
     renderUsers(json.data || json.users || []);
-    totalPages = json.pagination?.totalPages || 1;
 
+    totalPages = json.pagination?.totalPages || 1;
     document.getElementById("pageInfo").innerText =
       `Page ${currentPage} of ${totalPages}`;
 
   } catch (err) {
-    console.error(err);
+    console.error("Load users error:", err);
     document.getElementById("usersTable").innerHTML =
-      `<tr><td colspan="4">Failed to load users</td></tr>`;
+      `<tr><td colspan="4" style="text-align:center;color:red;">
+        Error loading users: ${err.message}
+      </td></tr>`;
   }
 }
 
@@ -296,18 +283,27 @@ function renderUsers(users) {
   const tbody = document.getElementById("usersTable");
   tbody.innerHTML = "";
 
-  if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="4">No users found</td></tr>`;
+  if (!users || users.length === 0) {
+    tbody.innerHTML =
+      `<tr><td colspan="4" style="text-align:center;">No users found</td></tr>`;
     return;
   }
 
   users.forEach(u => {
+    const statusClass =
+      u.status ? u.status.toLowerCase() : (u.isActive ? "active" : "inactive");
+    const statusText =
+      u.status || (u.isActive ? "Active" : "Inactive");
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${u.name || "-"}</td>
+      <td>
+        <div style="font-weight:600;">${u.name || "Unknown"}</div>
+        <div style="font-size:0.8em;color:#666;">${u.phone || ""}</div>
+      </td>
       <td>${u.email}</td>
       <td><span class="badge ${u.role}">${u.role}</span></td>
-      <td><span class="badge ${u.status || "active"}">${u.status || "active"}</span></td>
+      <td><span class="badge ${statusClass}">${statusText}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -316,9 +312,13 @@ function renderUsers(users) {
 /* =================================================
    EVENTS
 ================================================== */
+let searchTimeout;
 document.getElementById("searchInput").addEventListener("input", () => {
-  currentPage = 1;
-  loadUsers();
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    currentPage = 1;
+    loadUsers();
+  }, 500);
 });
 
 document.getElementById("roleFilter").addEventListener("change", () => {
