@@ -229,7 +229,10 @@ document.addEventListener("auth-ready", (e) => {
   authUser = e.detail?.user;
   console.log("[Admin Users] Auth user:", authUser);
 
-  if (!authUser || authUser.role !== "admin") {
+  // Check if user is admin - allow both 'admin' and 'super_admin' roles
+  const isAdmin = authUser && (authUser.role === 'admin' || authUser.role === 'super_admin');
+  
+  if (!authUser || !isAdmin) {
     alert("Access denied. Please login with an admin account.");
     window.location.href = "admin-login.html";
     return;
@@ -239,7 +242,7 @@ document.addEventListener("auth-ready", (e) => {
 });
 
 /* =================================================
-   LOAD USERS (CORRECT - Uses auth.apiCall() only)
+   LOAD USERS (FIXED: Tries multiple endpoints in sequence)
 ================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
@@ -256,43 +259,51 @@ async function loadUsers() {
   if (status) params.append("status", status);
 
   try {
-    // ✅ CORRECT: Use HybridAuthClient helper for all API calls
-    const res = await auth.apiCall(`/api/v1/admin/users?${params}`);
-
-    if (!res.ok) {
-      // Try alternative endpoint if admin endpoint fails
-      if (res.status === 404) {
-        const altRes = await auth.apiCall(`/api/v1/users?${params}`);
-        if (!altRes.ok) {
-          const err = await altRes.json().catch(() => ({}));
-          throw new Error(err.message || `HTTP ${altRes.status}`);
-        }
-        const json = await altRes.json();
-        processResponse(json);
-        return;
-      }
+    let response;
+    let json;
+    
+    // Try endpoints in sequence:
+    // 1. /api/v1/admin/users (from admin.js)
+    // 2. /api/v1/users (from users.js - admin-only)
+    // 3. /api/v1/enterprise/sellers (from enterpriseAdminController.js)
+    
+    console.log("Trying endpoint 1: /api/v1/admin/users");
+    response = await auth.apiCall(`/api/v1/admin/users?${params}`);
+    
+    if (response.status === 404) {
+      console.log("Endpoint 1 failed (404), trying endpoint 2: /api/v1/users");
+      response = await auth.apiCall(`/api/v1/users?${params}`);
+    }
+    
+    if (response.status === 404 || response.status === 403) {
+      console.log("Endpoint 2 failed, trying endpoint 3: /api/v1/enterprise/sellers");
+      response = await auth.apiCall(`/api/v1/enterprise/sellers?${params}`);
+    }
+    
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
       
-      const err = await res.json().catch(() => ({}));
-      
-      // Handle auth errors
-      if (res.status === 401 || res.status === 403) {
-        const errorMessage = err.message || "Access denied. Admin privileges required.";
+      // Handle permission errors
+      if (response.status === 401 || response.status === 403) {
+        const errorMessage = errData.message || "Access denied. Admin privileges required.";
         alert(errorMessage);
         window.location.href = "admin-login.html";
         return;
       }
       
-      throw new Error(err.message || `HTTP ${res.status}`);
+      throw new Error(errData.message || `HTTP ${response.status}`);
     }
 
-    const json = await res.json();
+    json = await response.json();
+    console.log("API Response received:", json);
+    
     processResponse(json);
 
   } catch (err) {
     console.error("Load users error:", err);
     document.getElementById("usersTable").innerHTML =
       `<tr><td colspan="4" style="text-align:center;color:red;">
-        ${err.message}
+        Error: ${err.message}. Please check admin permissions.
       </td></tr>`;
   }
 }
@@ -301,24 +312,59 @@ async function loadUsers() {
    PROCESS RESPONSE (Handles multiple formats)
 ================================================== */
 function processResponse(json) {
-  console.log("API Response:", json);
+  console.log("Processing response format...");
 
-  // Extract users from various response formats
-  const users =
-    (Array.isArray(json.data) ? json.data : null) ||
-    (Array.isArray(json.users) ? json.users : null) ||
-    (json.data && Array.isArray(json.data.users) ? json.data.users : null) ||
-    (json.data && Array.isArray(json.data.sellers) ? json.data.sellers : null) ||
-    (Array.isArray(json.results) ? json.results : null) ||
-    (Array.isArray(json.items) ? json.items : []);
+  let users = [];
+  let pagination = {};
+  
+  // Format 1: /admin/users endpoint (admin.js)
+  if (Array.isArray(json.data)) {
+    users = json.data;
+    pagination = json.pagination || {};
+    console.log("Detected format 1: /admin/users");
+  }
+  // Format 2: /users endpoint (users.js)
+  else if (Array.isArray(json.users)) {
+    users = json.users;
+    pagination = json.pagination || {};
+    console.log("Detected format 2: /users");
+  }
+  // Format 3: /enterprise/sellers endpoint (enterpriseAdminController.js)
+  else if (json.data && Array.isArray(json.data.sellers)) {
+    users = json.data.sellers.map(seller => ({
+      ...seller,
+      role: seller.role || 'seller' // Ensure sellers have role
+    }));
+    pagination = json.data.pagination || {};
+    console.log("Detected format 3: /enterprise/sellers");
+  }
+  // Format 4: /admin/users alternative format
+  else if (json.data && Array.isArray(json.data.users)) {
+    users = json.data.users;
+    pagination = json.data.pagination || {};
+    console.log("Detected format 4: nested users array");
+  }
+  // Format 5: Any array in data object
+  else if (json.data && typeof json.data === 'object') {
+    // Find first array in data object
+    for (const key in json.data) {
+      if (Array.isArray(json.data[key])) {
+        users = json.data[key];
+        console.log(`Detected format 5: array in data.${key}`);
+        break;
+      }
+    }
+    pagination = json.pagination || json.data?.pagination || {};
+  }
+  // Fallback: empty array
+  else {
+    users = [];
+    pagination = {};
+    console.log("No recognizable format, using empty array");
+  }
 
+  console.log(`Found ${users.length} users`);
   renderUsers(users);
-
-  // Extract pagination from various formats
-  const pagination = 
-    json.pagination || 
-    json.data?.pagination || 
-    json.meta || {};
 
   totalPages = pagination.totalPages || pagination.pages || 1;
   document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
@@ -346,23 +392,23 @@ function renderUsers(users) {
       u.status ? u.status.toLowerCase() : 
       (u.isActive === true ? "active" : 
        u.isActive === false ? "inactive" : 
-       u.accountStatus || "inactive");
+       u.accountStatus || (u.isVerified ? "active" : "inactive"));
     
     const statusText = 
       u.status || 
       (u.isActive === true ? "Active" : 
        u.isActive === false ? "Inactive" : 
-       u.accountStatus || "Inactive");
+       u.accountStatus || (u.isVerified ? "Verified" : "Unverified"));
 
-    const role = u.role || "customer";
+    const role = u.role || (u.seller ? "seller" : "customer");
     
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>
-        <div style="font-weight:600;">${u.name || "Unknown"}</div>
+        <div style="font-weight:600;">${u.name || u.sellerName || "Unknown"}</div>
         <div style="font-size:0.8em;color:#666;">${u.phone || ""}</div>
       </td>
-      <td>${u.email || "No email"}</td>
+      <td>${u.email || u.sellerEmail || "No email"}</td>
       <td><span class="badge ${role}">${role}</span></td>
       <td><span class="badge ${statusClass}">${statusText}</span></td>
     `;
@@ -405,6 +451,20 @@ document.getElementById("nextBtn").onclick = () => {
     loadUsers();
   }
 };
+
+// If auth doesn't fire ready event within 3 seconds, check manually
+setTimeout(() => {
+  if (!authUser && auth && auth.isAuthenticated && typeof auth.getUser === 'function') {
+    try {
+      authUser = auth.getUser();
+      if (authUser && (authUser.role === 'admin' || authUser.role === 'super_admin')) {
+        loadUsers();
+      }
+    } catch (e) {
+      console.log("Manual auth check failed:", e);
+    }
+  }
+}, 3000);
 </script>
 
 </body>
