@@ -216,6 +216,7 @@
 let currentPage = 1;
 let totalPages = 1;
 let authUser = null;
+const API_BASE_URL = "https://ecommerce-backend-mlik.onrender.com/api/v1";
 
 /* =================================================
    AUTH INITIALIZATION
@@ -229,7 +230,7 @@ document.addEventListener("auth-ready", (e) => {
   authUser = e.detail?.user;
   console.log("[Admin Users] Auth user:", authUser);
 
-  // Check if user is admin - allow both 'admin' and 'super_admin' roles
+  // Check if user is admin
   const isAdmin = authUser && (authUser.role === 'admin' || authUser.role === 'super_admin');
   
   if (!authUser || !isAdmin) {
@@ -242,7 +243,7 @@ document.addEventListener("auth-ready", (e) => {
 });
 
 /* =================================================
-   LOAD USERS (FIXED: Tries multiple endpoints in sequence)
+   LOAD USERS - DEBUG VERSION
 ================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
@@ -258,114 +259,173 @@ async function loadUsers() {
   if (role) params.append("role", role);
   if (status) params.append("status", status);
 
+  const queryString = params.toString();
+  
+  // First, let's test what endpoints actually exist
+  console.log("🔍 Testing admin endpoints...");
+  
   try {
-    let response;
-    let json;
-    
-    // Try endpoints in sequence:
-    // 1. /api/v1/admin/users (from admin.js)
-    // 2. /api/v1/users (from users.js - admin-only)
-    // 3. /api/v1/enterprise/sellers (from enterpriseAdminController.js)
-    
-    console.log("Trying endpoint 1: /api/v1/admin/users");
-    response = await auth.apiCall(`/api/v1/admin/users?${params}`);
-    
-    if (response.status === 404) {
-      console.log("Endpoint 1 failed (404), trying endpoint 2: /api/v1/users");
-      response = await auth.apiCall(`/api/v1/users?${params}`);
-    }
-    
-    if (response.status === 404 || response.status === 403) {
-      console.log("Endpoint 2 failed, trying endpoint 3: /api/v1/enterprise/sellers");
-      response = await auth.apiCall(`/api/v1/enterprise/sellers?${params}`);
-    }
-    
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      
-      // Handle permission errors
-      if (response.status === 401 || response.status === 403) {
-        const errorMessage = errData.message || "Access denied. Admin privileges required.";
-        alert(errorMessage);
-        window.location.href = "admin-login.html";
-        return;
-      }
-      
-      throw new Error(errData.message || `HTTP ${response.status}`);
+    // Try to get user info first to verify auth
+    console.log("1. Testing auth status...");
+    const authTest = await auth.apiCall('/api/v1/auth/me');
+    if (authTest.ok) {
+      const authData = await authTest.json();
+      console.log("Auth user data:", authData);
     }
 
-    json = await response.json();
-    console.log("API Response received:", json);
+    // List of possible admin endpoints to try
+    const endpoints = [
+      '/api/v1/admin/users',
+      '/api/v1/admin/users/',
+      '/api/admin/users',
+      '/admin/users',
+      '/api/v1/users/admin',
+      '/api/v1/users',
+      '/admin/api/users',
+      '/api/v1/enterprise/sellers',
+      '/api/v1/admin/enterprise/sellers'
+    ];
+
+    let success = false;
+    let lastError = null;
     
-    processResponse(json);
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying: ${endpoint}?${queryString}`);
+        const response = await auth.apiCall(`${endpoint}?${queryString}`);
+        console.log(`Response for ${endpoint}:`, response.status, response.statusText);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Success with ${endpoint}:`, data);
+          
+          // Process the data
+          processAdminData(data, endpoint);
+          success = true;
+          break;
+        } else if (response.status === 403) {
+          console.log(`❌ 403 Forbidden for ${endpoint} - user may not have admin role`);
+          lastError = new Error(`Access denied to ${endpoint}. Please verify admin role.`);
+        } else if (response.status === 404) {
+          console.log(`❌ 404 Not Found for ${endpoint}`);
+        }
+      } catch (err) {
+        console.log(`Error with ${endpoint}:`, err.message);
+        lastError = err;
+      }
+    }
+
+    if (!success) {
+      // If no endpoint worked, try a direct fetch with token
+      console.log("All endpoints failed, trying manual fetch...");
+      await tryManualFetch(queryString);
+    }
 
   } catch (err) {
     console.error("Load users error:", err);
     document.getElementById("usersTable").innerHTML =
       `<tr><td colspan="4" style="text-align:center;color:red;">
-        Error: ${err.message}. Please check admin permissions.
+        Error: ${err.message}<br>
+        <small>Check console for details</small>
       </td></tr>`;
   }
 }
 
 /* =================================================
-   PROCESS RESPONSE (Handles multiple formats)
+   MANUAL FETCH FALLBACK
 ================================================== */
-function processResponse(json) {
-  console.log("Processing response format...");
+async function tryManualFetch(queryString) {
+  try {
+    // Get token from auth client
+    const token = auth.getToken();
+    if (!token) {
+      throw new Error("No authentication token available");
+    }
 
+    console.log("Using manual fetch with token...");
+    
+    // Try direct fetch to known endpoints
+    const endpoints = [
+      `${API_BASE_URL}/admin/users?${queryString}`,
+      `${API_BASE_URL}/users?${queryString}`,
+      `${API_BASE_URL}/admin/enterprise/sellers?${queryString}`
+    ];
+
+    for (const url of endpoints) {
+      try {
+        console.log(`Manual fetch to: ${url}`);
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        console.log(`Response: ${response.status} ${response.statusText}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("✅ Manual fetch success:", data);
+          processAdminData(data, url);
+          return;
+        }
+      } catch (err) {
+        console.log(`Manual fetch error for ${url}:`, err.message);
+      }
+    }
+
+    throw new Error("All endpoints failed. Check admin permissions and routes.");
+    
+  } catch (err) {
+    throw err;
+  }
+}
+
+/* =================================================
+   PROCESS ADMIN DATA
+================================================== */
+function processAdminData(data, source) {
+  console.log(`Processing data from ${source}:`, data);
+  
   let users = [];
   let pagination = {};
   
-  // Format 1: /admin/users endpoint (admin.js)
-  if (Array.isArray(json.data)) {
-    users = json.data;
-    pagination = json.pagination || {};
-    console.log("Detected format 1: /admin/users");
-  }
-  // Format 2: /users endpoint (users.js)
-  else if (Array.isArray(json.users)) {
-    users = json.users;
-    pagination = json.pagination || {};
-    console.log("Detected format 2: /users");
-  }
-  // Format 3: /enterprise/sellers endpoint (enterpriseAdminController.js)
-  else if (json.data && Array.isArray(json.data.sellers)) {
-    users = json.data.sellers.map(seller => ({
-      ...seller,
-      role: seller.role || 'seller' // Ensure sellers have role
-    }));
-    pagination = json.data.pagination || {};
-    console.log("Detected format 3: /enterprise/sellers");
-  }
-  // Format 4: /admin/users alternative format
-  else if (json.data && Array.isArray(json.data.users)) {
-    users = json.data.users;
-    pagination = json.data.pagination || {};
-    console.log("Detected format 4: nested users array");
-  }
-  // Format 5: Any array in data object
-  else if (json.data && typeof json.data === 'object') {
-    // Find first array in data object
-    for (const key in json.data) {
-      if (Array.isArray(json.data[key])) {
-        users = json.data[key];
-        console.log(`Detected format 5: array in data.${key}`);
+  // Try to extract users from various response formats
+  if (Array.isArray(data)) {
+    users = data;
+  } else if (Array.isArray(data.data)) {
+    users = data.data;
+    pagination = data.pagination || {};
+  } else if (Array.isArray(data.users)) {
+    users = data.users;
+    pagination = data.pagination || {};
+  } else if (data.data && Array.isArray(data.data.users)) {
+    users = data.data.users;
+    pagination = data.data.pagination || {};
+  } else if (data.data && Array.isArray(data.data.sellers)) {
+    users = data.data.sellers;
+    pagination = data.data.pagination || {};
+  } else if (typeof data === 'object') {
+    // Look for any array in the object
+    for (const key in data) {
+      if (Array.isArray(data[key])) {
+        users = data[key];
+        console.log(`Found users array in data.${key}`);
         break;
       }
     }
-    pagination = json.pagination || json.data?.pagination || {};
-  }
-  // Fallback: empty array
-  else {
-    users = [];
-    pagination = {};
-    console.log("No recognizable format, using empty array");
   }
 
-  console.log(`Found ${users.length} users`);
+  if (users.length === 0) {
+    console.warn("No users found in response. Full response:", data);
+  }
+
+  console.log(`Extracted ${users.length} users`);
   renderUsers(users);
 
+  // Update pagination
   totalPages = pagination.totalPages || pagination.pages || 1;
   document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
   
@@ -383,7 +443,10 @@ function renderUsers(users) {
 
   if (!users || users.length === 0) {
     tbody.innerHTML =
-      `<tr><td colspan="4" style="text-align:center;">No users found</td></tr>`;
+      `<tr><td colspan="4" style="text-align:center;">
+        No users found.<br>
+        <small style="color:#666;">If you believe this is an error, check console logs.</small>
+      </td></tr>`;
     return;
   }
 
@@ -452,19 +515,32 @@ document.getElementById("nextBtn").onclick = () => {
   }
 };
 
-// If auth doesn't fire ready event within 3 seconds, check manually
-setTimeout(() => {
-  if (!authUser && auth && auth.isAuthenticated && typeof auth.getUser === 'function') {
-    try {
-      authUser = auth.getUser();
-      if (authUser && (authUser.role === 'admin' || authUser.role === 'super_admin')) {
-        loadUsers();
-      }
-    } catch (e) {
-      console.log("Manual auth check failed:", e);
-    }
+// Diagnostic function - can be called from console
+window.debugAdminEndpoints = async function() {
+  console.log("=== DEBUG MODE ===");
+  console.log("Auth user:", authUser);
+  console.log("Auth token available:", !!auth.getToken());
+  
+  // Test basic connectivity
+  try {
+    const test = await fetch(`${API_BASE_URL}/test`);
+    console.log("API test endpoint:", test.status, test.statusText);
+  } catch (e) {
+    console.log("API test failed:", e.message);
   }
-}, 3000);
+  
+  // Test auth endpoint
+  try {
+    const authTest = await fetch(`${API_BASE_URL}/auth/me`);
+    console.log("Auth endpoint:", authTest.status, authTest.statusText);
+    if (authTest.ok) {
+      const data = await authTest.json();
+      console.log("Auth data:", data);
+    }
+  } catch (e) {
+    console.log("Auth test failed:", e.message);
+  }
+}
 </script>
 
 </body>
