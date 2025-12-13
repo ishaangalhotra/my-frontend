@@ -5,7 +5,11 @@
   <title>Admin Users • QuickLocal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <!-- Icons -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    rel="stylesheet"
+  />
 
   <style>
     body {
@@ -19,7 +23,7 @@
       min-height: 100vh;
     }
 
-    /* SIDEBAR */
+    /* ================= SIDEBAR ================= */
     .sidebar {
       width: 240px;
       background: #111827;
@@ -48,7 +52,7 @@
       color: white;
     }
 
-    /* CONTENT */
+    /* ================= CONTENT ================= */
     .content {
       flex: 1;
       padding: 25px;
@@ -60,7 +64,7 @@
       font-size: 1.5rem;
     }
 
-    /* FILTERS */
+    /* ================= FILTERS ================= */
     .filters {
       display: flex;
       gap: 10px;
@@ -76,7 +80,7 @@
       font-size: 0.85rem;
     }
 
-    /* TABLE */
+    /* ================= TABLE ================= */
     table {
       width: 100%;
       background: white;
@@ -84,7 +88,8 @@
       margin-top: 10px;
     }
 
-    th, td {
+    th,
+    td {
       padding: 10px;
       border: 1px solid #e5e7eb;
       font-size: 0.9rem;
@@ -95,7 +100,7 @@
       background: #f3f4f6;
     }
 
-    /* BADGES */
+    /* ================= BADGES ================= */
     .badge {
       padding: 4px 8px;
       border-radius: 6px;
@@ -114,7 +119,7 @@
     .badge.inactive { background: #9ca3af; }
     .badge.suspended { background: #f59e0b; }
 
-    /* PAGINATION */
+    /* ================= PAGINATION ================= */
     .pagination {
       margin-top: 15px;
       display: flex;
@@ -143,7 +148,7 @@
 <body>
 <div class="container">
 
-  <!-- SIDEBAR -->
+  <!-- ================= SIDEBAR ================= -->
   <aside class="sidebar">
     <h2>QuickLocal Admin</h2>
     <a href="admin-dashboard.html">Dashboard</a>
@@ -153,13 +158,13 @@
     <a href="admin-login.html">Logout</a>
   </aside>
 
-  <!-- CONTENT -->
+  <!-- ================= CONTENT ================= -->
   <main class="content">
     <h1>Manage Users</h1>
 
     <!-- FILTERS -->
     <div class="filters">
-      <input id="searchInput" type="text" placeholder="Search name or email"/>
+      <input id="searchInput" type="text" placeholder="Search name or email" />
       <select id="roleFilter">
         <option value="">All Roles</option>
         <option value="admin">Admin</option>
@@ -201,20 +206,22 @@
 
 </div>
 
-<!-- AUTH -->
-<script src="js/hybrid-auth-client.js"></script>
+<!-- =================================================
+     🔐 HYBRID AUTH CLIENT (FROM BACKEND /public)
+================================================== -->
+<script src="https://ecommerce-backend-mlik.onrender.com/hybrid-auth-client.js"></script>
 
 <script>
-/* ================================
+/* =================================================
    GLOBAL STATE
-================================ */
+================================================== */
 let currentPage = 1;
 let totalPages = 1;
 let authUser = null;
 
-/* ================================
-   AUTH INIT (FIXED)
-================================ */
+/* =================================================
+   AUTH INITIALIZATION (FIXED)
+================================================== */
 const auth = new HybridAuthClient({
   autoInitialize: true,
   enableSessionWatcher: true
@@ -222,11 +229,10 @@ const auth = new HybridAuthClient({
 
 document.addEventListener("auth-ready", (e) => {
   authUser = e.detail?.user;
-
   console.log("[Admin Users] Auth user:", authUser);
 
   if (!authUser || authUser.role !== "admin") {
-    alert("Access denied. Admin login required.");
+    alert("Access denied. Please login with an admin account.");
     window.location.href = "admin-login.html";
     return;
   }
@@ -234,9 +240,9 @@ document.addEventListener("auth-ready", (e) => {
   loadUsers();
 });
 
-/* ================================
+/* =================================================
    LOAD USERS
-================================ */
+================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
   const role = document.getElementById("roleFilter").value;
@@ -267,13 +273,12 @@ async function loadUsers() {
       }
     );
 
-    if (!res.ok) {
-      throw new Error("Unauthorized");
-    }
+    if (!res.ok) throw new Error("Unauthorized");
 
     const json = await res.json();
     renderUsers(json.data || json.users || []);
     totalPages = json.pagination?.totalPages || 1;
+
     document.getElementById("pageInfo").innerText =
       `Page ${currentPage} of ${totalPages}`;
 
@@ -284,9 +289,9 @@ async function loadUsers() {
   }
 }
 
-/* ================================
+/* =================================================
    RENDER USERS
-================================ */
+================================================== */
 function renderUsers(users) {
   const tbody = document.getElementById("usersTable");
   tbody.innerHTML = "";
@@ -308,9 +313,9 @@ function renderUsers(users) {
   });
 }
 
-/* ================================
+/* =================================================
    EVENTS
-================================ */
+================================================== */
 document.getElementById("searchInput").addEventListener("input", () => {
   currentPage = 1;
   loadUsers();
