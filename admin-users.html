@@ -142,6 +142,29 @@
       opacity: 0.5;
       cursor: default;
     }
+
+    /* Debug panel */
+    .debug-panel {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+    .debug-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-right: 5px;
+    }
+    .debug-btn:hover {
+      background: #5a6268;
+    }
   </style>
 </head>
 
@@ -161,6 +184,15 @@
   <!-- ================= CONTENT ================= -->
   <main class="content">
     <h1>Manage Users</h1>
+
+    <!-- DEBUG PANEL -->
+    <div class="debug-panel">
+      <strong>Debug Panel</strong>
+      <button class="debug-btn" onclick="debugAuth()">Test Auth</button>
+      <button class="debug-btn" onclick="testEndpoints()">Test Endpoints</button>
+      <button class="debug-btn" onclick="checkToken()">Check Token</button>
+      <div id="debugOutput" style="margin-top: 10px; font-family: monospace; font-size: 0.8rem;"></div>
+    </div>
 
     <!-- FILTERS -->
     <div class="filters">
@@ -229,6 +261,8 @@ const auth = new HybridAuthClient({
 document.addEventListener("auth-ready", (e) => {
   authUser = e.detail?.user;
   console.log("[Admin Users] Auth user:", authUser);
+  
+  updateDebug(`Auth ready. User: ${authUser?.name || 'Unknown'}, Role: ${authUser?.role || 'None'}`);
 
   if (!authUser) {
     alert("Please login first.");
@@ -236,22 +270,12 @@ document.addEventListener("auth-ready", (e) => {
     return;
   }
 
-  // Check if user has ANY admin-like role
-  const adminRoles = ['admin', 'super_admin', 'moderator', 'administrator', 'superadmin'];
-  const isAdmin = authUser.role && adminRoles.includes(authUser.role.toLowerCase());
-  
-  if (!isAdmin) {
-    alert(`Access denied. Your role is "${authUser.role}". Admin privileges required.`);
-    window.location.href = "admin-login.html";
-    return;
-  }
-
-  console.log(`User has admin role: ${authUser.role}`);
+  // Temporarily bypass frontend check to test backend
   loadUsers();
 });
 
 /* =================================================
-   LOAD USERS - SIMPLIFIED VERSION
+   LOAD USERS - WITH BACKEND DEBUGGING
 ================================================== */
 async function loadUsers() {
   const search = document.getElementById("searchInput").value.trim();
@@ -268,44 +292,50 @@ async function loadUsers() {
   if (status) params.append("status", status);
 
   try {
-    console.log("Loading users from /api/v1/users...");
+    updateDebug(`Trying: GET /api/v1/users?${params}`);
     
-    // ONLY use /api/v1/users since others don't exist
+    // Try the main endpoint first
     const response = await auth.apiCall(`/api/v1/users?${params}`);
     
-    console.log(`Response status: ${response.status} ${response.statusText}`);
+    updateDebug(`Response: ${response.status} ${response.statusText}`);
     
     if (response.status === 403) {
-      // Permission denied - user doesn't have admin role in JWT
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.message || 
-        `Access denied. Your role "${authUser?.role}" does not have admin privileges.`;
+      // Get the actual error from backend
+      let errorMessage = "Access denied (403)";
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+        updateDebug(`Backend error: ${JSON.stringify(errorData)}`);
+      } catch (e) {
+        updateDebug(`Could not parse error response: ${e.message}`);
+      }
       
-      alert(errorMessage);
+      // Show detailed error
       document.getElementById("usersTable").innerHTML = 
         `<tr><td colspan="4" style="text-align:center;color:red;">
+          <strong>Backend Permission Error</strong><br>
           ${errorMessage}<br>
-          <small>Please login with an admin account.</small>
+          <small>User role: ${authUser?.role || 'unknown'}</small>
         </td></tr>`;
       return;
     }
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log("API Response:", data);
+    updateDebug(`Success! Found ${data.users?.length || data.data?.length || 0} users`);
     
-    // Process the response
     processUsersResponse(data);
 
   } catch (err) {
     console.error("Load users error:", err);
+    updateDebug(`Error: ${err.message}`);
     document.getElementById("usersTable").innerHTML =
       `<tr><td colspan="4" style="text-align:center;color:red;">
-        Error: ${err.message}
+        Error: ${err.message}<br>
+        <small>Check debug panel for details</small>
       </td></tr>`;
   }
 }
@@ -325,25 +355,14 @@ function processUsersResponse(data) {
     users = data.users;
   } else if (data.data && Array.isArray(data.data.users)) {
     users = data.data.users;
-  } else if (typeof data === 'object') {
-    // Find any array in the response
-    for (const key in data) {
-      if (Array.isArray(data[key])) {
-        users = data[key];
-        console.log(`Found users in data.${key}`);
-        break;
-      }
-    }
   }
 
-  console.log(`Found ${users.length} users`);
-  
-  // Check if we actually got users
   if (users.length === 0) {
-    console.warn("No users found in response. Full response:", data);
+    console.warn("No users found in response:", data);
     document.getElementById("usersTable").innerHTML = 
       `<tr><td colspan="4" style="text-align:center;">
-        No users found in database.
+        No users found in database.<br>
+        <small>Response format: ${JSON.stringify(data).substring(0, 100)}...</small>
       </td></tr>`;
     return;
   }
@@ -381,12 +400,6 @@ function renderUsers(users) {
     } else if (u.isActive === false) {
       statusClass = "inactive";
       statusText = "Inactive";
-    } else if (u.accountStatus) {
-      statusClass = u.accountStatus.toLowerCase();
-      statusText = u.accountStatus;
-    } else if (u.isVerified) {
-      statusClass = "active";
-      statusText = "Verified";
     }
 
     // Determine role
@@ -404,6 +417,74 @@ function renderUsers(users) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+/* =================================================
+   DEBUG FUNCTIONS
+================================================== */
+function updateDebug(message) {
+  const debugEl = document.getElementById("debugOutput");
+  const timestamp = new Date().toLocaleTimeString();
+  debugEl.innerHTML += `[${timestamp}] ${message}<br>`;
+  debugEl.scrollTop = debugEl.scrollHeight;
+}
+
+async function debugAuth() {
+  updateDebug("=== DEBUG AUTH ===");
+  try {
+    const response = await auth.apiCall('/api/v1/auth/me');
+    const data = await response.json();
+    updateDebug(`Auth check: ${response.status} - ${JSON.stringify(data)}`);
+  } catch (err) {
+    updateDebug(`Auth error: ${err.message}`);
+  }
+}
+
+async function testEndpoints() {
+  updateDebug("=== TEST ENDPOINTS ===");
+  const endpoints = [
+    '/api/v1/users?limit=1',
+    '/api/v1/admin/users?limit=1',
+    '/api/v1/admin/dashboard',
+    '/api/v1/test'
+  ];
+  
+  for (const endpoint of endpoints) {
+    try {
+      const response = await auth.apiCall(endpoint);
+      updateDebug(`${endpoint}: ${response.status} ${response.statusText}`);
+    } catch (err) {
+      updateDebug(`${endpoint}: ERROR - ${err.message}`);
+    }
+  }
+}
+
+async function checkToken() {
+  updateDebug("=== CHECK TOKEN ===");
+  try {
+    // Get token from localStorage (HybridAuthClient stores it there)
+    const token = localStorage.getItem('quicklocal_access_token') || 
+                  localStorage.getItem('accessToken') || 
+                  localStorage.getItem('token');
+    
+    if (token) {
+      updateDebug(`Token found: ${token.substring(0, 30)}...`);
+      
+      // Try to decode JWT (client-side)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        updateDebug(`JWT Payload: ${JSON.stringify(payload)}`);
+        updateDebug(`User ID: ${payload.id || payload.userId || payload.sub}`);
+        updateDebug(`Role: ${payload.role || 'Not specified'}`);
+      } catch (e) {
+        updateDebug(`Cannot decode token: ${e.message}`);
+      }
+    } else {
+      updateDebug("No token found in localStorage");
+    }
+  } catch (err) {
+    updateDebug(`Token check error: ${err.message}`);
+  }
 }
 
 /* =================================================
@@ -442,48 +523,21 @@ document.getElementById("nextBtn").onclick = () => {
   }
 };
 
-/* =================================================
-   DEBUG FUNCTIONS
-================================================== */
-// Call this from console to debug
-window.checkAdminPermissions = async function() {
-  console.log("=== ADMIN PERMISSIONS CHECK ===");
-  console.log("Auth user:", authUser);
-  
-  if (!authUser) {
-    console.log("No user logged in");
-    return;
-  }
-  
-  // Check what the backend thinks about this user
-  try {
-    const response = await auth.apiCall('/api/v1/auth/me');
-    if (response.ok) {
-      const userData = await response.json();
-      console.log("Backend user data:", userData);
-    } else {
-      console.log("Auth check failed:", response.status, response.statusText);
+// Quick workaround: Try to load without waiting for auth
+setTimeout(() => {
+  if (!authUser && window.HybridAuthClient) {
+    try {
+      const auth = window.HybridAuthClient;
+      if (auth && auth.isAuthenticated && typeof auth.getUser === 'function') {
+        authUser = auth.getUser();
+        updateDebug(`Manual auth check: ${authUser?.name || 'Unknown'}`);
+        loadUsers();
+      }
+    } catch (e) {
+      updateDebug(`Manual auth failed: ${e.message}`);
     }
-  } catch (err) {
-    console.log("Auth check error:", err.message);
   }
-  
-  // Try to access admin endpoint
-  try {
-    const testResponse = await auth.apiCall('/api/v1/users?page=1&limit=1');
-    console.log("Admin endpoint test:", testResponse.status, testResponse.statusText);
-    
-    if (testResponse.status === 403) {
-      console.log("❌ PERMISSION DENIED: User does not have admin role in JWT token");
-      console.log("Current role:", authUser.role);
-      console.log("Solution: Login with an account that has role: 'admin' in database");
-    } else if (testResponse.ok) {
-      console.log("✅ PERMISSION GRANTED: User has admin access");
-    }
-  } catch (err) {
-    console.log("Admin test error:", err.message);
-  }
-}
+}, 1000);
 </script>
 
 </body>
