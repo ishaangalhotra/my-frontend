@@ -881,6 +881,8 @@
     setupEventListeners();
     // Load categories separately with a slight delay to ensure tokens are ready/UI is painted
     setTimeout(loadCategories, 500);
+    // Add this line to debug your data if needed:
+    // debugProductImages();
   });
 
   // Admin Authentication
@@ -1088,7 +1090,48 @@
     return params.toString();
   }
 
-  // Fix 2: Render Products (Safer null checks)
+  // HELPER: Get image URL from multiple possible locations
+  function getProductImageUrl(product) {
+    if (!product) return '';
+    
+    // Try different image property names and formats
+    const imageSources = [
+      // Array of images
+      () => product.images && product.images[0] ? extractUrl(product.images[0]) : '',
+      () => product.imageGallery && product.imageGallery[0] ? extractUrl(product.imageGallery[0]) : '',
+      
+      // Single image properties
+      () => product.image ? extractUrl(product.image) : '',
+      () => product.thumbnail ? extractUrl(product.thumbnail) : '',
+    ];
+    
+    for (const getImage of imageSources) {
+      const url = getImage();
+      if (url) return url;
+    }
+    
+    return '';
+  }
+
+  // HELPER: Extract URL from different formats (string or object)
+  function extractUrl(imageData) {
+    if (!imageData) return '';
+    
+    if (typeof imageData === 'string') {
+      return imageData;
+    }
+    
+    if (typeof imageData === 'object') {
+      return imageData.url || 
+             imageData.secure_url || 
+             imageData.public_id || 
+             '';
+    }
+    
+    return '';
+  }
+
+  // UPDATED: Render Products with Robust Image Handling
   function renderProducts(products) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
@@ -1125,15 +1168,20 @@
       const salesCount = product.salesCount || 0;
       const status = product.status || 'unknown';
       const createdAt = product.createdAt || new Date();
-      const images = product.images || [];
+      
+      // Use the helper function to get a valid URL
+      const imageUrl = getProductImageUrl(product);
+      
+      // Placeholder HTML to use on error or if no image exists
+      const placeholderHtml = `<div class="product-image" style="background: var(--gray-200); display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: var(--gray-400);"></i></div>`;
+      
+      const imageHtml = imageUrl 
+        ? `<img src="${imageUrl}" class="product-image" alt="${productName}" onerror="this.onerror=null;this.parentElement.innerHTML='${placeholderHtml.replace(/"/g, "'")}'">`
+        : placeholderHtml;
       
       row.innerHTML = `
         <td><input type="checkbox" class="product-checkbox" value="${productId}" ${isSelected ? 'checked' : ''} /></td>
-        <td>
-          ${images.length > 0 
-            ? `<img src="${images[0]}" class="product-image" alt="${productName}">`
-            : '<div class="product-image" style="background: var(--gray-200); display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: var(--gray-400);"></i></div>'}
-        </td>
+        <td>${imageHtml}</td>
         <td>
           <div style="font-weight: 500; margin-bottom: 5px;">${productName}</div>
           <div style="font-size: 0.8rem; color: var(--gray-500);">SKU: ${productSku}</div>
@@ -1465,8 +1513,12 @@
       product.images.forEach(image => {
         const imgDiv = document.createElement('div');
         imgDiv.style.position = 'relative';
+        
+        // Extract URL for preview as well
+        const imgUrl = extractUrl(image);
+        
         imgDiv.innerHTML = `
-          <img src="${image}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
+          <img src="${imgUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
           <button onclick="removeImage(this)" style="position: absolute; top: 5px; right: 5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer;">×</button>
         `;
         imagePreview.appendChild(imgDiv);
@@ -1746,35 +1798,36 @@
     button.parentElement.remove();
   }
   
-  // Debug Script (Uncomment if needed)
-  /*
-  async function testEndpoints() {
+  // Debug Script for checking data structure
+  function debugProductImages() {
     const token = localStorage.getItem("adminToken");
-    console.log("Token exists:", !!token);
     
-    const endpoints = [
-      '/api/v1/categories',
-      '/api/v1/products',
-      '/api/v1/admin/products'
-    ];
-    
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(`${API_BASE}${endpoint}`, {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        console.log(`${endpoint}:`, response.status, response.statusText);
+    fetch(`${API_V1}/products?limit=1`, {
+      headers: { "Authorization": "Bearer " + token }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Product data structure:", data);
+      
+      if (data.data && data.data[0]) {
+        const product = data.data[0];
+        console.log("First product:", product);
+        console.log("Product images property:", product.images);
+        console.log("Type of images:", typeof product.images);
+        console.log("Is array?", Array.isArray(product.images));
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`${endpoint} data structure:`, data);
+        if (product.images && Array.isArray(product.images)) {
+          console.log("First image:", product.images[0]);
+          console.log("Type of first image:", typeof product.images[0]);
+          
+          if (product.images[0] && typeof product.images[0] === 'object') {
+            console.log("Image object keys:", Object.keys(product.images[0]));
+          }
         }
-      } catch (error) {
-        console.error(`${endpoint} error:`, error);
       }
-    }
+    })
+    .catch(error => console.error("Debug error:", error));
   }
-  */
 </script>
 </body>
 </html>
