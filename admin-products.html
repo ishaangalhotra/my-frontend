@@ -873,45 +873,25 @@
   let allCategories = [];
   let allTags = [];
 
-  // Initialize
+  // Fix 2: Initialize with proper error handling and sequencing
   document.addEventListener('DOMContentLoaded', () => {
-    if(checkAdminAuth()) {
-      initializeFilters();
-      loadProducts();
-      setupEventListeners();
-      // Load categories with new robust function
-      setTimeout(loadCategories, 500);
-    }
+    checkAdminAuth();
+    initializeFilters();
+    loadProducts();
+    setupEventListeners();
+    // Load categories separately with a slight delay to ensure tokens are ready/UI is painted
+    setTimeout(loadCategories, 500);
+    // Add this line to debug your data if needed:
+    // debugProductImages();
   });
 
-  // FIX 1: Robust Admin Authentication Check
+  // Admin Authentication
   function checkAdminAuth() {
     const token = localStorage.getItem("adminToken");
-    console.log("Admin token exists:", !!token);
-    
     if (!token) {
       alert("Please login as admin.");
       window.location.href = "admin-login.html";
-      return false;
     }
-    
-    // Decode token to check role
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log("Token payload:", payload);
-      console.log("User role:", payload.role);
-      
-      if (!payload.role || !['admin', 'super_admin'].includes(payload.role)) {
-        alert("You don't have admin permissions.");
-        window.location.href = "admin-login.html";
-        return false;
-      }
-    } catch (error) {
-      console.error("Token decode error:", error);
-      // Don't block if decode fails, let API decide, but warn user
-    }
-    
-    return true;
   }
 
   // Initialize Filters with Debounce
@@ -942,55 +922,24 @@
     document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
   }
 
-  // FIX 2: Robust Category Loading with Fallback
+  // Fix 2: Robust Category Loading
   async function loadCategories() {
     try {
       const token = localStorage.getItem("adminToken");
       if (!token) return;
       
-      console.log("Loading categories from API...");
-      
-      // Try different category endpoints
-      const endpoints = [
-        `${API_V1}/categories`,
-        `${API_V1}/admin/categories`,
-        `${API_V1}/product/categories`
-      ];
-      
-      let response = null;
-      let data = null;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log("Trying categories endpoint:", endpoint);
-          response = await fetch(endpoint, {
-            headers: { 
-              "Authorization": "Bearer " + token,
-              "Accept": "application/json"
-            }
-          });
-          
-          if (response.ok) {
-            data = await response.json();
-            console.log("Categories API response from", endpoint, ":", data);
-            break;
-          }
-        } catch (err) {
-          console.warn("Categories endpoint failed:", endpoint, err);
-          continue;
+      console.log("Loading categories...");
+      const response = await fetch(`${API_V1}/categories`, {
+        headers: { 
+          "Authorization": "Bearer " + token,
+          "Accept": "application/json"
         }
-      }
+      });
       
-      if (!response || !response.ok) {
-        console.warn("All categories endpoints failed");
-        // Fallback to hardcoded categories to ensure UI works
-        allCategories = [
-            { _id: 'electronics', name: 'Electronics' },
-            { _id: 'fashion', name: 'Fashion' },
-            { _id: 'home', name: 'Home & Kitchen' },
-            { _id: 'books', name: 'Books' }
-        ];
-      } else {
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Categories response:", data);
+        
         // Handle different response structures
         if (data.success && data.data) {
           allCategories = Array.isArray(data.data) ? data.data : [];
@@ -998,38 +947,42 @@
           allCategories = data;
         } else if (data.categories && Array.isArray(data.categories)) {
           allCategories = data.categories;
-        } else if (data.data && data.data.categories) {
-          allCategories = data.data.categories;
         } else {
           allCategories = [];
         }
-      }
-      
-      console.log("Parsed categories:", allCategories);
-      
-      if (allCategories.length > 0) {
-        populateCategoryFilters();
+        
+        if (allCategories.length > 0) {
+          populateCategoryFilters();
+        } else {
+          console.warn("No categories found or empty array");
+        }
       } else {
-        console.warn("No categories available");
+        console.warn("Categories API error:", response.status);
       }
-      
     } catch (error) {
       console.error("Error loading categories:", error);
+      // Continue without categories
       allCategories = [];
     }
   }
 
-  // Load Products (Kept robust version)
+  // Fix 2: Robust Product Loading (Retry logic & Structure check)
   async function loadProducts() {
     showLoading();
     
     const token = localStorage.getItem("adminToken");
-    if (!token) return;
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
     
+    // Build query params
     const params = buildQueryParams();
     console.log("Loading products with params:", params.toString());
     
     try {
+      // Try different endpoints in order to handle potential router mismatches
       let endpoints = [
         `${API_V1}/admin/products?${params}`,
         `${API_V1}/products?${params}`
@@ -1038,8 +991,10 @@
       let response = null;
       let data = null;
       
+      // Try each endpoint
       for (const endpoint of endpoints) {
         try {
+          console.log("Trying endpoint:", endpoint);
           response = await fetch(endpoint, {
             headers: {
               "Authorization": "Bearer " + token,
@@ -1049,9 +1004,11 @@
           
           if (response.ok) {
             data = await response.json();
+            console.log("Products response from", endpoint, ":", data);
             break;
           }
         } catch (err) {
+          console.warn("Failed with endpoint:", endpoint, err);
           continue;
         }
       }
@@ -1060,11 +1017,13 @@
         throw new Error(`All endpoints failed. Last status: ${response?.status}`);
       }
       
+      // Handle different response structures
       let products = [];
       let pagination = {};
       let stats = {};
       
       if (data.success) {
+        // Standard response format
         if (Array.isArray(data.data)) {
           products = data.data;
         } else if (data.data && Array.isArray(data.data.products)) {
@@ -1072,9 +1031,11 @@
         } else if (Array.isArray(data.products)) {
           products = data.products;
         }
+        
         pagination = data.pagination || data.meta || {};
         stats = data.stats || {};
       } else if (Array.isArray(data)) {
+        // Direct array response
         products = data;
       }
       
@@ -1085,12 +1046,16 @@
     } catch (error) {
       console.error("Error loading products:", error);
       showError("Failed to load products. Please check console for details.");
+      
+      // Show empty state
       renderProducts([]);
+      updatePagination({ page: 1, total: 0, pages: 1 });
     } finally {
       hideLoading();
     }
   }
 
+  // Fix 2: Build Query Parameters (Simplified and Robust)
   function buildQueryParams() {
     const params = new URLSearchParams({
       page: currentPage.toString(),
@@ -1106,6 +1071,7 @@
     const category = document.getElementById('categoryFilter').value;
     if (category) params.append("category", category);
     
+    // Only add filters that have values
     const minPrice = document.getElementById('minPrice').value;
     const maxPrice = document.getElementById('maxPrice').value;
     if (minPrice) params.append("minPrice", minPrice);
@@ -1124,30 +1090,48 @@
     return params.toString();
   }
 
-  // HELPER: Get image URL
+  // HELPER: Get image URL from multiple possible locations
   function getProductImageUrl(product) {
     if (!product) return '';
+    
+    // Try different image property names and formats
     const imageSources = [
+      // Array of images
       () => product.images && product.images[0] ? extractUrl(product.images[0]) : '',
       () => product.imageGallery && product.imageGallery[0] ? extractUrl(product.imageGallery[0]) : '',
+      
+      // Single image properties
       () => product.image ? extractUrl(product.image) : '',
       () => product.thumbnail ? extractUrl(product.thumbnail) : '',
     ];
+    
     for (const getImage of imageSources) {
       const url = getImage();
       if (url) return url;
     }
+    
     return '';
   }
 
+  // HELPER: Extract URL from different formats (string or object)
   function extractUrl(imageData) {
     if (!imageData) return '';
-    if (typeof imageData === 'string') return imageData;
-    if (typeof imageData === 'object') return imageData.url || imageData.secure_url || imageData.public_id || '';
+    
+    if (typeof imageData === 'string') {
+      return imageData;
+    }
+    
+    if (typeof imageData === 'object') {
+      return imageData.url || 
+             imageData.secure_url || 
+             imageData.public_id || 
+             '';
+    }
+    
     return '';
   }
 
-  // Render Products
+  // UPDATED: Render Products with Robust Image Handling
   function renderProducts(products) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
@@ -1169,9 +1153,11 @@
 
     products.forEach(product => {
       const row = document.createElement('tr');
+      // Handle both _id and id
       const productId = product._id || product.id || '';
       const isSelected = selectedProducts.has(productId);
       
+      // Safe data extraction with defaults
       const productName = product.name || 'Unnamed Product';
       const productSku = product.sku || 'N/A';
       const sellerName = product.seller?.name || product.sellerName || 'N/A';
@@ -1183,8 +1169,12 @@
       const status = product.status || 'unknown';
       const createdAt = product.createdAt || new Date();
       
+      // Use the helper function to get a valid URL
       const imageUrl = getProductImageUrl(product);
+      
+      // Placeholder HTML to use on error or if no image exists
       const placeholderHtml = `<div class="product-image" style="background: var(--gray-200); display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: var(--gray-400);"></i></div>`;
+      
       const imageHtml = imageUrl 
         ? `<img src="${imageUrl}" class="product-image" alt="${productName}" onerror="this.onerror=null;this.parentElement.innerHTML='${placeholderHtml.replace(/"/g, "'")}'">`
         : placeholderHtml;
@@ -1235,9 +1225,11 @@
           </div>
         </td>
       `;
+      
       tbody.appendChild(row);
     });
 
+    // Add event listeners to checkboxes
     document.querySelectorAll('.product-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', handleProductSelection);
     });
@@ -1246,12 +1238,15 @@
   // Pagination Functions
   function updatePagination(pagination) {
     if (!pagination) return;
+    
     totalPages = pagination.pages || 1;
     totalProducts = pagination.total || 0;
     currentPage = pagination.page || 1;
+    
     document.getElementById('startIndex').textContent = ((currentPage - 1) * limit) + 1;
     document.getElementById('endIndex').textContent = Math.min(currentPage * limit, totalProducts);
     document.getElementById('totalProducts').textContent = totalProducts;
+    
     updatePaginationButtons();
     generatePageNumbers();
   }
@@ -1266,12 +1261,15 @@
   function generatePageNumbers() {
     const container = document.getElementById('pageNumbers');
     container.innerHTML = '';
+    
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
+    
     for (let i = startPage; i <= endPage; i++) {
       const pageBtn = document.createElement('div');
       pageBtn.className = `page-number ${i === currentPage ? 'active' : ''}`;
@@ -1301,20 +1299,29 @@
     }
   }
 
+  // Fix 2: Populate Category Filters (Safe fallback)
   function populateCategoryFilters() {
     const categoryFilter = document.getElementById('categoryFilter');
     const productCategory = document.getElementById('productCategory');
     
-    while (categoryFilter.options.length > 1) categoryFilter.remove(1);
-    while (productCategory.options.length > 0) productCategory.remove(0);
+    // Clear existing options (except first)
+    while (categoryFilter.options.length > 1) {
+      categoryFilter.remove(1);
+    }
+    while (productCategory.options.length > 0) {
+      productCategory.remove(0);
+    }
     
+    // Add default option for modal
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
     defaultOption.textContent = 'Select Category';
     productCategory.appendChild(defaultOption);
     
+    // Add categories
     if (Array.isArray(allCategories) && allCategories.length > 0) {
       allCategories.forEach(category => {
+        // Handle different category structures
         const categoryId = category._id || category.id || category.value || '';
         const categoryName = category.name || category.label || category.text || 'Unnamed Category';
         
@@ -1331,20 +1338,28 @@
         }
       });
       
+      // Initialize Select2 only if jQuery is available
       if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
         $(productCategory).select2({
           placeholder: "Select Category",
           allowClear: true
         });
       }
+    } else {
+      console.warn("No categories available to populate");
     }
   }
 
   // Product Selection
   function handleProductSelection(event) {
     const productId = event.target.value;
-    if (event.target.checked) selectedProducts.add(productId);
-    else selectedProducts.delete(productId);
+    
+    if (event.target.checked) {
+      selectedProducts.add(productId);
+    } else {
+      selectedProducts.delete(productId);
+    }
+    
     updateBulkActions();
   }
 
@@ -1352,17 +1367,27 @@
     const checkboxes = document.querySelectorAll('.product-checkbox');
     checkboxes.forEach(checkbox => {
       checkbox.checked = event.target.checked;
-      if (event.target.checked) selectedProducts.add(checkbox.value);
-      else selectedProducts.delete(checkbox.value);
+      if (event.target.checked) {
+        selectedProducts.add(checkbox.value);
+      } else {
+        selectedProducts.delete(checkbox.value);
+      }
     });
+    
     updateBulkActions();
   }
 
   function updateBulkActions() {
     const bulkActions = document.getElementById('bulkActions');
     const selectedCount = document.getElementById('selectedCount');
+    
     selectedCount.textContent = `${selectedProducts.size} products selected`;
-    bulkActions.style.display = selectedProducts.size > 0 ? 'flex' : 'none';
+    
+    if (selectedProducts.size > 0) {
+      bulkActions.style.display = 'flex';
+    } else {
+      bulkActions.style.display = 'none';
+    }
   }
 
   function clearSelection() {
@@ -1372,13 +1397,24 @@
     updateBulkActions();
   }
 
+  // Bulk Actions
   async function applyBulkAction() {
     const action = document.getElementById('bulkActionSelect').value;
-    if (!action) { alert('Please select an action'); return; }
-    if (selectedProducts.size === 0) { alert('No products selected'); return; }
+    if (!action) {
+      alert('Please select an action');
+      return;
+    }
+    
+    if (selectedProducts.size === 0) {
+      alert('No products selected');
+      return;
+    }
     
     const productIds = Array.from(selectedProducts);
-    if (!confirm(`Are you sure you want to ${action} ${productIds.length} product(s)?`)) return;
+    
+    if (!confirm(`Are you sure you want to ${action} ${productIds.length} product(s)?`)) {
+      return;
+    }
     
     try {
       const token = localStorage.getItem("adminToken");
@@ -1388,7 +1424,10 @@
           "Authorization": "Bearer " + token,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ action: action, productIds: productIds })
+        body: JSON.stringify({
+          action: action,
+          productIds: productIds
+        })
       });
       
       if (response.ok) {
@@ -1404,72 +1443,39 @@
     }
   }
 
+  // Add/Edit Product
   function showAddProductModal() {
     document.getElementById('modalTitle').textContent = 'Add New Product';
     document.getElementById('productForm').reset();
     document.getElementById('productId').value = '';
     document.getElementById('imagePreview').innerHTML = '';
+    
+    // Show modal
     document.getElementById('productModal').style.display = 'flex';
   }
 
-  // FIX 4: Robust Edit Product Function
-  async function editProduct(productId) {
+  function editProduct(productId) {
+    // Fetch product details and populate form
+    fetchProductDetails(productId);
+    document.getElementById('modalTitle').textContent = 'Edit Product';
+    document.getElementById('productModal').style.display = 'flex';
+  }
+
+  async function fetchProductDetails(productId) {
     try {
       const token = localStorage.getItem("adminToken");
+      const response = await fetch(`${API_V1}/admin/products/${productId}`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
       
-      // Try different endpoints
-      const endpoints = [
-        `${API_V1}/admin/products/${productId}`,
-        `${API_V1}/products/${productId}`,
-        `${API_V1}/seller/products/${productId}`
-      ];
-      
-      let response = null;
-      let data = null;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log("Trying fetch endpoint for edit:", endpoint);
-          response = await fetch(endpoint, {
-            headers: { 
-              "Authorization": "Bearer " + token,
-              "Accept": "application/json"
-            }
-          });
-          
-          if (response.ok) {
-            data = await response.json();
-            console.log("Product data from", endpoint, ":", data);
-            break;
-          } else if (response.status === 401) {
-            console.warn("Unauthorized for endpoint:", endpoint);
-            continue;
-          }
-        } catch (err) {
-          console.warn("Fetch endpoint failed:", endpoint, err);
-          continue;
-        }
-      }
-      
-      if (!response || !response.ok) {
-        alert('Cannot edit product. You may not have permission.');
-        return;
-      }
-      
-      // Handle response structure
-      const product = data.success ? (data.data || data.product) : data;
-      
-      if (product) {
+      if (response.ok) {
+        const data = await response.json();
+        // Handle nested data structures for single product
+        const product = data.data || data.product || data;
         populateProductForm(product);
-        document.getElementById('modalTitle').textContent = 'Edit Product';
-        document.getElementById('productModal').style.display = 'flex';
-      } else {
-        alert('Product data not found');
       }
-      
     } catch (error) {
-      console.error("Error fetching product for edit:", error);
-      alert('Failed to load product details');
+      console.error("Error fetching product details:", error);
     }
   }
 
@@ -1481,13 +1487,17 @@
     document.getElementById('productPrice').value = product.price;
     document.getElementById('productStock').value = product.stock;
     
+    // Handle nested category object or ID
     const catId = product.category?._id || product.category || '';
     document.getElementById('productCategory').value = catId;
+    
     document.getElementById('productStatus').value = product.status;
     
-    const tagSelect = document.getElementById('productTags');
+    // Populate tags
     if (product.tags && product.tags.length > 0) {
+      const tagSelect = document.getElementById('productTags');
       product.tags.forEach(tag => {
+        // Only add if doesn't exist to prevent duplicates
         if (!tagSelect.querySelector(`option[value="${tag}"]`)) {
              const option = new Option(tag, tag, true, true);
              tagSelect.add(option);
@@ -1495,13 +1505,18 @@
       });
     }
     
+    // Populate images
     const imagePreview = document.getElementById('imagePreview');
     imagePreview.innerHTML = '';
+    
     if (product.images && product.images.length > 0) {
       product.images.forEach(image => {
         const imgDiv = document.createElement('div');
         imgDiv.style.position = 'relative';
+        
+        // Extract URL for preview as well
         const imgUrl = extractUrl(image);
+        
         imgDiv.innerHTML = `
           <img src="${imgUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
           <button onclick="removeImage(this)" style="position: absolute; top: 5px; right: 5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer;">×</button>
@@ -1510,13 +1525,13 @@
       });
     }
     
+    // Update Select2 if active
     if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
       $(document.getElementById('productCategory')).trigger('change');
       $(document.getElementById('productTags')).trigger('change');
     }
   }
 
-  // FIX 6: Robust Save Product Function
   async function saveProduct(event) {
     event.preventDefault();
     
@@ -1536,20 +1551,13 @@
     
     try {
       const token = localStorage.getItem("adminToken");
-      let endpoint = '';
-      let method = '';
+      const url = isEdit 
+        ? `${API_V1}/admin/products/${productId}`
+        : `${API_V1}/admin/products`;
       
-      if (isEdit) {
-        endpoint = `${API_V1}/admin/products/${productId}`;
-        method = 'PUT';
-      } else {
-        endpoint = `${API_V1}/admin/products`;
-        method = 'POST';
-      }
+      const method = isEdit ? 'PUT' : 'POST';
       
-      console.log("Saving product to:", endpoint);
-      
-      let response = await fetch(endpoint, {
+      const response = await fetch(url, {
         method: method,
         headers: {
           "Authorization": "Bearer " + token,
@@ -1558,33 +1566,16 @@
         body: JSON.stringify(productData)
       });
       
-      // Fallback for unauthorized admin endpoint
-      if (response.status === 401) {
-        console.warn("Admin endpoint unauthorized, trying regular endpoint");
-        if (isEdit) endpoint = `${API_V1}/products/${productId}`;
-        else endpoint = `${API_V1}/products`;
-        
-        response = await fetch(endpoint, {
-          method: method,
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(productData)
-        });
-      }
-      
       if (response.ok) {
         alert(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
         closeModal();
         loadProducts();
       } else {
-        throw new Error('Save failed');
+        throw new Error('Failed to save product');
       }
-      
     } catch (error) {
-      console.error("Save product error:", error);
-      alert(`Failed to ${isEdit ? 'update' : 'create'} product. Check console for details.`);
+      alert(`Failed to ${isEdit ? 'update' : 'create'} product`);
+      console.error(error);
     }
   }
 
@@ -1592,13 +1583,13 @@
     document.getElementById('productModal').style.display = 'none';
   }
 
-  // FIX 5: Robust Status Change
-  async function changeStatus(productId, currentStatus) {
+  // Change Product Status
+  function changeStatus(productId, currentStatus) {
     const newStatus = prompt(`Current status: ${currentStatus}\n\nEnter new status (active/inactive/pending/rejected):`, currentStatus);
     
     if (newStatus && ['active', 'inactive', 'pending', 'rejected'].includes(newStatus.toLowerCase())) {
       if (confirm(`Change status from ${currentStatus} to ${newStatus}?`)) {
-        await updateProductStatus(productId, newStatus.toLowerCase());
+        updateProductStatus(productId, newStatus.toLowerCase());
       }
     }
   }
@@ -1606,102 +1597,53 @@
   async function updateProductStatus(productId, status) {
     try {
       const token = localStorage.getItem("adminToken");
-      const endpoints = [
-        `${API_V1}/admin/products/${productId}/status`,
-        `${API_V1}/products/${productId}`,
-        `${API_V1}/seller/products/${productId}`
-      ];
+      const response = await fetch(`${API_V1}/admin/products/${productId}/status`, {
+        method: 'PATCH',
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: status })
+      });
       
-      let success = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log("Trying status update endpoint:", endpoint);
-          const method = endpoint.includes('/status') ? 'PATCH' : 'PUT';
-          const body = JSON.stringify({ status: status });
-          
-          const response = await fetch(endpoint, {
-            method: method,
-            headers: {
-              "Authorization": "Bearer " + token,
-              "Content-Type": "application/json"
-            },
-            body: body
-          });
-          
-          if (response.ok) {
-            success = true;
-            break;
-          } else if (response.status === 401) {
-            continue;
-          }
-        } catch (err) {
-          continue;
-        }
-      }
-      
-      if (success) {
+      if (response.ok) {
         alert('Status updated successfully!');
         loadProducts();
       } else {
-        throw new Error('All status update endpoints failed');
+        throw new Error('Failed to update status');
       }
-      
     } catch (error) {
-      console.error("Status update error:", error);
-      alert('Failed to update status. You may not have permission.');
+      alert('Failed to update status');
+      console.error(error);
     }
   }
 
-  // FIX 3: Robust Delete Product
+  // Delete Product
   async function deleteProduct(productId) {
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return;
+    }
     
     try {
       const token = localStorage.getItem("adminToken");
-      const endpoints = [
-        `${API_V1}/admin/products/${productId}`,
-        `${API_V1}/products/${productId}`,
-        `${API_V1}/seller/products/${productId}`
-      ];
+      const response = await fetch(`${API_V1}/admin/products/${productId}`, {
+        method: 'DELETE',
+        headers: { "Authorization": "Bearer " + token }
+      });
       
-      let success = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log("Trying delete endpoint:", endpoint);
-          const response = await fetch(endpoint, {
-            method: 'DELETE',
-            headers: { 
-              "Authorization": "Bearer " + token,
-              "Accept": "application/json"
-            }
-          });
-          
-          if (response.ok) {
-            success = true;
-            break;
-          } else if (response.status === 401) {
-            continue;
-          }
-        } catch (err) {
-          continue;
-        }
-      }
-      
-      if (success) {
+      if (response.ok) {
         alert('Product deleted successfully!');
         loadProducts();
       } else {
-        throw new Error('All delete endpoints failed');
+        throw new Error('Failed to delete product');
       }
-      
     } catch (error) {
-      console.error("Delete product error:", error);
-      alert('Failed to delete product. You may not have permission.');
+      alert('Failed to delete product');
+      console.error(error);
     }
   }
 
+  // Export Products
   async function exportProducts() {
     try {
       const token = localStorage.getItem("adminToken");
@@ -1730,10 +1672,12 @@
     }
   }
 
+  // View Product Details
   function viewProduct(productId) {
     window.open(`/admin/product-details.html?id=${productId}`, '_blank');
   }
 
+  // Reset Filters
   function resetFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('statusFilter').value = 'all';
@@ -1744,18 +1688,22 @@
     document.getElementById('maxStock').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
+    
     currentPage = 1;
     loadProducts();
   }
 
+  // Update Stats
   function updateStats(stats) {
     if (!stats) return;
+    
     document.getElementById('activeCount').textContent = stats.active || 0;
     document.getElementById('inactiveCount').textContent = stats.inactive || 0;
     document.getElementById('pendingCount').textContent = stats.pending || 0;
     document.getElementById('rejectedCount').textContent = stats.rejected || 0;
   }
 
+  // Utility Functions
   function formatPrice(price) {
     return parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
@@ -1781,20 +1729,26 @@
     `;
   }
 
-  function hideLoading() {}
+  function hideLoading() {
+    // Hidden by renderProducts
+  }
 
   function showError(message) {
     console.error(message);
+    // Optional: show toast
   }
 
   function toggleDropdown(button) {
     const dropdown = button.nextElementSibling;
     dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    
+    // Close other dropdowns
     document.querySelectorAll('.dropdown-menu').forEach(menu => {
       if (menu !== dropdown) menu.style.display = 'none';
     });
   }
 
+  // Close dropdowns when clicking outside
   document.addEventListener('click', (event) => {
     if (!event.target.closest('.action-dropdown')) {
       document.querySelectorAll('.dropdown-menu').forEach(menu => {
@@ -1803,7 +1757,9 @@
     }
   });
 
+  // Setup event listeners
   function setupEventListeners() {
+    // Image upload
     const imageUpload = document.getElementById('imageUpload');
     if (imageUpload) {
       imageUpload.addEventListener('click', () => {
@@ -1820,6 +1776,7 @@
   function handleImageUpload(event) {
     const files = event.target.files;
     const imagePreview = document.getElementById('imagePreview');
+    
     for (let file of files) {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -1839,6 +1796,37 @@
 
   function removeImage(button) {
     button.parentElement.remove();
+  }
+  
+  // Debug Script for checking data structure
+  function debugProductImages() {
+    const token = localStorage.getItem("adminToken");
+    
+    fetch(`${API_V1}/products?limit=1`, {
+      headers: { "Authorization": "Bearer " + token }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Product data structure:", data);
+      
+      if (data.data && data.data[0]) {
+        const product = data.data[0];
+        console.log("First product:", product);
+        console.log("Product images property:", product.images);
+        console.log("Type of images:", typeof product.images);
+        console.log("Is array?", Array.isArray(product.images));
+        
+        if (product.images && Array.isArray(product.images)) {
+          console.log("First image:", product.images[0]);
+          console.log("Type of first image:", typeof product.images[0]);
+          
+          if (product.images[0] && typeof product.images[0] === 'object') {
+            console.log("Image object keys:", Object.keys(product.images[0]));
+          }
+        }
+      }
+    })
+    .catch(error => console.error("Debug error:", error));
   }
 </script>
 </body>
