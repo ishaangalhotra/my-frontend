@@ -5,7 +5,10 @@
   <title>Product Management • QuickLocal Admin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  
   <style>
     :root {
       --primary: #2563eb;
@@ -584,7 +587,6 @@
 </head>
 <body>
 <div class="container">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <h2><i class="fas fa-store"></i> QuickLocal</h2>
@@ -617,9 +619,7 @@
     </nav>
   </aside>
 
-  <!-- Main Content -->
   <main class="content">
-    <!-- Header -->
     <div class="header">
       <div class="header-left">
         <h1>Product Management</h1>
@@ -635,7 +635,6 @@
       </div>
     </div>
 
-    <!-- Quick Stats -->
     <div class="quick-stats" id="statsContainer">
       <div class="stat-card">
         <div class="stat-icon active">
@@ -667,7 +666,6 @@
       </div>
     </div>
 
-    <!-- Bulk Actions -->
     <div class="bulk-actions" id="bulkActions">
       <span id="selectedCount">0 products selected</span>
       <select class="filter-select" id="bulkActionSelect">
@@ -681,7 +679,6 @@
       <button class="btn btn-sm btn-secondary" onclick="clearSelection()">Clear</button>
     </div>
 
-    <!-- Filters -->
     <div class="filters-container">
       <div class="filters-header">
         <div class="filters-title">Filters & Search</div>
@@ -734,7 +731,6 @@
       </div>
     </div>
 
-    <!-- Products Table -->
     <div class="table-container">
       <div class="table-responsive">
         <table class="data-table" id="productsTable">
@@ -756,13 +752,11 @@
             </tr>
           </thead>
           <tbody id="productsTableBody">
-            <!-- Products will be loaded here -->
-          </tbody>
+            </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Pagination -->
     <div class="pagination">
       <div class="pagination-info">
         Showing <span id="startIndex">0</span> to <span id="endIndex">0</span> of <span id="totalProducts">0</span> products
@@ -776,8 +770,7 @@
         </button>
         
         <div class="page-numbers" id="pageNumbers">
-          <!-- Page numbers will be generated here -->
-        </div>
+          </div>
         
         <button class="pagination-btn" id="nextPage" onclick="nextPage()">
           Next <i class="fas fa-chevron-right"></i>
@@ -790,7 +783,6 @@
   </main>
 </div>
 
-<!-- Add/Edit Product Modal -->
 <div class="modal" id="productModal">
   <div class="modal-content">
     <div class="modal-header">
@@ -844,8 +836,7 @@
         <div class="filter-group" style="margin-bottom: 20px;">
           <label class="filter-label">Tags</label>
           <select id="productTags" class="filter-select" multiple style="height: 100px;">
-            <!-- Tags will be populated -->
-          </select>
+            </select>
         </div>
         
         <div style="margin-bottom: 20px;">
@@ -882,14 +873,14 @@
   let allCategories = [];
   let allTags = [];
 
-  // Initialize
+  // Fix 2: Initialize with proper error handling and sequencing
   document.addEventListener('DOMContentLoaded', () => {
     checkAdminAuth();
     initializeFilters();
     loadProducts();
-    loadCategories();
-    loadTags();
     setupEventListeners();
+    // Load categories separately with a slight delay to ensure tokens are ready/UI is painted
+    setTimeout(loadCategories, 500);
   });
 
   // Admin Authentication
@@ -929,69 +920,175 @@
     document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
   }
 
-  // Load Products
-  async function loadProducts() {
-    showLoading();
-    
-    const token = localStorage.getItem("adminToken");
-    const params = buildQueryParams();
-    
+  // Fix 2: Robust Category Loading
+  async function loadCategories() {
     try {
-      const response = await fetch(`${API_V1}/admin/products?${params}`, {
-        headers: {
+      const token = localStorage.getItem("adminToken");
+      if (!token) return;
+      
+      console.log("Loading categories...");
+      const response = await fetch(`${API_V1}/categories`, {
+        headers: { 
           "Authorization": "Bearer " + token,
           "Accept": "application/json"
         }
       });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      const data = await response.json();
-      renderProducts(data.data);
-      updatePagination(data.pagination);
-      updateStats(data.stats);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Categories response:", data);
+        
+        // Handle different response structures
+        if (data.success && data.data) {
+          allCategories = Array.isArray(data.data) ? data.data : [];
+        } else if (Array.isArray(data)) {
+          allCategories = data;
+        } else if (data.categories && Array.isArray(data.categories)) {
+          allCategories = data.categories;
+        } else {
+          allCategories = [];
+        }
+        
+        if (allCategories.length > 0) {
+          populateCategoryFilters();
+        } else {
+          console.warn("No categories found or empty array");
+        }
+      } else {
+        console.warn("Categories API error:", response.status);
+      }
+    } catch (error) {
+      console.error("Error loading categories:", error);
+      // Continue without categories
+      allCategories = [];
+    }
+  }
+
+  // Fix 2: Robust Product Loading (Retry logic & Structure check)
+  async function loadProducts() {
+    showLoading();
+    
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      alert("Please login as admin.");
+      window.location.href = "admin-login.html";
+      return;
+    }
+    
+    // Build query params
+    const params = buildQueryParams();
+    console.log("Loading products with params:", params.toString());
+    
+    try {
+      // Try different endpoints in order to handle potential router mismatches
+      let endpoints = [
+        `${API_V1}/admin/products?${params}`,
+        `${API_V1}/products?${params}`
+      ];
+      
+      let response = null;
+      let data = null;
+      
+      // Try each endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log("Trying endpoint:", endpoint);
+          response = await fetch(endpoint, {
+            headers: {
+              "Authorization": "Bearer " + token,
+              "Accept": "application/json"
+            }
+          });
+          
+          if (response.ok) {
+            data = await response.json();
+            console.log("Products response from", endpoint, ":", data);
+            break;
+          }
+        } catch (err) {
+          console.warn("Failed with endpoint:", endpoint, err);
+          continue;
+        }
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error(`All endpoints failed. Last status: ${response?.status}`);
+      }
+      
+      // Handle different response structures
+      let products = [];
+      let pagination = {};
+      let stats = {};
+      
+      if (data.success) {
+        // Standard response format
+        if (Array.isArray(data.data)) {
+          products = data.data;
+        } else if (data.data && Array.isArray(data.data.products)) {
+          products = data.data.products;
+        } else if (Array.isArray(data.products)) {
+          products = data.products;
+        }
+        
+        pagination = data.pagination || data.meta || {};
+        stats = data.stats || {};
+      } else if (Array.isArray(data)) {
+        // Direct array response
+        products = data;
+      }
+      
+      renderProducts(products);
+      updatePagination(pagination);
+      updateStats(stats);
       
     } catch (error) {
       console.error("Error loading products:", error);
-      showError("Failed to load products");
+      showError("Failed to load products. Please check console for details.");
+      
+      // Show empty state
+      renderProducts([]);
+      updatePagination({ page: 1, total: 0, pages: 1 });
     } finally {
       hideLoading();
     }
   }
 
-  // Build Query Parameters
+  // Fix 2: Build Query Parameters (Simplified and Robust)
   function buildQueryParams() {
     const params = new URLSearchParams({
-      page: currentPage,
-      limit: limit,
-      search: document.getElementById('searchInput').value.trim()
+      page: currentPage.toString(),
+      limit: limit.toString()
     });
 
+    const search = document.getElementById('searchInput').value.trim();
+    if (search) params.append("search", search);
+    
     const status = document.getElementById('statusFilter').value;
-    if (status !== 'all') params.append('status', status);
+    if (status !== 'all') params.append("status", status);
     
     const category = document.getElementById('categoryFilter').value;
-    if (category) params.append('category', category);
+    if (category) params.append("category", category);
     
+    // Only add filters that have values
     const minPrice = document.getElementById('minPrice').value;
     const maxPrice = document.getElementById('maxPrice').value;
-    if (minPrice) params.append('minPrice', minPrice);
-    if (maxPrice) params.append('maxPrice', maxPrice);
+    if (minPrice) params.append("minPrice", minPrice);
+    if (maxPrice) params.append("maxPrice", maxPrice);
     
     const minStock = document.getElementById('minStock').value;
     const maxStock = document.getElementById('maxStock').value;
-    if (minStock) params.append('minStock', minStock);
-    if (maxStock) params.append('maxStock', maxStock);
+    if (minStock) params.append("minStock", minStock);
+    if (maxStock) params.append("maxStock", maxStock);
     
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
     return params.toString();
   }
 
-  // Render Products
+  // Fix 2: Render Products (Safer null checks)
   function renderProducts(products) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
@@ -1002,6 +1099,9 @@
           <td colspan="11" style="text-align: center; padding: 40px;">
             <i class="fas fa-box-open" style="font-size: 3rem; color: var(--gray-300); margin-bottom: 15px;"></i>
             <p style="color: var(--gray-500);">No products found</p>
+            <button class="btn btn-secondary btn-sm" onclick="loadProducts()">
+              <i class="fas fa-redo"></i> Retry
+            </button>
           </td>
         </tr>
       `;
@@ -1010,34 +1110,49 @@
 
     products.forEach(product => {
       const row = document.createElement('tr');
-      const isSelected = selectedProducts.has(product._id);
+      // Handle both _id and id
+      const productId = product._id || product.id || '';
+      const isSelected = selectedProducts.has(productId);
+      
+      // Safe data extraction with defaults
+      const productName = product.name || 'Unnamed Product';
+      const productSku = product.sku || 'N/A';
+      const sellerName = product.seller?.name || product.sellerName || 'N/A';
+      const sellerEmail = product.seller?.email || '';
+      const categoryName = product.category?.name || product.categoryName || 'N/A';
+      const price = product.price || product.sellingPrice || 0;
+      const stock = product.stock || product.stockQuantity || 0;
+      const salesCount = product.salesCount || 0;
+      const status = product.status || 'unknown';
+      const createdAt = product.createdAt || new Date();
+      const images = product.images || [];
       
       row.innerHTML = `
-        <td><input type="checkbox" class="product-checkbox" value="${product._id}" ${isSelected ? 'checked' : ''} /></td>
+        <td><input type="checkbox" class="product-checkbox" value="${productId}" ${isSelected ? 'checked' : ''} /></td>
         <td>
-          ${product.images && product.images.length > 0 
-            ? `<img src="${product.images[0]}" class="product-image" alt="${product.name}">`
+          ${images.length > 0 
+            ? `<img src="${images[0]}" class="product-image" alt="${productName}">`
             : '<div class="product-image" style="background: var(--gray-200); display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: var(--gray-400);"></i></div>'}
         </td>
         <td>
-          <div style="font-weight: 500; margin-bottom: 5px;">${product.name}</div>
-          <div style="font-size: 0.8rem; color: var(--gray-500);">SKU: ${product.sku || 'N/A'}</div>
+          <div style="font-weight: 500; margin-bottom: 5px;">${productName}</div>
+          <div style="font-size: 0.8rem; color: var(--gray-500);">SKU: ${productSku}</div>
         </td>
         <td>
-          <div style="font-weight: 500;">${product.seller?.name || 'N/A'}</div>
-          <div style="font-size: 0.8rem; color: var(--gray-500);">${product.seller?.email || ''}</div>
+          <div style="font-weight: 500;">${sellerName}</div>
+          <div style="font-size: 0.8rem; color: var(--gray-500);">${sellerEmail}</div>
         </td>
-        <td>${product.category?.name || 'N/A'}</td>
-        <td style="font-weight: 600;">₹${formatPrice(product.price)}</td>
+        <td>${categoryName}</td>
+        <td style="font-weight: 600;">₹${formatPrice(price)}</td>
         <td>
-          <span style="font-weight: 500; ${product.stock <= 10 ? 'color: var(--danger);' : ''}">
-            ${product.stock}
+          <span style="font-weight: 500; ${stock <= 10 ? 'color: var(--danger);' : ''}">
+            ${stock}
           </span>
         </td>
-        <td>${product.salesCount || 0}</td>
-        <td><span class="badge ${product.status}">${product.status}</span></td>
+        <td>${salesCount}</td>
+        <td><span class="badge ${status}">${status}</span></td>
         <td style="font-size: 0.85rem; color: var(--gray-600);">
-          ${formatDate(product.createdAt)}
+          ${formatDate(createdAt)}
         </td>
         <td>
           <div class="action-dropdown">
@@ -1045,17 +1160,17 @@
               <i class="fas fa-ellipsis-h"></i> Actions
             </button>
             <div class="dropdown-menu">
-              <a href="#" class="dropdown-item" onclick="editProduct('${product._id}')">
+              <a href="#" class="dropdown-item" onclick="editProduct('${productId}')">
                 <i class="fas fa-edit"></i> Edit
               </a>
-              <a href="#" class="dropdown-item" onclick="viewProduct('${product._id}')">
+              <a href="#" class="dropdown-item" onclick="viewProduct('${productId}')">
                 <i class="fas fa-eye"></i> View
               </a>
-              <a href="#" class="dropdown-item" onclick="changeStatus('${product._id}', '${product.status}')">
+              <a href="#" class="dropdown-item" onclick="changeStatus('${productId}', '${status}')">
                 <i class="fas fa-exchange-alt"></i> Change Status
               </a>
               <div style="border-top: 1px solid var(--gray-200); margin: 5px 0;"></div>
-              <a href="#" class="dropdown-item" style="color: var(--danger);" onclick="deleteProduct('${product._id}')">
+              <a href="#" class="dropdown-item" style="color: var(--danger);" onclick="deleteProduct('${productId}')">
                 <i class="fas fa-trash"></i> Delete
               </a>
             </div>
@@ -1136,57 +1251,55 @@
     }
   }
 
-  // Load Categories
-  async function loadCategories() {
-    try {
-      const token = localStorage.getItem("adminToken");
-      const response = await fetch(`${API_V1}/categories`, {
-        headers: { "Authorization": "Bearer " + token }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        allCategories = data.data || [];
-        populateCategoryFilters();
-      }
-    } catch (error) {
-      console.error("Error loading categories:", error);
-    }
-  }
-
-  // Load Tags
-  async function loadTags() {
-    try {
-      const token = localStorage.getItem("adminToken");
-      const response = await fetch(`${API_V1}/products/tags`, {
-        headers: { "Authorization": "Bearer " + token }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        allTags = data.tags || [];
-      }
-    } catch (error) {
-      console.error("Error loading tags:", error);
-    }
-  }
-
-  // Populate Category Filters
+  // Fix 2: Populate Category Filters (Safe fallback)
   function populateCategoryFilters() {
     const categoryFilter = document.getElementById('categoryFilter');
     const productCategory = document.getElementById('productCategory');
     
-    allCategories.forEach(category => {
-      const option = document.createElement('option');
-      option.value = category._id;
-      option.textContent = category.name;
-      
-      categoryFilter.appendChild(option.cloneNode(true));
-      productCategory.appendChild(option);
-    });
+    // Clear existing options (except first)
+    while (categoryFilter.options.length > 1) {
+      categoryFilter.remove(1);
+    }
+    while (productCategory.options.length > 0) {
+      productCategory.remove(0);
+    }
     
-    // Initialize Select2 for better UX
-    $(productCategory).select2();
+    // Add default option for modal
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Category';
+    productCategory.appendChild(defaultOption);
+    
+    // Add categories
+    if (Array.isArray(allCategories) && allCategories.length > 0) {
+      allCategories.forEach(category => {
+        // Handle different category structures
+        const categoryId = category._id || category.id || category.value || '';
+        const categoryName = category.name || category.label || category.text || 'Unnamed Category';
+        
+        if (categoryId && categoryName) {
+          const option1 = document.createElement('option');
+          option1.value = categoryId;
+          option1.textContent = categoryName;
+          categoryFilter.appendChild(option1.cloneNode(true));
+          
+          const option2 = document.createElement('option');
+          option2.value = categoryId;
+          option2.textContent = categoryName;
+          productCategory.appendChild(option2);
+        }
+      });
+      
+      // Initialize Select2 only if jQuery is available
+      if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+        $(productCategory).select2({
+          placeholder: "Select Category",
+          allowClear: true
+        });
+      }
+    } else {
+      console.warn("No categories available to populate");
+    }
   }
 
   // Product Selection
@@ -1309,7 +1422,9 @@
       
       if (response.ok) {
         const data = await response.json();
-        populateProductForm(data.data);
+        // Handle nested data structures for single product
+        const product = data.data || data.product || data;
+        populateProductForm(product);
       }
     } catch (error) {
       console.error("Error fetching product details:", error);
@@ -1323,15 +1438,22 @@
     document.getElementById('productDescription').value = product.description || '';
     document.getElementById('productPrice').value = product.price;
     document.getElementById('productStock').value = product.stock;
-    document.getElementById('productCategory').value = product.category?._id || '';
+    
+    // Handle nested category object or ID
+    const catId = product.category?._id || product.category || '';
+    document.getElementById('productCategory').value = catId;
+    
     document.getElementById('productStatus').value = product.status;
     
     // Populate tags
     if (product.tags && product.tags.length > 0) {
       const tagSelect = document.getElementById('productTags');
       product.tags.forEach(tag => {
-        const option = new Option(tag, tag, true, true);
-        tagSelect.add(option);
+        // Only add if doesn't exist to prevent duplicates
+        if (!tagSelect.querySelector(`option[value="${tag}"]`)) {
+             const option = new Option(tag, tag, true, true);
+             tagSelect.add(option);
+        }
       });
     }
     
@@ -1351,9 +1473,11 @@
       });
     }
     
-    // Update Select2
-    $(document.getElementById('productCategory')).trigger('change');
-    $(document.getElementById('productTags')).trigger('change');
+    // Update Select2 if active
+    if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+      $(document.getElementById('productCategory')).trigger('change');
+      $(document.getElementById('productTags')).trigger('change');
+    }
   }
 
   async function saveProduct(event) {
@@ -1542,15 +1666,24 @@
   }
 
   function showLoading() {
-    // You can add a loading spinner here
+    const tbody = document.getElementById('productsTableBody');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="11" style="text-align: center; padding: 40px;">
+          <div class="loading" style="margin: 0 auto 15px;"></div>
+          <p style="color: var(--gray-500);">Loading products...</p>
+        </td>
+      </tr>
+    `;
   }
 
   function hideLoading() {
-    // Hide loading spinner
+    // Hidden by renderProducts
   }
 
   function showError(message) {
-    alert(message);
+    console.error(message);
+    // Optional: show toast
   }
 
   function toggleDropdown(button) {
@@ -1612,6 +1745,36 @@
   function removeImage(button) {
     button.parentElement.remove();
   }
+  
+  // Debug Script (Uncomment if needed)
+  /*
+  async function testEndpoints() {
+    const token = localStorage.getItem("adminToken");
+    console.log("Token exists:", !!token);
+    
+    const endpoints = [
+      '/api/v1/categories',
+      '/api/v1/products',
+      '/api/v1/admin/products'
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+        console.log(`${endpoint}:`, response.status, response.statusText);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`${endpoint} data structure:`, data);
+        }
+      } catch (error) {
+        console.error(`${endpoint} error:`, error);
+      }
+    }
+  }
+  */
 </script>
 </body>
 </html>
