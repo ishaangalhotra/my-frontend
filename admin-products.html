@@ -873,14 +873,16 @@
   let allCategories = [];
   let allTags = [];
 
-  // Initialize
+  // Fix 2: Initialize with proper error handling and sequencing
   document.addEventListener('DOMContentLoaded', () => {
     checkAdminAuth();
     initializeFilters();
     loadProducts();
     setupEventListeners();
-    // Load categories with retry logic
-    loadCategories();
+    // Load categories separately with a slight delay to ensure tokens are ready/UI is painted
+    setTimeout(loadCategories, 500);
+    // Add this line to debug your data if needed:
+    // debugProductImages();
   });
 
   // Admin Authentication
@@ -920,108 +922,140 @@
     document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
   }
 
-  // ROBUST CATEGORY LOADING
+  // Fix 2: Robust Category Loading
   async function loadCategories() {
     try {
       const token = localStorage.getItem("adminToken");
       if (!token) return;
       
-      // Try multiple common endpoints for categories
-      const endpoints = [`${API_V1}/categories`, `${API_V1}/admin/categories`];
-      let data = null;
-
-      for (const url of endpoints) {
-        try {
-            const res = await fetch(url, {
-                headers: { 
-                    "Authorization": "Bearer " + token,
-                    "Accept": "application/json"
-                }
-            });
-            if (res.ok) {
-                data = await res.json();
-                break; // Stop if we found valid data
-            }
-        } catch(e) {
-            console.warn(`Failed to fetch categories from ${url}`, e);
+      console.log("Loading categories...");
+      const response = await fetch(`${API_V1}/categories`, {
+        headers: { 
+          "Authorization": "Bearer " + token,
+          "Accept": "application/json"
         }
-      }
+      });
       
-      if (data) {
-        // Robust data extraction
-        if (data.success && Array.isArray(data.data)) {
-          allCategories = data.data;
-        } else if (data.success && data.data && Array.isArray(data.data.categories)) {
-          allCategories = data.data.categories;
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Categories response:", data);
+        
+        // Handle different response structures
+        if (data.success && data.data) {
+          allCategories = Array.isArray(data.data) ? data.data : [];
         } else if (Array.isArray(data)) {
           allCategories = data;
+        } else if (data.categories && Array.isArray(data.categories)) {
+          allCategories = data.categories;
         } else {
           allCategories = [];
         }
         
         if (allCategories.length > 0) {
           populateCategoryFilters();
+        } else {
+          console.warn("No categories found or empty array");
         }
+      } else {
+        console.warn("Categories API error:", response.status);
       }
     } catch (error) {
       console.error("Error loading categories:", error);
+      // Continue without categories
       allCategories = [];
     }
   }
 
-  // ROBUST PRODUCT LOADING
+  // Fix 2: Robust Product Loading (Retry logic & Structure check)
   async function loadProducts() {
     showLoading();
     
     const token = localStorage.getItem("adminToken");
     if (!token) {
+      alert("Please login as admin.");
       window.location.href = "admin-login.html";
       return;
     }
     
+    // Build query params
     const params = buildQueryParams();
+    console.log("Loading products with params:", params.toString());
     
     try {
-      // Use the standard admin endpoint provided in your router
-      const response = await fetch(`${API_V1}/admin/products?${params}`, {
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json"
-        }
-      });
+      // Try different endpoints in order to handle potential router mismatches
+      let endpoints = [
+        `${API_V1}/admin/products?${params}`,
+        `${API_V1}/products?${params}`
+      ];
       
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Handle different response structures gracefully
-        const products = Array.isArray(data.data) ? data.data : [];
-        const pagination = data.pagination || {};
-        const stats = data.stats || {};
-
-        renderProducts(products);
-        updatePagination(pagination);
-        updateStats(stats);
-      } else {
-        throw new Error(data.message || 'Failed to load products');
+      let response = null;
+      let data = null;
+      
+      // Try each endpoint
+      for (const endpoint of endpoints) {
+        try {
+          console.log("Trying endpoint:", endpoint);
+          response = await fetch(endpoint, {
+            headers: {
+              "Authorization": "Bearer " + token,
+              "Accept": "application/json"
+            }
+          });
+          
+          if (response.ok) {
+            data = await response.json();
+            console.log("Products response from", endpoint, ":", data);
+            break;
+          }
+        } catch (err) {
+          console.warn("Failed with endpoint:", endpoint, err);
+          continue;
+        }
       }
+      
+      if (!response || !response.ok) {
+        throw new Error(`All endpoints failed. Last status: ${response?.status}`);
+      }
+      
+      // Handle different response structures
+      let products = [];
+      let pagination = {};
+      let stats = {};
+      
+      if (data.success) {
+        // Standard response format
+        if (Array.isArray(data.data)) {
+          products = data.data;
+        } else if (data.data && Array.isArray(data.data.products)) {
+          products = data.data.products;
+        } else if (Array.isArray(data.products)) {
+          products = data.products;
+        }
+        
+        pagination = data.pagination || data.meta || {};
+        stats = data.stats || {};
+      } else if (Array.isArray(data)) {
+        // Direct array response
+        products = data;
+      }
+      
+      renderProducts(products);
+      updatePagination(pagination);
+      updateStats(stats);
       
     } catch (error) {
       console.error("Error loading products:", error);
-      document.getElementById('productsTableBody').innerHTML = `
-        <tr>
-          <td colspan="11" style="text-align: center; padding: 40px; color: var(--danger);">
-            <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
-            <p>Error loading products: ${error.message}</p>
-            <button class="btn btn-secondary btn-sm" onclick="loadProducts()" style="margin-top:10px">Retry</button>
-          </td>
-        </tr>
-      `;
+      showError("Failed to load products. Please check console for details.");
+      
+      // Show empty state
+      renderProducts([]);
+      updatePagination({ page: 1, total: 0, pages: 1 });
     } finally {
-      // Loading spinner is replaced by content in renderProducts or error block
+      hideLoading();
     }
   }
 
-  // Build Query Parameters
+  // Fix 2: Build Query Parameters (Simplified and Robust)
   function buildQueryParams() {
     const params = new URLSearchParams({
       page: currentPage.toString(),
@@ -1037,6 +1071,7 @@
     const category = document.getElementById('categoryFilter').value;
     if (category) params.append("category", category);
     
+    // Only add filters that have values
     const minPrice = document.getElementById('minPrice').value;
     const maxPrice = document.getElementById('maxPrice').value;
     if (minPrice) params.append("minPrice", minPrice);
@@ -1055,13 +1090,17 @@
     return params.toString();
   }
 
-  // HELPER: Get image URL
+  // HELPER: Get image URL from multiple possible locations
   function getProductImageUrl(product) {
     if (!product) return '';
     
+    // Try different image property names and formats
     const imageSources = [
+      // Array of images
       () => product.images && product.images[0] ? extractUrl(product.images[0]) : '',
       () => product.imageGallery && product.imageGallery[0] ? extractUrl(product.imageGallery[0]) : '',
+      
+      // Single image properties
       () => product.image ? extractUrl(product.image) : '',
       () => product.thumbnail ? extractUrl(product.thumbnail) : '',
     ];
@@ -1070,19 +1109,29 @@
       const url = getImage();
       if (url) return url;
     }
+    
     return '';
   }
 
+  // HELPER: Extract URL from different formats (string or object)
   function extractUrl(imageData) {
     if (!imageData) return '';
-    if (typeof imageData === 'string') return imageData;
-    if (typeof imageData === 'object') {
-      return imageData.url || imageData.secure_url || imageData.public_id || '';
+    
+    if (typeof imageData === 'string') {
+      return imageData;
     }
+    
+    if (typeof imageData === 'object') {
+      return imageData.url || 
+             imageData.secure_url || 
+             imageData.public_id || 
+             '';
+    }
+    
     return '';
   }
 
-  // Render Products
+  // UPDATED: Render Products with Robust Image Handling
   function renderProducts(products) {
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
@@ -1104,9 +1153,11 @@
 
     products.forEach(product => {
       const row = document.createElement('tr');
+      // Handle both _id and id
       const productId = product._id || product.id || '';
       const isSelected = selectedProducts.has(productId);
       
+      // Safe data extraction with defaults
       const productName = product.name || 'Unnamed Product';
       const productSku = product.sku || 'N/A';
       const sellerName = product.seller?.name || product.sellerName || 'N/A';
@@ -1118,7 +1169,10 @@
       const status = product.status || 'unknown';
       const createdAt = product.createdAt || new Date();
       
+      // Use the helper function to get a valid URL
       const imageUrl = getProductImageUrl(product);
+      
+      // Placeholder HTML to use on error or if no image exists
       const placeholderHtml = `<div class="product-image" style="background: var(--gray-200); display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: var(--gray-400);"></i></div>`;
       
       const imageHtml = imageUrl 
@@ -1175,6 +1229,7 @@
       tbody.appendChild(row);
     });
 
+    // Add event listeners to checkboxes
     document.querySelectorAll('.product-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', handleProductSelection);
     });
@@ -1244,7 +1299,7 @@
     }
   }
 
-  // Populate Category Filters
+  // Fix 2: Populate Category Filters (Safe fallback)
   function populateCategoryFilters() {
     const categoryFilter = document.getElementById('categoryFilter');
     const productCategory = document.getElementById('productCategory');
@@ -1266,6 +1321,7 @@
     // Add categories
     if (Array.isArray(allCategories) && allCategories.length > 0) {
       allCategories.forEach(category => {
+        // Handle different category structures
         const categoryId = category._id || category.id || category.value || '';
         const categoryName = category.name || category.label || category.text || 'Unnamed Category';
         
@@ -1282,25 +1338,28 @@
         }
       });
       
-      // Initialize Select2
+      // Initialize Select2 only if jQuery is available
       if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
         $(productCategory).select2({
           placeholder: "Select Category",
-          allowClear: true,
-          dropdownParent: $('#productModal')
+          allowClear: true
         });
       }
+    } else {
+      console.warn("No categories available to populate");
     }
   }
 
   // Product Selection
   function handleProductSelection(event) {
     const productId = event.target.value;
+    
     if (event.target.checked) {
       selectedProducts.add(productId);
     } else {
       selectedProducts.delete(productId);
     }
+    
     updateBulkActions();
   }
 
@@ -1314,12 +1373,14 @@
         selectedProducts.delete(checkbox.value);
       }
     });
+    
     updateBulkActions();
   }
 
   function updateBulkActions() {
     const bulkActions = document.getElementById('bulkActions');
     const selectedCount = document.getElementById('selectedCount');
+    
     selectedCount.textContent = `${selectedProducts.size} products selected`;
     
     if (selectedProducts.size > 0) {
@@ -1349,7 +1410,9 @@
       return;
     }
     
-    if (!confirm(`Are you sure you want to ${action} ${selectedProducts.size} product(s)?`)) {
+    const productIds = Array.from(selectedProducts);
+    
+    if (!confirm(`Are you sure you want to ${action} ${productIds.length} product(s)?`)) {
       return;
     }
     
@@ -1363,7 +1426,7 @@
         },
         body: JSON.stringify({
           action: action,
-          productIds: Array.from(selectedProducts)
+          productIds: productIds
         })
       });
       
@@ -1380,16 +1443,19 @@
     }
   }
 
-  // Add/Edit Product Modal
+  // Add/Edit Product
   function showAddProductModal() {
     document.getElementById('modalTitle').textContent = 'Add New Product';
     document.getElementById('productForm').reset();
     document.getElementById('productId').value = '';
     document.getElementById('imagePreview').innerHTML = '';
+    
+    // Show modal
     document.getElementById('productModal').style.display = 'flex';
   }
 
   function editProduct(productId) {
+    // Fetch product details and populate form
     fetchProductDetails(productId);
     document.getElementById('modalTitle').textContent = 'Edit Product';
     document.getElementById('productModal').style.display = 'flex';
@@ -1404,6 +1470,7 @@
       
       if (response.ok) {
         const data = await response.json();
+        // Handle nested data structures for single product
         const product = data.data || data.product || data;
         populateProductForm(product);
       }
@@ -1420,14 +1487,17 @@
     document.getElementById('productPrice').value = product.price;
     document.getElementById('productStock').value = product.stock;
     
+    // Handle nested category object or ID
     const catId = product.category?._id || product.category || '';
     document.getElementById('productCategory').value = catId;
     
     document.getElementById('productStatus').value = product.status;
     
+    // Populate tags
     if (product.tags && product.tags.length > 0) {
       const tagSelect = document.getElementById('productTags');
       product.tags.forEach(tag => {
+        // Only add if doesn't exist to prevent duplicates
         if (!tagSelect.querySelector(`option[value="${tag}"]`)) {
              const option = new Option(tag, tag, true, true);
              tagSelect.add(option);
@@ -1435,6 +1505,7 @@
       });
     }
     
+    // Populate images
     const imagePreview = document.getElementById('imagePreview');
     imagePreview.innerHTML = '';
     
@@ -1442,7 +1513,10 @@
       product.images.forEach(image => {
         const imgDiv = document.createElement('div');
         imgDiv.style.position = 'relative';
+        
+        // Extract URL for preview as well
         const imgUrl = extractUrl(image);
+        
         imgDiv.innerHTML = `
           <img src="${imgUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
           <button onclick="removeImage(this)" style="position: absolute; top: 5px; right: 5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer;">×</button>
@@ -1451,6 +1525,7 @@
       });
     }
     
+    // Update Select2 if active
     if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
       $(document.getElementById('productCategory')).trigger('change');
       $(document.getElementById('productTags')).trigger('change');
@@ -1597,10 +1672,12 @@
     }
   }
 
+  // View Product Details
   function viewProduct(productId) {
     window.open(`/admin/product-details.html?id=${productId}`, '_blank');
   }
 
+  // Reset Filters
   function resetFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('statusFilter').value = 'all';
@@ -1611,18 +1688,22 @@
     document.getElementById('maxStock').value = '';
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
+    
     currentPage = 1;
     loadProducts();
   }
 
+  // Update Stats
   function updateStats(stats) {
     if (!stats) return;
+    
     document.getElementById('activeCount').textContent = stats.active || 0;
     document.getElementById('inactiveCount').textContent = stats.inactive || 0;
     document.getElementById('pendingCount').textContent = stats.pending || 0;
     document.getElementById('rejectedCount').textContent = stats.rejected || 0;
   }
 
+  // Utility Functions
   function formatPrice(price) {
     return parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
@@ -1648,18 +1729,26 @@
     `;
   }
 
+  function hideLoading() {
+    // Hidden by renderProducts
+  }
+
+  function showError(message) {
+    console.error(message);
+    // Optional: show toast
+  }
+
   function toggleDropdown(button) {
     const dropdown = button.nextElementSibling;
-    const isVisible = dropdown.style.display === 'block';
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
     
     // Close other dropdowns
     document.querySelectorAll('.dropdown-menu').forEach(menu => {
-      menu.style.display = 'none';
+      if (menu !== dropdown) menu.style.display = 'none';
     });
-    
-    dropdown.style.display = isVisible ? 'none' : 'block';
   }
 
+  // Close dropdowns when clicking outside
   document.addEventListener('click', (event) => {
     if (!event.target.closest('.action-dropdown')) {
       document.querySelectorAll('.dropdown-menu').forEach(menu => {
@@ -1668,7 +1757,9 @@
     }
   });
 
+  // Setup event listeners
   function setupEventListeners() {
+    // Image upload
     const imageUpload = document.getElementById('imageUpload');
     if (imageUpload) {
       imageUpload.addEventListener('click', () => {
@@ -1705,6 +1796,37 @@
 
   function removeImage(button) {
     button.parentElement.remove();
+  }
+  
+  // Debug Script for checking data structure
+  function debugProductImages() {
+    const token = localStorage.getItem("adminToken");
+    
+    fetch(`${API_V1}/products?limit=1`, {
+      headers: { "Authorization": "Bearer " + token }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Product data structure:", data);
+      
+      if (data.data && data.data[0]) {
+        const product = data.data[0];
+        console.log("First product:", product);
+        console.log("Product images property:", product.images);
+        console.log("Type of images:", typeof product.images);
+        console.log("Is array?", Array.isArray(product.images));
+        
+        if (product.images && Array.isArray(product.images)) {
+          console.log("First image:", product.images[0]);
+          console.log("Type of first image:", typeof product.images[0]);
+          
+          if (product.images[0] && typeof product.images[0] === 'object') {
+            console.log("Image object keys:", Object.keys(product.images[0]));
+          }
+        }
+      }
+    })
+    .catch(error => console.error("Debug error:", error));
   }
 </script>
 </body>
