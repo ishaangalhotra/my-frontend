@@ -69,7 +69,8 @@
     .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
     .filter-group { display: flex; flex-direction: column; gap: 8px; }
     .filter-label { font-size: 0.85rem; font-weight: 500; color: var(--gray-700); }
-    .filter-input, .filter-select { padding: 10px 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.9rem; width: 100%; }
+    .filter-input, .filter-select { padding: 10px 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.9rem; width: 100%; transition: border-color 0.2s; }
+    .filter-input:focus, .filter-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
     .date-range { display: flex; gap: 10px; }
 
     /* Buttons */
@@ -95,13 +96,16 @@
     .badge.inactive { background: #f3f4f6; color: var(--gray-600); }
     .badge.pending { background: #fef3c7; color: var(--warning); }
     .badge.rejected { background: #fee2e2; color: var(--danger); }
+    .badge.archived { background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
 
     /* Dropdown */
     .action-dropdown { position: relative; display: inline-block; }
     .action-btn { padding: 6px 12px; background: var(--gray-100); border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
     .dropdown-menu { position: absolute; top: 100%; right: 0; background: white; border: 1px solid var(--gray-200); border-radius: 8px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); min-width: 160px; z-index: 100; display: none; }
-    .dropdown-item { padding: 10px 15px; display: flex; align-items: center; gap: 10px; color: var(--gray-700); text-decoration: none; font-size: 0.85rem; }
+    .dropdown-item { padding: 10px 15px; display: flex; align-items: center; gap: 10px; color: var(--gray-700); text-decoration: none; font-size: 0.85rem; transition: background 0.2s; }
     .dropdown-item:hover { background: var(--gray-50); }
+    .dropdown-item.restore { color: var(--success); }
+    .dropdown-item.delete { color: var(--danger); }
 
     /* Pagination */
     .pagination { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
@@ -109,16 +113,22 @@
     .pagination-btn { padding: 8px 16px; background: white; border: 1px solid var(--gray-300); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .page-numbers { display: flex; gap: 4px; }
-    .page-number { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .page-number { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .page-number:hover { background: var(--gray-100); }
     .page-number.active { background: var(--primary); color: white; }
 
     /* Modal */
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center; }
-    .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15); }
-    .modal-header { padding: 24px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
-    .modal-title { font-size: 1.25rem; font-weight: 600; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15); animation: modalSlideIn 0.3s ease; }
+    @keyframes modalSlideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; z-index: 10; border-radius: 16px 16px 0 0; }
+    .modal-title { font-size: 1.25rem; font-weight: 600; color: var(--gray-900); }
     .modal-body { padding: 24px; }
-    .modal-footer { padding: 24px; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 12px; }
+    .modal-footer { padding: 20px 24px; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 12px; position: sticky; bottom: 0; background: white; z-index: 10; border-radius: 0 0 16px 16px; }
+
+    /* Section Header for Form */
+    .form-section-title { font-size: 0.95rem; font-weight: 600; color: var(--gray-800); margin: 25px 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; gap: 8px; }
+    .form-section-title i { color: var(--primary); }
 
     /* Bulk Actions */
     .bulk-actions { padding: 15px 20px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); display: none; align-items: center; gap: 15px; }
@@ -208,8 +218,7 @@
         <option value="">Bulk Action</option>
         <option value="activate">Activate</option>
         <option value="deactivate">Deactivate</option>
-        <option value="delete">Delete</option>
-        <option value="export">Export Selected</option>
+        <option value="delete">Move to Trash</option>
       </select>
       <button class="btn btn-sm btn-primary" onclick="applyBulkAction()">Apply</button>
       <button class="btn btn-sm btn-secondary" onclick="clearSelection()">Clear</button>
@@ -235,6 +244,7 @@
             <option value="inactive">Inactive</option>
             <option value="pending">Pending</option>
             <option value="rejected">Rejected</option>
+            <option value="archived" style="color:var(--danger); font-weight:600;">🗑️ Trash / Deleted</option>
           </select>
         </div>
         <div class="filter-group">
@@ -328,30 +338,33 @@
     </div>
     <div class="modal-body">
       <form id="productForm" onsubmit="saveProduct(event)">
+        
+        <div class="form-section-title"><i class="fas fa-info-circle"></i> Basic Information</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
           <div class="filter-group">
             <label class="filter-label">Product Name *</label>
-            <input type="text" id="productName" class="filter-input" required />
+            <input type="text" id="productName" class="filter-input" required placeholder="e.g. Wireless Headphones" />
           </div>
           <div class="filter-group">
-            <label class="filter-label">SKU *</label>
-            <input type="text" id="productSKU" class="filter-input" required />
+            <label class="filter-label">SKU (Auto-generated if empty)</label>
+            <input type="text" id="productSKU" class="filter-input" placeholder="e.g. WH-1000XM4" />
           </div>
         </div>
         
         <div style="margin-bottom: 20px;">
           <label class="filter-label">Description</label>
-          <textarea id="productDescription" class="filter-input" rows="3"></textarea>
+          <textarea id="productDescription" class="filter-input" rows="3" placeholder="Describe the product features, specs, etc."></textarea>
         </div>
         
+        <div class="form-section-title"><i class="fas fa-tag"></i> Pricing & Inventory</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
           <div class="filter-group">
-            <label class="filter-label">Price *</label>
-            <input type="number" id="productPrice" class="filter-input" step="0.01" required />
+            <label class="filter-label">Price (₹) *</label>
+            <input type="number" id="productPrice" class="filter-input" step="0.01" required placeholder="0.00" />
           </div>
           <div class="filter-group">
-            <label class="filter-label">Stock *</label>
-            <input type="number" id="productStock" class="filter-input" required />
+            <label class="filter-label">Stock Qty *</label>
+            <input type="number" id="productStock" class="filter-input" required placeholder="0" />
           </div>
           <div class="filter-group">
             <label class="filter-label">Category *</label>
@@ -369,19 +382,41 @@
         </div>
         
         <div class="filter-group" style="margin-bottom: 20px;">
-          <label class="filter-label">Tags</label>
-          <select id="productTags" class="filter-select" multiple style="height: 100px;">
+          <label class="filter-label">Tags (Select multiple)</label>
+          <select id="productTags" class="filter-select" multiple style="width: 100%;">
             </select>
         </div>
         
+        <div class="form-section-title"><i class="fas fa-images"></i> Product Images</div>
         <div style="margin-bottom: 20px;">
-          <label class="filter-label">Product Images</label>
-          <div id="imageUpload" style="border: 2px dashed var(--gray-300); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer;">
+          <div id="imageUpload" style="border: 2px dashed var(--gray-300); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s;">
             <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--gray-400); margin-bottom: 10px;"></i>
-            <p>Click to upload or drag and drop</p>
+            <p style="color: var(--gray-600); font-weight: 500;">Click to upload or drag and drop</p>
             <p style="font-size: 0.8rem; color: var(--gray-500);">PNG, JPG, GIF up to 10MB</p>
           </div>
           <div id="imagePreview" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;"></div>
+        </div>
+        
+        <div class="form-section-title"><i class="fas fa-search"></i> SEO Metadata</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+          <div class="filter-group">
+            <label class="filter-label">Meta Title</label>
+            <input type="text" id="metaTitle" class="filter-input" placeholder="SEO Title (max 60 chars)" maxlength="60">
+            <div style="font-size: 0.75rem; color: var(--gray-400); text-align: right;">Max 60 chars</div>
+          </div>
+           <div class="filter-group">
+            <label class="filter-label">Canonical URL</label>
+            <input type="text" id="canonicalUrl" class="filter-input" placeholder="https://example.com/product/...">
+          </div>
+        </div>
+        <div class="filter-group" style="margin-bottom: 15px;">
+            <label class="filter-label">Meta Keywords (Comma separated)</label>
+            <input type="text" id="metaKeywords" class="filter-input" placeholder="electronics, headphones, wireless, sony">
+        </div>
+        <div class="filter-group" style="margin-bottom: 10px;">
+            <label class="filter-label">Meta Description</label>
+            <textarea id="metaDescription" class="filter-input" rows="2" placeholder="SEO Description (max 160 chars)" maxlength="160"></textarea>
+            <div style="font-size: 0.75rem; color: var(--gray-400); text-align: right;">Max 160 chars</div>
         </div>
         
         <input type="hidden" id="productId" />
@@ -418,7 +453,16 @@
     loadCategories();
     loadProducts();
 
-    // Add ESC key handler for dropdowns and modal
+    // Init Select2 for Tags if available
+    if (jQuery.fn.select2) {
+      $('#productTags').select2({
+        tags: true,
+        tokenSeparators: [',', ' '],
+        placeholder: "Select or type tags",
+        dropdownParent: $('#productModal')
+      });
+    }
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         document.querySelectorAll('.dropdown-menu').forEach(el => el.style.display = 'none');
@@ -426,16 +470,12 @@
       }
     });
 
-    // Close modal on backdrop click
     document.getElementById('productModal').addEventListener('click', (e) => {
-      if (e.target.id === 'productModal') {
-        closeModal();
-      }
+      if (e.target.id === 'productModal') closeModal();
     });
 
-    // Global click listener for closing action dropdowns
     window.onclick = function(event) {
-      if (!event.target.matches('.action-btn')) {
+      if (!event.target.matches('.action-btn') && !event.target.closest('.action-btn')) {
         document.querySelectorAll('.dropdown-menu').forEach(el => el.style.display = 'none');
       }
     }
@@ -443,9 +483,7 @@
 
   function checkAdminAuth() {
     const token = localStorage.getItem("adminToken");
-    if (!token) {
-      window.location.href = "admin-login.html";
-    }
+    if (!token) window.location.href = "admin-login.html";
   }
 
   // --- API HELPER ---
@@ -481,15 +519,11 @@
   // --- DATA LOADING ---
   async function loadCategories() {
     try {
-      const data = await fetchAPI('/categories');
-      if (!data) return;
-
-      if (Array.isArray(data)) state.categories = data;
-      else if (data.data && Array.isArray(data.data)) state.categories = data.data;
-      else if (data.categories && Array.isArray(data.categories)) state.categories = data.categories;
-      else state.categories = [];
-
-      populateCategoryDropdowns();
+      const data = await fetchAPI('/admin/categories');
+      if (data && data.success) {
+        state.categories = data.data;
+        populateCategoryDropdowns();
+      }
     } catch (error) {
       console.warn("Failed to load categories", error);
     }
@@ -520,38 +554,24 @@
     });
 
     try {
-      let data;
-      try {
-        data = await fetchAPI(`/admin/products?${params}`);
-      } catch (e) {
-        console.log("Admin endpoint failed, trying public...");
-        data = await fetchAPI(`/products?${params}`);
-      }
-
+      const data = await fetchAPI(`/admin/products?${params}`);
+      
       let products = [];
-      if (Array.isArray(data)) {
-        products = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        products = data.data;
-      } else if (data.products && Array.isArray(data.products)) {
-        products = data.products;
-      } else if (data.data && data.data.products) {
-        products = data.data.products;
-      }
+      if (data && data.data) products = data.data;
 
-      state.totalProducts = data.total || data.count || products.length;
-      state.totalPages = data.pages || Math.ceil(state.totalProducts / state.limit) || 1;
+      state.totalProducts = data.total || products.length;
+      state.totalPages = data.pagination?.pages || Math.ceil(state.totalProducts / state.limit) || 1;
       
       renderProductsTable(products);
       updatePaginationUI();
-      updateStatsUI(data.stats);
+      if (data.stats) updateStatsUI(data.stats);
 
     } catch (error) {
       document.getElementById('productsTableBody').innerHTML = `
         <tr><td colspan="11" style="text-align: center; padding: 20px; color: var(--danger);">
           Error loading products. <button class="btn btn-sm btn-secondary" onclick="loadProducts()">Retry</button>
         </td></tr>`;
-      showError(error.message);
+      console.error(error);
     }
   }
 
@@ -560,7 +580,7 @@
     const tbody = document.getElementById('productsTableBody');
     tbody.innerHTML = '';
 
-    if (products.length === 0) {
+    if (!products || products.length === 0) {
       tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding: 30px; color: #6b7280;">No products found</td></tr>`;
       return;
     }
@@ -570,7 +590,19 @@
       const imgUrl = getSafeImageUrl(product);
       const isChecked = state.selectedProducts.has(id);
       
+      // Check if product is in "Trash" (archived status or isDeleted flag)
+      const isTrash = product.status === 'archived' || product.isDeleted;
+      
+      const rowStyle = isTrash ? 'opacity: 0.7; background-color: #fef2f2;' : '';
+      
+      // Status Badge logic
+      const statusBadge = isTrash 
+        ? `<span class="badge archived" title="Deleted"><i class="fas fa-trash-alt"></i> Trash</span>`
+        : `<span class="badge ${product.status || 'inactive'}">${product.status || 'inactive'}</span>`;
+
       const row = document.createElement('tr');
+      row.style = rowStyle;
+      
       row.innerHTML = `
         <td><input type="checkbox" class="product-checkbox" value="${id}" ${isChecked ? 'checked' : ''} onchange="toggleProductSelection('${id}')"></td>
         <td>
@@ -585,17 +617,23 @@
         <td style="font-weight: 600;">₹${(product.price || 0).toLocaleString()}</td>
         <td><span class="${(product.stock || 0) < 10 ? 'text-danger' : ''}">${product.stock || 0}</span></td>
         <td>${product.sold || product.salesCount || 0}</td>
-        <td><span class="badge ${product.status || 'inactive'}">${product.status || 'inactive'}</span></td>
+        <td>${statusBadge}</td>
         <td>${new Date(product.createdAt).toLocaleDateString()}</td>
         <td>
           <div class="action-dropdown">
             <button class="action-btn" onclick="toggleDropdown(this)">Actions <i class="fas fa-caret-down"></i></button>
             <div class="dropdown-menu">
               <a href="#" class="dropdown-item" onclick="openEditModal('${id}')"><i class="fas fa-edit"></i> Edit</a>
+              ${!isTrash ? `
               <a href="#" class="dropdown-item" onclick="updateStatus('${id}', 'active')"><i class="fas fa-check"></i> Activate</a>
               <a href="#" class="dropdown-item" onclick="updateStatus('${id}', 'inactive')"><i class="fas fa-ban"></i> Deactivate</a>
+              ` : ''}
               <div style="border-top:1px solid #eee; margin:5px 0;"></div>
-              <a href="#" class="dropdown-item" style="color:red;" onclick="deleteProduct('${id}')"><i class="fas fa-trash"></i> Delete</a>
+              
+              ${isTrash 
+                ? `<a href="#" class="dropdown-item restore" onclick="restoreProduct('${id}')"><i class="fas fa-trash-restore"></i> Restore</a>` 
+                : `<a href="#" class="dropdown-item delete" onclick="deleteProduct('${id}')"><i class="fas fa-trash"></i> Trash</a>`
+              }
             </div>
           </div>
         </td>
@@ -616,6 +654,7 @@
     const filterSelect = document.getElementById('categoryFilter');
     const modalSelect = document.getElementById('productCategory');
     
+    // Reset options but keep the first one
     while (filterSelect.options.length > 1) filterSelect.remove(1);
     modalSelect.innerHTML = '<option value="">Select Category</option>';
 
@@ -636,6 +675,7 @@
     const id = document.getElementById('productId').value;
     const isEdit = !!id;
     
+    // Construct Payload with SEO Metadata
     const payload = {
       name: document.getElementById('productName').value,
       sku: document.getElementById('productSKU').value,
@@ -644,7 +684,21 @@
       stock: Number(document.getElementById('productStock').value),
       category: document.getElementById('productCategory').value,
       status: document.getElementById('productStatus').value,
+      seller: "6766d03a8945871034338382", // 🔴 Replace with real seller ID logic if needed
+      
+      // Handle SEO Metadata
+      seoMetadata: {
+        metaTitle: document.getElementById('metaTitle').value,
+        metaDescription: document.getElementById('metaDescription').value,
+        canonicalUrl: document.getElementById('canonicalUrl').value,
+        keywords: document.getElementById('metaKeywords').value.split(',').map(k => k.trim()).filter(k => k)
+      }
     };
+    
+    // Handle Tags (from Select2 or comma input)
+    if (jQuery.fn.select2) {
+      payload.tags = $('#productTags').val();
+    }
 
     try {
       const url = isEdit ? `/admin/products/${id}` : `/admin/products`;
@@ -663,53 +717,42 @@
     }
   }
 
+  // DELETE (Moves to Archive/Trash)
   async function deleteProduct(id) {
-    const row = document.querySelector(`input.product-checkbox[value="${id}"]`)?.closest('tr');
-    const productName = row?.querySelector('td:nth-child(3) div')?.textContent || 'this product';
-    
-    if (!confirm(`Delete "${productName}"?\n\nThis action cannot be undone.`)) return;
-    
+    if (!confirm(`Move to Trash? Items can be restored later.`)) return;
     try {
       await fetchAPI(`/admin/products/${id}`, { method: 'DELETE' });
-      
-      // Remove row with animation
-      if (row) {
-        row.style.opacity = '0.5';
-        row.style.transition = 'opacity 0.3s';
-        setTimeout(() => {
-          loadProducts();
-        }, 300);
-      } else {
-        loadProducts();
-      }
-      
+      alert("Product moved to trash.");
+      loadProducts(); // Refresh list
     } catch (error) {
-      alert("Delete failed: " + error.message);
-      if (row) row.style.opacity = '1';
+      alert("Action failed: " + error.message);
     }
   }
 
+  // RESTORE (Recovers from Trash)
+  async function restoreProduct(id) {
+    if (!confirm(`Restore this product from Trash?`)) return;
+    try {
+      // FIX: Changed from PATCH to POST to match backend requirements
+      await fetchAPI(`/admin/products/${id}/restore`, { method: 'POST' });
+      alert("Product restored successfully.");
+      loadProducts(); // Refresh list
+    } catch (error) {
+      alert("Restore failed: " + error.message);
+    }
+  }
+
+  // UPDATE STATUS
   async function updateStatus(id, status) {
     if (!confirm(`Change product status to "${status}"?`)) return;
-    
     try {
-      await fetchAPI(`/admin/products/${id}/status`, {
-        method: 'PATCH',
+      // FIX: Changed endpoint to generic PUT update
+      await fetchAPI(`/admin/products/${id}`, {
+        method: 'PUT',
         body: JSON.stringify({ status })
       });
-      
-      // Update UI optimistically without full reload
-      const badge = document.querySelector(`tr:has(input[value="${id}"]) .badge`);
-      if (badge) {
-        badge.className = `badge ${status}`;
-        badge.textContent = status;
-      }
-      
-      // Also reload to get fresh data
       loadProducts();
-      
     } catch (error) {
-      console.error(error);
       alert("Failed to update status: " + error.message);
     }
   }
@@ -719,10 +762,10 @@
   async function openEditModal(id) {
     try {
       showLoadingModal();
-      
       const data = await fetchAPI(`/admin/products/${id}`);
-      const product = data.product || data.data || data;
+      const product = data.data || data;
       
+      // Populate Basic Fields
       document.getElementById('modalTitle').innerText = "Edit Product";
       document.getElementById('productId').value = product._id || product.id;
       document.getElementById('productName').value = product.name || '';
@@ -732,17 +775,42 @@
       document.getElementById('productStock').value = product.stock || 0;
       document.getElementById('productStatus').value = product.status || 'active';
       
+      // Populate SEO Fields (FIXED: Now properly maps backend data to form inputs)
+      const seo = product.seoMetadata || {};
+      document.getElementById('metaTitle').value = seo.metaTitle || '';
+      document.getElementById('metaDescription').value = seo.metaDescription || '';
+      document.getElementById('canonicalUrl').value = seo.canonicalUrl || '';
+      document.getElementById('metaKeywords').value = seo.keywords ? seo.keywords.join(', ') : '';
+
+      // Populate Category and Tags
       const catId = product.category?._id || product.category || '';
-      document.getElementById('productCategory').value = catId;
       
       if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+        // Category Select2
         $('#productCategory').val(catId).trigger('change');
+        
+        // Tags Select2 (FIXED: Handles dynamic tag addition)
+        const tagsSelect = $('#productTags');
+        tagsSelect.val(null).trigger('change'); // Clear first
+        
+        if (product.tags && product.tags.length > 0) {
+            product.tags.forEach(tag => {
+                // Create option if it doesn't exist (for dynamic tagging)
+                if (tagsSelect.find("option[value='" + tag + "']").length === 0) {
+                    var newOption = new Option(tag, tag, true, true);
+                    tagsSelect.append(newOption);
+                }
+            });
+            tagsSelect.val(product.tags).trigger('change');
+        }
+      } else {
+        document.getElementById('productCategory').value = catId;
       }
       
       document.getElementById('productModal').style.display = 'flex';
       
     } catch (error) {
-      alert("Could not load product details: " + error.message);
+      alert("Could not load product: " + error.message);
       closeModal();
     }
   }
@@ -757,65 +825,37 @@
     document.getElementById('productForm').reset();
     document.getElementById('productId').value = "";
     
+    // Reset Select2 fields
     if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
       $('#productCategory').val('').trigger('change');
+      $('#productTags').val(null).trigger('change');
     }
-    
     document.getElementById('productModal').style.display = 'flex';
   }
 
   function closeModal() {
     document.getElementById('productModal').style.display = 'none';
-    document.getElementById('productForm').reset();
   }
 
   // --- BULK ACTIONS ---
-  
   async function applyBulkAction() {
     const action = document.getElementById('bulkActionSelect').value;
-    
-    if (!action) {
-      alert("Please select an action");
-      return;
-    }
-    
-    if (state.selectedProducts.size === 0) {
-      alert("No products selected");
-      return;
-    }
+    if (!action || state.selectedProducts.size === 0) return alert("Select products and an action.");
     
     const productIds = Array.from(state.selectedProducts);
-    
-    if (!confirm(`Apply "${action}" to ${productIds.length} product(s)?`)) {
-      return;
-    }
+    if (!confirm(`Apply "${action}" to ${productIds.length} items?`)) return;
     
     try {
-      if (action === 'export') {
-        exportSelectedProducts(productIds);
-        return;
-      }
-      
       await fetchAPI('/admin/products/bulk', {
         method: 'POST',
-        body: JSON.stringify({
-          productIds: productIds,
-          action: action
-        })
+        body: JSON.stringify({ productIds, action })
       });
-      
-      alert(`Bulk action "${action}" completed successfully!`);
+      alert("Success!");
       clearSelection();
       loadProducts();
-      
     } catch (error) {
-      alert("Bulk action failed: " + error.message);
+      alert("Failed: " + error.message);
     }
-  }
-
-  function exportSelectedProducts(productIds) {
-    alert(`Exporting ${productIds.length} products... (Not yet implemented)`);
-    // Ideally this would trigger a download endpoint accepting a list of IDs
   }
 
   function toggleProductSelection(id) {
@@ -825,8 +865,7 @@
   }
 
   function toggleSelectAll(e) {
-    const checkboxes = document.querySelectorAll('.product-checkbox');
-    checkboxes.forEach(cb => {
+    document.querySelectorAll('.product-checkbox').forEach(cb => {
       cb.checked = e.target.checked;
       if (e.target.checked) state.selectedProducts.add(cb.value);
       else state.selectedProducts.delete(cb.value);
@@ -836,12 +875,8 @@
 
   function updateBulkUI() {
     const bar = document.getElementById('bulkActions');
-    if (state.selectedProducts.size > 0) {
-      bar.style.display = 'flex';
-      document.getElementById('selectedCount').innerText = `${state.selectedProducts.size} selected`;
-    } else {
-      bar.style.display = 'none';
-    }
+    bar.style.display = state.selectedProducts.size > 0 ? 'flex' : 'none';
+    document.getElementById('selectedCount').innerText = `${state.selectedProducts.size} selected`;
   }
   
   function clearSelection() {
@@ -853,91 +888,13 @@
 
   document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
 
-  // --- EXPORT ---
-  async function exportProducts() {
-    if (!confirm("Export all products matching current filters to CSV?")) return;
-    
-    try {
-      const params = new URLSearchParams();
-      
-      const filters = {
-        search: document.getElementById('searchInput').value.trim(),
-        status: document.getElementById('statusFilter').value,
-        category: document.getElementById('categoryFilter').value,
-        minPrice: document.getElementById('minPrice').value,
-        maxPrice: document.getElementById('maxPrice').value,
-        minStock: document.getElementById('minStock').value,
-        maxStock: document.getElementById('maxStock').value,
-        startDate: document.getElementById('startDate').value,
-        endDate: document.getElementById('endDate').value
-      };
-
-      Object.keys(filters).forEach(key => {
-        if (filters[key] && filters[key] !== 'all') params.append(key, filters[key]);
-      });
-      
-      const token = localStorage.getItem("adminToken");
-      const url = `${API_V1}/admin/products/export?${params}`;
-      
-      const response = await fetch(url, {
-        headers: { "Authorization": "Bearer " + token }
-      });
-      
-      if (!response.ok) throw new Error('Export failed');
-      
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(downloadUrl);
-      
-    } catch (error) {
-      alert("Export failed: " + error.message);
-    }
-  }
-
-  // --- UI UTILITIES ---
-
+  // --- UTILS ---
   function updatePaginationUI() {
     const start = ((state.currentPage - 1) * state.limit) + 1;
     const end = Math.min(state.currentPage * state.limit, state.totalProducts);
-    
     document.getElementById('startIndex').innerText = state.totalProducts > 0 ? start : 0;
     document.getElementById('endIndex').innerText = end;
     document.getElementById('totalProducts').innerText = state.totalProducts;
-
-    const btnContainer = document.getElementById('pageNumbers');
-    btnContainer.innerHTML = '';
-    
-    const range = [];
-    const maxVisible = 5;
-    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisible / 2));
-    let endPage = Math.min(state.totalPages, startPage + maxVisible - 1);
-    
-    if (endPage - startPage + 1 < maxVisible) {
-      startPage = Math.max(1, endPage - maxVisible + 1);
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-      range.push(i);
-    }
-
-    range.forEach(page => {
-      const btn = document.createElement('div');
-      btn.className = `page-number ${page === state.currentPage ? 'active' : ''}`;
-      btn.innerText = page;
-      btn.onclick = () => goToPage(page);
-      btnContainer.appendChild(btn);
-    });
-
-    document.getElementById('firstPage').disabled = state.currentPage === 1;
-    document.getElementById('prevPage').disabled = state.currentPage === 1;
-    document.getElementById('nextPage').disabled = state.currentPage >= state.totalPages;
-    document.getElementById('lastPage').disabled = state.currentPage >= state.totalPages;
   }
 
   function goToPage(page) {
@@ -945,34 +902,18 @@
     state.currentPage = page;
     loadProducts();
   }
-
-  function goToLastPage() {
-    goToPage(state.totalPages);
-  }
-
-  function prevPage() { 
-    if (state.currentPage > 1) goToPage(state.currentPage - 1); 
-  }
-
-  function nextPage() { 
-    if (state.currentPage < state.totalPages) goToPage(state.currentPage + 1); 
-  }
+  function prevPage() { if (state.currentPage > 1) goToPage(state.currentPage - 1); }
+  function nextPage() { if (state.currentPage < state.totalPages) goToPage(state.currentPage + 1); }
+  function goToLastPage() { goToPage(state.totalPages); }
 
   function initializeFilters() {
     let timeout;
-    const inputs = document.querySelectorAll('.filter-input, .filter-select');
-    inputs.forEach(input => {
-      input.addEventListener('change', () => {
-        state.currentPage = 1;
-        loadProducts();
-      });
+    document.querySelectorAll('.filter-input, .filter-select').forEach(input => {
+      input.addEventListener('change', () => { state.currentPage = 1; loadProducts(); });
       if (input.type === 'text') {
         input.addEventListener('input', () => {
           clearTimeout(timeout);
-          timeout = setTimeout(() => {
-            state.currentPage = 1;
-            loadProducts();
-          }, 600);
+          timeout = setTimeout(() => { state.currentPage = 1; loadProducts(); }, 600);
         });
       }
     });
@@ -982,17 +923,6 @@
     document.getElementById('searchInput').value = '';
     document.getElementById('statusFilter').value = 'all';
     document.getElementById('categoryFilter').value = '';
-    document.getElementById('minPrice').value = '';
-    document.getElementById('maxPrice').value = '';
-    document.getElementById('minStock').value = '';
-    document.getElementById('maxStock').value = '';
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
-    
-    if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
-      $('#categoryFilter').val('').trigger('change');
-    }
-    
     state.currentPage = 1;
     loadProducts();
   }
@@ -1007,7 +937,7 @@
     document.getElementById('productsTableBody').innerHTML = 
       `<tr><td colspan="11" style="text-align:center; padding: 40px;"><div class="loading"></div> Loading...</td></tr>`;
   }
-
+  
   function updateStatsUI(stats) {
     if (!stats) return;
     document.getElementById('activeCount').innerText = stats.active || 0;
@@ -1015,22 +945,8 @@
     document.getElementById('pendingCount').innerText = stats.pending || 0;
     document.getElementById('rejectedCount').innerText = stats.rejected || 0;
   }
-
-  function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-      position: fixed; top: 20px; right: 20px; background: #fee2e2; color: #dc2626;
-      padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 9999; max-width: 400px; display: flex; align-items: center; gap: 10px;
-    `;
-    errorDiv.innerHTML = `
-      <i class="fas fa-exclamation-circle"></i>
-      <span>${message}</span>
-      <button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.2rem;">&times;</button>
-    `;
-    document.body.appendChild(errorDiv);
-    setTimeout(() => errorDiv.remove(), 5000);
-  }
+  
+  function exportProducts() { alert("Export logic goes here."); }
 </script>
 </body>
 </html>
