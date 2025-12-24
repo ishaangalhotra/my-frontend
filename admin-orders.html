@@ -1231,7 +1231,7 @@
     loadStats();
   }
   
-  // Stats Dashboard
+  // Stats Dashboard - UPDATED FUNCTION
   async function loadStats() {
     try {
       const token = localStorage.getItem('adminToken');
@@ -1242,11 +1242,34 @@
       });
       
       if (response.ok) {
-        const stats = await response.json();
+        const data = await response.json();
+        
+        // Handle both response formats
+        let stats;
+        if (data.success === true) {
+          // New format: data has success: true and stats as properties
+          stats = {
+            todayOrders: data.todayOrders || 0,
+            todayRevenue: data.todayRevenue || 0,
+            pendingOrders: data.pendingOrders || 0,
+            cancelledOrders: data.cancelledOrders || 0
+          };
+        } else {
+          // Old format: data is the stats object directly
+          stats = data;
+        }
+        
         updateStatsUI(stats);
       }
     } catch (error) {
       console.error('Failed to load stats:', error);
+      // Show fallback stats
+      updateStatsUI({
+        todayOrders: 0,
+        todayRevenue: 0,
+        pendingOrders: 0,
+        cancelledOrders: 0
+      });
     }
   }
   
