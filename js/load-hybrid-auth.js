@@ -1,6 +1,28 @@
 (function () {
   var hostname = window.location.hostname;
   var isLocal = hostname === '' || hostname === 'localhost' || hostname === '127.0.0.1';
+  var debugFlag = window.location.search.indexOf('debug=1') !== -1;
+
+  if (typeof window.QL_DEBUG !== 'boolean') {
+    window.QL_DEBUG = isLocal || debugFlag;
+  }
+
+  if (!window.__quicklocalConsoleGuard && !window.QL_DEBUG && window.console) {
+    var noop = function () {};
+    window.console.log = noop;
+    window.console.debug = noop;
+    window.console.info = noop;
+    window.__quicklocalConsoleGuard = true;
+  }
+
+  if (typeof window.QUICKLOCAL_SUPABASE_ANON_KEY !== 'string') {
+    window.QUICKLOCAL_SUPABASE_ANON_KEY = '';
+  }
+})();
+
+(function () {
+  var hostname = window.location.hostname;
+  var isLocal = hostname === '' || hostname === 'localhost' || hostname === '127.0.0.1';
   var localOrigin = 'http://127.0.0.1:10000';
   var remoteOrigin = 'https://ecommerce-backend-mlik.onrender.com';
   var backendOrigin = isLocal ? localOrigin : remoteOrigin;
