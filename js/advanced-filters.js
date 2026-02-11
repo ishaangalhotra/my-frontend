@@ -23,10 +23,11 @@ class AdvancedProductFilter {
     }
 
     init() {
-        // helper debounce
-    }
+        // Initialize filter UI and event handlers
         this.createFilterUI();
         this.bindEvents();
+        this.updatePriceFilter();
+        this.normalizeFilterLabelText();
     }
 
     createFilterUI() {
@@ -124,7 +125,7 @@ class AdvancedProductFilter {
             if (e.target.name === 'rating') {
                 this.updateRatingFilter(parseFloat(e.target.value));
             }
-            if (e.target.classList && e.target.classList.contains('discount-checkbox')) {
+            if (e.target.closest && e.target.closest('.discount-filter')) {
                 this.updateDiscountFilter();
             }
             if (e.target.name === 'availability') {
@@ -162,8 +163,8 @@ class AdvancedProductFilter {
         const minPrice = document.getElementById('minPrice').value;
         const maxPrice = document.getElementById('maxPrice').value;
         
-        let min = parseInt(minPrice);
-        let max = parseInt(maxPrice);
+        let min = parseInt(minPrice, 10);
+        let max = parseInt(maxPrice, 10);
         if (min > max) { const t = min; min = max; max = t; }
         this.filters.priceRange = { min, max };
         document.getElementById('minPriceValue').textContent = `â‚¹${min}`;
@@ -180,6 +181,36 @@ class AdvancedProductFilter {
     updateRatingFilter(rating) {
         this.filters.ratings = rating;
         this.applyFilters();
+    }
+
+    updateDiscountFilter() {
+        const checked = Array.from(
+            document.querySelectorAll('.discount-filter input[type="checkbox"]:checked')
+        );
+        const selectedValues = checked
+            .map((el) => parseInt(el.value, 10))
+            .filter(Number.isFinite);
+
+        this.filters.discount = selectedValues.length > 0 ? Math.max(...selectedValues) : 0;
+        this.applyFilters();
+    }
+
+    updateAvailabilityFilter() {
+        const selected = document.querySelector('input[name="availability"]:checked');
+        this.filters.availability = selected ? selected.value : 'all';
+        this.applyFilters();
+    }
+
+    normalizeFilterLabelText() {
+        const ratingLabels = document.querySelectorAll('.rating-filter label');
+        const replacements = ['4* & above', '3* & above', '2* & above', '1* & above'];
+        ratingLabels.forEach((label, index) => {
+            const input = label.querySelector('input');
+            if (!input) return;
+            label.textContent = '';
+            label.appendChild(input);
+            label.append(` ${replacements[index] || `${input.value}* & above`}`);
+        });
     }
 
     debounce(fn, wait = 200) {

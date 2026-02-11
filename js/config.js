@@ -5,14 +5,17 @@
 const detectEnvironment = () => {
   if (typeof window === 'undefined') return 'development';
   
+  const protocol = window.location.protocol;
   const hostname = window.location.hostname;
   const port = window.location.port;
   
   // Development indicators
-  if (hostname === 'localhost' || 
+  if (protocol === 'file:' ||
+      hostname === '' ||
+      hostname === 'localhost' || 
       hostname.startsWith('127.') || 
       hostname.startsWith('192.168.') ||
-      port === '3000' || port === '5173' || port === '8080') {
+      port === '3000' || port === '5173' || port === '8080' || port === '8000') {
     return 'development';
   }
   
@@ -52,8 +55,8 @@ const featureFlags = {
 // Environment configurations
 const environments = {
   development: {
-    API_BASE_URL: 'http://localhost:3000/api/v1',
-    SOCKET_URL: 'http://localhost:3000',
+    API_BASE_URL: 'http://127.0.0.1:10000/api/v1',
+    SOCKET_URL: 'http://127.0.0.1:10000',
     DEBUG: true,
     MOCK_API: false,
     API_TIMEOUT: 30000,
