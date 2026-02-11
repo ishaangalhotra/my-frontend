@@ -25,6 +25,7 @@ class AdvancedShoppingCart {
     this.recommendations = [];
     this._loadingCart = false;
     this._pendingQuantityDebouncers = new Map();
+    this._backgroundSyncTimer = null;
 
     this.bindGlobalEvents();
     console.log('🛒 Advanced Cart Final initialized');
@@ -327,24 +328,73 @@ class AdvancedShoppingCart {
 
   hydrateCartBackup(showNotice = false) {
     try {
-      const raw = localStorage.getItem(this.config.backupKey);
-      if (!raw) return false;
+      const rawCandidates = [
+        localStorage.getItem(this.config.backupKey),
+        localStorage.getItem('quicklocal_cart'),
+        localStorage.getItem('cart'),
+        sessionStorage.getItem?.(this.config.backupKey),
+        sessionStorage.getItem?.('quicklocal_cart')
+      ].filter(Boolean);
 
-      const backup = JSON.parse(raw);
-      if (!Array.isArray(backup) || !backup.length) return false;
+      for (const raw of rawCandidates) {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed) || !parsed.length) continue;
 
-      this.cart = backup;
-      this.updateCartUI();
-      if (showNotice) {
-        this.notify('Loaded saved cart (offline mode)', 'warning');
+        const normalized = this.formatServerCart(parsed);
+        if (!normalized.length) continue;
+
+        this.cart = normalized;
+        this.updateCartUI();
+        if (showNotice) {
+          this.notify('Loaded saved cart (offline mode)', 'warning');
+        }
+        return true;
       }
-      return true;
+
+      return false;
     } catch (e) {
       return false;
     }
   }
 
-  async loadCartFromServer() {
+  async _withTimeout(promise, ms, code = 'ETIMEDOUT') {
+    let timer;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            const err = new Error('Request timed out');
+            err.code = code;
+            reject(err);
+          }, ms);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  scheduleBackgroundCartSync(delayMs = 1200) {
+    if (this._backgroundSyncTimer) return;
+
+    this._backgroundSyncTimer = setTimeout(async () => {
+      this._backgroundSyncTimer = null;
+      try {
+        await this.loadCartFromServer({
+          timeoutMs: 9000,
+          silent: true,
+          isBackgroundRetry: true
+        });
+      } catch (e) {}
+    }, delayMs);
+  }
+
+  async loadCartFromServer(options = {}) {
+    const timeoutMs = Number(options.timeoutMs || 4500);
+    const silent = Boolean(options.silent);
+    const isBackgroundRetry = Boolean(options.isBackgroundRetry);
+
     if (this._loadingCart) {
       return this.cart;
     }
@@ -358,33 +408,37 @@ class AdvancedShoppingCart {
 
     const fetchOnce = async () => {
       console.log('📡 Fetching cart from server...');
-      
-      const res = await window.HybridAuthClient.apiCall('/cart', { method: 'GET' });
-      
+
+      const res = await this._withTimeout(
+        window.HybridAuthClient.apiCall('/cart', { method: 'GET' }),
+        timeoutMs,
+        'ETIMEDOUT'
+      );
+
       if (!res.ok) {
         if (res.status === 401) {
           this.notify('Session expired. Please log in again.', 'error');
           throw Object.assign(new Error('Unauthorized'), { code: 401 });
         }
         throw Object.assign(
-          new Error(`Cart fetch failed (status ${res.status})`), 
+          new Error(`Cart fetch failed (status ${res.status})`),
           { code: res.status }
         );
       }
-      
+
       const payload = await res.json();
       console.log('📦 Server cart response:', payload);
-      
+
       if (!payload.success) {
         throw new Error(payload.message || 'Cart fetch failed');
       }
 
       const serverItems = payload.data?.items ?? payload.data ?? [];
-      
+
       this.cart = this.formatServerCart(serverItems);
       this.updateCartUI();
       this.saveCartBackup();
-      
+
       return this.cart;
     };
 
@@ -392,7 +446,7 @@ class AdvancedShoppingCart {
       try {
         return await fetchOnce();
       } catch (err) {
-        const retryable = err && (err.code >= 500 || err.name === 'TypeError');
+        const retryable = err && (err.code >= 500 || err.name === 'TypeError' || err.code === 'ETIMEDOUT');
         if (retryable) {
           await this._delay(500);
           return await fetchOnce();
@@ -401,8 +455,17 @@ class AdvancedShoppingCart {
         }
       }
     } catch (err) {
-      console.error('❌ loadCartFromServer final error:', err);
-      this.handleCartLoadFailure(err);
+      const retryable = err && (err.code >= 500 || err.name === 'TypeError' || err.code === 'ETIMEDOUT');
+      console.error('Cart load failed:', err);
+
+      if (!silent) {
+        this.handleCartLoadFailure(err);
+      }
+
+      if (retryable && !isBackgroundRetry) {
+        this.scheduleBackgroundCartSync();
+      }
+
       return this.cart;
     } finally {
       this._loadingCart = false;
@@ -464,8 +527,8 @@ class AdvancedShoppingCart {
 
     this.cart = [];
 
-    // For guests, avoid flashing an error toast while cart resolves to empty state.
-    if (error?.code !== 401) {
+    // For guests/timeouts, avoid flashing noisy errors while cart resolves.
+    if (error?.code !== 401 && error?.code !== 'ETIMEDOUT') {
       this.notify('Could not load cart', 'error');
     }
 
@@ -534,7 +597,7 @@ class AdvancedShoppingCart {
   renderDropdownItem(item) {
     return `
       <div class="cart-dropdown-item" data-cart-id="${item.cartId}">
-        <img src="${item.image}" alt="${this._esc(item.name)}" class="item-image">
+        <img src="${item.image}" alt="${this._esc(item.name)}" class="item-image" loading="lazy" decoding="async">
         <div class="item-details">
           <h4>${this._esc(item.name)}</h4>
           <div class="item-price">₹${item.price.toFixed(2)} × ${item.quantity}</div>
@@ -593,7 +656,7 @@ class AdvancedShoppingCart {
     
     return `
       <div class="cart-item" data-cart-id="${item.cartId}">
-        <img src="${item.image}" alt="${this._esc(item.name)}" class="item-image">
+        <img src="${item.image}" alt="${this._esc(item.name)}" class="item-image" loading="lazy" decoding="async">
         
         <div class="item-info">
           <h3 class="item-name">${this._esc(item.name)}</h3>
