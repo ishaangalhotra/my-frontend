@@ -324,11 +324,36 @@ class AdvancedShoppingCart {
 
   // ==================== SERVER SYNC ====================
 
+
+  hydrateCartBackup(showNotice = false) {
+    try {
+      const raw = localStorage.getItem(this.config.backupKey);
+      if (!raw) return false;
+
+      const backup = JSON.parse(raw);
+      if (!Array.isArray(backup) || !backup.length) return false;
+
+      this.cart = backup;
+      this.updateCartUI();
+      if (showNotice) {
+        this.notify('Loaded saved cart (offline mode)', 'warning');
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   async loadCartFromServer() {
     if (this._loadingCart) {
       return this.cart;
     }
-    
+
+    // Render cached cart immediately so users see items without waiting for network/auth state.
+    if (!this.cart.length) {
+      this.hydrateCartBackup(false);
+    }
+
     this._loadingCart = true;
 
     const fetchOnce = async () => {
@@ -433,22 +458,17 @@ class AdvancedShoppingCart {
   // ==================== FALLBACKS ====================
 
   handleCartLoadFailure(error) {
-    try {
-      const raw = localStorage.getItem(this.config.backupKey);
-      if (raw) {
-        const backup = JSON.parse(raw);
-        if (Array.isArray(backup) && backup.length) {
-          this.cart = backup;
-          this.notify('Loaded saved cart (offline mode)', 'warning');
-          this.updateCartUI();
-          return;
-        }
-      }
-    } catch (e) {}
+    if (this.hydrateCartBackup(true)) {
+      return;
+    }
 
     this.cart = [];
-    const msg = error?.code === 401 ? 'Please log in' : 'Could not load cart';
-    this.notify(msg, 'error');
+
+    // For guests, avoid flashing an error toast while cart resolves to empty state.
+    if (error?.code !== 401) {
+      this.notify('Could not load cart', 'error');
+    }
+
     this.updateCartUI();
   }
 

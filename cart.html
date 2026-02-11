@@ -608,51 +608,62 @@
         /* Demo functions removed for clarity */
         function addDemoItems() {}
 
-        // --- START OF FIX: Replaced initializePage function ---
-        // *** NEW AUTH LISTENER ***
-        // This function waits for the auth client to be ready, then tells
-        // the cart script to fetch its data.
+        // --- START OF FAST CART BOOTSTRAP FIX ---
+        // Fast bootstrap: render cached cart immediately, then sync from server in background.
         function initializePage() {
-            if (!window.HybridAuthClient || !window.advancedCart) {
-                // If scripts aren't loaded yet, try again
-                console.warn('Auth or Cart script not ready, retrying...');
-                setTimeout(initializePage, 100);
+            if (!window.advancedCart) {
+                console.warn('Cart script not ready, retrying...');
+                setTimeout(initializePage, 80);
                 return;
             }
 
-            console.log('Auth and Cart scripts are loaded. Waiting for auth state change...');
-            let cartInitDone = false;
+            // Immediate paint from local backup (if available).
+            if (typeof window.advancedCart.hydrateCartBackup === 'function') {
+                window.advancedCart.hydrateCartBackup(false);
+            }
 
-            // Listen for auth changes
-            window.HybridAuthClient.onAuthStateChange((user) => {
-                // Only run this logic once on the initial page load
-                if (cartInitDone) {
-                    console.log('Auth state changed, but cart is already initialized. Ignoring.');
+            let syncedOnce = false;
+
+            const syncFromServer = () => {
+                if (syncedOnce) return;
+                syncedOnce = true;
+
+                if (window.HybridAuthClient && typeof window.advancedCart.initializeCartData === 'function') {
+                    window.advancedCart.initializeCartData().catch(() => {});
+                }
+            };
+
+            // Do not wait for auth callback to start first sync.
+            const waitForAuthClient = () => {
+                if (!window.HybridAuthClient) {
+                    setTimeout(waitForAuthClient, 80);
                     return;
                 }
-                cartInitDone = true;
 
-                if (user) {
-                    // User is logged in
-                    console.log('User is authenticated. Loading cart data...');
-                    window.advancedCart.initializeCartData();
-                } else {
-                    // User is not logged in (or auth failed to init)
-                    console.log('User is not authenticated. Showing empty cart.');
-                    // Hide loading spinner and show empty cart message
-                    document.getElementById('loadingContainer').style.display = 'none';
-                    document.getElementById('emptyCart').style.display = 'block';
-                }
-            });
+                syncFromServer();
 
-            // The hybrid-auth-client will now *always* call onAuthStateChange
-            // after it finishes initializing (due to our first fix), so we don't
-            // need any manual checks here.
+                window.HybridAuthClient.onAuthStateChange((user) => {
+                    // Keep cart fresh when auth state changes later.
+                    if (user) {
+                        window.advancedCart.initializeCartData().catch(() => {});
+                        return;
+                    }
+
+                    const current = window.advancedCart.getCart?.().items || [];
+                    if (!current.length) {
+                        const loading = document.getElementById('loadingContainer');
+                        const empty = document.getElementById('emptyCart');
+                        if (loading) loading.style.display = 'none';
+                        if (empty) empty.style.display = 'block';
+                    }
+                });
+            };
+
+            waitForAuthClient();
         }
 
-        // Run the initializer
         initializePage();
-        // --- END OF FIX ---
+        // --- END OF FAST CART BOOTSTRAP FIX ---
 
         console.log('Enhanced Cart Page initialized');
     </script>
