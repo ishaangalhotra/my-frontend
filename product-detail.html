@@ -353,6 +353,36 @@
             border: 1px solid var(--border);
         }
 
+        .purchase-note {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .urgency-note,
+        .delivery-note {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-full);
+            padding: 0.45rem 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .urgency-note i {
+            color: var(--warning);
+        }
+
+        .delivery-note i {
+            color: var(--primary);
+        }
+
         .quantity-wrapper {
             display: flex;
             align-items: center;
@@ -449,6 +479,30 @@
         }
         .btn-wishlist:hover { border-color: var(--error); color: var(--error); }
         .btn-wishlist.active { background: var(--error); border-color: var(--error); color: white; }
+
+        .trust-microcopy {
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .trust-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 0.7rem 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .trust-chip i {
+            color: var(--primary);
+        }
 
         /* --- FEATURES & DELIVERY --- */
         .info-grid {
@@ -726,6 +780,32 @@
         function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
         function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
 
+        function getEstimatedDeliveryLabel() {
+            const eta = new Date();
+            eta.setDate(eta.getDate() + 2);
+            return eta.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        }
+
+        function getUrgencyMessage(product) {
+            const rawStock = Number(
+                product?.stock ??
+                product?.stockQuantity ??
+                product?.inventory ??
+                product?.quantity ??
+                NaN
+            );
+
+            if (Number.isFinite(rawStock) && rawStock > 0 && rawStock <= 8) {
+                return `Only ${rawStock} left in stock`;
+            }
+
+            if (Number.isFinite(rawStock) && rawStock > 8) {
+                return `${rawStock}+ units available`;
+            }
+
+            return 'High demand item in your area';
+        }
+
         function showNotification(msg, type = 'success') {
             const toast = document.getElementById('notification');
             const text = document.getElementById('notificationText');
@@ -901,6 +981,32 @@
                             <button class="btn-wishlist" id="wishlistBtn" onclick="toggleWishlist()">
                                 <i class="far fa-heart"></i>
                             </button>
+                        </div>
+
+                        <div class="purchase-note">
+                            <div class="urgency-note">
+                                <i class="fas fa-bolt"></i>
+                                ${getUrgencyMessage(currentProduct)}
+                            </div>
+                            <div class="delivery-note">
+                                <i class="fas fa-truck-fast"></i>
+                                Delivery by ${getEstimatedDeliveryLabel()}
+                            </div>
+                        </div>
+
+                        <div class="trust-microcopy">
+                            <div class="trust-chip">
+                                <i class="fas fa-shield-halved"></i>
+                                Secure checkout
+                            </div>
+                            <div class="trust-chip">
+                                <i class="fas fa-rotate-left"></i>
+                                Easy return support
+                            </div>
+                            <div class="trust-chip">
+                                <i class="fas fa-circle-check"></i>
+                                Verified local seller
+                            </div>
                         </div>
                     </div>
 
