@@ -1170,12 +1170,12 @@
                 <li><a href="marketplace.html">Shop Now</a></li>
             </ul>
             
-            <div class="nav-actions">
-                <a href="login.html" class="nav-btn secondary">
+            <div class="nav-actions" id="navActions">
+                <a href="login.html" class="nav-btn secondary" data-auth-action="login">
                     <i class="fas fa-sign-in-alt"></i>
                     Login
                 </a>
-                <a href="register.html" class="nav-btn primary">
+                <a href="register.html" class="nav-btn primary" data-auth-action="register">
                     <i class="fas fa-store"></i>
                     Create Account
                 </a>
@@ -1688,6 +1688,114 @@
         `);
     </script>
     
+    <script>
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getDisplayName(user) {
+            if (!user) return 'My Account';
+            const raw = user.firstName || user.name || user.fullName || user.email || 'My Account';
+            const first = String(raw).trim().split(/\s+/)[0] || 'My';
+            return first.length > 14 ? first.slice(0, 14) + '...' : first;
+        }
+
+        function renderGuestNavActions(container) {
+            if (!container) return;
+            container.innerHTML = `
+                <a href="login.html" class="nav-btn secondary" data-auth-action="login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </a>
+                <a href="register.html" class="nav-btn primary" data-auth-action="register">
+                    <i class="fas fa-store"></i>
+                    Create Account
+                </a>
+            `;
+        }
+
+        function renderAuthenticatedNavActions(container, user) {
+            if (!container) return;
+            const safeName = escapeHtml(getDisplayName(user));
+            container.innerHTML = `
+                <a href="profile.html" class="nav-btn secondary" data-auth-action="profile">
+                    <i class="fas fa-user-circle"></i>
+                    ${safeName}
+                </a>
+                <button type="button" class="nav-btn primary" data-auth-action="logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            `;
+
+            const logoutBtn = container.querySelector('[data-auth-action="logout"]');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    try {
+                        if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
+                            await window.HybridAuthClient.logout();
+                        }
+                    } catch (_) {
+                        // Ignore transport/logout errors and still reset UI.
+                    }
+                    renderGuestNavActions(container);
+                    window.location.href = 'index.html';
+                });
+            }
+        }
+
+        async function refreshHomeAuthUI() {
+            const navActions = document.getElementById('navActions');
+            if (!navActions) return;
+
+            try {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+                    const isAuth = await window.HybridAuthClient.isAuthenticated();
+                    const user = window.HybridAuthClient.getCurrentUser?.() || null;
+                    if (isAuth && user) {
+                        renderAuthenticatedNavActions(navActions, user);
+                        return;
+                    }
+                }
+            } catch (_) {
+                // Fall through to guest UI.
+            }
+
+            renderGuestNavActions(navActions);
+        }
+
+        function bindHomeAuthEvents() {
+            if (window.HybridAuthClient && typeof window.HybridAuthClient.onAuthStateChange === 'function') {
+                window.HybridAuthClient.onAuthStateChange(() => {
+                    refreshHomeAuthUI();
+                });
+            }
+
+            document.addEventListener('auth-ready', () => {
+                refreshHomeAuthUI();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshHomeAuthUI();
+
+            let attempts = 0;
+            const maxAttempts = 40;
+            const timer = setInterval(() => {
+                attempts += 1;
+                if (window.HybridAuthClient || attempts >= maxAttempts) {
+                    clearInterval(timer);
+                    bindHomeAuthEvents();
+                    refreshHomeAuthUI();
+                }
+            }, 150);
+        });
+    </script>
     <!-- Notification & Tracking Services -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="js/api/notification-service.js"></script>
