@@ -915,9 +915,14 @@
                     <option value="all">All statuses</option>
                     <option value="active">Active only</option>
                     <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
                     <option value="processing">Processing</option>
+                    <option value="ready_to_ship">Ready to ship</option>
                     <option value="shipped">Shipped</option>
+                    <option value="out_for_delivery">Out for delivery</option>
                     <option value="delivered">Delivered</option>
+                    <option value="returned">Returned</option>
+                    <option value="refunded">Refunded</option>
                     <option value="cancelled">Cancelled</option>
                 </select>
                 <select id="timeFilter" class="filter-select">
@@ -982,6 +987,9 @@
         let highlightOrderId = null;
         let currentPage = 1;
         let ordersPerPage = 10;
+        const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'preparing', 'ready_to_ship', 'shipped', 'out_for_delivery'];
+        const PROCESSING_ORDER_STATUSES = ['processing', 'confirmed', 'preparing', 'ready_to_ship'];
+        const SHIPPED_ORDER_STATUSES = ['shipped', 'dispatched', 'out_for_delivery'];
 
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1117,7 +1125,7 @@
             showLoading(true);
 
             try {
-                console.log('🔍 Loading user orders…');
+                console.log('Loading user orders...');
 
                 const endpoint = '/orders?limit=50&page=1'; // HybridAuthClient adds /api/v1
                 let response;
@@ -1129,11 +1137,18 @@
                 }
 
                 if (!response || !response.ok) {
-                    throw new Error('Failed to fetch orders');
+                    let errorMessage = 'Failed to fetch orders';
+                    if (response) {
+                        const errorBody = await response.json().catch(() => null);
+                        if (errorBody && errorBody.message) {
+                            errorMessage = errorBody.message;
+                        }
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const result = await response.json();
-                console.log('✅ Orders loaded:', result);
+                console.log('Orders loaded:', result);
 
                 // ✅ Normalize orders first
                 allOrders = normalizeOrders(result);
@@ -1179,10 +1194,26 @@
                 showLoading(false);
             }
         }
+        function matchesOrderIdentity(order, candidate) {
+            if (!order || !candidate) return false;
+            const needle = String(candidate).trim().toLowerCase();
+            if (!needle) return false;
+
+            const identities = [
+                order._id,
+                order.id,
+                order.orderNumber,
+                order.orderId
+            ]
+                .filter(Boolean)
+                .map(v => String(v).trim().toLowerCase());
+
+            return identities.includes(needle);
+        }
 
         function applyHighlightOrder() {
             if (!highlightOrderId) return;
-            const idx = filteredOrders.findIndex(o => (o._id || o.id || '').toString() === highlightOrderId);
+            const idx = filteredOrders.findIndex(o => matchesOrderIdentity(o, highlightOrderId));
             if (idx > 0) {
                 const [order] = filteredOrders.splice(idx, 1);
                 filteredOrders.unshift(order);
@@ -1202,8 +1233,7 @@
                 // Status filter
                 if (statusFilter && statusFilter !== 'all') {
                     if (statusFilter === 'active') {
-                        const activeStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery'];
-                        if (!activeStatuses.includes(status)) return false;
+                        if (!ACTIVE_ORDER_STATUSES.includes(status)) return false;
                     } else if (status !== statusFilter) {
                         return false;
                     }
@@ -1276,7 +1306,7 @@
         function renderOrderCard(order) {
             const card = document.createElement('article');
             card.className = 'order-card';
-            if (highlightOrderId && (order.id || order._id) == highlightOrderId) {
+            if (highlightOrderId && matchesOrderIdentity(order, highlightOrderId)) {
                 card.classList.add('highlight');
             }
 
@@ -1502,17 +1532,21 @@
         function getStatusClass(status) {
             const s = (status || '').toLowerCase();
             if (s === 'delivered') return 'delivered';
-            if (['shipped', 'dispatched', 'out_for_delivery'].includes(s)) return 'shipped';
-            if (['processing', 'confirmed', 'preparing'].includes(s)) return 'processing';
-            if (['cancelled', 'failed'].includes(s)) return 'cancelled';
+            if (SHIPPED_ORDER_STATUSES.includes(s)) return 'shipped';
+            if (PROCESSING_ORDER_STATUSES.includes(s)) return 'processing';
+            if (['cancelled', 'failed', 'returned', 'refunded'].includes(s)) return 'cancelled';
             return 'pending';
         }
 
         function getStatusLabel(status) {
             const s = (status || '').toLowerCase();
             if (s === 'delivered') return 'Delivered';
-            if (['shipped', 'dispatched', 'out_for_delivery'].includes(s)) return 'Shipped';
-            if (['processing', 'confirmed', 'preparing'].includes(s)) return 'Processing';
+            if (s === 'out_for_delivery') return 'Out for delivery';
+            if (['shipped', 'dispatched'].includes(s)) return 'Shipped';
+            if (s === 'ready_to_ship') return 'Ready to ship';
+            if (PROCESSING_ORDER_STATUSES.includes(s)) return 'Processing';
+            if (s === 'returned') return 'Returned';
+            if (s === 'refunded') return 'Refunded';
             if (['cancelled', 'failed'].includes(s)) return 'Cancelled';
             return 'Pending';
         }
@@ -1551,7 +1585,7 @@
         function updateStats() {
             const totalOrders = filteredOrders.length;
             const activeOrders = filteredOrders.filter(o =>
-                ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery'].includes(o.status)
+                ACTIVE_ORDER_STATUSES.includes(o.status)
             ).length;
             const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
             const totalSpent = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -1559,7 +1593,7 @@
             document.getElementById('totalOrdersCount').textContent = totalOrders;
             document.getElementById('activeOrdersCount').textContent = activeOrders;
             document.getElementById('deliveredOrdersCount').textContent = deliveredOrders;
-            document.getElementById('totalSpentAmount').textContent = `₹${totalSpent.toLocaleString()}`;
+            document.getElementById('totalSpentAmount').textContent = `Rs ${totalSpent.toLocaleString()}`;
         }
 
         // Cancel order
@@ -1574,17 +1608,29 @@
             if (!confirm(confirmMessage)) return;
 
             try {
-                showToast(`Cancelling order ${orderNumber}…`, 'info');
+                showToast(`Cancelling order ${orderNumber}...`, 'info');
 
                 if (!window.HybridAuthClient) {
                     throw new Error('Authentication system not available. Please refresh the page.');
                 }
 
-                const response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/cancel`, {
+                let response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/cancel`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reason: 'Customer requested cancellation' })
                 });
+
+                // Backward compatibility: some deployments expose only /orders/:id/status.
+                if (response && response.status === 404) {
+                    response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            status: 'cancelled',
+                            note: 'Customer requested cancellation'
+                        })
+                    });
+                }
 
                 if (response && response.ok) {
                     const result = await response.json().catch(() => ({}));
@@ -1617,7 +1663,7 @@
             const end = Math.min(currentPage * ordersPerPage, total);
 
             document.getElementById('paginationContainer').style.display = total > ordersPerPage ? 'flex' : 'none';
-            document.getElementById('paginationInfo').textContent = `Showing ${start}–${end} of ${total} orders`;
+            document.getElementById('paginationInfo').textContent = `Showing ${start}-${end} of ${total} orders`;
 
             const prevBtn = document.getElementById('prevPageBtn');
             const nextBtn = document.getElementById('nextPageBtn');

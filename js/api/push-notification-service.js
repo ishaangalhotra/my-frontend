@@ -259,7 +259,7 @@ class PushNotificationService {
         title: 'Order Delivered! ✅',
         body: customMessage || 'Your order has been successfully delivered. Enjoy!',
         icon: '/images/icons/delivered.png',
-        url: `/orders.html`,
+        url: `/my-orders.html?highlight=${encodeURIComponent(orderId)}`,
         actions: [
           { action: 'rate', title: 'Rate Order', icon: '/images/icons/star.png' },
           { action: 'reorder', title: 'Order Again', icon: '/images/icons/reorder.png' }
