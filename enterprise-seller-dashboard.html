@@ -643,20 +643,15 @@
 
         async function loadDashboard() {
             try {
-                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-                if (!token) {
-                    window.location.href = 'seller-dashboard.html';
-                    return;
-                }
-
                 const response = await fetch(`${API_BASE_URL}/seller/enterprise/dashboard?period=${currentPeriod}`, {
+                    credentials: 'include',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     }
                 });
 
-                if (response.status === 401) {
+                if (response.status === 401 || response.status === 403) {
                     window.location.href = 'seller-dashboard.html';
                     return;
                 }

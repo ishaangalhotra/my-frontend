@@ -2038,8 +2038,8 @@
             API_BASE_URL: window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1',
             SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
             SUPABASE_ANON_KEY: window.QUICKLOCAL_SUPABASE_ANON_KEY || '',
-            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
-            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            TOKEN_STORAGE_KEY: '',
+            REFRESH_TOKEN_KEY: '',
             ENVIRONMENT: 'production'
         };
     </script>
@@ -2075,45 +2075,30 @@
 
         console.log('🌐 Using API Base URL:', appState.apiBaseUrl);
 
-        const auth = {
+                const auth = {
             isLoggedIn: () => {
-                const indicators = [
-                    () => appState.user !== null,
-                    () => window.HybridAuthClient && window.HybridAuthClient.getCurrentUser() !== null,
-                    () => localStorage.getItem('quicklocal_user') !== null,
-                    () => localStorage.getItem('supabase_access_token') !== null,
-                    () => localStorage.getItem('token') !== null
-                ];
-                
-                return indicators.some(indicator => {
-                    try {
-                        return indicator();
-                    } catch (error) {
-                        return false;
+                try {
+                    if (appState.user) return true;
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                        return window.HybridAuthClient.getCurrentUser() !== null;
                     }
-                });
+                } catch (error) {
+                    return false;
+                }
+                return false;
             },
-            
+
             getUser: () => {
                 if (appState.user) return appState.user;
-                
+
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
                     const user = window.HybridAuthClient.getCurrentUser();
                     if (user) return user;
                 }
-                
-                try {
-                    const storedUser = localStorage.getItem('quicklocal_user');
-                    if (storedUser) {
-                        return JSON.parse(storedUser);
-                    }
-                } catch (error) {
-                    console.warn('Failed to parse stored user:', error);
-                }
-                
+
                 return null;
             },
-            
+
             logout: async () => {
                 try {
                     if (window.HybridAuthClient && typeof window.HybridAuthClient.logout === 'function') {
@@ -2122,13 +2107,13 @@
                             console.warn('HybridAuthClient logout failed, forcing cleanup');
                         }
                     }
-                    
+
                     auth.clearStoredData();
                     appState.user = null;
                     appState.cart = [];
                     updateAuthUI();
                     showToast('Logged out successfully', 'info');
-                    
+
                     return { success: true };
                 } catch (error) {
                     console.error('Logout error:', error);
@@ -2140,60 +2125,28 @@
                     return { success: false, message: error.message };
                 }
             },
-            
+
             clearStoredData: () => {
-                localStorage.removeItem('token');
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('quicklocal_access_token');
-                localStorage.removeItem('quicklocal_refresh_token');
-                localStorage.removeItem('quicklocal_user');
-                
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('sb-') && key.includes('-auth-token')) {
-                        localStorage.removeItem(key);
-                    }
-                });
+                // Cookie-based auth: no token cleanup from localStorage required.
             },
-            
+
             getAuthHeader: () => {
-                const tokenSources = [
-                    () => window.HybridAuthClient?.getAuthHeader?.(),
-                    () => localStorage.getItem('supabase_access_token'),
-                    () => localStorage.getItem('quicklocal_access_token'),
-                    () => localStorage.getItem('token'),
-                    () => {
-                        const keys = Object.keys(localStorage);
-                        const authKey = keys.find(key => key.includes('auth-token'));
-                        if (authKey) {
-                            const authData = JSON.parse(localStorage.getItem(authKey));
-                            return authData?.access_token;
-                        }
-                        return null;
+                try {
+                    if (window.HybridAuthClient && typeof window.HybridAuthClient.getAuthHeader === 'function') {
+                        return window.HybridAuthClient.getAuthHeader() || '';
                     }
-                ];
-                
-                for (const getToken of tokenSources) {
-                    try {
-                        const token = getToken();
-                        if (token && typeof token === 'string' && token.length > 10) {
-                            return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-                        }
-                    } catch (error) {
-                        continue;
-                    }
+                } catch (error) {
+                    return '';
                 }
-                
                 return '';
             },
-            
+
             getHeaders: () => ({
-                'Content-Type': 'application/json',
-                'Authorization': auth.getAuthHeader()
+                'Content-Type': 'application/json'
             })
         };
 
         window.auth = auth;
-
         const api = {
             async request(endpoint, options = {}) {
                 try {
@@ -2207,6 +2160,7 @@
                     
                     const fullUrl = endpoint.startsWith('http') ? endpoint : `${appState.apiBaseUrl}${endpoint}`;
                     const response = await fetch(fullUrl, {
+                        credentials: 'include',
                         headers: auth.getHeaders(),
                         ...options
                     });
@@ -2372,7 +2326,7 @@
                             updateAuthUI();
                             
                             if (user) {
-                                localStorage.setItem('quicklocal_user', JSON.stringify(user));
+                                // Cookie session is already set by backend.
                                 const urlParams = new URLSearchParams(window.location.search);
                                 if (urlParams.get('login') === 'success') {
                                     showToast(`Welcome back, ${user.name}!`, 'success');
@@ -2380,7 +2334,6 @@
                                 }
                                 loadCart();
                             } else {
-                                localStorage.removeItem('quicklocal_user');
                                 appState.cart = [];
                                 updateCartUI();
                             }
@@ -2408,21 +2361,10 @@
                 }
             }
             
-            if (!authClientLoaded) {
-                console.warn('⚠️ HybridAuthClient not loaded. Checking local storage...');
-                try {
-                    const storedUser = localStorage.getItem('quicklocal_user');
-                    if (storedUser) {
-                        const user = JSON.parse(storedUser);
-                        appState.user = user;
-                        updateAuthUI();
-                        console.log('✅ User restored from localStorage:', user.name);
-                    }
-                } catch (error) {
-                    console.warn('Failed to restore user from storage:', error);
-                }
+                        if (!authClientLoaded) {
+                console.warn('HybridAuthClient not loaded. Auth-required actions will stay disabled until it is available.');
             }
-            
+
             updateAuthUI();
         }
 
@@ -4181,15 +4123,12 @@ setTimeout(() => {
       let authReady = false;
       let servicesInitialized = false;
 
-      function hasValidSession() {
+                  async function hasValidSession() {
         try {
-          const token = localStorage.getItem('quicklocal_access_token') || 
-                        localStorage.getItem('supabase_access_token') ||
-                        localStorage.getItem('token');
-
-          const user = localStorage.getItem('quicklocal_user');
-
-          return !!(token && user);
+          if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+            return await window.HybridAuthClient.isAuthenticated();
+          }
+          return false;
         } catch (e) {
           return false;
         }
@@ -4201,7 +4140,7 @@ setTimeout(() => {
           return;
         }
 
-        if (!hasValidSession()) {
+        if (!(await hasValidSession())) {
           console.log('[NotificationInit] No valid session found, skipping notification services');
           return;
         }
@@ -4268,11 +4207,11 @@ setTimeout(() => {
         console.log('[NotificationInit] DOMContentLoaded - setting up fallback check');
 
         setTimeout(async () => {
-          if (!authReady && hasValidSession()) {
+          if (!authReady && await hasValidSession()) {
             console.log('[NotificationInit] ⏰ Fallback: Auth ready not detected, but valid session found');
             authReady = true;
             await initializeNotificationServices();
-          } else if (!hasValidSession()) {
+          } else if (!(await hasValidSession())) {
             console.log('[NotificationInit] ℹ️ No valid session - user is not logged in');
           }
         }, 2000);

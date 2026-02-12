@@ -4,7 +4,7 @@
  * - Backend-first with robust fallback to localStorage demo data when offline
  * - Health check with caching + event system (backend-available / backend-unavailable / fallback-mode)
  * - Retry with exponential backoff + request timeout
- * - Unified auth header handling (Authorization: Bearer <token>)
+ * - Cookie-first auth handling (no token persistence in browser storage)
  * - Inline support for Auth, Products, Orders, Delivery, Payments
  *
  * Configuration precedence:
@@ -298,14 +298,8 @@ function emit(event, data) {
 // ---------------------------
 function buildHeaders(extra = {}) {
   const { API } = getConfig();
-  const token =
-    (typeof localStorage !== "undefined" &&
-      (localStorage.getItem("qk_token") ||
-        localStorage.getItem("quicklocal_auth_token"))) ||
-    null;
   return {
     ...API.DEFAULT_HEADERS,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   };
 }
@@ -378,8 +372,7 @@ const ApiClient = (function () {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data?.token) {
-        localStorage.setItem("qk_token", data.token);
+      if (data?.user) {
         storage.set("user", data.user || null);
       }
       return data;
@@ -396,8 +389,7 @@ const ApiClient = (function () {
         body: JSON.stringify(userData),
       });
       const data = await res.json();
-      if (data?.token) {
-        localStorage.setItem("qk_token", data.token);
+      if (data?.user) {
         storage.set("user", data.user || null);
       }
       return data;
@@ -411,7 +403,6 @@ const ApiClient = (function () {
     },
 
     logout() {
-      localStorage.removeItem("qk_token");
       storage.remove("user");
     },
 

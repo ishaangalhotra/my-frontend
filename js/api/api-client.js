@@ -7,19 +7,21 @@ import SessionManager from '../session-manager.js';
 // Optional global error handler (loaded on pages that include it)
 const EH = typeof window !== 'undefined' ? window.ErrorHandler : null;
 
-// Generic request handler with automatic token refresh and optional caching for GET requests
-async function request(endpoint, { method = 'GET', body = null, auth = true, cacheTTL = 0, cacheKey = null, showErrorToast = false } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-
-  if (auth) {
-    const token = localStorage.getItem(APP_CONFIG.TOKEN_STORAGE_KEY);
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+function resolveSessionManager() {
+  if (typeof window !== 'undefined' && window.SessionManager) {
+    return window.SessionManager;
   }
+  return SessionManager;
+}
 
+// Generic request handler with automatic session refresh and optional caching for GET requests
+async function request(endpoint, { method = 'GET', body = null, auth = true, cacheTTL = 0, cacheKey = null, showErrorToast = false, credentials = null } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
   const url = `${APP_CONFIG.API_BASE_URL}${endpoint}`;
   const finalOptions = {
     method,
     headers,
+    credentials: credentials || (auth ? 'include' : 'same-origin'),
     body: body ? JSON.stringify(body) : null
   };
 
@@ -36,19 +38,16 @@ async function request(endpoint, { method = 'GET', body = null, auth = true, cac
   try {
     res = await fetch(url, finalOptions);
   } catch (error) {
-    // Network failure
     if (EH) EH.handle({ error, toast: showErrorToast });
-    // Emit global event for diagnostics
     window.dispatchEvent(new CustomEvent('api:error', { detail: { endpoint, method, error } }));
     throw error;
   }
 
-  // If token expired → try refresh via SessionManager
+  // If session expired, try refresh and retry once.
   if (res.status === 401 && auth) {
-    const refreshed = await SessionManager.refreshToken();
+    const manager = resolveSessionManager();
+    const refreshed = await manager.refreshToken();
     if (refreshed) {
-      const token = localStorage.getItem(APP_CONFIG.TOKEN_STORAGE_KEY);
-      headers['Authorization'] = `Bearer ${token}`;
       try {
         res = await fetch(url, finalOptions);
       } catch (error) {
@@ -57,7 +56,6 @@ async function request(endpoint, { method = 'GET', body = null, auth = true, cac
         throw error;
       }
     } else {
-      // Emit global event for listeners
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
   }
@@ -66,9 +64,8 @@ async function request(endpoint, { method = 'GET', body = null, auth = true, cac
     const errorData = await res.json().catch(() => ({}));
     const msg = errorData.message || `API Error: ${res.status}`;
     const err = new Error(msg);
-    // Provide user feedback when requested
+
     if (EH && showErrorToast) EH.handle({ response: res, toast: true });
-    // Emit global event for diagnostics and UI hooks
     window.dispatchEvent(new CustomEvent('api:error', { detail: { endpoint, method, status: res.status, body, error: err } }));
     throw err;
   }
@@ -83,9 +80,6 @@ async function request(endpoint, { method = 'GET', body = null, auth = true, cac
 
   return data;
 }
-
-// Refresh token handler
-// Deprecated: refreshToken moved to SessionManager
 
 // Main API client
 export const apiClient = {

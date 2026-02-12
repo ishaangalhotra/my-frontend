@@ -160,7 +160,40 @@ class ProductManager {
   }
 }
 
-const sellerId = localStorage.getItem('sellerId') || 'seller123';
-document.addEventListener('DOMContentLoaded', () => {
+async function resolveSellerId() {
+  try {
+    if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+      const user = window.HybridAuthClient.getCurrentUser();
+      if (user && (user.id || user._id)) {
+        return user.id || user._id;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const base = window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    const response = await fetch(`${base}/hybrid-auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' }
+    });
+
+    if (!response.ok) return null;
+
+    const payload = await response.json().catch(() => ({}));
+    const user = payload?.user || payload?.data?.user || payload?.data || null;
+    return user?.id || user?._id || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const sellerId = await resolveSellerId();
+  if (!sellerId) {
+    window.location.href = 'seller-login.html';
+    return;
+  }
+
   new ProductManager(sellerId);
 });

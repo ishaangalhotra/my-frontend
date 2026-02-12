@@ -165,10 +165,29 @@
             border-radius: var(--radius-lg);
             padding: 0.85rem 1rem;
             display: flex;
-            align-items: center;
-            gap: 0.6rem;
+            flex-direction: column;
+            gap: 0.55rem;
             font-weight: 700;
             margin-bottom: 2rem;
+        }
+        .conversion-banner-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .free-delivery-progress {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(15, 81, 50, 0.14);
+            overflow: hidden;
+        }
+        .free-delivery-progress-bar {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 260ms ease;
         }
 
         .cart-content {
@@ -530,9 +549,14 @@
             </div>
         </div>
 
-        <div class="conversion-banner">
-            <i class="fas fa-truck-fast"></i>
-            Free delivery on orders above Rs 500. Add more items to save on shipping.
+        <div class="conversion-banner" id="freeDeliveryBanner" aria-live="polite">
+            <div class="conversion-banner-row">
+                <i class="fas fa-truck-fast"></i>
+                <span id="freeDeliveryMessage">Free delivery on orders above Rs 500. Add more items to save on shipping.</span>
+            </div>
+            <div class="free-delivery-progress">
+                <div class="free-delivery-progress-bar" id="freeDeliveryProgressBar"></div>
+            </div>
         </div>
 
         <div id="loadingContainer" class="loading">
@@ -557,14 +581,15 @@
 
     <script src="js/load-hybrid-auth.js"></script>
     
+    <script src="js/advanced-cart.js"></script>
     <script>
         // App Configuration
         window.APP_CONFIG = {
             API_BASE_URL: window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1',
             SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
             SUPABASE_ANON_KEY: window.QUICKLOCAL_SUPABASE_ANON_KEY || '',
-            TOKEN_STORAGE_KEY: 'quicklocal_access_token',
-            REFRESH_TOKEN_KEY: 'quicklocal_refresh_token',
+            TOKEN_STORAGE_KEY: '',
+            REFRESH_TOKEN_KEY: '',
             ENVIRONMENT: 'production'
         };
 
@@ -612,8 +637,6 @@
         // Fast bootstrap: render cached cart immediately, then sync from server in background.
         function initializePage() {
             if (!window.advancedCart) {
-                console.warn('Cart script not ready, retrying...');
-                setTimeout(initializePage, 80);
                 return;
             }
 
@@ -662,13 +685,14 @@
             waitForAuthClient();
         }
 
-        initializePage();
+        if (window.advancedCart) {
+            initializePage();
+        } else {
+            window.addEventListener('advanced-cart-ready', initializePage, { once: true });
+        }
         // --- END OF FAST CART BOOTSTRAP FIX ---
-
-        console.log('Enhanced Cart Page initialized');
     </script>
     
     <script src="js/error-handler.js"></script>
-    <script src="js/advanced-cart.js"></script>
     </body>
 </html>

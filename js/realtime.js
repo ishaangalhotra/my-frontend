@@ -29,7 +29,8 @@ class RealtimeClient {
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: this.reconnectDelay,
-        reconnectionDelayMax: 5000
+        reconnectionDelayMax: 5000,
+        withCredentials: true
       });
 
       this.setupSocketEventHandlers();
@@ -49,11 +50,9 @@ class RealtimeClient {
       this.reconnectAttempts = 0;
       this.triggerEvent('connected');
       
-      // Auto-authenticate if token exists
+      // Attempt cookie-first authentication immediately after connect.
       const token = this.getAuthToken();
-      if (token) {
-        this.authenticate(token);
-      }
+      this.authenticate(token || null);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -172,17 +171,24 @@ class RealtimeClient {
   }
 
   // Authentication methods
-  authenticate(token) {
+  authenticate(token = null) {
     if (!this.isConnected) {
       console.warn('⚠️ Socket not connected, cannot authenticate');
       return;
     }
 
-    this.socket.emit('authenticate', { token });
+    const payload = token ? { token } : { authMethod: 'cookie' };
+    this.socket.emit('authenticate', payload);
   }
 
   getAuthToken() {
-    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    try {
+      const header = window.HybridAuthClient?.getAuthHeader?.() || window.quickLocalAuth?.getAuthHeader?.() || '';
+      if (header.startsWith('Bearer ')) {
+        return header.slice(7);
+      }
+    } catch (_) {}
+    return null;
   }
 
   // Order tracking methods
@@ -479,15 +485,11 @@ class RealtimeClient {
       console.log('🚀 Initializing real-time client...');
     });
 
-    // Handle authentication token changes
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'authToken') {
-        if (event.newValue) {
-          this.authenticate(event.newValue);
-        } else {
-          this.isAuthenticated = false;
-          this.user = null;
-        }
+    // Re-authenticate when cookie-backed auth state updates.
+    document.addEventListener('auth-ready', () => {
+      if (this.isConnected) {
+        const token = this.getAuthToken();
+        this.authenticate(token || null);
       }
     });
   }

@@ -249,10 +249,10 @@ class OfflineMode {
     
     try {
       const response = await fetch(url, {
+        credentials: 'include',
         method: type === 'POST' ? 'POST' : 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: data ? JSON.stringify(data) : undefined
       });

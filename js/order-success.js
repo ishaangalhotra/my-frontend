@@ -180,14 +180,11 @@ async function fetchOrderFromAPI(orderId) {
     console.log("Fetching order from API:", orderId);
     
     try {
-        const user = JSON.parse(localStorage.getItem("quicklocal_user"));
-        if (!user || !user.token) {
-            throw new Error("User not authenticated");
-        }
-
         const response = await fetch(`${ORDER_API}/${orderId}`, {
+            method: "GET",
+            credentials: "include",
             headers: {
-                "Authorization": `Bearer ${user.token}`
+                "Accept": "application/json"
             }
         });
 
@@ -230,15 +227,12 @@ async function refreshOrderStatus() {
 
     try {
         showNotification("Refreshing order status...", "info");
-        
-        const user = JSON.parse(localStorage.getItem("quicklocal_user"));
-        if (!user || !user.token) {
-            throw new Error("User not authenticated");
-        }
 
         const response = await fetch(`${ORDER_API}/${orderIdToUse}`, {
+            method: "GET",
+            credentials: "include",
             headers: {
-                "Authorization": `Bearer ${user.token}`
+                "Accept": "application/json"
             }
         });
 

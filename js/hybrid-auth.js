@@ -1,422 +1,317 @@
-class QuickLocalHybridAuth {
-  constructor() {
-    // Your Supabase configuration
-    this.supabaseUrl = 'https://pmvhsjezhuokwygvhhqk.supabase.co';
-    this.supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmhzamV6aHVva3d5Z3ZoaHFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2NTU3MDUsImV4cCI6MjA3MzIzMTcwNX0.ZrVjuqB28Qer7F7zSdG_rJIs_ZQZhX1PNyrmpK-Qojg';
-    this.backendUrl = 'https://ecommerce-backend-mlik.onrender.com';
-    
-    this.supabase = null;
-    this.currentUser = null;
-    this.authMethod = null;
-    this.listeners = [];
-    
-    this.initializeSupabase();
-    this.initialize();
+(function () {
+  'use strict';
+
+  var DEFAULT_BACKEND = 'https://ecommerce-backend-mlik.onrender.com';
+
+  function normalizeBackendUrl(url) {
+    return (url || DEFAULT_BACKEND).replace(/\/$/, '');
   }
 
-  initializeSupabase() {
-    // Initialize Supabase client (CDN version)
-    if (typeof window !== 'undefined' && window.supabase) {
-      this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseAnonKey);
-    }
+  function isPlainObject(value) {
+    return Object.prototype.toString.call(value) === '[object Object]';
   }
 
-  async initialize() {
-    try {
-      console.log('🔧 Initializing QuickLocal Hybrid Auth...');
-      
-      // Check for existing Supabase session
-      if (this.supabase) {
-        const { data: { session } } = await this.supabase.auth.getSession();
-        if (session) {
-          console.log('📱 Found Supabase session');
-          await this.handleSupabaseAuth(session);
-          return;
-        }
-      }
-
-      // Fallback to legacy JWT token
-      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-      if (token) {
-        console.log('🔑 Found legacy JWT token');
-        await this.handleLegacyAuth(token);
-      } else {
-        console.log('👤 No existing session found');
-      }
-    } catch (error) {
-      console.error('❌ Failed to initialize auth:', error);
-    }
-  }
-
-  async handleSupabaseAuth(session) {
-    try {
-      this.authMethod = 'supabase';
-      console.log('🚀 Using Supabase authentication');
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.currentUser = data.user;
-        console.log('✅ Supabase user authenticated:', this.currentUser.name);
-        this.notifyListeners(this.currentUser);
-      } else {
-        console.warn('⚠️ Supabase auth failed, response:', response.status);
-      }
-    } catch (error) {
-      console.error('❌ Supabase auth error:', error);
-    }
-  }
-
-  async handleLegacyAuth(token) {
-    try {
-      this.authMethod = 'jwt';
-      console.log('🔄 Using legacy JWT authentication');
-      
-      const response = await fetch(`${this.backendUrl}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.currentUser = data.user;
-        console.log('✅ Legacy user authenticated:', this.currentUser.name);
-        this.notifyListeners(this.currentUser);
-      } else {
-        console.warn('⚠️ Legacy token expired, clearing storage');
-        localStorage.removeItem('token');
-        localStorage.removeItem('accessToken');
-      }
-    } catch (error) {
-      console.error('❌ Legacy auth error:', error);
-    }
-  }
-
-  /**
-   * Register new user (uses Supabase for memory efficiency)
-   */
-  async register(email, password, name, role = 'customer') {
-    try {
-      console.log(`📝 Registering new ${role}:`, email);
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, role })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        console.log('✅ Registration successful');
-        return { 
-          success: true, 
-          message: data.message, 
-          requiresVerification: data.requiresVerification 
-        };
-      } else {
-        console.error('❌ Registration failed:', data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('❌ Registration error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  /**
-   * Login user (hybrid approach - handles both auth methods)
-   */
-  async login(email, password) {
-    try {
-      console.log('🔐 Attempting login for:', email);
-      
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Handle Supabase tokens (new users)
-        if (data.accessToken && data.refreshToken) {
-          localStorage.setItem('supabase_access_token', data.accessToken);
-          localStorage.setItem('supabase_refresh_token', data.refreshToken);
-          this.authMethod = 'supabase';
-          console.log('✅ Login successful with Supabase');
-        } 
-        // Handle legacy JWT (existing users)
-        else if (data.token) {
-          localStorage.setItem('token', data.token);
-          this.authMethod = 'jwt';
-          console.log('✅ Login successful with legacy JWT');
-        }
-
-        this.currentUser = data.user;
-        this.notifyListeners(this.currentUser);
-        return { success: true, user: data.user, message: data.message };
-      } else {
-        console.error('❌ Login failed:', data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('❌ Login error:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  /**
-   * Logout user (works with both auth methods)
-   */
-  async logout() {
-    try {
-      console.log('👋 Logging out...');
-      
-      await fetch(`${this.backendUrl}/api/hybrid-auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': this.getAuthHeader(),
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Sign out from Supabase if using Supabase
-      if (this.authMethod === 'supabase' && this.supabase) {
-        await this.supabase.auth.signOut();
-      }
-
-      // Clear all auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('supabase_access_token');
-      localStorage.removeItem('supabase_refresh_token');
+  class QuickLocalHybridAuth {
+    constructor() {
+      this.backendUrl = normalizeBackendUrl(
+        window.QUICKLOCAL_BACKEND_ORIGIN ||
+        window.REACT_APP_BACKEND_URL ||
+        DEFAULT_BACKEND
+      );
 
       this.currentUser = null;
       this.authMethod = null;
-      this.notifyListeners(null);
+      this.listeners = [];
+      this.maxRetryAttempts = 1;
 
-      console.log('✅ Logout successful');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      return { success: false, message: error.message };
+      this.initialize().catch(function () {
+        // Ignore boot errors; user can still log in manually.
+      });
     }
-  }
 
-  /**
-   * Get authorization header for API calls
-   */
-  getAuthHeader() {
-    if (this.authMethod === 'supabase') {
-      const token = localStorage.getItem('supabase_access_token');
-      return token ? `Bearer ${token}` : '';
-    } else if (this.authMethod === 'jwt') {
-      const token = localStorage.getItem('token');
-      return token ? `Bearer ${token}` : '';
+    _normalizeEndpoint(endpoint) {
+      if (typeof endpoint !== 'string') {
+        throw new Error('Endpoint must be a string');
+      }
+
+      if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+        return endpoint;
+      }
+
+      var path = endpoint;
+      if (!path.startsWith('/')) {
+        path = '/' + path;
+      }
+
+      if (!path.startsWith('/api/')) {
+        path = '/api/v1' + path;
+      }
+
+      return this.backendUrl + path;
     }
-    return '';
-  }
 
-  /**
-   * Make authenticated API calls to your backend
-   */
-  async apiCall(endpoint, options = {}) {
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': this.getAuthHeader()
-    };
+    async _fetch(endpoint, options) {
+      var init = Object.assign({}, options || {});
+      init.credentials = 'include';
 
-    const response = await fetch(`${this.backendUrl}${endpoint}`, {
-      ...options,
-      headers: { ...defaultHeaders, ...options.headers }
-    });
+      var method = (init.method || 'GET').toUpperCase();
+      var headers = Object.assign({}, init.headers || {});
 
-    // Handle token refresh for Supabase users
-    if (response.status === 401 && this.authMethod === 'supabase') {
-      const refreshed = await this.refreshToken();
-      if (refreshed) {
-        // Retry with new token
-        return fetch(`${this.backendUrl}${endpoint}`, {
-          ...options,
-          headers: { 
-            ...defaultHeaders, 
-            'Authorization': this.getAuthHeader(), 
-            ...options.headers 
-          }
-        });
+      var isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+      var isBlob = typeof Blob !== 'undefined' && init.body instanceof Blob;
+
+      if (init.body && isPlainObject(init.body) && !isFormData && !isBlob) {
+        init.body = JSON.stringify(init.body);
+        if (!headers['Content-Type']) {
+          headers['Content-Type'] = 'application/json';
+        }
+      }
+
+      if (!headers.Accept) {
+        headers.Accept = 'application/json';
+      }
+
+      if (method !== 'GET' && method !== 'HEAD' && init.body && !isFormData && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      init.headers = headers;
+
+      return fetch(this._normalizeEndpoint(endpoint), init);
+    }
+
+    async _parseJsonSafe(response) {
+      try {
+        return await response.json();
+      } catch (_error) {
+        return {};
       }
     }
 
-    return response;
-  }
+    _setUser(user, method) {
+      this.currentUser = user || null;
+      this.authMethod = user ? (method || 'cookie') : null;
+      this._notifyAuthState();
+    }
 
-  /**
-   * Refresh Supabase access token
-   */
-  async refreshToken() {
-    try {
-      const refreshToken = localStorage.getItem('supabase_refresh_token');
-      if (!refreshToken) return false;
+    _clearUser() {
+      this.currentUser = null;
+      this.authMethod = null;
+      this._notifyAuthState();
+    }
 
-      const response = await fetch(`${this.backendUrl}/api/hybrid-auth/refresh-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken })
+    _notifyAuthState() {
+      var user = this.currentUser;
+      this.listeners.forEach(function (listener) {
+        try {
+          listener(user);
+        } catch (_error) {}
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('supabase_access_token', data.accessToken);
-        localStorage.setItem('supabase_refresh_token', data.refreshToken);
-        console.log('🔄 Token refreshed successfully');
+      try {
+        document.dispatchEvent(new CustomEvent('auth-ready', { detail: { user: user } }));
+      } catch (_error) {}
+    }
+
+    async initialize() {
+      await this.refreshCurrentUser();
+    }
+
+    async refreshCurrentUser() {
+      try {
+        var response = await this._fetch('/api/v1/auth/me', { method: 'GET' });
+        if (!response.ok) {
+          this._clearUser();
+          return false;
+        }
+
+        var data = await this._parseJsonSafe(response);
+        this._setUser(data.user || null, 'cookie');
+        return !!this.currentUser;
+      } catch (_error) {
+        this._clearUser();
+        return false;
+      }
+    }
+
+    onAuthStateChange(callback) {
+      if (typeof callback !== 'function') {
+        return function () {};
+      }
+
+      this.listeners.push(callback);
+      try {
+        callback(this.currentUser);
+      } catch (_error) {}
+
+      var self = this;
+      return function unsubscribe() {
+        self.listeners = self.listeners.filter(function (listener) {
+          return listener !== callback;
+        });
+      };
+    }
+
+    getCurrentUser() {
+      return this.currentUser;
+    }
+
+    getAuthMethod() {
+      return this.authMethod;
+    }
+
+    getAuthHeader() {
+      // Cookie-first auth does not expose bearer tokens to browser code.
+      return '';
+    }
+
+    async isAuthenticated() {
+      if (this.currentUser) {
         return true;
       }
-    } catch (error) {
-      console.error('❌ Token refresh error:', error);
+      return this.refreshCurrentUser();
     }
-    return false;
-  }
 
-  /**
-   * Subscribe to authentication state changes
-   */
-  onAuthStateChange(callback) {
-    this.listeners.push(callback);
-    // Call immediately with current state
-    if (this.currentUser !== undefined) {
-      callback(this.currentUser);
-    }
-  }
-
-  /**
-   * Notify all listeners of auth state changes
-   */
-  notifyListeners(user) {
-    this.listeners.forEach(callback => {
+    async login(identifier, password) {
       try {
-        callback(user);
+        var response = await this._fetch('/api/v1/auth/login', {
+          method: 'POST',
+          body: { identifier: identifier, password: password }
+        });
+
+        var data = await this._parseJsonSafe(response);
+        if (!response.ok || !data.success) {
+          return {
+            success: false,
+            message: data.message || 'Login failed'
+          };
+        }
+
+        if (data.user) {
+          this._setUser(data.user, 'cookie');
+        } else {
+          await this.refreshCurrentUser();
+        }
+
+        return {
+          success: true,
+          user: this.currentUser,
+          message: data.message || 'Login successful'
+        };
       } catch (error) {
-        console.error('❌ Auth listener error:', error);
+        return {
+          success: false,
+          message: error.message || 'Login failed'
+        };
       }
-    });
-  }
-
-  /**
-   * Get current authenticated user
-   */
-  getCurrentUser() {
-    return this.currentUser;
-  }
-
-  /**
-   * Check if user is authenticated
-   */
-  isAuthenticated() {
-    return !!this.currentUser;
-  }
-
-  /**
-   * Get current authentication method
-   */
-  getAuthMethod() {
-    return this.authMethod;
-  }
-
-  /**
-   * Get user role
-   */
-  getUserRole() {
-    return this.currentUser?.role || 'guest';
-  }
-
-  /**
-   * Check if user has specific role
-   */
-  hasRole(role) {
-    return this.currentUser?.role === role;
-  }
-
-  /**
-   * Utility functions for common API calls
-   */
-  
-  // Load products with authentication context
-  async loadProducts(filters = {}) {
-    try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const response = await this.apiCall(`/api/v1/products${queryParams ? '?' + queryParams : ''}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, products: data.products };
-      } else {
-        return { success: false, message: 'Failed to load products' };
-      }
-    } catch (error) {
-      console.error('❌ Failed to load products:', error);
-      return { success: false, message: error.message };
     }
-  }
 
-  // Get user profile
-  async getUserProfile() {
-    try {
-      const response = await this.apiCall('/api/v1/users/profile');
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, profile: data.user };
-      } else {
-        return { success: false, message: 'Failed to load profile' };
+    async register(emailOrPayload, password, name, role) {
+      try {
+        var payload;
+        if (isPlainObject(emailOrPayload)) {
+          payload = emailOrPayload;
+        } else {
+          payload = {
+            email: emailOrPayload,
+            password: password,
+            name: name,
+            role: role || 'customer'
+          };
+        }
+
+        var response = await this._fetch('/api/v1/auth/register', {
+          method: 'POST',
+          body: payload
+        });
+
+        var data = await this._parseJsonSafe(response);
+        if (!response.ok || data.success === false) {
+          return {
+            success: false,
+            message: data.message || 'Registration failed'
+          };
+        }
+
+        return {
+          success: true,
+          message: data.message || 'Registration successful'
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: error.message || 'Registration failed'
+        };
       }
-    } catch (error) {
-      console.error('❌ Failed to load profile:', error);
-      return { success: false, message: error.message };
     }
-  }
 
-  // Add to cart
-  async addToCart(productId, quantity = 1) {
-    try {
-      const response = await this.apiCall('/api/v1/cart/items', {
+    async logout() {
+      try {
+        await this._fetch('/api/v1/auth/logout', { method: 'POST' });
+      } catch (_error) {
+        // Ignore logout transport errors.
+      }
+
+      this._clearUser();
+      return { success: true };
+    }
+
+    async refreshToken() {
+      try {
+        var response = await this._fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          body: {}
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        await this.refreshCurrentUser();
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    async apiCall(endpoint, options) {
+      var retryCount = Number((options && options._retryCount) || 0);
+      var safeOptions = Object.assign({}, options || {});
+      delete safeOptions._retryCount;
+
+      var response = await this._fetch(endpoint, safeOptions);
+      if (response.status === 401 && retryCount < this.maxRetryAttempts) {
+        var refreshed = await this.refreshToken();
+        if (refreshed) {
+          response = await this._fetch(endpoint, safeOptions);
+        }
+      }
+
+      return response;
+    }
+
+    async addToCart(productId, quantity) {
+      return this.apiCall('/api/v1/cart/items', {
         method: 'POST',
-        body: JSON.stringify({ productId, quantity })
+        body: {
+          productId: productId,
+          quantity: Number(quantity || 1)
+        }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, data: data.data, itemCount: data.data?.itemCount };
-      } else {
-        const data = await response.json();
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('❌ Failed to add to cart:', error);
-      return { success: false, message: error.message };
     }
   }
-}
 
-// Create global instance
-window.quickLocalAuth = new QuickLocalHybridAuth();
+  // Prefer backend-served client when available, but always expose a fallback alias.
+  if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
+    window.quickLocalAuth = window.HybridAuthClient;
+    if (!window.QuickLocalHybridAuth) {
+      window.QuickLocalHybridAuth = window.HybridAuthClientClass || QuickLocalHybridAuth;
+    }
+    return;
+  }
 
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = QuickLocalHybridAuth;
-}
-
-// Log initialization
-console.log('🚀 QuickLocal Hybrid Auth loaded successfully');
-console.log('📊 Memory-efficient authentication ready');
-console.log('🔗 Backend URL:', 'https://ecommerce-backend-mlik.onrender.com');
-console.log('🗃️ Supabase URL:', 'https://pmvhsjezhuokwygvhhqk.supabase.co');
+  var client = new QuickLocalHybridAuth();
+  window.quickLocalAuth = client;
+  window.HybridAuthClient = client;
+  window.QuickLocalHybridAuth = QuickLocalHybridAuth;
+})();

@@ -20,6 +20,42 @@
   }
 })();
 
+
+(function () {
+  var LEGACY_AUTH_STORAGE_KEYS = {
+    adminUser: true,
+    quicklocal_user: true,
+    sellerId: true,
+    sellerInfo: true,
+    userEmail: true
+  };
+
+  if (!window.localStorage || window.__quicklocalAuthStorageGuard) {
+    return;
+  }
+
+  var originalGetItem = window.localStorage.getItem.bind(window.localStorage);
+  var originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+  var originalRemoveItem = window.localStorage.removeItem.bind(window.localStorage);
+
+  window.localStorage.getItem = function (key) {
+    if (LEGACY_AUTH_STORAGE_KEYS[key]) return null;
+    return originalGetItem(key);
+  };
+
+  window.localStorage.setItem = function (key, value) {
+    if (LEGACY_AUTH_STORAGE_KEYS[key]) return;
+    return originalSetItem(key, value);
+  };
+
+  window.localStorage.removeItem = function (key) {
+    if (LEGACY_AUTH_STORAGE_KEYS[key]) return;
+    return originalRemoveItem(key);
+  };
+
+  window.__quicklocalAuthStorageGuard = true;
+})();
+
 (function () {
   var hostname = window.location.hostname;
   var isLocal = hostname === '' || hostname === 'localhost' || hostname === '127.0.0.1';
@@ -49,23 +85,50 @@
     return url;
   }
 
+  function isBackendUrl(url) {
+    return typeof url === 'string' && (
+      url.indexOf(localOrigin) === 0 ||
+      url.indexOf(remoteOrigin) === 0 ||
+      url.indexOf('/api/') === 0 ||
+      /^https?:\/\/[^/]+\/api\//.test(url)
+    );
+  }
+
+  function getRequestUrl(input) {
+    if (typeof input === 'string') {
+      return input;
+    }
+    if (input && typeof input.url === 'string') {
+      return input.url;
+    }
+    return '';
+  }
+
   if (!window.__quicklocalFetchPatched && typeof window.fetch === 'function') {
     var originalFetch = window.fetch.bind(window);
     window.fetch = function (input, init) {
+      var finalInput = input;
+      var finalInit = init ? Object.assign({}, init) : {};
+
       try {
+        var inputUrl = getRequestUrl(input);
+        var rewrittenUrl = rewriteUrl(inputUrl);
+
         if (typeof input === 'string') {
-          return originalFetch(rewriteUrl(input), init);
+          finalInput = rewrittenUrl;
+        } else if (input && input.url && rewrittenUrl !== input.url) {
+          finalInput = new Request(rewrittenUrl, input);
         }
-        if (input && input.url) {
-          var rewritten = rewriteUrl(input.url);
-          if (rewritten !== input.url) {
-            return originalFetch(new Request(rewritten, input), init);
-          }
+
+        var targetUrl = typeof finalInput === 'string' ? finalInput : getRequestUrl(finalInput);
+        if (isBackendUrl(targetUrl) && !finalInit.credentials) {
+          finalInit.credentials = 'include';
         }
       } catch (error) {
         console.warn('[QuickLocal] fetch URL rewrite failed:', error);
       }
-      return originalFetch(input, init);
+
+      return originalFetch(finalInput, finalInit);
     };
     window.__quicklocalFetchPatched = true;
   }
@@ -74,18 +137,32 @@
     if (!window.HybridAuthClient) {
       return;
     }
+
     try {
-      if (isLocal) {
-        window.HybridAuthClient.backendUrl = apiBase;
+      if (!window.quickLocalAuth) {
+        window.quickLocalAuth = window.HybridAuthClient;
       }
+
+      if (isLocal) {
+        window.HybridAuthClient.backendUrl = backendOrigin;
+      }
+
       if (!window.HybridAuthClient.__quicklocalPatched && typeof window.HybridAuthClient.apiCall === 'function') {
         var originalApiCall = window.HybridAuthClient.apiCall.bind(window.HybridAuthClient);
         window.HybridAuthClient.apiCall = function (endpoint, options) {
-          if (typeof endpoint === 'string') {
-            endpoint = rewriteUrl(endpoint);
+          var nextEndpoint = endpoint;
+          if (typeof nextEndpoint === 'string') {
+            nextEndpoint = rewriteUrl(nextEndpoint);
           }
-          return originalApiCall(endpoint, options);
+
+          var nextOptions = options ? Object.assign({}, options) : {};
+          if (!nextOptions.credentials) {
+            nextOptions.credentials = 'include';
+          }
+
+          return originalApiCall(nextEndpoint, nextOptions);
         };
+
         window.HybridAuthClient.__quicklocalPatched = true;
       }
     } catch (error) {

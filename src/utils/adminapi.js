@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 const adminApi = axios.create({
-  baseURL: '/api/admin',
+  baseURL: '/api/v1/admin',
+  withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
+    'Content-Type': 'application/json'
   }
 });
 

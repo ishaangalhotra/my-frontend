@@ -88,8 +88,8 @@ const commonConfig = {
   
   // Storage Keys
   STORAGE: {
-    TOKEN_KEY: 'quicklocal_access_token',
-    REFRESH_TOKEN_KEY: 'quicklocal_refresh_token', 
+    TOKEN_KEY: '', 
+    REFRESH_TOKEN_KEY: '', 
     USER_KEY: 'quicklocal_user_data',
     CART_KEY: 'quicklocal_cart',
     PREFERENCES_KEY: 'quicklocal_preferences',

@@ -901,12 +901,6 @@
   // Load users from REAL API
   async function loadUsers(page = 1) {
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        window.location.href = 'admin-login.html';
-        return;
-      }
-
       // Build query params
       const params = new URLSearchParams({
         page: page.toString(),
@@ -931,14 +925,13 @@
 
       // Call REAL API
       const response = await fetch(`${API_V1}/admin/users?${params}`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
 
       if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem('adminToken');
         window.location.href = 'admin-login.html';
         return;
       }
@@ -983,12 +976,9 @@
   // Load user stats separately
   async function loadUserStats() {
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) return;
-
       const response = await fetch(`${API_V1}/admin/users/stats`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
@@ -1197,9 +1187,6 @@
       }
     }
 
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     try {
       let url = `${API_V1}/admin/users/bulk`;
       let method = 'PATCH';
@@ -1232,8 +1219,8 @@
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -1297,12 +1284,9 @@
   }
 
   function editUser(userId) {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     fetch(`${API_V1}/admin/users/${userId}`, {
+      credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
       }
     })
@@ -1336,9 +1320,6 @@
 
   async function saveUser(event) {
     event.preventDefault();
-    
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
 
     const userId = document.getElementById('userId').value;
     const isEdit = !!userId;
@@ -1370,8 +1351,8 @@
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -1397,13 +1378,10 @@
       return;
     }
 
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     fetch(`${API_V1}/admin/users/${userId}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
       }
     })
@@ -1427,9 +1405,6 @@
 
   // Export functionality
   async function exportUsers() {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     try {
       // Build export URL with filters
       let exportUrl = `${API_V1}/admin/users/export/csv?`;
@@ -1444,8 +1419,9 @@
       exportUrl += params.join('&');
 
       const response = await fetch(exportUrl, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Accept': 'text/csv'
         }
       });
 
@@ -1534,9 +1510,6 @@ Admin User,admin@example.com,,admin,active`;
       return;
     }
 
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1546,9 +1519,7 @@ Admin User,admin@example.com,,admin,active`;
 
       const response = await fetch(`${API_V1}/admin/users/import/csv`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        credentials: 'include',
         body: formData
       });
 
@@ -1571,13 +1542,10 @@ Admin User,admin@example.com,,admin,active`;
 
   // === PRO VERSION VIEW USER DETAILS ===
   async function viewUserDetails(userId) {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return;
-
     try {
       const response = await fetch(`${API_V1}/admin/users/${userId}`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
@@ -1776,14 +1744,29 @@ Admin User,admin@example.com,,admin,active`;
     document.body.appendChild(modal);
   }
 
-  // Event Listeners
-  document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
+  async function checkAdminSession() {
+    try {
+      const response = await fetch(`${API_V1}/admin/validate`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        window.location.href = 'admin-login.html';
+        return false;
+      }
+      return true;
+    } catch (_) {
       window.location.href = 'admin-login.html';
-      return;
+      return false;
     }
+  }
+
+  // Event Listeners
+  document.addEventListener('DOMContentLoaded', async function() {
+    // Check authentication
+    const authed = await checkAdminSession();
+    if (!authed) return;
 
     // Load users and stats
     loadUsers(1);
@@ -1819,9 +1802,15 @@ Admin User,admin@example.com,,admin,active`;
     });
 
     // Logout
-    document.getElementById('logoutLink').addEventListener('click', function(e) {
+    document.getElementById('logoutLink').addEventListener('click', async function(e) {
       e.preventDefault();
-      localStorage.removeItem('adminToken');
+      try {
+        await fetch(`${API_V1}/hybrid-auth/logout`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (_) {}
       window.location.href = 'admin-login.html';
     });
   });

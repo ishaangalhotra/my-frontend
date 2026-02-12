@@ -6,7 +6,6 @@
 class MarketplaceIntegration {
   constructor() {
     this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    this.token = localStorage.getItem('token') || localStorage.getItem('quicklocal_access_token');
     this.userId = this.getUserId();
     
     // Debounce helper
@@ -17,17 +16,22 @@ class MarketplaceIntegration {
 
   getUserId() {
     try {
-      const user = JSON.parse(localStorage.getItem('quicklocal_user') || '{}');
-      return user.id || user._id || null;
-    } catch {
-      return null;
-    }
+      if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+        const user = window.HybridAuthClient.getCurrentUser();
+        if (user && (user.id || user._id)) {
+          return user.id || user._id;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   getAuthHeaders() {
-    const headers = { 'Content-Type': 'application/json' };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-    return headers;
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
   }
 
   async init() {

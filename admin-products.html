@@ -648,8 +648,9 @@
   };
 
   // --- INITIALIZATION ---
-  document.addEventListener('DOMContentLoaded', () => {
-    checkAdminAuth();
+  document.addEventListener('DOMContentLoaded', async () => {
+    const authed = await checkAdminAuth();
+    if (!authed) return;
     initializeFilters();
     loadCategories();
     loadSellers();
@@ -695,16 +696,27 @@
     }
   });
 
-  function checkAdminAuth() {
-    const token = localStorage.getItem("adminToken");
-    if (!token) window.location.href = "admin-login.html";
+  async function checkAdminAuth() {
+    try {
+      const response = await fetch(`${API_V1}/admin/validate`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        window.location.href = "admin-login.html";
+        return false;
+      }
+      return true;
+    } catch (_) {
+      window.location.href = "admin-login.html";
+      return false;
+    }
   }
 
   // --- API HELPER ---
   async function fetchAPI(endpoint, options = {}) {
-    const token = localStorage.getItem("adminToken");
     const defaultHeaders = {
-      "Authorization": "Bearer " + token,
       "Content-Type": "application/json",
       "Accept": "application/json"
     };
@@ -712,10 +724,11 @@
     try {
       const response = await fetch(`${API_V1}${endpoint}`, {
         ...options,
+        credentials: 'include',
         headers: { ...defaultHeaders, ...options.headers }
       });
 
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         alert("Session expired. Please login again.");
         window.location.href = "admin-login.html";
         return null;

@@ -26,15 +26,16 @@ class AdvancedShoppingCart {
     this._loadingCart = false;
     this._pendingQuantityDebouncers = new Map();
     this._backgroundSyncTimer = null;
+    this.debug = Boolean(window.QL_DEBUG);
 
     this.bindGlobalEvents();
-    console.log('🛒 Advanced Cart Final initialized');
+    this._log('🛒 Advanced Cart Final initialized');
   }
 
   // ==================== PUBLIC API ====================
 
   async initializeCartData() {
-    console.log('🔍 Auth confirmed — initializing cart from server...');
+    this._log('🔍 Auth confirmed — initializing cart from server...');
     await this.loadCartFromServer();
   }
 
@@ -54,7 +55,7 @@ class AdvancedShoppingCart {
 
   async addToCart(productId, quantity = 1, variant = null) {
     try {
-      console.log('➕ Adding to cart:', { productId, quantity });
+      this._log('➕ Adding to cart:', { productId, quantity });
       
       const response = await window.HybridAuthClient.apiCall('/cart/items', {
         method: 'POST',
@@ -62,7 +63,7 @@ class AdvancedShoppingCart {
       });
 
       const data = await response.json();
-      console.log('📦 Add to cart response:', data);
+      this._log('📦 Add to cart response:', data);
       
       if (!response.ok || !data.success) {
         throw new Error(data.message || data.errors?.[0]?.msg || 'Failed to add item');
@@ -88,7 +89,7 @@ class AdvancedShoppingCart {
 
     try {
       // ✅ FIX: Uses item.productId instead of cartId because backend expects Product ID
-      console.log('🗑️ Removing from cart:', item.productId);
+      this._log('🗑️ Removing from cart:', item.productId);
       
       const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
         method: 'DELETE'
@@ -109,7 +110,7 @@ class AdvancedShoppingCart {
   }
 
   async updateQuantity(cartId, newQuantity) {
-    console.log('🔄 Update quantity debounced:', { cartId, newQuantity });
+    this._log('🔄 Update quantity debounced:', { cartId, newQuantity });
     
     if (this._pendingQuantityDebouncers.has(cartId)) {
       clearTimeout(this._pendingQuantityDebouncers.get(cartId));
@@ -136,7 +137,7 @@ class AdvancedShoppingCart {
     }
 
     try {
-      console.log('🔄 Updating quantity on server:', { productId: item.productId, newQuantity });
+      this._log('🔄 Updating quantity on server:', { productId: item.productId, newQuantity });
       
       // ✅ FIX: Uses item.productId instead of cartId because backend expects Product ID
       const res = await window.HybridAuthClient.apiCall(`/cart/items/${item.productId}`, {
@@ -145,7 +146,7 @@ class AdvancedShoppingCart {
       });
 
       const data = await res.json();
-      console.log('📦 Update quantity response:', data);
+      this._log('📦 Update quantity response:', data);
       
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to update quantity');
@@ -407,7 +408,7 @@ class AdvancedShoppingCart {
     this._loadingCart = true;
 
     const fetchOnce = async () => {
-      console.log('📡 Fetching cart from server...');
+      this._log('📡 Fetching cart from server...');
 
       const res = await this._withTimeout(
         window.HybridAuthClient.apiCall('/cart', { method: 'GET' }),
@@ -427,7 +428,7 @@ class AdvancedShoppingCart {
       }
 
       const payload = await res.json();
-      console.log('📦 Server cart response:', payload);
+      this._log('📦 Server cart response:', payload);
 
       if (!payload.success) {
         throw new Error(payload.message || 'Cart fetch failed');
@@ -557,7 +558,8 @@ class AdvancedShoppingCart {
     if (summaryContainer) {
       summaryContainer.outerHTML = this.renderCartSummary(totals);
     }
-    
+
+    this.updateFreeDeliveryBanner(totals);
     this.updateEmptyState();
   }
 
@@ -765,6 +767,30 @@ class AdvancedShoppingCart {
     el.style.display = this.cart.length ? 'none' : 'block';
   }
 
+
+  updateFreeDeliveryBanner(totals) {
+    const messageEl = document.getElementById('freeDeliveryMessage');
+    const progressEl = document.getElementById('freeDeliveryProgressBar');
+    if (!messageEl && !progressEl) return;
+
+    const threshold = Number(totals?.freeDeliveryThreshold || this.config.freeDeliveryThreshold || 500);
+    const subtotal = Number(totals?.subtotal || 0);
+    const remaining = Math.max(0, Number(totals?.amountForFreeDelivery ?? (threshold - subtotal)));
+    const progress = threshold > 0 ? Math.min(100, Math.max(0, Math.round((subtotal / threshold) * 100))) : 100;
+
+    if (messageEl) {
+      if (remaining <= 0) {
+        messageEl.textContent = 'You unlocked free delivery on this order.';
+      } else {
+        messageEl.textContent = `Add Rs ${remaining.toFixed(0)} more to unlock free delivery.`;
+      }
+    }
+
+    if (progressEl) {
+      progressEl.style.width = `${progress}%`;
+      progressEl.setAttribute('aria-valuenow', String(progress));
+    }
+  }
   bindGlobalEvents() {
     document.addEventListener('click', (e) => {
       const cartIcon = e.target.closest('.cart-icon, .cart-btn');
@@ -799,9 +825,15 @@ class AdvancedShoppingCart {
     if (dd) dd.classList.remove('show');
   }
 
+
+  _log(...args) {
+    if (this.debug) {
+      console.log(...args);
+    }
+  }
   notify(message, type = 'info') {
     if (window.showToast) window.showToast(message, type);
-    else console.log(`${type.toUpperCase()}: ${message}`);
+    else this._log(`${type.toUpperCase()}: ${message}`);
   }
 
   track(event, data = {}) {
@@ -818,4 +850,5 @@ class AdvancedShoppingCart {
 }
 
 window.advancedCart = new AdvancedShoppingCart();
+window.dispatchEvent(new CustomEvent('advanced-cart-ready'));
 if (typeof module !== 'undefined' && module.exports) module.exports = AdvancedShoppingCart;

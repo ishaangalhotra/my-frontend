@@ -31,26 +31,11 @@ window.enhancedAPI = {
             'Content-Type': 'application/json',
             ...options.headers
         };
-        
-        // Add auth header if available and token is not expired
-        if (window.HybridAuthClient) {
-            try {
-                // Check if authenticated before adding auth header
-                const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
-                if (isAuthenticated && typeof window.HybridAuthClient.getAuthHeader === 'function') {
-                    const authHeader = window.HybridAuthClient.getAuthHeader();
-                    if (authHeader && authHeader !== 'Bearer null' && authHeader !== 'Bearer undefined') {
-                        headers['Authorization'] = authHeader;
-                    }
-                }
-            } catch (error) {
-                console.warn('Auth header check failed, proceeding without auth:', error.message);
-                // Continue without auth header for public endpoints
-            }
-        }
-        
+        // Cookie-first auth: rely on credentials include, not Authorization headers.
+
         const config = {
             method: 'GET',
+            credentials: 'include',
             headers,
             ...options
         };

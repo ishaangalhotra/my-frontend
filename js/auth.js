@@ -4,8 +4,8 @@ import { socketClient } from './socket-client.js';
 
 // Storage keys and configuration
 const STORAGE_KEYS = {
-  ACCESS_TOKEN: APP_CONFIG.TOKEN_STORAGE_KEY || 'quicklocal_access_token',
-  REFRESH_TOKEN: APP_CONFIG.REFRESH_TOKEN_KEY || 'quicklocal_refresh_token',
+  ACCESS_TOKEN: APP_CONFIG.TOKEN_STORAGE_KEY || 'quicklocal_cookie_access_unused',
+  REFRESH_TOKEN: APP_CONFIG.REFRESH_TOKEN_KEY || 'quicklocal_cookie_refresh_unused',
   USER_DATA: 'quicklocal_user_data',
   SESSION_DATA: 'quicklocal_session_data',
   REMEMBER_ME: 'quicklocal_remember_me',
@@ -181,11 +181,10 @@ class SecureStorage {
   }
 
   static setTokens({ accessToken, refreshToken, expiresIn }) {
-    if (accessToken) {
-      this.set(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-    }
-    if (refreshToken) {
-      this.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, true); // encrypt refresh token
+    // Cookie-first auth: do not persist auth tokens in browser storage.
+    if (accessToken || refreshToken) {
+      this.remove(STORAGE_KEYS.ACCESS_TOKEN);
+      this.remove(STORAGE_KEYS.REFRESH_TOKEN);
     }
     if (expiresIn) {
       this.set('quicklocal_token_expires', Date.now() + (expiresIn * 1000));
@@ -194,8 +193,8 @@ class SecureStorage {
 
   static getTokens() {
     return {
-      accessToken: this.get(STORAGE_KEYS.ACCESS_TOKEN),
-      refreshToken: this.get(STORAGE_KEYS.REFRESH_TOKEN, true)
+      accessToken: null,
+      refreshToken: null
     };
   }
 
@@ -216,15 +215,9 @@ class AuthHTTPClient {
       ...options.headers
     };
 
-    if (options.auth) {
-      const { accessToken } = SecureStorage.getTokens();
-      if (accessToken) {
-        defaultHeaders.Authorization = `Bearer ${accessToken}`;
-      }
-    }
-
     const config = {
       method: 'GET',
+      credentials: 'include',
       ...options,
       headers: defaultHeaders,
       body: options.body ? JSON.stringify(options.body) : undefined
@@ -1212,8 +1205,7 @@ class EnhancedAuthService {
 
   // Utility Methods
   getAuthHeaders() {
-    const { accessToken } = SecureStorage.getTokens();
-    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    return {};
   }
 
   isFeatureEnabled(feature) {

@@ -78,6 +78,12 @@ class SocketClient {
       this._emitLocal('authenticated', data);
     });
 
+    this.socket.on('auth_error', (error) => {
+      this.authenticated = false;
+      console.error('❌ Socket auth error:', error);
+      this._emitLocal('authentication_error', error);
+    });
+
     this.socket.on('authentication_error', (error) => {
       this.authenticated = false;
       console.error('❌ Socket authentication failed:', error);
@@ -89,12 +95,10 @@ class SocketClient {
     this.connected = true;
     console.log('✅ Socket connected');
     
-    // Auto-authenticate if we have a stored token
+    // Auto-authenticate on connect (cookie-first with optional token fallback).
     const token = this.getStoredToken();
-    if (token) {
-      console.log('🔐 Auto-authenticating with stored token');
-      this.authenticate(token);
-    }
+    console.log('🔐 Auto-authenticating socket');
+    this.authenticate(token || null);
     
     this._emitLocal('status', { connected: true });
     this._emitLocal('connect', { timestamp: Date.now() });
@@ -136,12 +140,7 @@ class SocketClient {
     this.authenticated = false;
   }
 
-  authenticate(token) {
-    if (!token) {
-      console.warn('No token provided for authentication');
-      return;
-    }
-
+  authenticate(token = null) {
     // Ensure we're connected first
     if (!this.connected) {
       console.log('Not connected, connecting first...');
@@ -161,7 +160,8 @@ class SocketClient {
     console.log('🔐 Authenticating socket connection');
     
     // Send authentication event with callback support
-    this.socket.emit('authenticate', { token }, (response) => {
+    const payload = token ? { token } : { authMethod: 'cookie' };
+    this.socket.emit('authenticate', payload, (response) => {
       if (response && response.success) {
         this.authenticated = true;
         console.log('✅ Authentication successful');
@@ -174,7 +174,9 @@ class SocketClient {
     });
 
     // Store token for future reconnections
-    this.storeToken(token);
+    if (token) {
+      this.storeToken(token);
+    }
   }
 
   on(event, fn) {
@@ -267,35 +269,21 @@ class SocketClient {
 
   getStoredToken() {
     try {
-      const appConfig = this.getAppConfig();
-      // Use your config's storage key structure
-      const storageKey = (appConfig && appConfig.STORAGE && appConfig.STORAGE.TOKEN_KEY) || 
-                        (appConfig && appConfig.TOKEN_STORAGE_KEY) || 
-                        'quicklocal_access_token';
-      
-      if (typeof localStorage !== 'undefined') {
-        return localStorage.getItem(storageKey);
+      const header =
+        window.HybridAuthClient?.getAuthHeader?.() ||
+        window.quickLocalAuth?.getAuthHeader?.() ||
+        '';
+      if (typeof header === 'string' && header.startsWith('Bearer ')) {
+        return header.slice(7);
       }
     } catch (error) {
-      console.warn('Could not access localStorage:', error);
+      console.warn('Could not read auth token from client:', error);
     }
     return null;
   }
 
-  storeToken(token) {
-    try {
-      const appConfig = this.getAppConfig();
-      // Use your config's storage key structure
-      const storageKey = (appConfig && appConfig.STORAGE && appConfig.STORAGE.TOKEN_KEY) || 
-                        (appConfig && appConfig.TOKEN_STORAGE_KEY) || 
-                        'quicklocal_access_token';
-      
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(storageKey, token);
-      }
-    } catch (error) {
-      console.warn('Could not store token:', error);
-    }
+  storeToken(_token) {
+    // Cookie-based auth flow does not persist socket token in localStorage.
   }
 
   _emitLocal(event, data) {
