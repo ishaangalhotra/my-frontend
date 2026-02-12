@@ -20,7 +20,6 @@
   }
 })();
 
-
 (function () {
   var LEGACY_AUTH_STORAGE_KEYS = {
     adminUser: true,
@@ -64,6 +63,11 @@
   var backendOrigin = isLocal ? localOrigin : remoteOrigin;
   var apiBase = backendOrigin + '/api/v1';
 
+  var AUTH_READY_TIMEOUT_MS = 15000;
+  var authInitPromise = null;
+  var authReadyResolved = false;
+  var authReadyTimer = null;
+
   window.QUICKLOCAL_BACKEND_ORIGIN = backendOrigin;
   window.QUICKLOCAL_API_BASE = apiBase;
   window.APP_CONFIG = window.APP_CONFIG || {};
@@ -73,6 +77,12 @@
   }
   if (!window.APP_CONFIG.SOCKET_URL || isLocal) {
     window.APP_CONFIG.SOCKET_URL = backendOrigin;
+  }
+
+  if (typeof window.__quicklocalResolveAuthReady !== 'function' || !window.__quicklocalAuthReady || typeof window.__quicklocalAuthReady.then !== 'function') {
+    window.__quicklocalAuthReady = new Promise(function (resolve) {
+      window.__quicklocalResolveAuthReady = resolve;
+    });
   }
 
   function rewriteUrl(url) {
@@ -103,6 +113,63 @@
     }
     return '';
   }
+
+  function getCurrentUserSafe() {
+    try {
+      if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+        return window.HybridAuthClient.getCurrentUser() || null;
+      }
+    } catch (_error) {}
+    return null;
+  }
+
+  function finalizeAuthReady(detail) {
+    if (authReadyResolved) {
+      return;
+    }
+
+    authReadyResolved = true;
+    if (authReadyTimer) {
+      clearTimeout(authReadyTimer);
+      authReadyTimer = null;
+    }
+
+    var payload = Object.assign({
+      clientReady: !!window.HybridAuthClient,
+      user: getCurrentUserSafe(),
+      backendOrigin: backendOrigin
+    }, detail || {});
+
+    try {
+      if (typeof window.__quicklocalResolveAuthReady === 'function') {
+        window.__quicklocalResolveAuthReady(payload);
+      }
+    } catch (_error) {}
+
+    try {
+      document.dispatchEvent(new CustomEvent('quicklocal-auth-ready', { detail: payload }));
+    } catch (_error) {}
+  }
+
+  window.waitForQuickLocalAuth = function (timeoutMs) {
+    var timeout = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : AUTH_READY_TIMEOUT_MS;
+    return Promise.race([
+      window.__quicklocalAuthReady,
+      new Promise(function (resolve) {
+        setTimeout(function () {
+          resolve({
+            timeout: true,
+            clientReady: !!window.HybridAuthClient,
+            user: getCurrentUserSafe()
+          });
+        }, timeout);
+      })
+    ]);
+  };
+
+  authReadyTimer = setTimeout(function () {
+    finalizeAuthReady({ timeout: true, reason: 'auth-init-timeout' });
+  }, AUTH_READY_TIMEOUT_MS);
 
   if (!window.__quicklocalFetchPatched && typeof window.fetch === 'function') {
     var originalFetch = window.fetch.bind(window);
@@ -135,7 +202,7 @@
 
   function patchHybridClient() {
     if (!window.HybridAuthClient) {
-      return;
+      return false;
     }
 
     try {
@@ -167,7 +234,56 @@
       }
     } catch (error) {
       console.warn('[QuickLocal] HybridAuthClient patch failed:', error);
+      return false;
     }
+
+    return true;
+  }
+
+  async function ensureHybridClientReady() {
+    if (authReadyResolved) {
+      return window.HybridAuthClient || null;
+    }
+
+    if (authInitPromise) {
+      return authInitPromise;
+    }
+
+    authInitPromise = (async function () {
+      var patched = patchHybridClient();
+      if (!patched || !window.HybridAuthClient) {
+        authInitPromise = null;
+        return null;
+      }
+
+      var client = window.HybridAuthClient;
+
+      try {
+        if (typeof client.initializeAuth === 'function') {
+          await client.initializeAuth();
+        } else if (typeof client.refreshCurrentUser === 'function') {
+          await client.refreshCurrentUser();
+        } else if (typeof client.isAuthenticated === 'function') {
+          await client.isAuthenticated();
+        }
+      } catch (error) {
+        console.warn('[QuickLocal] HybridAuthClient init check failed:', error);
+      }
+
+      finalizeAuthReady({
+        clientReady: true,
+        user: getCurrentUserSafe(),
+        authMethod: typeof client.getAuthMethod === 'function' ? client.getAuthMethod() : null
+      });
+
+      return client;
+    })().catch(function (error) {
+      console.warn('[QuickLocal] HybridAuthClient readiness failed:', error);
+      authInitPromise = null;
+      return null;
+    });
+
+    return authInitPromise;
   }
 
   function loadScript(src, onFail, options) {
@@ -176,26 +292,50 @@
     script.async = false;
     script.crossOrigin = 'anonymous';
     script.onload = function () {
-      patchHybridClient();
-
-      // Runtime errors inside script may still trigger onload; ensure fallback when client is missing.
-      if (options && options.expectHybridClient && !window.HybridAuthClient && typeof onFail === 'function') {
-        onFail();
-      }
+      ensureHybridClientReady().finally(function () {
+        if (options && options.expectHybridClient && !window.HybridAuthClient && typeof onFail === 'function') {
+          onFail();
+        }
+      });
     };
     script.onerror = function () {
       if (typeof onFail === 'function') {
         onFail();
+        return;
       }
+
+      finalizeAuthReady({
+        clientReady: false,
+        reason: 'script-load-failed',
+        src: src
+      });
     };
     document.head.appendChild(script);
   }
 
   function loadLocalHybridFallback() {
-    if (!window.HybridAuthClient) {
-      loadScript('js/hybrid-auth.js');
+    if (window.HybridAuthClient) {
+      ensureHybridClientReady();
+      return;
     }
+
+    loadScript('js/hybrid-auth.js', function () {
+      finalizeAuthReady({
+        clientReady: false,
+        reason: 'local-fallback-load-failed'
+      });
+    }, { expectHybridClient: true });
   }
+
+  document.addEventListener('auth-ready', function () {
+    if (!authReadyResolved) {
+      finalizeAuthReady({
+        clientReady: !!window.HybridAuthClient,
+        user: getCurrentUserSafe(),
+        reason: 'auth-ready-event'
+      });
+    }
+  });
 
   loadScript(backendOrigin + '/hybrid-auth-client.js', function () {
     if (isLocal) {

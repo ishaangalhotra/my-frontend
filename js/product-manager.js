@@ -172,7 +172,7 @@ async function resolveSellerId() {
 
   try {
     const base = window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-    const response = await fetch(`${base}/hybrid-auth/me`, {
+    const response = await fetch(`${base}/auth/me`, {
       method: 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json' }

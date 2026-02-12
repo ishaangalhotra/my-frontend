@@ -2325,65 +2325,86 @@
             }
         }
 
-        async function initializeAuthState() {
-            let authClientLoaded = false;
-            let attempts = 0;
-            const maxAttempts = 60;
-
-            while (!authClientLoaded && attempts < maxAttempts) {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    authClientLoaded = true;
-                    console.log('HybridAuthClient detected');
-
-                    if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
-                        window.HybridAuthClient.onAuthStateChange((user) => {
-                            appState.user = user;
-                            updateAuthUI();
-
-                            if (user) {
-                                const urlParams = new URLSearchParams(window.location.search);
-                                if (urlParams.get('login') === 'success') {
-                                    showToast(`Welcome back, ${user.name || user.email || 'User'}!`, 'success');
-                                    window.history.replaceState({}, '', window.location.pathname);
-                                }
-                                loadCart();
-                            } else {
-                                appState.cart = [];
-                                updateCartUI();
-                            }
-                        });
-                    }
-
-                    try {
-                        const user = window.HybridAuthClient.getCurrentUser();
-                        if (user) {
-                            appState.user = user;
-                            updateAuthUI();
-                            loadCart();
-                        }
-                    } catch (error) {
-                        console.warn('Auth check failed:', error);
-                    }
-                    break;
+        async function waitForHybridAuthClientReady(timeoutMs = 15000) {
+            if (typeof window.waitForQuickLocalAuth === 'function') {
+                try {
+                    await window.waitForQuickLocalAuth(timeoutMs);
+                } catch (_) {
+                    // Continue to fallback polling.
                 }
+            }
 
+            let attempts = 0;
+            const maxAttempts = Math.max(1, Math.floor((timeoutMs || 15000) / 100));
+            while (!(window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') && attempts < maxAttempts) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
 
-            if (!authClientLoaded) {
+            if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
+                return window.HybridAuthClient;
+            }
+
+            return null;
+        }
+
+        async function initializeAuthState() {
+            let authClientLoaded = false;
+            const authClient = await waitForHybridAuthClientReady(15000);
+
+            if (authClient) {
+                authClientLoaded = true;
+                console.log('HybridAuthClient detected');
+
+                if (!window.__quicklocalMarketplaceAuthListenerBound && typeof authClient.onAuthStateChange === 'function') {
+                    window.__quicklocalMarketplaceAuthListenerBound = true;
+                    authClient.onAuthStateChange((user) => {
+                        appState.user = user || null;
+                        updateAuthUI();
+
+                        if (user) {
+                            const urlParams = new URLSearchParams(window.location.search);
+                            if (urlParams.get('login') === 'success') {
+                                showToast(`Welcome back, ${user.name || user.email || 'User'}!`, 'success');
+                                window.history.replaceState({}, '', window.location.pathname);
+                            }
+                            loadCart();
+                        } else {
+                            appState.cart = [];
+                            updateCartUI();
+                        }
+                    });
+                }
+
+                try {
+                    await authClient.isAuthenticated();
+                    const user = typeof authClient.getCurrentUser === 'function'
+                        ? authClient.getCurrentUser()
+                        : null;
+
+                    if (user) {
+                        appState.user = user;
+                        updateAuthUI();
+                        await loadCart();
+                    }
+                } catch (error) {
+                    console.warn('Auth check failed:', error);
+                }
+            }
+
+            if (!authClientLoaded || !appState.user) {
                 const cookieUser = await fetchUserFromCookieSession();
                 if (cookieUser) {
                     appState.user = cookieUser;
                     updateAuthUI();
-                    loadCart();
+                    await loadCart();
 
                     const urlParams = new URLSearchParams(window.location.search);
                     if (urlParams.get('login') === 'success') {
                         showToast(`Welcome back, ${cookieUser.name || cookieUser.email || 'User'}!`, 'success');
                         window.history.replaceState({}, '', window.location.pathname);
                     }
-                } else {
+                } else if (!authClientLoaded) {
                     console.warn('HybridAuthClient not loaded and no cookie session found. Auth-required actions remain disabled.');
                 }
             }

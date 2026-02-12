@@ -20,7 +20,7 @@ async function resolveSellerId() {
   } catch (_) {}
 
   try {
-    const response = await fetch(`${API_BASE_URL}/hybrid-auth/me`, {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json' }

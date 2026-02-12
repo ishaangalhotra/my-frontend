@@ -557,16 +557,33 @@
             }
 
             async waitForAuthClient() {
+                if (typeof window.waitForQuickLocalAuth === 'function') {
+                    try {
+                        await window.waitForQuickLocalAuth(15000);
+                    } catch (_) {
+                        // Continue with fallback polling.
+                    }
+                }
+
                 let attempts = 0;
-                while (!window.HybridAuthClient && attempts < 50) {
+                const maxAttempts = 120;
+                while (!window.HybridAuthClient && attempts < maxAttempts) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     attempts++;
                 }
+
                 if (window.HybridAuthClient) {
                     this.authClient = window.HybridAuthClient;
-                    console.log('✅ HybridAuthClient loaded.');
+                    try {
+                        if (typeof this.authClient.isAuthenticated === 'function') {
+                            await this.authClient.isAuthenticated();
+                        }
+                    } catch (_) {
+                        // Ignore auth bootstrap check errors on login page.
+                    }
+                    console.log('HybridAuthClient loaded.');
                 } else {
-                    console.error('❌ HybridAuthClient failed to load!');
+                    console.error('HybridAuthClient failed to load!');
                     this.showToast('Authentication service failed. Please refresh.', 'error');
                 }
             }

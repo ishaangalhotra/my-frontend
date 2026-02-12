@@ -1833,8 +1833,19 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             refreshHomeAuthUI();
+
+            if (typeof window.waitForQuickLocalAuth === 'function') {
+                try {
+                    await window.waitForQuickLocalAuth(15000);
+                } catch (_) {
+                    // Continue with fallback binding.
+                }
+                bindHomeAuthEvents();
+                refreshHomeAuthUI();
+                return;
+            }
 
             let attempts = 0;
             const maxAttempts = 40;
