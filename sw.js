@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v5'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v3'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v6'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v4'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v4'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v5'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v5...');
+  console.log('[SW] Installing v6...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -72,7 +72,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v5...');
+  console.log('[SW] Activating v6...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
@@ -121,6 +121,7 @@ self.addEventListener('fetch', (event) => {
 
   const acceptHeader = request.headers.get('accept') || '';
   const isDocument = request.mode === 'navigate' || request.destination === 'document' || acceptHeader.includes('text/html');
+  const isApi = isAPIRequest(request.url);
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
   const isStatic = isStaticRequest(request.url);
 
@@ -130,9 +131,16 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.ok) {
-            caches.open(STATIC_CACHE_NAME).then((cache) => {
-              cache.put(request, networkResponse.clone());
-            });
+            try {
+              const cacheCopy = networkResponse.clone();
+              event.waitUntil(
+                caches.open(STATIC_CACHE_NAME)
+                  .then((cache) => cache.put(request, cacheCopy))
+                  .catch((err) => console.warn('[SW] Document cache put skipped:', err && err.message ? err.message : err))
+              );
+            } catch (cloneError) {
+              console.warn('[SW] Document clone skipped:', cloneError && cloneError.message ? cloneError.message : cloneError);
+            }
           }
           return networkResponse;
         })
@@ -170,15 +178,8 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
               console.log('[SW] 📦 Serving stale API from cache (offline):', requestUrl.pathname);
               
-              // Add header to indicate this is cached
-              const headers = new Headers(cachedResponse.headers);
-              headers.append('X-Cache-Status', 'STALE');
-              
-              return new Response(cachedResponse.body, {
-                status: cachedResponse.status,
-                statusText: cachedResponse.statusText,
-                headers: headers
-              });
+              // Return a clone to avoid consuming cached response body stream.
+              return cachedResponse.clone();
             }
             
             // No cache available
@@ -333,4 +334,4 @@ async function updateOrderStatusInBackground() {
   }
 }
 
-console.log('[SW] ✅ Service Worker v5 loaded with fresh HTML + API cache fixes');
+console.log('[SW] ✅ Service Worker v6 loaded with safe cache fixes');
