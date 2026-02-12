@@ -1749,21 +1749,72 @@
             }
         }
 
+        let homeSessionProbePromise = null;
+        let homeSessionProbeTs = 0;
+        const HOME_SESSION_PROBE_TTL = 10000;
+
+        async function fetchHomeUserFromCookieSession(force = false) {
+            const now = Date.now();
+
+            if (!force && window.__quicklocalHomeUser) {
+                return window.__quicklocalHomeUser;
+            }
+
+            if (!force && homeSessionProbePromise) {
+                return homeSessionProbePromise;
+            }
+
+            if (!force && homeSessionProbeTs && (now - homeSessionProbeTs) < HOME_SESSION_PROBE_TTL) {
+                return null;
+            }
+
+            const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL)
+                || window.QUICKLOCAL_API_BASE
+                || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+
+            homeSessionProbeTs = now;
+            homeSessionProbePromise = fetch(`${apiBase}/auth/me`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        return null;
+                    }
+                    const payload = await response.json().catch(() => ({}));
+                    const user = payload.user || payload?.data?.user || payload?.data || null;
+                    window.__quicklocalHomeUser = user || null;
+                    return user || null;
+                })
+                .catch(() => null)
+                .finally(() => {
+                    homeSessionProbePromise = null;
+                });
+
+            return homeSessionProbePromise;
+        }
+
         async function refreshHomeAuthUI() {
             const navActions = document.getElementById('navActions');
             if (!navActions) return;
 
+            let user = null;
             try {
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    const isAuth = await window.HybridAuthClient.isAuthenticated();
-                    const user = window.HybridAuthClient.getCurrentUser?.() || null;
-                    if (isAuth && user) {
-                        renderAuthenticatedNavActions(navActions, user);
-                        return;
-                    }
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    user = window.HybridAuthClient.getCurrentUser() || null;
                 }
             } catch (_) {
-                // Fall through to guest UI.
+                user = null;
+            }
+
+            if (!user) {
+                user = window.__quicklocalHomeUser || await fetchHomeUserFromCookieSession();
+            }
+
+            if (user) {
+                renderAuthenticatedNavActions(navActions, user);
+                return;
             }
 
             renderGuestNavActions(navActions);
@@ -1771,7 +1822,8 @@
 
         function bindHomeAuthEvents() {
             if (window.HybridAuthClient && typeof window.HybridAuthClient.onAuthStateChange === 'function') {
-                window.HybridAuthClient.onAuthStateChange(() => {
+                window.HybridAuthClient.onAuthStateChange((user) => {
+                    window.__quicklocalHomeUser = user || null;
                     refreshHomeAuthUI();
                 });
             }

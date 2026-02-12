@@ -2355,14 +2355,11 @@
                     }
 
                     try {
-                        const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
-                        if (isAuthenticated) {
-                            const user = window.HybridAuthClient.getCurrentUser();
-                            if (user) {
-                                appState.user = user;
-                                updateAuthUI();
-                                loadCart();
-                            }
+                        const user = window.HybridAuthClient.getCurrentUser();
+                        if (user) {
+                            appState.user = user;
+                            updateAuthUI();
+                            loadCart();
                         }
                     } catch (error) {
                         console.warn('Auth check failed:', error);
@@ -3160,25 +3157,6 @@ setTimeout(() => {
                 return;
             }
             
-            if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                try {
-                    const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
-                    if (!isAuthenticated) {
-                        showToast('Your session has expired. Please login again.', 'warning');
-                        setTimeout(() => {
-                            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                        }, 1500);
-                        return;
-                    }
-                } catch (error) {
-                    console.warn('Could not verify authentication:', error.message);
-                    showToast('Please login to add items to cart', 'warning');
-                    setTimeout(() => {
-                        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                    }, 1500);
-                    return;
-                }
-            }
 
             const productCard = document.querySelector(`[data-product-id="${productId}"]`);
             const addButton = productCard?.querySelector('.add-to-cart');
@@ -4151,10 +4129,11 @@ setTimeout(() => {
 
                   async function hasValidSession() {
         try {
-          if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-            return await window.HybridAuthClient.isAuthenticated();
+          if (window.auth && typeof window.auth.getUser === 'function' && window.auth.getUser()) {
+            return true;
           }
-          return false;
+          const cookieUser = await fetchUserFromCookieSession();
+          return !!cookieUser;
         } catch (e) {
           return false;
         }
@@ -4249,13 +4228,14 @@ setTimeout(() => {
               typeof window.pushNotificationService.getPermissionStatus === 'function' &&
               window.pushNotificationService.getPermissionStatus() === 'default') {
 
-            setTimeout(() => {
-              if (hasValidSession()) {
-                try {
-                  window.pushNotificationService.showPermissionDialog();
-                } catch (e) {
-                  console.warn('[NotificationInit] Failed to show push permission dialog:', e);
-                }
+            setTimeout(async () => {
+              if (!(await hasValidSession())) {
+                return;
+              }
+              try {
+                window.pushNotificationService.showPermissionDialog();
+              } catch (e) {
+                console.warn('[NotificationInit] Failed to show push permission dialog:', e);
               }
             }, 30000);
           }
