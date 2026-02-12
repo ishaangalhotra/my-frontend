@@ -147,7 +147,9 @@
                 viewMode: 'grid',
                 cart: this.getLocalStorageData('quicklocal_cart', []),
                 wishlist: this.getLocalStorageData('quicklocal_wishlist', []),
-                user: this.getLocalStorageData('quicklocal_user', null)
+                user: (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function')
+                    ? window.HybridAuthClient.getCurrentUser()
+                    : null
             };
         },
         
