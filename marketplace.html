@@ -2308,28 +2308,42 @@
             
             console.log('✅ QuickLocal Marketplace initialized');
         });
+        async function fetchUserFromCookieSession() {
+            try {
+                const response = await fetch(`${appState.apiBaseUrl}/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) return null;
+
+                const payload = await response.json().catch(() => ({}));
+                return payload.user || payload?.data?.user || payload?.data || null;
+            } catch (_) {
+                return null;
+            }
+        }
 
         async function initializeAuthState() {
             let authClientLoaded = false;
             let attempts = 0;
-            const maxAttempts = 50;
-            
+            const maxAttempts = 60;
+
             while (!authClientLoaded && attempts < maxAttempts) {
                 if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
                     authClientLoaded = true;
-                    console.log('✅ HybridAuthClient detected');
-                    
+                    console.log('HybridAuthClient detected');
+
                     if (typeof window.HybridAuthClient.onAuthStateChange === 'function') {
                         window.HybridAuthClient.onAuthStateChange((user) => {
-                            console.log('🔄 Auth state changed:', user ? `Logged in as ${user.name}` : 'Logged out');
                             appState.user = user;
                             updateAuthUI();
-                            
+
                             if (user) {
-                                // Cookie session is already set by backend.
                                 const urlParams = new URLSearchParams(window.location.search);
                                 if (urlParams.get('login') === 'success') {
-                                    showToast(`Welcome back, ${user.name}!`, 'success');
+                                    showToast(`Welcome back, ${user.name || user.email || 'User'}!`, 'success');
                                     window.history.replaceState({}, '', window.location.pathname);
                                 }
                                 loadCart();
@@ -2339,13 +2353,12 @@
                             }
                         });
                     }
-                    
+
                     try {
                         const isAuthenticated = await window.HybridAuthClient.isAuthenticated();
                         if (isAuthenticated) {
                             const user = window.HybridAuthClient.getCurrentUser();
                             if (user) {
-                                console.log('✅ User already authenticated:', user.name);
                                 appState.user = user;
                                 updateAuthUI();
                                 loadCart();
@@ -2355,14 +2368,27 @@
                         console.warn('Auth check failed:', error);
                     }
                     break;
-                } else {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    attempts++;
                 }
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
             }
-            
-                        if (!authClientLoaded) {
-                console.warn('HybridAuthClient not loaded. Auth-required actions will stay disabled until it is available.');
+
+            if (!authClientLoaded) {
+                const cookieUser = await fetchUserFromCookieSession();
+                if (cookieUser) {
+                    appState.user = cookieUser;
+                    updateAuthUI();
+                    loadCart();
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('login') === 'success') {
+                        showToast(`Welcome back, ${cookieUser.name || cookieUser.email || 'User'}!`, 'success');
+                        window.history.replaceState({}, '', window.location.pathname);
+                    }
+                } else {
+                    console.warn('HybridAuthClient not loaded and no cookie session found. Auth-required actions remain disabled.');
+                }
             }
 
             updateAuthUI();

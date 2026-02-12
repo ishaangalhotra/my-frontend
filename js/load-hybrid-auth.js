@@ -170,12 +170,19 @@
     }
   }
 
-  function loadScript(src, onFail) {
+  function loadScript(src, onFail, options) {
     var script = document.createElement('script');
     script.src = src;
     script.async = false;
     script.crossOrigin = 'anonymous';
-    script.onload = patchHybridClient;
+    script.onload = function () {
+      patchHybridClient();
+
+      // Runtime errors inside script may still trigger onload; ensure fallback when client is missing.
+      if (options && options.expectHybridClient && !window.HybridAuthClient && typeof onFail === 'function') {
+        onFail();
+      }
+    };
     script.onerror = function () {
       if (typeof onFail === 'function') {
         onFail();
@@ -184,9 +191,17 @@
     document.head.appendChild(script);
   }
 
+  function loadLocalHybridFallback() {
+    if (!window.HybridAuthClient) {
+      loadScript('js/hybrid-auth.js');
+    }
+  }
+
   loadScript(backendOrigin + '/hybrid-auth-client.js', function () {
     if (isLocal) {
-      loadScript(remoteOrigin + '/hybrid-auth-client.js');
+      loadScript(remoteOrigin + '/hybrid-auth-client.js', loadLocalHybridFallback, { expectHybridClient: true });
+    } else {
+      loadLocalHybridFallback();
     }
-  });
+  }, { expectHybridClient: true });
 })();

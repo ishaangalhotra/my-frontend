@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v4'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v2'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v5'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v3'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v3'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v4'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v4...');
+  console.log('[SW] Installing v5...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -72,7 +72,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v4...');
+  console.log('[SW] Activating v5...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
@@ -104,7 +104,7 @@ function isAPIRequest(url) {
 
 // Helper function to check if request is static
 function isStaticRequest(url) {
-  const staticExtensions = ['.html', '.css', '.js', '.json', '.xml'];
+  const staticExtensions = ['.css', '.js', '.json', '.xml'];
   return staticExtensions.some(ext => url.includes(ext));
 }
 
@@ -119,11 +119,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const isApi = isAPIRequest(request.url);
+  const acceptHeader = request.headers.get('accept') || '';
+  const isDocument = request.mode === 'navigate' || request.destination === 'document' || acceptHeader.includes('text/html');
   const isImage = requestUrl.pathname.match(/\.(jpe?g|png|gif|svg|webp)$/i);
   const isStatic = isStaticRequest(request.url);
 
-  // 1. API Cache Strategy - Network First with short-lived cache
+  // 1. Document strategy - Network first to avoid stale pages after deploy/login
+  if (isDocument) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
+              cache.put(request, networkResponse.clone());
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // 2. API Cache Strategy - Network First with short-lived cache
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {
@@ -166,7 +190,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Image Cache Strategy (Cache-First, with revalidation)
+  // 3. Image Cache Strategy (Cache-First, with revalidation)
   if (isImage) {
     event.respondWith(
       caches.open(IMAGE_CACHE_NAME).then((cache) => {
@@ -189,7 +213,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets Strategy (Cache-First) - Only for HTML/CSS/Core JS
+  // 4. Static Assets Strategy (Cache-First) - For CSS/JS assets
   if (isStatic) {
     event.respondWith(
       caches.match(request).then((response) => {
@@ -204,7 +228,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Default: Network-First (For all dynamic JS and unlisted files)
+  // 5. Default: Network-First (For dynamic/unlisted requests)
   event.respondWith(
     fetch(request).catch(() => {
       // Fallback to cache for critical paths if network fails
@@ -309,4 +333,4 @@ async function updateOrderStatusInBackground() {
   }
 }
 
-console.log('[SW] ✅ Service Worker v4 loaded with API cache fixes');
+console.log('[SW] ✅ Service Worker v5 loaded with fresh HTML + API cache fixes');

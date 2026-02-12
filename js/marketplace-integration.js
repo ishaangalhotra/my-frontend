@@ -165,23 +165,44 @@ class MarketplaceIntegration {
 
   // ==================== RECOMMENDATIONS ====================
   async setupRecommendations() {
-    // Fix: Always use trending if no user ID, avoiding 401 errors on personalized endpoints
-    const endpoint = this.userId 
-      ? `${this.apiBaseUrl}/recommendations/personalized?limit=8` 
-      : `${this.apiBaseUrl}/recommendations/trending?limit=8`;
+    const endpoints = this.userId
+      ? [`${this.apiBaseUrl}/recommendations/personalized?limit=8`, `${this.apiBaseUrl}/products?limit=8`]
+      : [`${this.apiBaseUrl}/products?limit=8`];
 
     try {
-      const response = await fetch(endpoint, { headers: this.getAuthHeaders() });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.recommendations.length > 0) {
-          // Extract products from recommendation wrapper if necessary
-          const products = data.recommendations.map(r => r.product || r);
-          this.renderRecommendations(products, this.userId ? 'personalized' : 'trending');
-        }
+      let products = [];
+
+      for (const endpoint of endpoints) {
+        const response = await fetch(endpoint, {
+          headers: this.getAuthHeaders(),
+          credentials: 'include'
+        }).catch(() => null);
+
+        if (!response || !response.ok) continue;
+
+        const data = await response.json().catch(() => ({}));
+
+        const recommendationItems = Array.isArray(data.recommendations)
+          ? data.recommendations.map(r => r.product || r)
+          : [];
+
+        const productItems = Array.isArray(data.products)
+          ? data.products
+          : Array.isArray(data?.data?.products)
+            ? data.data.products
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+
+        products = (recommendationItems.length ? recommendationItems : productItems).filter(Boolean);
+        if (products.length) break;
       }
-    } catch (e) {
-      // Fallback silently
+
+      if (products.length) {
+        this.renderRecommendations(products.slice(0, 8), this.userId ? 'personalized' : 'catalog');
+      }
+    } catch (_) {
+      // Silent fallback for UX stability
     }
   }
 
@@ -200,16 +221,19 @@ class MarketplaceIntegration {
 
   // ==================== SMOOTH FLASH SALES (NO CLS) ====================
   async setupFlashSales() {
+    // Keep disabled unless backend endpoint is explicitly available.
+    if (window.APP_CONFIG?.ENABLE_FLASH_SALES !== true) return;
+
     try {
       const response = await fetch(`${this.apiBaseUrl}/flash-sales/active`).catch(() => null);
       if (!response || !response.ok) return;
-      
+
       const data = await response.json();
       if (data.success && data.sales && data.sales.length > 0) {
         this.renderFlashSales(data.sales);
       }
-    } catch (error) {
-      console.error('Flash sales error:', error);
+    } catch (_) {
+      // Silent fallback
     }
   }
 
