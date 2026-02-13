@@ -283,48 +283,63 @@ class AdvancedSearchSystem {
   async getAutocompleteSuggestions(query) {
     try {
       const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
-      
-      // Use a dedicated suggestion endpoint if available, otherwise fallback to product search
-      // Using /products?search=... is fine for this
-      const suggestionUrl = `${apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=5&fields=name,brand,category`;
-      
-      const response = await fetch(suggestionUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const locale = String(navigator.language || 'en').toLowerCase();
+      const endpoints = [
+        `${apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8&locale=${encodeURIComponent(locale)}`,
+        `${apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=5&fields=name,brand,category&locale=${encodeURIComponent(locale)}`
+      ];
+
+      let data = null;
+      for (const suggestionUrl of endpoints) {
+        const response = await fetch(suggestionUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        }).catch(() => null);
+
+        if (!response || !response.ok) continue;
+        data = await response.json().catch(() => null);
+        if (data) break;
       }
-      
-      const data = await response.json();
-      
-      if (!data.success || !data.data?.products) {
+
+      if (!data) {
         return this.getFallbackSuggestions(query);
       }
-      
-      // Transform product data to suggestions format
+
       const suggestions = [];
       const added = new Set();
+      const suggestionItems = Array.isArray(data.suggestions) ? data.suggestions : [];
+      const productItems = Array.isArray(data?.data?.products) ? data.data.products : [];
 
-      data.data.products.forEach(product => {
-        // Add product name suggestion
-        if (product.name && !added.has(product.name)) {
-          suggestions.push({ text: product.name, category: 'Products' });
-          added.add(product.name);
-        }
-        // Add brand suggestion
-        if (product.brand && !added.has(product.brand)) {
-          suggestions.push({ text: product.brand, category: 'Brands' });
-          added.add(product.brand);
-        }
-        // Add category suggestion
-        if (product.category?.name && !added.has(product.category.name)) {
-          suggestions.push({ text: product.category.name, category: 'Categories' });
-          added.add(product.category.name);
-        }
-      });
+      if (suggestionItems.length) {
+        suggestionItems.forEach((item) => {
+          const text = item?.text || item?.name || '';
+          if (!text || added.has(text)) return;
+
+          let category = 'Search';
+          if (item.type === 'product') category = 'Products';
+          else if (item.type === 'brand') category = 'Brands';
+          else if (item.type === 'category') category = 'Categories';
+
+          suggestions.push({ text, category });
+          added.add(text);
+        });
+      } else if (productItems.length) {
+        productItems.forEach((product) => {
+          if (product.name && !added.has(product.name)) {
+            suggestions.push({ text: product.name, category: 'Products' });
+            added.add(product.name);
+          }
+          if (product.brand && !added.has(product.brand)) {
+            suggestions.push({ text: product.brand, category: 'Brands' });
+            added.add(product.brand);
+          }
+          if (product.category?.name && !added.has(product.category.name)) {
+            suggestions.push({ text: product.category.name, category: 'Categories' });
+            added.add(product.category.name);
+          }
+        });
+      }
       
       return suggestions.slice(0, 8);
       
@@ -470,6 +485,7 @@ class AdvancedSearchSystem {
       if (query) {
         searchParams.append('search', query);
       }
+      searchParams.append('locale', String(navigator.language || 'en').toLowerCase());
       
       // **CRITICAL: Add all active filters**
       if (this.filters.category && this.filters.category.length > 0) {
@@ -512,6 +528,9 @@ class AdvancedSearchSystem {
       }
       
       console.log('✅ AdvancedSearch: Results received:', data.data);
+      const intelligence = data.data?.searchIntelligence || {};
+      const resultSetId =
+        intelligence.resultSetId || `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
       
       // Transform the results to the format expected by the 'searchResults' event
       return {
@@ -519,7 +538,12 @@ class AdvancedSearchSystem {
         total: data.data.pagination?.totalProducts || 0,
         totalPages: data.data.pagination?.totalPages || 1,
         currentPage: data.data.pagination?.currentPage || 1,
-        filters: this.filters // Pass back the filters that were used
+        filters: this.filters, // Pass back the filters that were used
+        searchIntelligence: intelligence,
+        resultSetId,
+        normalizedQuery: intelligence.normalizedQuery || String(query || '').trim().toLowerCase(),
+        correctedQuery: intelligence.correctedQuery || String(query || '').trim(),
+        intent: intelligence.intent || 'generic'
       };
       
     } catch (error) {

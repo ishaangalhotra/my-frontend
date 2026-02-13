@@ -4102,6 +4102,23 @@ setTimeout(() => {
                         if (results) {
                             console.log('✅ Bridge: Received server results, updating appState.', results);
 
+                            const rankedIds = {};
+                            (results.products || []).forEach((product, index) => {
+                                const id = String(product.id || product._id || '');
+                                if (id) rankedIds[id] = index + 1;
+                            });
+
+                            window.__qlSearchContext = {
+                                query,
+                                normalizedQuery: results.normalizedQuery || results.searchIntelligence?.normalizedQuery || String(query || '').trim().toLowerCase(),
+                                correctedQuery: results.correctedQuery || results.searchIntelligence?.correctedQuery || String(query || '').trim(),
+                                intent: results.intent || results.searchIntelligence?.intent || 'generic',
+                                locale: results.searchIntelligence?.locale || String(navigator.language || 'en').toLowerCase(),
+                                resultSetId: results.resultSetId || results.searchIntelligence?.resultSetId || `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+                                rankedIds,
+                                createdAt: Date.now()
+                            };
+
                             // 1. Update the appState with the new products from the server
                             appState.products = results.products;
                             appState.allProducts = results.products;

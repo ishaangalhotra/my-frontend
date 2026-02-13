@@ -39,6 +39,27 @@ class MarketplaceIntegration {
     };
   }
 
+  getSearchContext(productId) {
+    const context = window.__qlSearchContext && typeof window.__qlSearchContext === 'object'
+      ? window.__qlSearchContext
+      : null;
+
+    if (!context || !context.query) return {};
+
+    const rankedIds = context.rankedIds && typeof context.rankedIds === 'object' ? context.rankedIds : {};
+    const rank = rankedIds[String(productId)] || null;
+
+    return {
+      query: context.normalizedQuery || context.query,
+      originalQuery: context.query,
+      correctedQuery: context.correctedQuery || context.query,
+      intent: context.intent || 'generic',
+      locale: context.locale || 'en',
+      resultSetId: context.resultSetId || null,
+      rank
+    };
+  }
+
   async init() {
     console.log('🔌 Marketplace Integration initializing...');
     if (document.readyState === 'loading') {
@@ -119,8 +140,8 @@ class MarketplaceIntegration {
   async fetchSearchSuggestions(query, container) {
     try {
       const endpoints = [
-        `${this.apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8`,
-        `${this.apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=8&sort=popular`
+        `${this.apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8&locale=${encodeURIComponent(String(navigator.language || 'en').toLowerCase())}`,
+        `${this.apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=8&sort=popular&locale=${encodeURIComponent(String(navigator.language || 'en').toLowerCase())}`
       ];
 
       let data = null;
@@ -471,8 +492,16 @@ class MarketplaceIntegration {
   setupProductViewTracking() {
     document.addEventListener('click', (e) => {
       const card = e.target.closest('[data-product-id]');
-      if (card && this.userId) {
-        this.trackEvent('product_view', { productId: card.dataset.productId });
+      if (!card) return;
+      const productId = card.dataset.productId;
+      const searchContext = this.getSearchContext(productId);
+
+      if (searchContext.query) {
+        this.trackEvent('search_click', { productId, ...searchContext });
+      }
+
+      if (this.userId) {
+        this.trackEvent('product_view', { productId, ...searchContext });
       }
     });
   }
@@ -483,17 +512,24 @@ class MarketplaceIntegration {
     if (typeof originalAdd === 'function') {
         window.handleAddToCart = async (id) => {
             await originalAdd(id); // Call original
-            if (this.userId) this.trackEvent('add_to_cart', { productId: id });
+            const searchContext = this.getSearchContext(id);
+            if (this.userId || searchContext.query) {
+              this.trackEvent('add_to_cart', { productId: id, ...searchContext });
+            }
         };
     }
   }
 
   async trackEvent(type, data) {
+    if (!type || typeof type !== 'string') return;
+
     try {
         await fetch(`${this.apiBaseUrl}/analytics/track`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
-            body: JSON.stringify({ type, data })
+            credentials: 'include',
+            keepalive: true,
+            body: JSON.stringify({ type, data: data || {} })
         });
     } catch (e) { /* Ignore tracking errors */ }
   }
