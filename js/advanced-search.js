@@ -507,7 +507,12 @@ class AdvancedSearchSystem {
 
     try {
       // Perform the actual backend search
-      const results = await this.searchProducts(query);
+      const results = await this.searchProductsNormalized(query);
+
+      if (results?.error && (!Array.isArray(results.products) || results.products.length === 0)) {
+        this.showSearchResults({ error: results.error, query, results });
+        return;
+      }
       
       // Hand off the results to the main page
       this.showSearchResults({ results, query });
@@ -604,6 +609,69 @@ class AdvancedSearchSystem {
         currentPage: 1,
         filters: this.filters,
         error: error.message
+      };
+    }
+  }
+
+  async searchProductsNormalized(query) {
+    try {
+      const raw = await this.searchProducts(query);
+      const payload = raw && typeof raw === 'object' ? raw : {};
+
+      const products = Array.isArray(payload.products)
+        ? payload.products
+        : Array.isArray(payload.data?.products)
+          ? payload.data.products
+          : Array.isArray(payload.data)
+            ? payload.data
+            : [];
+
+      const normalizedProducts = products
+        .filter(Boolean)
+        .map((product) => {
+          const normalized = { ...product };
+          if (!normalized.id && normalized._id) {
+            normalized.id = normalized._id;
+          }
+          if (normalized.category && typeof normalized.category === 'object') {
+            normalized.category = normalized.category.name || normalized.category.title || '';
+          }
+          return normalized;
+        });
+
+      const total = Number.isFinite(payload.total)
+        ? payload.total
+        : Number.isFinite(payload.data?.total)
+          ? payload.data.total
+          : normalizedProducts.length;
+
+      const totalPages = Number.isFinite(payload.totalPages)
+        ? payload.totalPages
+        : Number.isFinite(payload.data?.totalPages)
+          ? payload.data.totalPages
+          : Math.max(1, Math.ceil(total / 50));
+
+      const currentPage = Number.isFinite(payload.currentPage)
+        ? payload.currentPage
+        : Number.isFinite(payload.data?.currentPage)
+          ? payload.data.currentPage
+          : 1;
+
+      return {
+        ...payload,
+        products: normalizedProducts,
+        total,
+        totalPages,
+        currentPage
+      };
+    } catch (error) {
+      return {
+        products: [],
+        total: 0,
+        totalPages: 0,
+        currentPage: 1,
+        filters: this.filters,
+        error: error?.message || 'Search failed'
       };
     }
   }

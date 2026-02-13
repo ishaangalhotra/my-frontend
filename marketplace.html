@@ -1770,6 +1770,37 @@
         -webkit-text-fill-color: var(--text-primary) !important;
         caret-color: var(--text-primary);
     }
+    .search-feedback {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.85rem 1rem;
+        margin: 1rem 0 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: #fff;
+        box-shadow: var(--shadow-xs);
+    }
+    .search-feedback-text {
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+    .search-feedback-clear {
+        border: 1px solid var(--border-dark);
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+        border-radius: var(--radius);
+        padding: 0.45rem 0.85rem;
+        cursor: pointer;
+        transition: var(--transition);
+        font-weight: 600;
+    }
+    .search-feedback-clear:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--bg-tertiary);
+    }
     </style>
     <link href="css/professional-phase2.css" rel="stylesheet">
     <script>
@@ -2023,6 +2054,12 @@
             </div>
 
             <div id="categoryList"></div>
+            <div class="search-feedback hidden" id="searchFeedback" role="status" aria-live="polite">
+                <span class="search-feedback-text" id="searchResultsCount"></span>
+                <button type="button" class="search-feedback-clear" id="searchFeedbackClearBtn">
+                    Clear Search
+                </button>
+            </div>
 
             <div class="products-container">
                 <div class="loading-container" id="productsLoading" style="display: none;">
@@ -4193,6 +4230,8 @@ setTimeout(() => {
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Legacy delayed bridge disabled in favor of robust bridge below.
+            return;
             setTimeout(() => {
                 if (window.advancedSearch) {
                     console.log('🔍 Advanced Search System initialized');
@@ -4267,6 +4306,163 @@ setTimeout(() => {
                 }
             }, 1000);
         });
+    </script>
+    
+    <script>
+        (function initializeSearchBridge() {
+            const bindSearchBridge = () => {
+                if (window.__qlSearchBridgeBound) return;
+                window.__qlSearchBridgeBound = true;
+
+                const searchFeedback = document.getElementById('searchFeedback');
+                const searchResultsCount = document.getElementById('searchResultsCount');
+                const clearSearchBtn = document.getElementById('searchFeedbackClearBtn');
+
+                const setSearchFeedback = ({ query = '', total = 0, loading = false } = {}) => {
+                    if (!searchFeedback || !searchResultsCount) return;
+                    const safeQuery = String(query || '').trim();
+
+                    if (!safeQuery) {
+                        searchFeedback.classList.add('hidden');
+                        searchResultsCount.textContent = '';
+                        return;
+                    }
+
+                    searchFeedback.classList.remove('hidden');
+                    searchResultsCount.textContent = loading
+                        ? `Searching for "${safeQuery}"...`
+                        : `${total} product${total === 1 ? '' : 's'} found for "${safeQuery}"`;
+                };
+
+                const normalizeSearchDetail = (detail) => {
+                    const payload = detail && typeof detail === 'object' ? detail : {};
+                    const query = typeof payload.query === 'string' ? payload.query : '';
+                    const loading = Boolean(payload.loading);
+                    let error = payload.error || null;
+                    let results = null;
+
+                    if (payload.results && typeof payload.results === 'object') {
+                        results = payload.results;
+                    } else if (Array.isArray(payload.products)) {
+                        results = {
+                            products: payload.products,
+                            total: payload.total,
+                            totalPages: payload.totalPages,
+                            currentPage: payload.currentPage,
+                            filters: payload.filters || {},
+                            searchIntelligence: payload.searchIntelligence || {}
+                        };
+                    }
+
+                    if (!error && results && results.error) {
+                        error = results.error;
+                    }
+
+                    return { query, loading, error, results };
+                };
+
+                clearSearchBtn?.addEventListener('click', () => {
+                    const input = document.getElementById('globalSearchInput');
+                    if (input) input.value = '';
+
+                    if (window.advancedSearch && typeof window.advancedSearch.performSearch === 'function') {
+                        window.advancedSearch.performSearch('');
+                        return;
+                    }
+
+                    if (typeof window.clearAllFilters === 'function') {
+                        window.clearAllFilters();
+                        return;
+                    }
+
+                    appState.currentFilters.search = '';
+                    appState.filteredProducts = [...(appState.products || [])];
+                    renderProducts(appState.filteredProducts);
+                    updateProductCount(appState.filteredProducts.length);
+                    setSearchFeedback({ query: '', total: 0, loading: false });
+                });
+
+                document.addEventListener('searchResults', (event) => {
+                    const { query, loading, error, results } = normalizeSearchDetail(event.detail);
+
+                    if (loading) {
+                        setSearchFeedback({ query, total: 0, loading: true });
+                        return;
+                    }
+
+                    if (error) {
+                        setSearchFeedback({ query, total: 0, loading: false });
+                        if (window.showToast) {
+                            showToast(error, 'error');
+                        }
+                    }
+
+                    if (!results) return;
+
+                    const resultProducts = Array.isArray(results.products) ? results.products : [];
+                    const total = Number.isFinite(results.total) ? results.total : resultProducts.length;
+                    const perPage = Math.max(1, Number(appState.pagination.itemsPerPage) || 20);
+                    const totalPages = Number.isFinite(results.totalPages) && results.totalPages > 0
+                        ? results.totalPages
+                        : Math.max(1, Math.ceil(total / perPage));
+                    const currentPage = Number.isFinite(results.currentPage) && results.currentPage > 0
+                        ? results.currentPage
+                        : 1;
+
+                    const rankedIds = {};
+                    resultProducts.forEach((product, index) => {
+                        const id = String(product.id || product._id || '');
+                        if (id) rankedIds[id] = index + 1;
+                    });
+
+                    window.__qlSearchContext = {
+                        query,
+                        normalizedQuery: results.normalizedQuery || results.searchIntelligence?.normalizedQuery || String(query || '').trim().toLowerCase(),
+                        correctedQuery: results.correctedQuery || results.searchIntelligence?.correctedQuery || String(query || '').trim(),
+                        intent: results.intent || results.searchIntelligence?.intent || 'generic',
+                        locale: results.searchIntelligence?.locale || String(navigator.language || 'en').toLowerCase(),
+                        resultSetId: results.resultSetId || results.searchIntelligence?.resultSetId || `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+                        rankedIds,
+                        createdAt: Date.now()
+                    };
+
+                    appState.products = resultProducts;
+                    appState.allProducts = resultProducts;
+                    appState.filteredProducts = resultProducts;
+                    appState.pagination.totalItems = total;
+                    appState.pagination.totalPages = totalPages;
+                    appState.pagination.currentPage = currentPage;
+
+                    const searchInput = document.getElementById('globalSearchInput');
+                    if (searchInput) {
+                        searchInput.value = query;
+                    }
+                    appState.currentFilters.search = query;
+
+                    if (typeof window.applyAllFilters === 'function') {
+                        window.applyAllFilters(true);
+                    } else {
+                        renderProducts(resultProducts);
+                        updateProductCount(total);
+                    }
+
+                    setSearchFeedback({ query, total, loading: false });
+
+                    if (String(query || '').trim()) {
+                        const productsSection = document.getElementById('products');
+                        if (productsSection) {
+                            productsSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                });
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindSearchBridge, { once: true });
+            } else {
+                bindSearchBridge();
+            }
+        })();
     </script>
     
     <script type="module" src="js/image-optimizer.js"></script>
