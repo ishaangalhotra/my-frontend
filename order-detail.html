@@ -1,22 +1,454 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Redirecting to Order View</title>
-  <script>
-    (function () {
-      var params = new URLSearchParams(window.location.search);
-      var id = params.get('id');
-      var target = 'enterprise-seller-dashboard.html#orders';
-      if (id) {
-        target = 'enterprise-seller-dashboard.html?orderId=' + encodeURIComponent(id) + '#orders';
-      }
-      location.replace(target);
-    })();
-  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Details - QuickLocal</title>
+  <script src="js/load-hybrid-auth.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+    .top { background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+    .top-inner { max-width: 1100px; margin: 0 auto; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .btn-link { text-decoration: none; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 999px; padding: 6px 12px; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; background: #fff; }
+    .wrap { max-width: 1100px; margin: 16px auto 24px; padding: 0 16px; display: grid; gap: 12px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+    .hero { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+    .order-no { font-size: 18px; font-weight: 700; }
+    .sub { font-size: 13px; color: #64748b; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .status { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; border: 1px solid transparent; }
+    .st-pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .st-processing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+    .st-shipped { background: #cffafe; color: #155e75; border-color: #a5f3fc; }
+    .st-delivered { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .st-cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip { border: 1px solid #e2e8f0; border-radius: 999px; padding: 4px 9px; font-size: 12px; color: #334155; background: #f8fafc; display: inline-flex; gap: 4px; align-items: center; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+    .stat { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; }
+    .stat .k { display: block; color: #64748b; font-size: 11px; text-transform: uppercase; }
+    .stat .v { font-size: 16px; font-weight: 700; margin-top: 3px; }
+    .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .btn { border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; padding: 6px 11px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+    .btn.dark { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .btn.blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .btn.red { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; }
+    .title { margin: 0 0 8px; font-size: 15px; }
+    .row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .dot { width: 20px; height: 20px; border-radius: 999px; display: inline-flex; justify-content: center; align-items: center; font-size: 11px; flex-shrink: 0; }
+    .d-done { background: #dcfce7; color: #15803d; } .d-now { background: #dbeafe; color: #1d4ed8; } .d-later { background: #f1f5f9; color: #94a3b8; }
+    .row strong { display: block; font-size: 13px; }
+    .row span { color: #64748b; font-size: 12px; }
+    .items { display: grid; gap: 8px; }
+    .item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px; display: flex; align-items: center; gap: 8px; }
+    .thumb { width: 56px; height: 56px; border-radius: 9px; object-fit: cover; border: 1px solid #e2e8f0; }
+    .item-main { flex: 1; min-width: 0; } .item-main h4 { margin: 0; font-size: 13px; } .item-main p { margin: 3px 0 0; font-size: 12px; color: #64748b; } .item-price { font-weight: 700; font-size: 13px; }
+    .kv { display: grid; gap: 8px; } .kv .k { color: #64748b; font-size: 11px; text-transform: uppercase; } .kv .v { font-size: 13px; }
+    .toast { position: fixed; right: 16px; bottom: 16px; background: #0f172a; color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 12px; display: none; z-index: 50; }
+    .show { display: block; } .ok { background: #15803d; } .err { background: #b91c1c; } .warn { background: #92400e; }
+    .loading { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.08); display: none; align-items: center; justify-content: center; z-index: 40; }
+    .loading .box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+    @media (max-width: 920px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
-  <p>Redirecting to <a href="enterprise-seller-dashboard.html#orders">Enterprise Seller Dashboard</a>...</p>
+  <div id="loading" class="loading"><div class="box">Loading order details...</div></div>
+  <div id="toast" class="toast"></div>
+
+  <header class="top">
+    <div class="top-inner">
+      <a href="my-orders.html" class="btn-link"><i class="fas fa-arrow-left"></i> Back to Orders</a>
+      <div style="font-size:12px;color:#64748b;">QuickLocal Secure Order View</div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="hero">
+        <div>
+          <div class="order-no" id="orderNo">Order #...</div>
+          <div class="sub">
+            <span id="orderDate">Placed: -</span>
+            <span id="orderRef">Reference: -</span>
+          </div>
+        </div>
+        <span id="statusPill" class="status st-pending">Pending</span>
+      </div>
+      <div id="chips" class="chips"></div>
+      <div id="stats" class="stats"></div>
+      <div class="actions">
+        <button class="btn dark" id="trackBtn"><i class="fas fa-location-crosshairs"></i> Track</button>
+        <button class="btn" id="invoiceBtn"><i class="fas fa-file-arrow-down"></i> Invoice</button>
+        <button class="btn" id="reorderBtn"><i class="fas fa-rotate-right"></i> Buy Again</button>
+        <button class="btn blue" id="returnBtn"><i class="fas fa-undo"></i> Return/Issue</button>
+        <button class="btn red" id="cancelBtn" style="display:none;"><i class="fas fa-times-circle"></i> Cancel</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card" id="tracking">
+        <h3 class="title">Order Timeline</h3>
+        <div id="timeline"></div>
+      </div>
+      <div class="card">
+        <h3 class="title">Shipping</h3>
+        <div id="shipping" class="kv"></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3 class="title">Items</h3>
+        <div id="items" class="items"></div>
+      </div>
+      <div class="card">
+        <h3 class="title">Payment</h3>
+        <div id="payment" class="kv"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const FLOW = ['pending', 'confirmed', 'preparing', 'shipped', 'out_for_delivery', 'delivered'];
+    const TERMINAL = ['cancelled', 'returned', 'refunded', 'failed'];
+    const LABELS = {
+      pending: 'Placed', confirmed: 'Confirmed', processing: 'Processing', preparing: 'Packed',
+      ready_to_ship: 'Ready to Ship', shipped: 'Shipped', dispatched: 'Shipped',
+      out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled',
+      returned: 'Return Requested', refunded: 'Refunded', failed: 'Failed'
+    };
+    let currentOrder = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      bindActions();
+      await init();
+    });
+
+    function bindActions() {
+      document.getElementById('trackBtn').addEventListener('click', () => document.getElementById('tracking').scrollIntoView({ behavior: 'smooth' }));
+      document.getElementById('invoiceBtn').addEventListener('click', () => currentOrder && downloadInvoice(currentOrder));
+      document.getElementById('reorderBtn').addEventListener('click', () => currentOrder && reorder(currentOrder));
+      document.getElementById('returnBtn').addEventListener('click', () => currentOrder && (window.location.href = `returns.html?orderId=${encodeURIComponent(currentOrder.id)}`));
+      document.getElementById('cancelBtn').addEventListener('click', () => currentOrder && cancel(currentOrder));
+    }
+
+    async function init() {
+      setLoading(true);
+      try {
+        const auth = await waitForAuth(15000);
+        if (!auth || typeof auth.isAuthenticated !== 'function') throw new Error('Authentication service unavailable');
+        if (!(await auth.isAuthenticated())) {
+          toast('Please login to view order details', 'warn');
+          setTimeout(() => (window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`), 1200);
+          return;
+        }
+        const ref = getRef();
+        if (!ref) throw new Error('Missing order reference');
+        const order = await fetchOrder(auth, ref);
+        if (!order) throw new Error('Order not found');
+        currentOrder = order;
+        render(order);
+      } catch (e) {
+        console.error(e);
+        toast(e.message || 'Failed to load order details', 'err');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function getRef() {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('id') || p.get('orderId') || p.get('order') || p.get('highlight');
+    }
+
+    async function waitForAuth(timeoutMs) {
+      if (typeof window.waitForQuickLocalAuth === 'function') {
+        try { await window.waitForQuickLocalAuth(timeoutMs); } catch (_) {}
+      }
+      let i = 0;
+      const max = Math.max(1, Math.floor(timeoutMs / 100));
+      while (!(window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') && i < max) {
+        await new Promise(r => setTimeout(r, 100));
+        i++;
+      }
+      return window.HybridAuthClient || null;
+    }
+
+    async function fetchOrder(auth, ref) {
+      const direct = await getById(auth, ref);
+      if (direct) return direct;
+      const listRes = await auth.apiCall('/orders?limit=100&page=1', { method: 'GET' });
+      if (!listRes || !listRes.ok) return null;
+      const listPayload = await listRes.json().catch(() => ({}));
+      const list = normalize(listPayload);
+      const found = list.find(o => ids(o).includes(String(ref).trim().toLowerCase()));
+      if (!found) return null;
+      return (await getById(auth, found.id)) || found;
+    }
+
+    async function getById(auth, id) {
+      if (!id) return null;
+      const res = await auth.apiCall(`/orders/${encodeURIComponent(id)}`, { method: 'GET' });
+      if (!res || !res.ok) return null;
+      const payload = await res.json().catch(() => ({}));
+      return payload.order ? normalize([payload.order])[0] : (normalize(payload)[0] || null);
+    }
+
+    function normalizeStatus(s) {
+      const v = String(s || '').trim().toLowerCase();
+      if (v === 'processing') return 'preparing';
+      if (v === 'dispatched') return 'shipped';
+      if (v === 'ready') return 'ready_to_ship';
+      return v || 'pending';
+    }
+
+    function normalize(raw) {
+      let arr = [];
+      if (Array.isArray(raw)) arr = raw;
+      else if (raw && Array.isArray(raw.orders)) arr = raw.orders;
+      else if (raw && raw.order) arr = [raw.order];
+      else if (raw && raw.data && Array.isArray(raw.data.orders)) arr = raw.data.orders;
+      else if (raw && raw.data && Array.isArray(raw.data)) arr = raw.data;
+      return arr.map(order => {
+        const items = (order.orderItems || order.items || []).map(item => {
+          const prod = item.product || {};
+          const img = item.image || (Array.isArray(prod.images) && prod.images[0] && (prod.images[0].url || prod.images[0])) || prod.image || 'https://placehold.co/80x80?text=Item';
+          const qty = Number(item.qty || item.quantity || 1);
+          const unit = Number(item.unitPrice ?? item.price ?? prod.price ?? 0) || 0;
+          return { ...item, product: prod, displayName: item.name || prod.name || 'Item', displayImage: String(img), displayQty: qty, displayPrice: unit, sellerName: (item.seller && (item.seller.businessName || item.seller.name)) || (prod.seller && (prod.seller.businessName || prod.seller.name)) || '' };
+        });
+        const status = normalizeStatus(order.status);
+        const hist = normalizeHistory(order.statusHistory || order.timeline || []);
+        const total = Number(order.pricing?.totalPrice ?? order.totalAmount ?? order.total ?? items.reduce((s, x) => s + x.displayPrice * x.displayQty, 0)) || 0;
+        return {
+          ...order,
+          id: order._id || order.id,
+          orderNumber: order.orderNumber || order.orderId || order._id,
+          status,
+          statusHistory: hist,
+          products: items,
+          totalAmount: total,
+          orderDate: order.createdAt || order.orderDate || order.date,
+          paymentMethod: order.paymentMethod || 'N/A',
+          paymentResult: order.paymentResult || {},
+          shippingAddress: order.shippingAddress || order.address || {},
+          customer: order.customerInfo || order.user || {},
+          trackingNumber: order.deliveryTracking?.trackingNumber || '',
+          estimatedDeliveryDate: order.deliveryTracking?.estimatedDeliveryDate || null,
+          canCancel: { allowed: order.canCancel?.allowed === true || ['pending', 'confirmed', 'preparing'].includes(status) },
+          canReturn: { allowed: order.canReturn?.allowed === true || status === 'delivered' }
+        };
+      });
+    }
+
+    function normalizeHistory(history) {
+      if (!Array.isArray(history)) return [];
+      return history.map(h => ({ status: normalizeStatus(h.status || h.label || h.title || h), timestamp: date(h.timestamp || h.date || h.updatedAt || h.createdAt), note: String(h.note || h.description || '').trim() }))
+        .filter(h => h.status)
+        .sort((a, b) => (a.timestamp ? a.timestamp.getTime() : 0) - (b.timestamp ? b.timestamp.getTime() : 0));
+    }
+
+    function date(v) {
+      if (!v) return null;
+      const d = v instanceof Date ? v : new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function flowStep(status) {
+      const s = normalizeStatus(status);
+      if (s === 'ready_to_ship' || s === 'processing') return 'preparing';
+      return s;
+    }
+
+    function timeline(order) {
+      const h = normalizeHistory(order.statusHistory || []);
+      const out = FLOW.map(s => ({ key: s, label: LABELS[s] || s, timestamp: null, note: '', done: false, now: false }));
+      const map = {};
+      h.forEach(x => {
+        const fs = flowStep(x.status);
+        if (!FLOW.includes(fs)) return;
+        if (!map[fs] && x.timestamp) map[fs] = x.timestamp;
+      });
+      out.forEach(x => { if (map[x.key]) x.timestamp = map[x.key]; });
+      const current = normalizeStatus(order.status);
+      let idx = FLOW.indexOf(flowStep(current));
+      if (idx < 0) idx = 0;
+      out.forEach((x, i) => {
+        if (i < idx) x.done = true;
+        else if (i === idx) {
+          if (current === 'delivered') x.done = true;
+          else x.now = true;
+        }
+      });
+      if (TERMINAL.includes(current)) {
+        out.forEach((x, i) => { if (i <= idx) { x.done = true; x.now = false; } });
+        const t = [...h].reverse().find(x => normalizeStatus(x.status) === current);
+        out.push({ key: current, label: LABELS[current] || current, timestamp: t ? t.timestamp : null, note: t ? t.note : '', done: false, now: true, terminal: true });
+      }
+      return out;
+    }
+
+    function render(order) {
+      const statusClass = (() => {
+        const s = normalizeStatus(order.status);
+        if (s === 'delivered') return 'st-delivered';
+        if (['shipped', 'dispatched', 'out_for_delivery'].includes(s)) return 'st-shipped';
+        if (['confirmed', 'preparing', 'ready_to_ship', 'processing'].includes(s)) return 'st-processing';
+        if (TERMINAL.includes(s)) return 'st-cancelled';
+        return 'st-pending';
+      })();
+      document.getElementById('statusPill').className = `status ${statusClass}`;
+      document.getElementById('statusPill').textContent = LABELS[normalizeStatus(order.status)] || normalizeStatus(order.status);
+      document.getElementById('orderNo').textContent = `Order #${String(order.orderNumber || order.id || '').slice(-12).toUpperCase()}`;
+      document.getElementById('orderDate').textContent = `Placed: ${fmtDateTime(order.orderDate)}`;
+      document.getElementById('orderRef').textContent = `Reference: ${order.id || 'N/A'}`;
+
+      const paid = order.isPaid === true || String(order.paymentResult?.status || '').toLowerCase() === 'success';
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><span class="k">Total</span><div class="v">Rs ${Number(order.totalAmount || 0).toLocaleString()}</div></div>
+        <div class="stat"><span class="k">Items</span><div class="v">${(order.products || []).length}</div></div>
+        <div class="stat"><span class="k">Payment</span><div class="v">${paid ? 'Paid' : 'Pending/COD'}</div></div>
+        <div class="stat"><span class="k">Status</span><div class="v">${escapeHtml(LABELS[normalizeStatus(order.status)] || normalizeStatus(order.status))}</div></div>
+      `;
+
+      const chips = [
+        '<span class="chip"><i class="fas fa-shield-check"></i> Secure checkout</span>',
+        '<span class="chip"><i class="fas fa-headset"></i> Support available</span>',
+        '<span class="chip"><i class="fas fa-file-invoice"></i> Invoice ready</span>'
+      ];
+      if (order.trackingNumber) chips.push(`<span class="chip"><i class="fas fa-location-crosshairs"></i> Tracking ${escapeHtml(order.trackingNumber)}</span>`);
+      if (order.estimatedDeliveryDate) chips.push(`<span class="chip"><i class="fas fa-calendar-days"></i> ETA ${escapeHtml(fmtDate(order.estimatedDeliveryDate))}</span>`);
+      document.getElementById('chips').innerHTML = chips.join('');
+
+      document.getElementById('timeline').innerHTML = timeline(order).map(t => {
+        const d = t.done ? 'd-done' : (t.now ? 'd-now' : 'd-later');
+        const icon = t.done ? 'fa-check' : (t.now ? 'fa-clock' : 'fa-circle');
+        return `<div class="row"><div class="dot ${d}"><i class="fas ${icon}"></i></div><div><strong>${escapeHtml(t.label)}</strong><span>${t.timestamp ? escapeHtml(fmtDateTime(t.timestamp)) : 'Awaiting update'}</span>${t.note ? `<span> - ${escapeHtml(t.note)}</span>` : ''}</div></div>`;
+      }).join('');
+
+      document.getElementById('items').innerHTML = (order.products || []).map(item => {
+        const total = Number(item.displayPrice || 0) * Number(item.displayQty || 1);
+        return `<div class="item"><img class="thumb" src="${escapeHtml(item.displayImage)}" alt="item"><div class="item-main"><h4>${escapeHtml(item.displayName)}</h4><p>Qty ${item.displayQty} - Seller: ${escapeHtml(item.sellerName || 'QuickLocal Seller')}</p></div><div class="item-price">Rs ${total.toLocaleString()}</div></div>`;
+      }).join('') || '<div style="font-size:12px;color:#64748b;">No items available.</div>';
+
+      const s = order.shippingAddress || {};
+      const name = s.fullName || s.name || order.customer?.name || 'N/A';
+      const addr = [s.address, s.city, s.state, s.postalCode || s.pincode].filter(Boolean).join(', ');
+      const phone = s.phoneNumber || s.phone || order.customer?.phone || 'N/A';
+      document.getElementById('shipping').innerHTML = `<div><div class="k">Recipient</div><div class="v">${escapeHtml(name)}</div></div><div><div class="k">Address</div><div class="v">${escapeHtml(addr || 'N/A')}</div></div><div><div class="k">Phone</div><div class="v">${escapeHtml(phone)}</div></div>`;
+
+      const method = String(order.paymentMethod || 'N/A').replace(/_/g, ' ').toUpperCase();
+      const ref = order.paymentResult?.paymentId || order.paymentResult?.transactionId || 'N/A';
+      document.getElementById('payment').innerHTML = `<div><div class="k">Method</div><div class="v">${escapeHtml(method)}</div></div><div><div class="k">Status</div><div class="v">${paid ? 'Paid' : 'Pending/COD'}</div></div><div><div class="k">Reference</div><div class="v">${escapeHtml(ref)}</div></div><div><div class="k">Amount</div><div class="v">Rs ${Number(order.totalAmount || 0).toLocaleString()}</div></div>`;
+
+      document.getElementById('cancelBtn').style.display = order.canCancel?.allowed ? 'inline-flex' : 'none';
+      document.getElementById('returnBtn').style.display = order.canReturn?.allowed ? 'inline-flex' : 'none';
+    }
+
+    async function cancel(order) {
+      if (!confirm('Cancel this order? This may not be possible after shipment.')) return;
+      try {
+        setLoading(true);
+        const auth = await waitForAuth(15000);
+        if (!auth) throw new Error('Authentication unavailable');
+        let res = await auth.apiCall(`/orders/${order.id}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'Customer requested cancellation' }) });
+        if (res && res.status === 404) {
+          res = await auth.apiCall(`/orders/${order.id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'cancelled', note: 'Customer requested cancellation' }) });
+        }
+        if (!res || !res.ok) throw new Error((res ? await res.text().catch(() => '') : '') || 'Cancellation failed');
+        toast('Order cancelled successfully', 'ok');
+        await init();
+      } catch (e) {
+        console.error(e);
+        toast(e.message || 'Failed to cancel order', 'err');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function reorder(order) {
+      try {
+        const auth = await waitForAuth(15000);
+        if (!auth || typeof auth.apiCall !== 'function') throw new Error('Authentication unavailable');
+        let added = 0;
+        let failed = 0;
+        for (const item of (order.products || [])) {
+          const prod = item.product || {};
+          const productId = typeof prod === 'string' ? prod : (prod._id || prod.id);
+          const qty = Math.max(1, Number(item.displayQty || item.qty || item.quantity || 1));
+          if (!productId) { failed++; continue; }
+          try {
+            const res = await auth.apiCall('/cart/items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, quantity: qty }) });
+            if (res && res.ok) added++;
+            else failed++;
+          } catch (_) { failed++; }
+        }
+        if (added > 0) {
+          toast(`${added} item${added > 1 ? 's' : ''} added to cart`, 'ok');
+          setTimeout(() => { window.location.href = 'cart.html'; }, 900);
+          return;
+        }
+        throw new Error(failed > 0 ? 'Could not add items to cart' : 'Reorder failed');
+      } catch (e) {
+        console.error(e);
+        toast(e.message || 'Failed to reorder', 'err');
+      }
+    }
+
+    function downloadInvoice(order) {
+      const s = order.shippingAddress || {};
+      const lines = [
+        'QuickLocal Invoice',
+        '=================',
+        `Order Number: ${order.orderNumber || order.id || 'N/A'}`,
+        `Order Date: ${fmtDateTime(order.orderDate)}`,
+        `Status: ${LABELS[normalizeStatus(order.status)] || normalizeStatus(order.status)}`,
+        `Payment Method: ${order.paymentMethod || 'N/A'}`,
+        '',
+        'Items',
+        '-----'
+      ];
+      (order.products || []).forEach((item, idx) => {
+        const total = Number(item.displayPrice || 0) * Number(item.displayQty || 1);
+        lines.push(`${idx + 1}. ${item.displayName || 'Item'} x${item.displayQty || 1} - Rs ${total.toFixed(2)}`);
+      });
+      lines.push('', `Total: Rs ${Number(order.totalAmount || 0).toFixed(2)}`, '', 'Shipping Address', '----------------');
+      lines.push(String(s.fullName || s.name || order.customer?.name || 'N/A'));
+      lines.push(String(s.address || ''));
+      lines.push([s.city, s.state, s.postalCode || s.pincode].filter(Boolean).join(', '));
+      lines.push(String(s.phoneNumber || s.phone || order.customer?.phone || ''));
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `QuickLocal_Invoice_${String(order.orderNumber || order.id || Date.now()).replace(/[^a-zA-Z0-9_-]/g, '')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Invoice downloaded', 'ok');
+    }
+
+    function ids(order) {
+      return [order.id, order._id, order.orderNumber, order.orderId].filter(Boolean).map(v => String(v).trim().toLowerCase());
+    }
+    function fmtDate(v) {
+      const d = date(v);
+      if (!d) return 'N/A';
+      return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function fmtDateTime(v) {
+      const d = date(v);
+      if (!d) return 'N/A';
+      return d.toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    function escapeHtml(v) {
+      return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function setLoading(show) { const el = document.getElementById('loading'); if (el) el.style.display = show ? 'flex' : 'none'; }
+    function toast(msg, cls) { const t = document.getElementById('toast'); if (!t) return; t.className = `toast show ${cls || ''}`; t.textContent = msg; setTimeout(() => (t.className = 'toast'), 2800); }
+  </script>
 </body>
 </html>

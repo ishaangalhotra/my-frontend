@@ -990,10 +990,15 @@
         const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'preparing', 'ready_to_ship', 'shipped', 'out_for_delivery'];
         const PROCESSING_ORDER_STATUSES = ['processing', 'confirmed', 'preparing', 'ready_to_ship'];
         const SHIPPED_ORDER_STATUSES = ['shipped', 'dispatched', 'out_for_delivery'];
+        const DEFAULT_TIMELINE_FLOW = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
 
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            highlightOrderId = urlParams.get('highlight');
+            highlightOrderId =
+                urlParams.get('highlight') ||
+                urlParams.get('id') ||
+                urlParams.get('orderId') ||
+                urlParams.get('order');
 
             setupEventListeners();
             initializeOrdersPage();
@@ -1077,9 +1082,87 @@
                     shippingAddress: order.shippingAddress || order.address || {},
                     paymentMethod: order.paymentMethod || 'N/A',
                     paymentResult: order.paymentResult || {},
-                    customer: order.customerInfo || order.user || {}
+                    customer: order.customerInfo || order.user || {},
+                    timeline: normalizeOrderTimeline(order)
                 };
             });
+        }
+
+        function normalizeOrderTimeline(order) {
+            const explicitTimeline = Array.isArray(order.timeline) ? order.timeline : [];
+            const statusHistory = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+            const events = explicitTimeline.length ? explicitTimeline : statusHistory;
+
+            const normalized = events
+                .map((item) => {
+                    const rawStatus = item?.status || item?.title || item?.label || item?.event || '';
+                    const statusKey = String(rawStatus).trim().toLowerCase();
+                    const timestamp = item?.timestamp || item?.date || item?.createdAt || item?.updatedAt || item?.time;
+                    const isComplete = typeof item?.completed === 'boolean'
+                        ? item.completed
+                        : Boolean(timestamp);
+
+                    return {
+                        status: getTimelineLabel(statusKey || rawStatus),
+                        statusKey,
+                        timestamp: timestamp || null,
+                        completed: isComplete
+                    };
+                })
+                .filter(step => step.status);
+
+            if (normalized.length) {
+                return normalized;
+            }
+
+            const currentStatus = String(order.status || 'pending').toLowerCase();
+            const currentIdx = DEFAULT_TIMELINE_FLOW.indexOf(currentStatus);
+            return DEFAULT_TIMELINE_FLOW.map((statusKey, idx) => ({
+                status: getTimelineLabel(statusKey),
+                statusKey,
+                timestamp: null,
+                completed: currentIdx >= idx && currentIdx !== -1
+            }));
+        }
+
+        function getTimelineLabel(status) {
+            const key = String(status || '').trim().toLowerCase();
+            const labels = {
+                pending: 'Order placed',
+                confirmed: 'Order confirmed',
+                processing: 'Processing',
+                preparing: 'Preparing',
+                ready_to_ship: 'Ready to ship',
+                shipped: 'Shipped',
+                dispatched: 'Dispatched',
+                out_for_delivery: 'Out for delivery',
+                delivered: 'Delivered',
+                cancelled: 'Cancelled',
+                returned: 'Returned',
+                refunded: 'Refunded',
+                failed: 'Failed'
+            };
+            return labels[key] || String(status || 'Update');
+        }
+
+        async function getAuthClient(maxWaitMs = 5000) {
+            if (typeof window.waitForQuickLocalAuth === 'function') {
+                const auth = await window.waitForQuickLocalAuth(maxWaitMs);
+                if (auth && typeof auth.apiCall === 'function') return auth;
+            }
+
+            const intervalMs = 120;
+            const maxAttempts = Math.ceil(maxWaitMs / intervalMs);
+            let attempts = 0;
+
+            while (!(window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') && attempts < maxAttempts) {
+                await new Promise(r => setTimeout(r, intervalMs));
+                attempts++;
+            }
+
+            return (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function')
+                ? window.HybridAuthClient
+                : null;
         }
 
         // Init with auth
@@ -1087,15 +1170,13 @@
             showLoading(true);
 
             try {
-                // Wait for HybridAuthClient
-                let attempts = 0;
-                while (!window.HybridAuthClient && attempts < 50) {
-                    await new Promise(r => setTimeout(r, 100));
-                    attempts++;
+                const auth = await getAuthClient(6000);
+                if (!auth) {
+                    throw new Error('Authentication system not available.');
                 }
 
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.isAuthenticated === 'function') {
-                    const isAuth = await window.HybridAuthClient.isAuthenticated();
+                if (typeof auth.isAuthenticated === 'function') {
+                    const isAuth = await auth.isAuthenticated();
                     if (!isAuth) {
                         showToast('Please log in to view your orders', 'warning');
                         setTimeout(() => {
@@ -1104,13 +1185,13 @@
                         return;
                     }
 
-                    const user = window.HybridAuthClient.getCurrentUser();
+                    const user = auth.getCurrentUser ? auth.getCurrentUser() : null;
                     if (user && user.name) {
                         document.getElementById('userNameBadge').textContent = user.name;
                     }
                 }
 
-                await loadOrders();
+                await loadOrders(auth);
             } catch (err) {
                 console.error('Initialization error:', err);
                 showEmptyState();
@@ -1121,7 +1202,7 @@
         }
 
         // Load orders
-        async function loadOrders() {
+        async function loadOrders(existingAuthClient = null) {
             showLoading(true);
 
             try {
@@ -1129,12 +1210,10 @@
 
                 const endpoint = '/orders?limit=50&page=1'; // HybridAuthClient adds /api/v1
                 let response;
+                const auth = existingAuthClient || await getAuthClient(5000);
+                if (!auth) throw new Error('Authentication client not available');
 
-                if (window.HybridAuthClient && typeof window.HybridAuthClient.apiCall === 'function') {
-                    response = await window.HybridAuthClient.apiCall(endpoint, { method: 'GET' });
-                } else {
-                    throw new Error('Authentication client not available');
-                }
+                response = await auth.apiCall(endpoint, { method: 'GET' });
 
                 if (!response || !response.ok) {
                     let errorMessage = 'Failed to fetch orders';
@@ -1495,11 +1574,30 @@
                 (order.canReturn && order.canReturn.allowed === true) ||
                 order.status === 'delivered';
 
-            let actionsHTML = '';
+            const orderRef = order.id || order.orderNumber || '';
+            const safeOrderRef = String(orderRef).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            let actionsHTML = `
+                <button class="order-action primary" onclick="openOrderDetail('${safeOrderRef}')">
+                    <i class="fas fa-receipt"></i>
+                    View details
+                </button>
+                <button class="order-action secondary" onclick="trackOrder('${safeOrderRef}')">
+                    <i class="fas fa-truck-fast"></i>
+                    Track
+                </button>
+                <button class="order-action secondary" onclick="buyAgain('${safeOrderRef}')">
+                    <i class="fas fa-rotate-right"></i>
+                    Buy again
+                </button>
+                <button class="order-action secondary" onclick="downloadOrderInvoice('${safeOrderRef}')">
+                    <i class="fas fa-file-arrow-down"></i>
+                    Invoice
+                </button>
+            `;
 
             if (canCancel) {
                 actionsHTML += `
-                    <button class="order-action danger" onclick="cancelOrder('${order.id}')">
+                    <button class="order-action danger" onclick="cancelOrder('${safeOrderRef}')">
                         <i class="fas fa-times-circle"></i>
                         Cancel order
                     </button>
@@ -1508,14 +1606,14 @@
 
             if (canReturn) {
                 actionsHTML += `
-                    <button class="order-action secondary" onclick="returnOrder('${order.id}')">
+                    <button class="order-action secondary" onclick="returnOrder('${safeOrderRef}')">
                         <i class="fas fa-undo"></i>
                         Return / issue
                     </button>
                 `;
             }
 
-            if (order.timeline && Array.isArray(order.timeline) && order.timeline.length > 0) {
+            if (order.timeline && Array.isArray(order.timeline) && order.timeline.length > 0 && !['pending', 'confirmed'].includes(order.status)) {
                 itemsHTML += renderDeliveryTimeline(order);
             }
 
@@ -1581,6 +1679,122 @@
             `;
         }
 
+        function findOrderById(orderId) {
+            return filteredOrders.find(o => matchesOrderIdentity(o, orderId)) ||
+                allOrders.find(o => matchesOrderIdentity(o, orderId)) ||
+                null;
+        }
+
+        function getOrderReference(order, fallbackOrderId = '') {
+            if (!order) return String(fallbackOrderId || '');
+            return String(order.orderNumber || order.id || fallbackOrderId || '');
+        }
+
+        function openOrderDetail(orderId) {
+            const order = findOrderById(orderId);
+            const ref = encodeURIComponent(getOrderReference(order, orderId));
+            window.location.href = `order-detail.html?id=${ref}`;
+        }
+
+        function trackOrder(orderId) {
+            const order = findOrderById(orderId);
+            const ref = encodeURIComponent(getOrderReference(order, orderId));
+            window.location.href = `order-detail.html?id=${ref}#tracking`;
+        }
+
+        async function buyAgain(orderId) {
+            const order = findOrderById(orderId);
+            if (!order) {
+                showToast('Order not found for re-order', 'warning');
+                return;
+            }
+
+            const items = Array.isArray(order.products) ? order.products : [];
+            if (!items.length) {
+                showToast('No items available to add from this order', 'warning');
+                return;
+            }
+
+            try {
+                const auth = await getAuthClient(6000);
+                if (!auth) throw new Error('Authentication unavailable');
+
+                let added = 0;
+                for (const item of items) {
+                    const productId =
+                        item.productId ||
+                        item.product?._id ||
+                        item.product?.id ||
+                        (typeof item.product === 'string' ? item.product : null);
+                    if (!productId) continue;
+
+                    const quantity = Number(item.qty || item.quantity || item.displayQty || 1) || 1;
+                    const response = await auth.apiCall('/cart/items', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ productId, quantity })
+                    });
+
+                    if (response && response.ok) {
+                        added += 1;
+                    }
+                }
+
+                if (!added) {
+                    throw new Error('Could not add items to cart');
+                }
+
+                showToast(`${added} item${added > 1 ? 's' : ''} added to cart`, 'success');
+                setTimeout(() => {
+                    window.location.href = 'cart.html';
+                }, 900);
+            } catch (err) {
+                console.error('Buy again error:', err);
+                showToast(err.message || 'Failed to add items to cart', 'error');
+            }
+        }
+
+        function downloadOrderInvoice(orderId) {
+            const order = findOrderById(orderId);
+            if (!order) {
+                showToast('Order not found', 'warning');
+                return;
+            }
+
+            const orderRef = getOrderReference(order, orderId);
+            const items = Array.isArray(order.products) ? order.products : [];
+            const itemLines = items.map((item, idx) => {
+                const name = item.displayName || item.product?.name || item.product?.title || 'Item';
+                const qty = Number(item.displayQty || item.qty || item.quantity || 1) || 1;
+                const price = Number(item.displayPrice || item.price || 0) || 0;
+                return `${idx + 1}. ${name}  x${qty}  Rs ${(qty * price).toLocaleString()}`;
+            });
+
+            const lines = [
+                'QUICKLOCAL INVOICE',
+                `Order: ${orderRef}`,
+                `Date: ${formatDateTime(order.orderDate) || 'N/A'}`,
+                `Status: ${getStatusLabel(order.status)}`,
+                '',
+                'Items:',
+                ...itemLines,
+                '',
+                `Total: Rs ${(Number(order.totalAmount || 0)).toLocaleString()}`,
+                '',
+                'This is a system generated invoice summary.'
+            ];
+
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `quicklocal-invoice-${String(orderRef).replace(/[^a-z0-9_-]/gi, '') || 'order'}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
         // Stats
         function updateStats() {
             const totalOrders = filteredOrders.length;
@@ -1598,7 +1812,7 @@
 
         // Cancel order
         async function cancelOrder(orderId) {
-            const order = filteredOrders.find(o => o.id === orderId);
+            const order = findOrderById(orderId);
             const orderNumber = order?.orderNumber || orderId;
 
             const confirmMessage =
@@ -1614,7 +1828,8 @@
                     throw new Error('Authentication system not available. Please refresh the page.');
                 }
 
-                let response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/cancel`, {
+                const endpointId = encodeURIComponent(order?.id || orderId);
+                let response = await window.HybridAuthClient.apiCall(`/orders/${endpointId}/cancel`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reason: 'Customer requested cancellation' })
@@ -1622,7 +1837,7 @@
 
                 // Backward compatibility: some deployments expose only /orders/:id/status.
                 if (response && response.status === 404) {
-                    response = await window.HybridAuthClient.apiCall(`/orders/${orderId}/status`, {
+                    response = await window.HybridAuthClient.apiCall(`/orders/${endpointId}/status`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1652,7 +1867,8 @@
 
         // Return (placeholder)
         function returnOrder(orderId) {
-            showToast('Return / issue flow coming soon', 'info');
+            const ref = encodeURIComponent(orderId);
+            window.location.href = `returns.html?orderId=${ref}`;
         }
 
         // Pagination UI
