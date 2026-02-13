@@ -120,7 +120,6 @@ class MarketplaceIntegration {
     try {
       const endpoints = [
         `${this.apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8`,
-        `${this.apiBaseUrl}/products/suggestions?q=${encodeURIComponent(query)}&limit=8`,
         `${this.apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=8&sort=popular`
       ];
 
