@@ -184,6 +184,7 @@ class AdvancedSearchSystem {
 
     // Input event with debouncing for suggestions
     this.searchInput.addEventListener('input', (e) => {
+      this.showAutocomplete();
       this.updateClearButtonState();
       this.resetSuggestionNavigation();
       clearTimeout(this.debounceTimer);
@@ -194,7 +195,7 @@ class AdvancedSearchSystem {
 
     // Focus and blur events for suggestion dropdown
     this.searchInput.addEventListener('focus', () => {
-      this.showAutocomplete();
+      this.showAutocomplete(true);
     });
 
     document.addEventListener('click', (e) => {
@@ -217,8 +218,7 @@ class AdvancedSearchSystem {
       this.searchInput.value = '';
       this.updateClearButtonState();
       this.resetSuggestionNavigation();
-      this.showDefaultSuggestions();
-      this.showAutocomplete();
+      this.showAutocomplete(true);
       this.searchInput.focus();
       this.performSearch('');
     });
@@ -302,10 +302,11 @@ class AdvancedSearchSystem {
 
   async handleSearchInput(query) {
     if (!query.trim()) {
-      this.showDefaultSuggestions();
+      this.showAutocomplete(true);
       return;
     }
 
+    this.showAutocomplete();
     this.showSearchLoader();
     
     try {
@@ -423,6 +424,7 @@ class AdvancedSearchSystem {
     }
 
     this.cacheSuggestionElements();
+    this.showAutocomplete();
 
     // Bind click events to new suggestions
     suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
@@ -473,6 +475,8 @@ class AdvancedSearchSystem {
         this.removeRecentSearch(btn.dataset.query);
       });
     });
+
+    this.cacheSuggestionElements();
   }
 
   highlightMatch(text, query) {
@@ -626,9 +630,9 @@ class AdvancedSearchSystem {
   }
 
   cacheSuggestionElements() {
-    const container = document.querySelector('.suggestion-results');
-    this.suggestionItems = container
-      ? Array.from(container.querySelectorAll('.suggestion-item[data-query]'))
+    const dropdown = document.querySelector('.autocomplete-dropdown');
+    this.suggestionItems = dropdown
+      ? Array.from(dropdown.querySelectorAll('.suggestion-item[data-query]'))
       : [];
     this.resetSuggestionNavigation();
   }
@@ -685,16 +689,25 @@ class AdvancedSearchSystem {
     this.showDefaultSuggestions(); // Refresh the display
   }
 
-  showAutocomplete() {
+  showAutocomplete(showDefaults = false) {
     const dropdown = document.querySelector('.autocomplete-dropdown');
-    dropdown?.classList.remove('hidden');
+    if (!dropdown) return;
+    dropdown.classList.remove('hidden');
+    dropdown.style.display = 'block';
+    dropdown.style.visibility = 'visible';
+    dropdown.style.pointerEvents = 'auto';
     if (this.searchInput) this.searchInput.setAttribute('aria-expanded', 'true');
-    this.showDefaultSuggestions();
+    if (showDefaults) this.showDefaultSuggestions();
   }
 
   hideAutocomplete() {
     const dropdown = document.querySelector('.autocomplete-dropdown');
-    dropdown?.classList.add('hidden');
+    if (dropdown) {
+      dropdown.classList.add('hidden');
+      dropdown.style.display = 'none';
+      dropdown.style.visibility = 'hidden';
+      dropdown.style.pointerEvents = 'none';
+    }
     if (this.searchInput) this.searchInput.setAttribute('aria-expanded', 'false');
     this.resetSuggestionNavigation();
   }

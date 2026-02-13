@@ -1762,6 +1762,14 @@
     .autocomplete-dropdown {
         display: block;
     }
+    .autocomplete-dropdown .search-suggestions {
+        display: block !important;
+    }
+    .search-input {
+        color: var(--text-primary) !important;
+        -webkit-text-fill-color: var(--text-primary) !important;
+        caret-color: var(--text-primary);
+    }
     </style>
     <link href="css/professional-phase2.css" rel="stylesheet">
     <script>
@@ -2750,7 +2758,10 @@
     // 4. Search Inputs
     const globalSearchInput = document.getElementById('globalSearchInput');
     if(globalSearchInput) {
-        globalSearchInput.addEventListener('input', debounce(handleGlobalSearch, 300));
+        const advancedSearchOwnsInput = !!document.querySelector('.advanced-search-wrapper .autocomplete-dropdown');
+        if (!advancedSearchOwnsInput) {
+            globalSearchInput.addEventListener('input', debounce(handleGlobalSearch, 300));
+        }
     }
 
     // 5. Scroll to Top
