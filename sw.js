@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v6'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v4'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v7'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v5'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v5'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v6'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v6...');
+  console.log('[SW] Installing v7...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -72,7 +72,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v6...');
+  console.log('[SW] Activating v7...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
