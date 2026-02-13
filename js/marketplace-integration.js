@@ -14,6 +14,11 @@ class MarketplaceIntegration {
     this.init();
   }
 
+  refreshUserContext() {
+    this.userId = this.getUserId();
+    return this.userId;
+  }
+
   getUserId() {
     try {
       if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
@@ -44,13 +49,25 @@ class MarketplaceIntegration {
   }
 
   setupFeatures() {
+    this.refreshUserContext();
     this.setupSearchAutocomplete();
     this.setupRecommendations();
     this.setupFlashSales();
     this.setupRecentlyViewed();
     this.setupProductViewTracking();
     this.setupAbandonedCartTracking();
-    console.log('✅ Marketplace Integration ready');
+
+    document.addEventListener('quicklocal-auth-ready', () => {
+      this.refreshUserContext();
+      this.setupRecommendations();
+    });
+
+    document.addEventListener('auth-ready', () => {
+      this.refreshUserContext();
+      this.setupRecommendations();
+    });
+
+    console.log('Marketplace Integration ready');
   }
 
   // ==================== IMPROVED SEARCH AUTOCOMPLETE ====================
@@ -101,15 +118,37 @@ class MarketplaceIntegration {
 
   async fetchSearchSuggestions(query, container) {
     try {
-      const response = await fetch(
-        `${this.apiBaseUrl}/products/suggestions?q=${encodeURIComponent(query)}&limit=6`,
-        { headers: this.getAuthHeaders() }
-      );
+      const endpoints = [
+        `${this.apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8`,
+        `${this.apiBaseUrl}/products/suggestions?q=${encodeURIComponent(query)}&limit=8`,
+        `${this.apiBaseUrl}/products?search=${encodeURIComponent(query)}&limit=8&sort=popular`
+      ];
 
-      if (!response.ok) throw new Error('Search failed');
-      const data = await response.json();
-      
-      if (data.success && data.suggestions.length > 0) {
+      let data = null;
+      for (const endpoint of endpoints) {
+        const response = await fetch(endpoint, {
+          headers: this.getAuthHeaders(),
+          credentials: 'include'
+        }).catch(() => null);
+
+        if (!response || !response.ok) continue;
+        data = await response.json().catch(() => ({}));
+        if (data) break;
+      }
+
+      if (!data) throw new Error('Search failed');
+
+      if (Array.isArray(data?.data?.products) && !Array.isArray(data.suggestions)) {
+        data.suggestions = data.data.products.map(p => ({
+          type: 'product',
+          id: p.id || p._id,
+          text: p.name,
+          price: p.finalPrice || p.price,
+          brand: p.brand
+        }));
+      }
+
+      if (data.success && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
         this.renderSearchSuggestions(data.suggestions, container);
         container.style.display = 'block';
         container.classList.remove('hidden');
@@ -117,7 +156,6 @@ class MarketplaceIntegration {
         container.style.display = 'none';
       }
     } catch (error) {
-      // Fail silently for UX
       container.style.display = 'none';
     }
   }
@@ -165,9 +203,17 @@ class MarketplaceIntegration {
 
   // ==================== RECOMMENDATIONS ====================
   async setupRecommendations() {
+    this.refreshUserContext();
     const endpoints = this.userId
-      ? [`${this.apiBaseUrl}/recommendations/personalized?limit=8`, `${this.apiBaseUrl}/products?limit=8`]
-      : [`${this.apiBaseUrl}/products?limit=8`];
+      ? [
+          `${this.apiBaseUrl}/recommendations/personalized?limit=8&includeTrending=true`,
+          `${this.apiBaseUrl}/recommendations/trending?limit=8`,
+          `${this.apiBaseUrl}/products?limit=8&sort=popular`
+        ]
+      : [
+          `${this.apiBaseUrl}/recommendations/trending?limit=8`,
+          `${this.apiBaseUrl}/products?limit=8&sort=popular`
+        ];
 
     try {
       let products = [];
@@ -183,7 +229,7 @@ class MarketplaceIntegration {
         const data = await response.json().catch(() => ({}));
 
         const recommendationItems = Array.isArray(data.recommendations)
-          ? data.recommendations.map(r => r.product || r)
+          ? data.recommendations.map(r => r.product || r).filter(Boolean)
           : [];
 
         const productItems = Array.isArray(data.products)
@@ -194,8 +240,29 @@ class MarketplaceIntegration {
               ? data.data
               : [];
 
-        products = (recommendationItems.length ? recommendationItems : productItems).filter(Boolean);
-        if (products.length) break;
+        products = (recommendationItems.length ? recommendationItems : productItems)
+          .map(p => this.normalizeRecommendationProduct(p))
+          .filter(Boolean);
+
+        if (products.length) {
+          products = this.dedupeProducts(products);
+          break;
+        }
+      }
+
+      if (!products.length && Array.isArray(window.appState?.products) && window.appState.products.length) {
+        products = this.dedupeProducts(
+          window.appState.products
+            .slice()
+            .sort((a, b) =>
+              (Number(b.totalSales || 0) - Number(a.totalSales || 0)) ||
+              (Number(b.views || 0) - Number(a.views || 0)) ||
+              (Number(b.averageRating || 0) - Number(a.averageRating || 0))
+            )
+            .slice(0, 8)
+            .map(p => this.normalizeRecommendationProduct(p))
+            .filter(Boolean)
+        );
       }
 
       if (products.length) {
@@ -206,17 +273,75 @@ class MarketplaceIntegration {
     }
   }
 
+  normalizeRecommendationProduct(product) {
+    if (!product || typeof product !== 'object') return null;
+
+    const id = product.id || product._id;
+    if (!id) return null;
+
+    const image = product.image ||
+      (Array.isArray(product.images) && product.images[0] && (product.images[0].url || product.images[0])) ||
+      null;
+
+    return {
+      ...product,
+      id,
+      _id: id,
+      image,
+      images: Array.isArray(product.images) ? product.images : (image ? [{ url: image }] : []),
+      averageRating: Number(product.averageRating || 0),
+      totalReviews: Number(product.totalReviews || product.reviewCount || 0),
+      finalPrice: Number(product.finalPrice || product.price || 0),
+      price: Number(product.price || product.finalPrice || 0)
+    };
+  }
+
+  dedupeProducts(products) {
+    const seen = new Set();
+    return products.filter((p) => {
+      const id = String(p.id || p._id || '');
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   renderRecommendations(products, type) {
-    // Target the existing empty container in HTML or create one
-    let container = document.getElementById('recommended-list'); // Matches marketplace.html ID
-    
-    if (container) {
-        // If using the carousel track
-        container.innerHTML = products.map(p => window.createCarouselCard ? window.createCarouselCard(p) : '').join('');
-        // Make section visible
-        const section = document.getElementById('recommended-products');
-        if(section) section.style.display = 'block';
-    }
+    let container = document.getElementById('recommended-list');
+    if (!container) return;
+
+    container.innerHTML = products.map(p => {
+      if (window.createCarouselCard) {
+        return window.createCarouselCard(p);
+      }
+      return this.createFallbackRecommendationCard(p);
+    }).join('');
+
+    const section = document.getElementById('recommended-products');
+    if (section) section.style.display = 'block';
+  }
+
+  createFallbackRecommendationCard(product) {
+    const id = product.id || product._id;
+    const name = product.name || 'Product';
+    const image = product.image || 'https://placehold.co/320x220?text=QuickLocal';
+    const price = Number(product.finalPrice || product.price || 0);
+    const rating = Number(product.averageRating || 0).toFixed(1);
+
+    return `
+      <article class="product-card" data-product-id="${id}">
+        <a href="product-detail.html?id=${id}" style="text-decoration:none;color:inherit;">
+          <div class="product-image-wrapper">
+            <img class="product-image" src="${image}" alt="${name}" loading="lazy">
+          </div>
+          <div class="product-info">
+            <h3 class="product-title">${name}</h3>
+            <div class="product-price">Rs ${price.toLocaleString()}</div>
+            <div class="product-rating"><i class="fas fa-star"></i> ${rating}</div>
+          </div>
+        </a>
+      </article>
+    `;
   }
 
   // ==================== SMOOTH FLASH SALES (NO CLS) ====================
