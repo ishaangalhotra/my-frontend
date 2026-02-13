@@ -139,11 +139,11 @@
         /* Enhanced Search */
         .search-container {
             flex: 1;
-            max-width: 600px;
+            max-width: min(640px, 52vw);
             position: relative;
         }
 
-        .search-wrapper {
+        .search-input-container {
             position: relative;
             background: white;
             border: 2px solid var(--border);
@@ -152,7 +152,19 @@
             transition: var(--transition);
             overflow: hidden;
         }
-        .search-wrapper:focus-within {
+        .search-input-container::before {
+            content: '\f002';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .search-input-container:focus-within {
             border-color: var(--primary);
             box-shadow: var(--shadow-glow);
             transform: translateY(-2px);
@@ -160,11 +172,11 @@
 
         .search-input {
             width: 100%;
-            height: 3.5rem;
-            padding: 0 5rem 0 1.5rem;
+            height: 3.4rem;
+            padding: 0 8.9rem 0 2.6rem;
             border: none;
             border-radius: inherit;
-            font-size: 1rem;
+            font-size: 0.98rem;
             font-weight: 500;
             background: transparent;
             outline: none;
@@ -174,13 +186,61 @@
             color: var(--text-light);
         }
 
-        .search-btn {
+        .search-clear-btn {
             position: absolute;
-            right: 0.5rem;
+            right: 5.9rem;
             top: 50%;
             transform: translateY(-50%);
-            width: 2.5rem;
-            height: 2.5rem;
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            border-radius: var(--radius-full);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .search-clear-btn.visible {
+            display: inline-flex;
+        }
+        .search-clear-btn:hover {
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+        }
+
+        .voice-search-btn {
+            position: absolute;
+            right: 3.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2rem;
+            height: 2rem;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: none;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: none;
+        }
+        .voice-search-btn:hover {
+            background: var(--bg-primary);
+            color: var(--primary);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 0.45rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2.45rem;
+            height: 2.45rem;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
@@ -193,7 +253,7 @@
             box-shadow: var(--shadow-sm);
         }
         .search-btn:hover {
-            transform: translateY(-50%) scale(1.1);
+            transform: translateY(-50%) scale(1.06);
             box-shadow: var(--shadow-md);
         }
 
@@ -1563,7 +1623,31 @@
             }
             
             .search-container {
-                max-width: 300px;
+                max-width: none;
+                width: 100%;
+            }
+
+            .search-input {
+                height: 3.1rem;
+                padding: 0 7.9rem 0 2.45rem;
+            }
+
+            .search-clear-btn {
+                right: 5.2rem;
+                width: 1.8rem;
+                height: 1.8rem;
+            }
+
+            .voice-search-btn {
+                right: 2.95rem;
+                width: 1.9rem;
+                height: 1.9rem;
+            }
+
+            .search-btn {
+                width: 2.25rem;
+                height: 2.25rem;
+                right: 0.4rem;
             }
             
             .filter-grid {
@@ -1640,6 +1724,27 @@
             .section-title {
                 font-size: 2rem;
             }
+
+            .search-input {
+                padding: 0 7rem 0 2.25rem;
+            }
+
+            .search-clear-btn {
+                right: 4.6rem;
+                width: 1.7rem;
+                height: 1.7rem;
+            }
+
+            .voice-search-btn {
+                right: 2.7rem;
+                width: 1.75rem;
+                height: 1.75rem;
+            }
+
+            .search-btn {
+                width: 2.05rem;
+                height: 2.05rem;
+            }
             
             .hero-graphic {
                 max-width: 250px;
@@ -1650,16 +1755,12 @@
                 font-size: 4rem;
             }
         }
-    /*
-     * Accessibility fix: hide search suggestion panels by default.  The
-     * suggestions and autocomplete dropdown previously appeared overlaying
-     * page content on load.  Keeping these elements hidden prevents
-     * distraction and improves the user experience; the JavaScript can
-     * still toggle them as needed when the user engages with the search box.
-     */
-    .search-suggestions,
-    .autocomplete-dropdown {
+    /* Keep search overlays hidden only when explicitly marked hidden. */
+    .hidden {
         display: none !important;
+    }
+    .autocomplete-dropdown {
+        display: block;
     }
     </style>
     <link href="css/professional-phase2.css" rel="stylesheet">
@@ -1683,11 +1784,14 @@
                 <div class="search-container">
                     <div class="advanced-search-wrapper">
                         <div class="search-input-container">
-                            <input type="text" class="search-input" placeholder="Search for products, brands, and more..." autocomplete="off" id="globalSearchInput">
-                            <button class="voice-search-btn" aria-label="Voice Search">
+                            <input type="text" class="search-input" placeholder="Search for products, brands, and more..." autocomplete="off" id="globalSearchInput" aria-label="Search products and brands">
+                            <button class="search-clear-btn hidden" aria-label="Clear search" id="globalSearchClearBtn" type="button">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="voice-search-btn" aria-label="Voice Search" type="button">
                                 <i class="fas fa-microphone"></i>
                             </button>
-                            <button class="search-btn" aria-label="Search" id="globalSearchBtn">
+                            <button class="search-btn" aria-label="Search" id="globalSearchBtn" type="button">
                                 <i class="fas fa-search"></i>
                             </button>
                             <div class="search-loader hidden">

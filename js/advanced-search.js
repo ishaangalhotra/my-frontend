@@ -10,6 +10,7 @@ class AdvancedSearchSystem {
   constructor() {
     this.searchInput = null; // Will be set in init
     this.searchContainer = null; // Will be set in init
+    this.clearBtn = null;
     this.searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
     this.recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
     this.popularSearches = [
@@ -29,6 +30,8 @@ class AdvancedSearchSystem {
     
     this.isVoiceSearchActive = false;
     this.debounceTimer = null;
+    this.highlightedSuggestionIndex = -1;
+    this.suggestionItems = [];
     
     this.init();
   }
@@ -56,6 +59,7 @@ class AdvancedSearchSystem {
     // Update references to use existing elements
     // This is the most critical selector
     this.searchInput = document.querySelector('.search-input') || document.getElementById('globalSearchInput');
+    this.clearBtn = document.getElementById('globalSearchClearBtn') || document.querySelector('.search-clear-btn');
   }
 
   createSearchInterface() {
@@ -64,11 +68,14 @@ class AdvancedSearchSystem {
     const searchHTML = `
       <div class="advanced-search-wrapper">
         <div class="search-input-container">
-          <input type="text" class="search-input" id="globalSearchInput" placeholder="Search for products, brands, and more..." autocomplete="off">
-          <button class="voice-search-btn" aria-label="Voice Search">
+          <input type="text" class="search-input" id="globalSearchInput" placeholder="Search for products, brands, and more..." autocomplete="off" aria-label="Search products and brands">
+          <button class="search-clear-btn hidden" id="globalSearchClearBtn" type="button" aria-label="Clear search">
+            <i class="fas fa-times"></i>
+          </button>
+          <button class="voice-search-btn" type="button" aria-label="Voice Search">
             <i class="fas fa-microphone"></i>
           </button>
-          <button class="search-btn" id="globalSearchBtn" aria-label="Search">
+          <button class="search-btn" id="globalSearchBtn" type="button" aria-label="Search">
             <i class="fas fa-search"></i>
           </button>
           <div class="search-loader hidden">
@@ -158,9 +165,9 @@ class AdvancedSearchSystem {
   bindEvents() {
     // Re-select elements after potential creation
     this.searchInput = document.querySelector('.search-input') || document.getElementById('globalSearchInput');
+    this.clearBtn = document.getElementById('globalSearchClearBtn') || document.querySelector('.search-clear-btn');
     const voiceBtn = document.querySelector('.voice-search-btn');
     const searchBtn = document.querySelector('.search-btn') || document.getElementById('globalSearchBtn');
-    const autocompleteDropdown = document.querySelector('.autocomplete-dropdown');
     this.searchContainer = document.querySelector('.search-container') || document.querySelector('.advanced-search-wrapper');
     
     // **Robustness Check**
@@ -171,8 +178,14 @@ class AdvancedSearchSystem {
     
     console.log('✅ AdvancedSearch: Binding events to:', this.searchInput.id || this.searchInput.className);
 
+    this.searchInput.setAttribute('role', 'combobox');
+    this.searchInput.setAttribute('aria-autocomplete', 'list');
+    this.searchInput.setAttribute('aria-expanded', 'false');
+
     // Input event with debouncing for suggestions
     this.searchInput.addEventListener('input', (e) => {
+      this.updateClearButtonState();
+      this.resetSuggestionNavigation();
       clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(() => {
         this.handleSearchInput(e.target.value);
@@ -200,16 +213,43 @@ class AdvancedSearchSystem {
       this.performSearch(this.searchInput.value);
     });
 
+    this.clearBtn?.addEventListener('click', () => {
+      this.searchInput.value = '';
+      this.updateClearButtonState();
+      this.resetSuggestionNavigation();
+      this.showDefaultSuggestions();
+      this.showAutocomplete();
+      this.searchInput.focus();
+      this.performSearch('');
+    });
+
     // Enter key search
     this.searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        if (this.activateHighlightedSuggestion()) {
+          e.preventDefault();
+          return;
+        }
         this.performSearch(e.target.value);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.moveSuggestionHighlight(1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.moveSuggestionHighlight(-1);
+      } else if (e.key === 'Escape') {
+        this.resetSuggestionNavigation();
+        if (this.searchInput.value.trim()) {
+          this.searchInput.value = '';
+          this.updateClearButtonState();
+        }
+        this.hideAutocomplete();
       }
-      // Note: Suggestion navigation (ArrowUp/Down) can be added here
     });
 
     // Filter events
     this.bindFilterEvents();
+    this.updateClearButtonState();
   }
 
   bindFilterEvents() {
@@ -364,13 +404,13 @@ class AdvancedSearchSystem {
     if (!suggestionsContainer) return;
 
     if (suggestions.length === 0) {
-      suggestionsContainer.innerHTML = `<div class="suggestion-item" data-query="${this.searchInput.value}">
+      suggestionsContainer.innerHTML = `<div class="suggestion-item" tabindex="0" data-query="${this.searchInput.value}">
         <i class="fas fa-search suggestion-icon"></i>
         <span class="suggestion-text">Search for "${this.highlightMatch(this.searchInput.value, this.searchInput.value)}"</span>
       </div>`;
     } else {
         suggestionsContainer.innerHTML = suggestions.map(suggestion => `
-        <div class="suggestion-item" data-query="${suggestion.text}">
+        <div class="suggestion-item" tabindex="0" data-query="${suggestion.text}">
           <div class="suggestion-content">
             <i class="fas ${suggestion.category === 'Products' ? 'fa-box' : suggestion.category === 'Brands' ? 'fa-star' : 'fa-tag'} suggestion-icon"></i>
             <span class="suggestion-text">${this.highlightMatch(suggestion.text, this.searchInput.value)}</span>
@@ -381,6 +421,8 @@ class AdvancedSearchSystem {
         </div>
       `).join('');
     }
+
+    this.cacheSuggestionElements();
 
     // Bind click events to new suggestions
     suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
@@ -398,7 +440,7 @@ class AdvancedSearchSystem {
 
     if (recentContainer) {
       const recentHTML = this.recentSearches.slice(0, 5).map(search => `
-        <div class="suggestion-item recent-item" data-query="${search}">
+        <div class="suggestion-item recent-item" tabindex="0" data-query="${search}">
           <i class="fas fa-clock-rotate-left"></i>
           <span>${search}</span>
           <button class="remove-recent" data-query="${search}"><i class="fas fa-times"></i></button>
@@ -409,7 +451,7 @@ class AdvancedSearchSystem {
 
     if (popularContainer) {
       const popularHTML = this.popularSearches.map(search => `
-        <div class="suggestion-item popular-item" data-query="${search}">
+        <div class="suggestion-item popular-item" tabindex="0" data-query="${search}">
           <i class="fas fa-fire"></i>
           <span>${search}</span>
         </div>
@@ -454,6 +496,7 @@ class AdvancedSearchSystem {
     if (this.searchInput) {
         this.searchInput.value = query;
     }
+    this.updateClearButtonState();
 
     // Show loading state
     this.showSearchResults({ loading: true, query: query });
@@ -575,6 +618,55 @@ class AdvancedSearchSystem {
 
   // --- UI & HISTORY HELPERS ---
 
+  updateClearButtonState() {
+    if (!this.clearBtn || !this.searchInput) return;
+    const hasValue = this.searchInput.value.trim().length > 0;
+    this.clearBtn.classList.toggle('visible', hasValue);
+    this.clearBtn.classList.toggle('hidden', !hasValue);
+  }
+
+  cacheSuggestionElements() {
+    const container = document.querySelector('.suggestion-results');
+    this.suggestionItems = container
+      ? Array.from(container.querySelectorAll('.suggestion-item[data-query]'))
+      : [];
+    this.resetSuggestionNavigation();
+  }
+
+  resetSuggestionNavigation() {
+    this.highlightedSuggestionIndex = -1;
+    (this.suggestionItems || []).forEach((item) => item.classList.remove('suggestion-active'));
+  }
+
+  moveSuggestionHighlight(direction) {
+    if (!Array.isArray(this.suggestionItems) || !this.suggestionItems.length) return;
+
+    const max = this.suggestionItems.length - 1;
+    let nextIndex = this.highlightedSuggestionIndex + direction;
+    if (nextIndex < 0) nextIndex = max;
+    if (nextIndex > max) nextIndex = 0;
+
+    this.highlightedSuggestionIndex = nextIndex;
+    this.suggestionItems.forEach((item, index) => {
+      const isActive = index === nextIndex;
+      item.classList.toggle('suggestion-active', isActive);
+      if (isActive) item.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  activateHighlightedSuggestion() {
+    if (!Array.isArray(this.suggestionItems) || !this.suggestionItems.length) return false;
+    if (this.highlightedSuggestionIndex < 0 || this.highlightedSuggestionIndex >= this.suggestionItems.length) {
+      return false;
+    }
+
+    const target = this.suggestionItems[this.highlightedSuggestionIndex];
+    const query = target?.dataset?.query;
+    if (!query) return false;
+    this.performSearch(query);
+    return true;
+  }
+
   addToSearchHistory(query) {
     if (!query) return;
     // Remove if already exists
@@ -596,12 +688,15 @@ class AdvancedSearchSystem {
   showAutocomplete() {
     const dropdown = document.querySelector('.autocomplete-dropdown');
     dropdown?.classList.remove('hidden');
+    if (this.searchInput) this.searchInput.setAttribute('aria-expanded', 'true');
     this.showDefaultSuggestions();
   }
 
   hideAutocomplete() {
     const dropdown = document.querySelector('.autocomplete-dropdown');
     dropdown?.classList.add('hidden');
+    if (this.searchInput) this.searchInput.setAttribute('aria-expanded', 'false');
+    this.resetSuggestionNavigation();
   }
 
   showSearchLoader() {
@@ -768,6 +863,7 @@ class AdvancedSearchSystem {
   setSearchQuery(query) {
     if (this.searchInput) {
       this.searchInput.value = query;
+      this.updateClearButtonState();
     }
   }
 

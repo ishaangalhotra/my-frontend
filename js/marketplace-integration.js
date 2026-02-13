@@ -96,6 +96,9 @@ class MarketplaceIntegration {
     const searchInput = document.getElementById('globalSearchInput') || document.querySelector('.search-input');
     if (!searchInput) return;
 
+    // AdvancedSearchSystem owns marketplace autocomplete to avoid duplicate listeners.
+    if (document.querySelector('.advanced-search-wrapper')) return;
+
     // Use existing HTML structure if possible, or create one with matching classes
     let autocompleteContainer = document.querySelector('.autocomplete-dropdown');
     
