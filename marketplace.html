@@ -14,8 +14,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
     
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
     <link rel="stylesheet" href="css/product-cards.css">
     <link rel="stylesheet" href="css/enhanced-marketplace.css">
     <link rel="stylesheet" href="css/mobile-responsive.css">
@@ -2309,6 +2307,10 @@
             console.log('✅ QuickLocal Marketplace initialized');
         });
         async function fetchUserFromCookieSession() {
+            if (typeof window.quickLocalGetSessionUser === 'function') {
+                return window.quickLocalGetSessionUser({ ttlMs: 8000 });
+            }
+
             try {
                 const response = await fetch(`${appState.apiBaseUrl}/auth/me`, {
                     method: 'GET',

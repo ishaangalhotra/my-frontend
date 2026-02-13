@@ -67,6 +67,9 @@
   var authInitPromise = null;
   var authReadyResolved = false;
   var authReadyTimer = null;
+  var sessionProbePromise = null;
+  var sessionProbeTimestamp = 0;
+  var DEFAULT_SESSION_PROBE_TTL_MS = 8000;
 
   window.QUICKLOCAL_BACKEND_ORIGIN = backendOrigin;
   window.QUICKLOCAL_API_BASE = apiBase;
@@ -140,6 +143,11 @@
       backendOrigin: backendOrigin
     }, detail || {});
 
+    window.__quicklocalSessionUserCache = {
+      user: payload.user || null,
+      expiresAt: Date.now() + DEFAULT_SESSION_PROBE_TTL_MS
+    };
+
     try {
       if (typeof window.__quicklocalResolveAuthReady === 'function') {
         window.__quicklocalResolveAuthReady(payload);
@@ -165,6 +173,73 @@
         }, timeout);
       })
     ]);
+  };
+
+  window.quickLocalInvalidateSessionCache = function () {
+    window.__quicklocalSessionUserCache = null;
+    sessionProbeTimestamp = 0;
+    sessionProbePromise = null;
+  };
+
+  window.quickLocalGetSessionUser = function (options) {
+    var opts = options || {};
+    var force = !!opts.force;
+    var ttlMs = typeof opts.ttlMs === 'number' && opts.ttlMs >= 0
+      ? opts.ttlMs
+      : DEFAULT_SESSION_PROBE_TTL_MS;
+    var now = Date.now();
+    var cache = window.__quicklocalSessionUserCache || null;
+
+    if (!force && cache && cache.expiresAt > now) {
+      return Promise.resolve(cache.user || null);
+    }
+
+    if (!force && sessionProbePromise) {
+      return sessionProbePromise;
+    }
+
+    if (!force && sessionProbeTimestamp && (now - sessionProbeTimestamp) < ttlMs && cache) {
+      return Promise.resolve(cache.user || null);
+    }
+
+    sessionProbeTimestamp = now;
+    sessionProbePromise = fetch(apiBase + '/auth/me', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' }
+    })
+      .then(function (response) {
+        if (!response || !response.ok) {
+          window.__quicklocalSessionUserCache = {
+            user: null,
+            expiresAt: Date.now() + ttlMs
+          };
+          return null;
+        }
+
+        return response.json()
+          .catch(function () { return {}; })
+          .then(function (payload) {
+            var user = payload.user || (payload.data && payload.data.user) || payload.data || null;
+            window.__quicklocalSessionUserCache = {
+              user: user || null,
+              expiresAt: Date.now() + ttlMs
+            };
+            return user || null;
+          });
+      })
+      .catch(function () {
+        window.__quicklocalSessionUserCache = {
+          user: null,
+          expiresAt: Date.now() + ttlMs
+        };
+        return null;
+      })
+      .finally(function () {
+        sessionProbePromise = null;
+      });
+
+    return sessionProbePromise;
   };
 
   authReadyTimer = setTimeout(function () {

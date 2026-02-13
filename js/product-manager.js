@@ -171,6 +171,15 @@ async function resolveSellerId() {
   } catch (_) {}
 
   try {
+    if (typeof window.quickLocalGetSessionUser === 'function') {
+      const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+      if (user && (user.id || user._id)) {
+        return user.id || user._id;
+      }
+    }
+  } catch (_) {}
+
+  try {
     const base = window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
     const response = await fetch(`${base}/auth/me`, {
       method: 'GET',

@@ -634,6 +634,18 @@
     
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof window.quickLocalGetSessionUser === 'function') {
+        const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+        if (!user) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        window.__qlSessionUser = user;
+        new ProfileManager();
+        return;
+      }
+
       try {
         const session = await fetch(`${API_BASE}/auth/me`, {
           method: 'GET',

@@ -15,6 +15,15 @@
     },
 
     async probeSession() {
+      if (typeof window.quickLocalGetSessionUser === 'function') {
+        try {
+          const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+          return !!user;
+        } catch {
+          return false;
+        }
+      }
+
       const base = this.getApiBase();
       if (!base) {
         return false;
@@ -48,6 +57,10 @@
         if (!res.ok) {
           window.dispatchEvent(new CustomEvent('auth:refresh:failed'));
           return false;
+        }
+
+        if (typeof window.quickLocalInvalidateSessionCache === 'function') {
+          window.quickLocalInvalidateSessionCache();
         }
 
         window.dispatchEvent(new CustomEvent('auth:refresh:success'));

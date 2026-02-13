@@ -1760,6 +1760,15 @@
                 return window.__quicklocalHomeUser;
             }
 
+            if (typeof window.quickLocalGetSessionUser === 'function') {
+                const user = await window.quickLocalGetSessionUser({
+                    force,
+                    ttlMs: HOME_SESSION_PROBE_TTL
+                });
+                window.__quicklocalHomeUser = user || null;
+                return user || null;
+            }
+
             if (!force && homeSessionProbePromise) {
                 return homeSessionProbePromise;
             }

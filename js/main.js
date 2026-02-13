@@ -20,6 +20,15 @@ async function resolveSellerId() {
   } catch (_) {}
 
   try {
+    if (typeof window.quickLocalGetSessionUser === 'function') {
+      const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+      if (user && (user.id || user._id)) {
+        return user.id || user._id;
+      }
+    }
+  } catch (_) {}
+
+  try {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
       credentials: 'include',
