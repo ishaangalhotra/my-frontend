@@ -90,12 +90,20 @@
   }
 
   function rewriteUrl(url) {
-    if (!isLocal || typeof url !== 'string') {
+    if (typeof url !== 'string') {
       return url;
     }
+
+    // Always route hardcoded hosted-backend calls through the active backend origin.
+    // This keeps production auth same-origin (cookie/session compatible).
     if (url.indexOf(remoteOrigin) === 0) {
-      return localOrigin + url.slice(remoteOrigin.length);
+      return backendOrigin + url.slice(remoteOrigin.length);
     }
+
+    if (!isLocal) {
+      return url;
+    }
+
     return url;
   }
 
@@ -289,6 +297,15 @@
       // Always align HybridAuthClient with the selected backend origin
       // (same-origin in production, localhost in local dev).
       window.HybridAuthClient.backendUrl = backendOrigin;
+
+      if (!window.HybridAuthClient.__quicklocalNormalizePatched && typeof window.HybridAuthClient._normalizeEndpoint === 'function') {
+        var originalNormalizeEndpoint = window.HybridAuthClient._normalizeEndpoint.bind(window.HybridAuthClient);
+        window.HybridAuthClient._normalizeEndpoint = function (endpoint) {
+          var normalized = originalNormalizeEndpoint(endpoint);
+          return rewriteUrl(normalized);
+        };
+        window.HybridAuthClient.__quicklocalNormalizePatched = true;
+      }
 
       if (!window.HybridAuthClient.__quicklocalPatched && typeof window.HybridAuthClient.apiCall === 'function') {
         var originalApiCall = window.HybridAuthClient.apiCall.bind(window.HybridAuthClient);

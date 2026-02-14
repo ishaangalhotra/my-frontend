@@ -121,7 +121,10 @@ class NotificationService {
 
     const socketOptions = {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['polling'],
+      upgrade: false,
+      timeout: 8000,
+      reconnection: false
     };
 
     // Cookie session is primary. If a bearer exists, include it.
@@ -148,7 +151,7 @@ class NotificationService {
       if (/unauthoriz|auth/i.test(message)) {
         console.info('[NotificationService] Real-time notifications unavailable for current session');
       } else {
-        console.warn('[NotificationService] Socket connection error:', error?.message || error);
+        console.warn('[NotificationService] Socket polling unavailable:', error?.message || error);
       }
     });
 
