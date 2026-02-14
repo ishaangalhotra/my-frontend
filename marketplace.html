@@ -2523,23 +2523,20 @@
         });
         async function fetchUserFromCookieSession() {
             if (typeof window.quickLocalGetSessionUser === 'function') {
-                return window.quickLocalGetSessionUser({ ttlMs: 8000 });
+                try {
+                    return await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+                } catch (_) {}
             }
 
             try {
-                const response = await fetch(`${appState.apiBaseUrl}/auth/me`, {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: { 'Accept': 'application/json' }
-                });
-
-                if (!response.ok) return null;
-
-                const payload = await response.json().catch(() => ({}));
-                return payload.user || payload?.data?.user || payload?.data || null;
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    return window.HybridAuthClient.getCurrentUser() || null;
+                }
             } catch (_) {
                 return null;
             }
+
+            return null;
         }
 
         async function waitForHybridAuthClientReady(timeoutMs = 15000) {

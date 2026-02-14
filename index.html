@@ -1749,59 +1749,33 @@
             }
         }
 
-        let homeSessionProbePromise = null;
-        let homeSessionProbeTs = 0;
         const HOME_SESSION_PROBE_TTL = 10000;
 
         async function fetchHomeUserFromCookieSession(force = false) {
-            const now = Date.now();
-
             if (!force && window.__quicklocalHomeUser) {
                 return window.__quicklocalHomeUser;
             }
 
             if (typeof window.quickLocalGetSessionUser === 'function') {
-                const user = await window.quickLocalGetSessionUser({
-                    force,
-                    ttlMs: HOME_SESSION_PROBE_TTL
-                });
-                window.__quicklocalHomeUser = user || null;
-                return user || null;
-            }
-
-            if (!force && homeSessionProbePromise) {
-                return homeSessionProbePromise;
-            }
-
-            if (!force && homeSessionProbeTs && (now - homeSessionProbeTs) < HOME_SESSION_PROBE_TTL) {
-                return null;
-            }
-
-            const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL)
-                || window.QUICKLOCAL_API_BASE
-                || '/api/v1';
-
-            homeSessionProbeTs = now;
-            homeSessionProbePromise = fetch(`${apiBase}/auth/me`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
-            })
-                .then(async (response) => {
-                    if (!response.ok) {
-                        return null;
-                    }
-                    const payload = await response.json().catch(() => ({}));
-                    const user = payload.user || payload?.data?.user || payload?.data || null;
+                try {
+                    const user = await window.quickLocalGetSessionUser({
+                        force,
+                        ttlMs: HOME_SESSION_PROBE_TTL
+                    });
                     window.__quicklocalHomeUser = user || null;
                     return user || null;
-                })
-                .catch(() => null)
-                .finally(() => {
-                    homeSessionProbePromise = null;
-                });
+                } catch (_) {}
+            }
 
-            return homeSessionProbePromise;
+            try {
+                if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+                    const user = window.HybridAuthClient.getCurrentUser() || null;
+                    window.__quicklocalHomeUser = user;
+                    return user;
+                }
+            } catch (_) {}
+
+            return null;
         }
 
         async function refreshHomeAuthUI() {

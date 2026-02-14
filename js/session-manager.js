@@ -15,6 +15,14 @@
     },
 
     async probeSession() {
+      try {
+        if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+          return !!window.HybridAuthClient.getCurrentUser();
+        }
+      } catch {
+        // Continue with cookie helper below.
+      }
+
       if (typeof window.quickLocalGetSessionUser === 'function') {
         try {
           const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
@@ -24,20 +32,7 @@
         }
       }
 
-      const base = this.getApiBase();
-      if (!base) {
-        return false;
-      }
-
-      try {
-        const res = await fetch(`${base}/auth/me`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        return res.ok;
-      } catch {
-        return false;
-      }
+      return false;
     },
 
     async refreshToken() {

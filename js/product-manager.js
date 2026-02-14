@@ -179,22 +179,7 @@ async function resolveSellerId() {
     }
   } catch (_) {}
 
-  try {
-    const base = window.QUICKLOCAL_API_BASE || '/api/v1';
-    const response = await fetch(`${base}/auth/me`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { Accept: 'application/json' }
-    });
-
-    if (!response.ok) return null;
-
-    const payload = await response.json().catch(() => ({}));
-    const user = payload?.user || payload?.data?.user || payload?.data || null;
-    return user?.id || user?._id || null;
-  } catch (_) {
-    return null;
-  }
+  return null;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

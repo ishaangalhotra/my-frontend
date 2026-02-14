@@ -28,21 +28,7 @@ async function resolveSellerId() {
     }
   } catch (_) {}
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { Accept: 'application/json' }
-    });
-
-    if (!response.ok) return null;
-
-    const payload = await response.json().catch(() => ({}));
-    const user = payload?.user || payload?.data?.user || payload?.data || null;
-    return user?.id || user?._id || null;
-  } catch (_) {
-    return null;
-  }
+  return null;
 }
 
 // Initialize the application

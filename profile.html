@@ -635,36 +635,28 @@
     
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', async () => {
-      if (typeof window.quickLocalGetSessionUser === 'function') {
-        const user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
-        if (!user) {
-          window.location.href = 'login.html';
-          return;
-        }
+      let user = null;
 
-        window.__qlSessionUser = user;
-        new ProfileManager();
-        return;
+      if (typeof window.quickLocalGetSessionUser === 'function') {
+        try {
+          user = await window.quickLocalGetSessionUser({ ttlMs: 8000 });
+        } catch (_) {}
       }
 
-      try {
-        const session = await fetch(`${API_BASE}/auth/me`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' }
-        });
-        if (!session.ok) {
-          window.location.href = 'login.html';
-          return;
-        }
+      if (!user) {
+        try {
+          if (window.HybridAuthClient && typeof window.HybridAuthClient.getCurrentUser === 'function') {
+            user = window.HybridAuthClient.getCurrentUser() || null;
+          }
+        } catch (_) {}
+      }
 
-        const payload = await session.json().catch(() => ({}));
-        window.__qlSessionUser = payload?.user || payload?.data?.user || null;
-      } catch (_) {
+      if (!user) {
         window.location.href = 'login.html';
         return;
       }
 
+      window.__qlSessionUser = user;
       new ProfileManager();
     });
   </script>
