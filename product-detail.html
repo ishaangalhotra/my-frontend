@@ -1113,10 +1113,74 @@
                         'Content-Type': 'application/json'
                     }
                 });
-                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                if (!res.ok) throw new Error(`API Error: ${res.status} (${fullUrl})`);
                 return await res.json();
             }
         };
+
+        function asArray(value) {
+            return Array.isArray(value) ? value : [];
+        }
+
+        function extractProductArray(payload) {
+            if (!payload || typeof payload !== 'object') return [];
+            return asArray(payload.data?.products).length ? asArray(payload.data.products)
+                : asArray(payload.products).length ? asArray(payload.products)
+                : asArray(payload.data).length ? asArray(payload.data)
+                : asArray(payload.related).length ? asArray(payload.related)
+                : [];
+        }
+
+        function extractSingleProduct(payload) {
+            if (!payload || typeof payload !== 'object') return null;
+            if (payload.data?.product) return payload.data.product;
+            if (payload.product) return payload.product;
+            if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) return payload.data;
+            return null;
+        }
+
+        function matchesProductId(product, idOrSlug) {
+            if (!product || !idOrSlug) return false;
+            const candidate = String(idOrSlug).trim().toLowerCase();
+            const pid = String(product.id || product._id || '').trim().toLowerCase();
+            const slug = String(product.slug || '').trim().toLowerCase();
+            return candidate === pid || (slug && candidate === slug);
+        }
+
+        async function fetchProductByIdWithFallback(idOrSlug) {
+            const endpoints = [
+                `/products/${encodeURIComponent(idOrSlug)}`
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const payload = await api.get(endpoint);
+                    const single = extractSingleProduct(payload);
+                    if (single) return single;
+                } catch (_error) {
+                    // Continue to fallback strategies below.
+                }
+            }
+
+            // Fallback: query products list and match by id/slug client-side.
+            const listFallbacks = [
+                `/products?search=${encodeURIComponent(idOrSlug)}&limit=50`,
+                `/products?limit=100&page=1`
+            ];
+
+            for (const endpoint of listFallbacks) {
+                try {
+                    const payload = await api.get(endpoint);
+                    const products = extractProductArray(payload);
+                    const match = products.find((p) => matchesProductId(p, idOrSlug));
+                    if (match) return match;
+                } catch (_error) {
+                    // keep trying
+                }
+            }
+
+            return null;
+        }
 
         function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
         function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
@@ -1584,9 +1648,10 @@
                 if(productId) {
                     try {
                         // Try fetching fresh data from API
-                        const res = await api.get(`/products/${productId}`);
-                        // Handle different API response structures (res.data or res.product)
-                        currentProduct = res.data?.product || res.data || res.product;
+                        currentProduct = await fetchProductByIdWithFallback(productId);
+                        if (!currentProduct) {
+                            throw new Error('Product not found from API fallbacks');
+                        }
                     } catch(e) {
                         console.warn('API fetch failed, falling back to local storage', e);
                         if(stored) currentProduct = JSON.parse(stored);
@@ -1974,12 +2039,36 @@
         async function loadRelatedProducts() {
             if(!productId) return;
             try {
-                // Mocking related fetch if API fails, or using real API
                 let related = [];
-                try {
-                   const res = await api.get(`/products/related/${productId}`);
-                   related = res.data || [];
-                } catch(e) { console.log('No related API found, skipping'); }
+
+                const relatedEndpoints = [
+                    `/products/${encodeURIComponent(productId)}/related`,
+                    `/products/related/${encodeURIComponent(productId)}`
+                ];
+
+                for (const endpoint of relatedEndpoints) {
+                    try {
+                        const res = await api.get(endpoint);
+                        related = extractProductArray(res);
+                        if (related.length) break;
+                    } catch (_error) {
+                        // Try next endpoint
+                    }
+                }
+
+                // Fallback to category-based list if related APIs are unavailable.
+                if (related.length === 0) {
+                    const categoryId = currentProduct?.category?.id || currentProduct?.category?._id || currentProduct?.category || '';
+                    const fallbackEndpoint = categoryId
+                        ? `/products?category=${encodeURIComponent(categoryId)}&limit=8`
+                        : `/products?limit=8`;
+                    try {
+                        const fallbackRes = await api.get(fallbackEndpoint);
+                        related = extractProductArray(fallbackRes);
+                    } catch (_error) {}
+                }
+
+                related = related.filter((p) => !matchesProductId(p, productId));
 
                 if(related.length === 0) return; // Or handle fallback
 
