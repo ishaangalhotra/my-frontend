@@ -5,7 +5,7 @@
     if (typeof window !== 'undefined' && window.location && window.location.origin) {
       return window.location.origin;
     }
-    return 'https://ecommerce-backend-mlik.onrender.com';
+    return '';
   })();
 
   function normalizeBackendUrl(url) {

@@ -414,10 +414,9 @@
   });
 
   loadScript(backendOrigin + '/hybrid-auth-client.js', function () {
-    // Fallback chain:
-    // 1) Local dev: try hosted backend client, then local fallback.
-    // 2) Production same-origin proxy miss: try direct backend, then local fallback.
-    if (isLocal || backendOrigin !== remoteOrigin) {
+    // Keep production auth same-origin so session cookies stay valid.
+    // Only local development can fall back to the hosted client.
+    if (isLocal) {
       loadScript(remoteOrigin + '/hybrid-auth-client.js', loadLocalHybridFallback, { expectHybridClient: true });
     } else {
       loadLocalHybridFallback();

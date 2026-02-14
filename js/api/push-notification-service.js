@@ -65,9 +65,20 @@ class PushNotificationService {
     }
 
     try {
-      this.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
+      this.serviceWorkerRegistration = await navigator.serviceWorker.getRegistration('/');
+
+      if (!this.serviceWorkerRegistration) {
+        this.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        });
+      } else if (typeof this.serviceWorkerRegistration.update === 'function') {
+        await this.serviceWorkerRegistration.update();
+      }
+
+      if (this.serviceWorkerRegistration.waiting) {
+        this.serviceWorkerRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
       
       console.log('Service Worker registered successfully');
       

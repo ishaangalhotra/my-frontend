@@ -35,7 +35,16 @@ class OfflineMode {
   async setupServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
+        const registration = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        });
+        if (typeof registration.update === 'function') {
+          await registration.update();
+        }
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
         console.log('✅ Service Worker registered:', registration);
       } catch (error) {
         console.warn('⚠️ Service Worker registration failed:', error);

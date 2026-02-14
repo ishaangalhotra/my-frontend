@@ -3,6 +3,8 @@ class NotificationService {
   constructor() {
     this.baseURL = window.API_CONFIG?.full || '/api/v1';
     // FIXED: Removed all internal token management (this.token, loadToken)
+    this.initialized = false;
+    this.badgeInterval = null;
   }
 
   // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
@@ -107,35 +109,50 @@ class NotificationService {
 
   // Subscribe to real-time notifications
   subscribeToNotifications(callback) {
-    if (typeof io !== 'undefined') {
-      // FIXED: Get token from the central auth client for socket connection
-      const token = window.HybridAuthClient?.getAuthHeader()?.replace('Bearer ', '');
-      if (!token) {
-        console.warn('[NotificationService] Socket.IO connection aborted: no auth token');
-        return null;
-      }
-
-      const socket = io(this.baseURL.replace('/api/v1', ''), {
-        auth: { token } // Pass token for backend socket authentication
-      });
-      
-      socket.on('notification', (notification) => {
-        callback(notification);
-      });
-
-      socket.on('connect', () => {
-        console.log('Connected to notification service');
-      });
-
-      socket.on('disconnect', () => {
-        console.log('Disconnected from notification service');
-      });
-
-      return socket;
-    } else {
+    if (typeof io === 'undefined') {
       console.warn('Socket.IO not available for real-time notifications');
       return null;
     }
+
+    const authHeader = window.HybridAuthClient?.getAuthHeader?.();
+    const token = typeof authHeader === 'string'
+      ? authHeader.replace(/^Bearer\s+/i, '').trim()
+      : '';
+
+    const socketOptions = {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    };
+
+    // Cookie session is primary. If a bearer exists, include it.
+    if (token) {
+      socketOptions.auth = { token };
+    }
+
+    const socket = io(this.baseURL.replace('/api/v1', ''), socketOptions);
+    
+    socket.on('notification', (notification) => {
+      callback(notification);
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to notification service');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from notification service');
+    });
+
+    socket.on('connect_error', (error) => {
+      const message = String(error?.message || '');
+      if (/unauthoriz|auth/i.test(message)) {
+        console.info('[NotificationService] Real-time notifications unavailable for current session');
+      } else {
+        console.warn('[NotificationService] Socket connection error:', error?.message || error);
+      }
+    });
+
+    return socket;
   }
 
   // Initialize notification badge
@@ -266,6 +283,10 @@ class NotificationService {
   // Initialize notification system
   async initialize() {
     try {
+      if (this.initialized) {
+        return true;
+      }
+
       // FIXED: Check auth status using the central client
       if (!window.HybridAuthClient || !window.HybridAuthClient.getCurrentUser()) {
         console.log('[NotificationService] Skipping initialization - no authenticated user');
@@ -273,7 +294,8 @@ class NotificationService {
       }
 
       await this.initializeBadge();
-      await this.requestPermission();
+      // Avoid browser permission prompt spam on initial page load.
+      // Permission prompts should be triggered from explicit user action flows.
 
       const socket = this.subscribeToNotifications((notification) => {
         this.updateBadge(notification.unreadCount || 0);
@@ -282,15 +304,18 @@ class NotificationService {
       });
 
       // Set up periodic badge updates
-      setInterval(async () => {
-        // FIXED: Check auth status using the central client
-        if (window.HybridAuthClient && window.HybridAuthClient.getCurrentUser()) {
-          await this.initializeBadge();
-        }
-      }, 30000); // Update every 30 seconds
+      if (!this.badgeInterval) {
+        this.badgeInterval = setInterval(async () => {
+          // FIXED: Check auth status using the central client
+          if (window.HybridAuthClient && window.HybridAuthClient.getCurrentUser()) {
+            await this.initializeBadge();
+          }
+        }, 30000); // Update every 30 seconds
+      }
 
       console.log('[NotificationService] ✅ Successfully initialized');
-      return socket;
+      this.initialized = true;
+      return socket || true;
     } catch (error) {
       console.error('[NotificationService] Failed to initialize:', error);
       return false;

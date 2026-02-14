@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v9'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v7'; // BUMPED VERSION
-const IMAGE_CACHE_NAME = 'quicklocal-images-v2';
-const STATIC_CACHE_NAME = 'quicklocal-static-v8'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v10'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v8'; // BUMPED VERSION
+const IMAGE_CACHE_NAME = 'quicklocal-images-v3';
+const STATIC_CACHE_NAME = 'quicklocal-static-v9'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v9...');
+  console.log('[SW] Installing v10...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -77,7 +77,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v9...');
+  console.log('[SW] Activating v10...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
@@ -122,7 +122,8 @@ function shouldCacheAPIResponse(url) {
     '/auth/register',
     '/auth/refresh',
     '/cart',
-    '/orders'
+    '/orders',
+    '/notifications'
   ];
   return !noCacheEndpoints.some(endpoint => url.includes(endpoint));
 }
@@ -369,4 +370,4 @@ async function updateOrderStatusInBackground() {
   }
 }
 
-console.log('[SW] Service Worker v9 loaded');
+console.log('[SW] Service Worker v10 loaded');
