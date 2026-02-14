@@ -2556,14 +2556,26 @@
             }
 
             if (!authClientLoaded || !appState.user) {
-                const cookieUser = await fetchUserFromCookieSession();
+                const urlParams = new URLSearchParams(window.location.search);
+                const loginRedirected = urlParams.get('login') === 'success';
+
+                let cookieUser = await fetchUserFromCookieSession();
+
+                // Login redirect can race with cookie/session readiness (cold backend, SW updates).
+                // Retry briefly before treating user as logged out.
+                if (!cookieUser && loginRedirected) {
+                    for (let attempt = 1; attempt <= 4 && !cookieUser; attempt++) {
+                        await new Promise(resolve => setTimeout(resolve, 600 * attempt));
+                        cookieUser = await fetchUserFromCookieSession();
+                    }
+                }
+
                 if (cookieUser) {
                     appState.user = cookieUser;
                     updateAuthUI();
                     await loadCart();
 
-                    const urlParams = new URLSearchParams(window.location.search);
-                    if (urlParams.get('login') === 'success') {
+                    if (loginRedirected) {
                         showToast(`Welcome back, ${cookieUser.name || cookieUser.email || 'User'}!`, 'success');
                         window.history.replaceState({}, '', window.location.pathname);
                     }
@@ -2577,8 +2589,8 @@
 
         function updateAuthUI() {
             const loginBtn = document.querySelector('a[href="login.html"]');
-            const user = auth.getUser();
-            const isLoggedIn = auth.isLoggedIn();
+            const user = appState.user || auth.getUser();
+            const isLoggedIn = !!user || auth.isLoggedIn();
             
             console.log('🔄 Updating auth UI:', { 
                 isLoggedIn, 
@@ -4239,88 +4251,7 @@ setTimeout(() => {
     
     <script src="js/advanced-search.js"></script>
     <script src="js/advanced-cart.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Legacy delayed bridge disabled in favor of robust bridge below.
-            return;
-            setTimeout(() => {
-                if (window.advancedSearch) {
-                    console.log('🔍 Advanced Search System initialized');
-                    
-                    document.addEventListener('searchResults', (event) => {
-                        const { results, query, loading, error } = event.detail;
-                        
-                        if (loading) {
-                            if (window.showToast) {
-                                showToast('Searching...', 'info');
-                            }
-                            return;
-                        }
-                        
-                        if (error) {
-                            if (window.showToast) {
-                                showToast(error, 'error');
-                            }
-                            return;
-                        }
-                        
-                        if (results) {
-                            console.log('✅ Bridge: Received server results, updating appState.', results);
-
-                            const rankedIds = {};
-                            (results.products || []).forEach((product, index) => {
-                                const id = String(product.id || product._id || '');
-                                if (id) rankedIds[id] = index + 1;
-                            });
-
-                            window.__qlSearchContext = {
-                                query,
-                                normalizedQuery: results.normalizedQuery || results.searchIntelligence?.normalizedQuery || String(query || '').trim().toLowerCase(),
-                                correctedQuery: results.correctedQuery || results.searchIntelligence?.correctedQuery || String(query || '').trim(),
-                                intent: results.intent || results.searchIntelligence?.intent || 'generic',
-                                locale: results.searchIntelligence?.locale || String(navigator.language || 'en').toLowerCase(),
-                                resultSetId: results.resultSetId || results.searchIntelligence?.resultSetId || `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-                                rankedIds,
-                                createdAt: Date.now()
-                            };
-
-                            // 1. Update the appState with the new products from the server
-                            appState.products = results.products;
-                            appState.allProducts = results.products;
-                            appState.filteredProducts = results.products;
-
-                            // 2. Update pagination info from the server's response
-                            appState.pagination.totalItems = results.total;
-                            appState.pagination.totalPages = results.totalPages;
-                            appState.pagination.currentPage = results.currentPage;
-
-                            // 3. Update the filter panel's state
-                            if (document.getElementById('globalSearchInput')) {
-                                document.getElementById('globalSearchInput').value = query;
-                            }
-                            appState.currentFilters.search = query;
-
-                            // 4. Now, apply *secondary* filters (like price/category) to the server results
-                            applyAllFilters(true); // 'true' tells it to skip its own text search
-                            
-                            // 5. Scroll to the products
-                            const productsSection = document.getElementById('products');
-                            if (productsSection) {
-                                productsSection.scrollIntoView({ behavior: 'smooth' });
-                            }
-                            
-                            if (window.showToast) {
-                                showToast(`Found ${results.total} products for "${query}"`, 'success');
-                            }
-                        }
-                    });
-                }
-            }, 1000);
-        });
-    </script>
-    
-    <script>
+<script>
         (function initializeSearchBridge() {
             const bindSearchBridge = () => {
                 if (window.__qlSearchBridgeBound) return;

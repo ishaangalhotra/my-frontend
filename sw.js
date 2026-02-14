@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v7'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v5'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v8'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v6'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v6'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v7'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v7...');
+  console.log('[SW] Installing v8...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -72,7 +72,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v7...');
+  console.log('[SW] Activating v8...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
@@ -214,16 +214,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Static Assets Strategy (Cache-First) - For CSS/JS assets
+  // 4. Static Assets Strategy (Stale-While-Revalidate)
+  // Serve cache immediately for speed, but always refresh in background.
   if (isStatic) {
     event.respondWith(
-      caches.match(request).then((response) => {
-        if (response) {
-          console.log('[SW] 📦 Serving static file from cache:', requestUrl.href);
-          return response;
-        }
-        // Fall back to network
-        return fetch(request);
+      caches.open(STATIC_CACHE_NAME).then((cache) => {
+        return cache.match(request).then((cachedResponse) => {
+          const networkFetch = fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.ok) {
+                cache.put(request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => null);
+
+          if (cachedResponse) {
+            event.waitUntil(networkFetch);
+            return cachedResponse;
+          }
+
+          return networkFetch.then((networkResponse) => {
+            if (networkResponse) {
+              return networkResponse;
+            }
+            return new Response('Offline', { status: 503, statusText: 'Offline' });
+          });
+        });
       })
     );
     return;
@@ -334,4 +351,4 @@ async function updateOrderStatusInBackground() {
   }
 }
 
-console.log('[SW] ✅ Service Worker v6 loaded with safe cache fixes');
+console.log('[SW] Service Worker v8 loaded with cache refresh fixes');

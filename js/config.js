@@ -63,7 +63,7 @@ const environments = {
     RETRY_ATTEMPTS: 3
   },
   staging: {
-    API_BASE_URL: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
+    API_BASE_URL: '/api/v1',
     SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
     DEBUG: false,
     MOCK_API: false,
@@ -71,7 +71,7 @@ const environments = {
     RETRY_ATTEMPTS: 3
   },
   production: {
-    API_BASE_URL: 'https://ecommerce-backend-mlik.onrender.com/api/v1',
+    API_BASE_URL: '/api/v1',
     SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
     DEBUG: false,
     MOCK_API: false,

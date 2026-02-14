@@ -60,7 +60,8 @@
   var isLocal = hostname === '' || hostname === 'localhost' || hostname === '127.0.0.1';
   var localOrigin = 'http://127.0.0.1:10000';
   var remoteOrigin = 'https://ecommerce-backend-mlik.onrender.com';
-  var backendOrigin = isLocal ? localOrigin : remoteOrigin;
+  var siteOrigin = window.location.origin || '';
+  var backendOrigin = isLocal ? localOrigin : (siteOrigin || remoteOrigin);
   var apiBase = backendOrigin + '/api/v1';
 
   var AUTH_READY_TIMEOUT_MS = 15000;
@@ -285,9 +286,9 @@
         window.quickLocalAuth = window.HybridAuthClient;
       }
 
-      if (isLocal) {
-        window.HybridAuthClient.backendUrl = backendOrigin;
-      }
+      // Always align HybridAuthClient with the selected backend origin
+      // (same-origin in production, localhost in local dev).
+      window.HybridAuthClient.backendUrl = backendOrigin;
 
       if (!window.HybridAuthClient.__quicklocalPatched && typeof window.HybridAuthClient.apiCall === 'function') {
         var originalApiCall = window.HybridAuthClient.apiCall.bind(window.HybridAuthClient);
@@ -413,7 +414,10 @@
   });
 
   loadScript(backendOrigin + '/hybrid-auth-client.js', function () {
-    if (isLocal) {
+    // Fallback chain:
+    // 1) Local dev: try hosted backend client, then local fallback.
+    // 2) Production same-origin proxy miss: try direct backend, then local fallback.
+    if (isLocal || backendOrigin !== remoteOrigin) {
       loadScript(remoteOrigin + '/hybrid-auth-client.js', loadLocalHybridFallback, { expectHybridClient: true });
     } else {
       loadLocalHybridFallback();
