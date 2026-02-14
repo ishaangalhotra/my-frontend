@@ -60,6 +60,8 @@ class EnhancedProductInteractions {
         // Search interactions
         const searchInputs = document.querySelectorAll('.search-input, .enhanced-search-input');
         searchInputs.forEach(input => {
+            if (input.dataset.qlEnhancedBound === '1') return;
+            input.dataset.qlEnhancedBound = '1';
             input.addEventListener('input', (e) => this.handleSearchInput(e));
             input.addEventListener('focus', (e) => this.showSearchSuggestions(e));
             input.addEventListener('blur', (e) => {
@@ -453,10 +455,37 @@ class EnhancedProductInteractions {
     // ENHANCED SEARCH
     // ================================
 
+    isAdvancedSearchManagedInput(input) {
+        if (!input) return false;
+        if (input.id === 'globalSearchInput') return true;
+        if (input.closest('.advanced-search-wrapper')) return true;
+        return false;
+    }
+
+    findSuggestionsContainerForInput(input) {
+        if (!input) return null;
+
+        const owner = input.closest('.search-container, .enhanced-search-container, .advanced-search-wrapper') || input.parentElement;
+        if (owner) {
+            const dropdownSuggestions = owner.querySelector('.autocomplete-dropdown .search-suggestions');
+            if (dropdownSuggestions) return dropdownSuggestions;
+
+            const directSuggestions = owner.querySelector('.search-suggestions');
+            if (directSuggestions) return directSuggestions;
+        }
+
+        return document.querySelector('.autocomplete-dropdown .search-suggestions') || document.querySelector('.search-suggestions');
+    }
+
     setupSearchEnhancements() {
         // Create suggestions container if it doesn't exist
         const searchContainers = document.querySelectorAll('.search-container, .enhanced-search-container');
         searchContainers.forEach(container => {
+            // Marketplace advanced-search.js owns this structure. Do not inject a second system.
+            if (container.querySelector('.advanced-search-wrapper') || container.querySelector('.autocomplete-dropdown')) {
+                return;
+            }
+
             if (!container.querySelector('.search-suggestions')) {
                 container.insertAdjacentHTML('beforeend', `
                     <div class="search-suggestions" id="searchSuggestions-${container.id || 'default'}">
@@ -479,8 +508,15 @@ class EnhancedProductInteractions {
     }
 
     handleSearchInput(e) {
+        if (this.isAdvancedSearchManagedInput(e.target)) {
+            return;
+        }
+
         const query = e.target.value.trim();
-        const suggestionsContainer = e.target.parentNode.querySelector('.search-suggestions');
+        const suggestionsContainer = this.findSuggestionsContainerForInput(e.target);
+        if (!suggestionsContainer) {
+            return;
+        }
         
         if (query.length < 2) {
             this.showDefaultSuggestions(suggestionsContainer);
@@ -495,7 +531,11 @@ class EnhancedProductInteractions {
     }
 
     showSearchSuggestions(e) {
-        const suggestionsContainer = e.target.parentNode.querySelector('.search-suggestions');
+        if (this.isAdvancedSearchManagedInput(e.target)) {
+            return;
+        }
+
+        const suggestionsContainer = this.findSuggestionsContainerForInput(e.target);
         if (suggestionsContainer) {
             suggestionsContainer.classList.add('active');
             this.showDefaultSuggestions(suggestionsContainer);
@@ -503,48 +543,62 @@ class EnhancedProductInteractions {
     }
 
     hideSearchSuggestions(e) {
-        const suggestionsContainer = e.target.parentNode.querySelector('.search-suggestions');
+        if (this.isAdvancedSearchManagedInput(e.target)) {
+            return;
+        }
+
+        const suggestionsContainer = this.findSuggestionsContainerForInput(e.target);
         if (suggestionsContainer) {
             suggestionsContainer.classList.remove('active');
         }
     }
 
     showDefaultSuggestions(container) {
+        if (!container) return;
+
         const recentSearches = container.querySelector('.recent-searches');
         const popularSuggestions = container.querySelector('.popular-suggestions');
         const categorySuggestions = container.querySelector('.category-suggestions');
 
         // Recent searches
-        recentSearches.innerHTML = this.searchHistory.slice(0, 5).map(term => `
-            <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${term}')">
-                <i class="fas fa-clock suggestion-icon"></i>
-                <span>${term}</span>
-            </div>
-        `).join('') || '<div class="suggestion-item disabled">No recent searches</div>';
+        if (recentSearches) {
+            recentSearches.innerHTML = this.searchHistory.slice(0, 5).map(term => `
+                <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${term}')">
+                    <i class="fas fa-clock suggestion-icon"></i>
+                    <span>${term}</span>
+                </div>
+            `).join('') || '<div class="suggestion-item disabled">No recent searches</div>';
+        }
 
         // Popular products (mock data)
         const popularItems = [
             'Wireless Headphones', 'Smart Watch', 'Running Shoes', 
             'Coffee Maker', 'Bluetooth Speaker'
         ];
-        popularSuggestions.innerHTML = popularItems.map(item => `
-            <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${item}')">
-                <i class="fas fa-fire suggestion-icon"></i>
-                <span>${item}</span>
-            </div>
-        `).join('');
+        if (popularSuggestions) {
+            popularSuggestions.innerHTML = popularItems.map(item => `
+                <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${item}')">
+                    <i class="fas fa-fire suggestion-icon"></i>
+                    <span>${item}</span>
+                </div>
+            `).join('');
+        }
 
         // Categories
         const categories = ['Electronics', 'Fashion', 'Home & Garden', 'Sports', 'Books'];
-        categorySuggestions.innerHTML = categories.map(category => `
-            <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${category}')">
-                <i class="fas fa-folder suggestion-icon"></i>
-                <span>${category}</span>
-            </div>
-        `).join('');
+        if (categorySuggestions) {
+            categorySuggestions.innerHTML = categories.map(category => `
+                <div class="suggestion-item" onclick="enhancedInteractions.selectSuggestion('${category}')">
+                    <i class="fas fa-folder suggestion-icon"></i>
+                    <span>${category}</span>
+                </div>
+            `).join('');
+        }
     }
 
     generateSearchSuggestions(query, container) {
+        if (!container) return;
+
         // This would typically make an API call to get suggestions
         // For now, we'll generate mock suggestions
         const mockSuggestions = this.getMockSuggestions(query);
@@ -644,6 +698,9 @@ class EnhancedProductInteractions {
 
         // Enter key in search
         if (e.key === 'Enter' && e.target.matches('.search-input, .enhanced-search-input')) {
+            if (this.isAdvancedSearchManagedInput(e.target)) {
+                return;
+            }
             e.preventDefault();
             this.performSearch(e.target.value);
         }
@@ -657,7 +714,10 @@ class EnhancedProductInteractions {
         
         // Navigate to search results or trigger search function
         if (window.applyAllFilters) {
-            document.getElementById('search-input').value = query;
+            const primaryInput = document.getElementById('globalSearchInput') || document.getElementById('search-input');
+            if (primaryInput) {
+                primaryInput.value = query;
+            }
             window.applyAllFilters();
         }
     }
