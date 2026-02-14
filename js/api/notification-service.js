@@ -1,7 +1,7 @@
 // Notification Service for QuickLocal Frontend
 class NotificationService {
   constructor() {
-    this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.baseURL = window.API_CONFIG?.full || '/api/v1';
     // FIXED: Removed all internal token management (this.token, loadToken)
   }
 

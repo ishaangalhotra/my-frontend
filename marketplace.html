@@ -1760,10 +1760,57 @@
         display: none !important;
     }
     .autocomplete-dropdown {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+        z-index: 1200;
+        max-height: 420px;
+        overflow-y: auto;
         display: block;
+    }
+    .autocomplete-dropdown.hidden {
+        display: none !important;
     }
     .autocomplete-dropdown .search-suggestions {
         display: block !important;
+    }
+    .autocomplete-dropdown .suggestion-section {
+        padding: 0.8rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .autocomplete-dropdown .suggestion-section:last-child {
+        border-bottom: none;
+    }
+    .suggestion-content {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+        flex: 1;
+    }
+    .suggestion-meta {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    .suggestion-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .suggestion-category {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        background: var(--bg-primary);
     }
     .search-input {
         color: var(--text-primary) !important;
@@ -1817,7 +1864,7 @@
     <header class="header" id="header">
         <div class="nav-container">
             <nav class="nav">
-                <a href="#" class="logo">
+                <a href="index.html" class="logo">
                     <i class="fas fa-rocket"></i> QuickLocal
                 </a>
                 <div class="search-container">
@@ -1947,13 +1994,13 @@
                     </button>
                 </div>
                 <ul class="nav-links">
-                    <li><a href="#" class="nav-link active"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="index.html" class="nav-link active"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="#products" class="nav-link"><i class="fas fa-box"></i> Products</a></li>
                     <li><a href="my-orders.html" class="nav-link"><i class="fas fa-list-alt"></i> Orders</a></li>
-                    <li><a href="#" class="nav-link"><i class="fas fa-tags"></i> Deals</a></li>
+                    <li><a href="#trending-products" class="nav-link"><i class="fas fa-tags"></i> Deals</a></li>
                 </ul>
                 <div class="user-actions">
-                    <a href="#" class="action-btn btn-secondary" data-auth-required="true"><i class="fas fa-heart"></i> Wishlist</a>
+                    <a href="profile.html" class="action-btn btn-secondary" data-auth-required="true"><i class="fas fa-heart"></i> Wishlist</a>
                     <a href="notification-preferences.html" class="action-btn btn-secondary" title="Manage notifications">
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
@@ -2145,26 +2192,26 @@
                     <ul class="footer-links">
                         <li><a href="#products">All Products</a></li>
                         <li><a href="#trending-products">Trending</a></li>
-                        <li><a href="#">Categories</a></li>
-                        <li><a href="#">Deals & Offers</a></li>
+                        <li><a href="#products">Categories</a></li>
+                        <li><a href="#trending-products">Deals & Offers</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h3>Account</h3>
                     <ul class="footer-links">
                         <li><a href="login.html" id="login-btn">Login</a></li>
-                        <li><a href="#">Register</a></li>
-                        <li><a href="#">My Orders</a></li>
-                        <li><a href="#">Wishlist</a></li>
+                        <li><a href="register.html">Register</a></li>
+                        <li><a href="my-orders.html">My Orders</a></li>
+                        <li><a href="profile.html">Wishlist</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h3>Support</h3>
                     <ul class="footer-links">
-                        <li><a href="#">Help Center</a></li>
-                        <li><a href="#">Contact Us</a></li>
-                        <li><a href="#">Return Policy</a></li>
-                        <li><a href="#">Shipping Info</a></li>
+                        <li><a href="help.html">Help Center</a></li>
+                        <li><a href="contact.html">Contact Us</a></li>
+                        <li><a href="returns.html">Return Policy</a></li>
+                        <li><a href="track.html">Shipping Info</a></li>
                     </ul>
                 </div>
             </div>
@@ -2194,7 +2241,7 @@
     
     <script>
         window.APP_CONFIG = {
-            API_BASE_URL: window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1',
+            API_BASE_URL: window.QUICKLOCAL_API_BASE || '/api/v1',
             SUPABASE_URL: 'https://pmvhsjezhuokwygvhhqk.supabase.co',
             SUPABASE_ANON_KEY: window.QUICKLOCAL_SUPABASE_ANON_KEY || '',
             TOKEN_STORAGE_KEY: '',
@@ -2632,7 +2679,7 @@
             if (footerLoginBtn) {
                 if (isLoggedIn && user) {
                     footerLoginBtn.textContent = 'My Account';
-                    footerLoginBtn.href = '#';
+                    footerLoginBtn.href = 'profile.html';
                     footerLoginBtn.onclick = (e) => {
                         e.preventDefault();
                         showUserMenu();
@@ -2662,7 +2709,7 @@
                     <a href="my-orders.html" data-menu-action="orders"><i class="fas fa-box"></i> My Orders</a>
                     <a href="cart.html" data-menu-action="cart"><i class="fas fa-shopping-cart"></i> My Cart</a>
                     <div class="user-menu-divider"></div>
-                    <a href="#" data-menu-action="logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="javascript:void(0)" data-menu-action="logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             `;
             

@@ -334,7 +334,7 @@ self.addEventListener('periodicsync', (event) => {
 // Update order status in background
 async function updateOrderStatusInBackground() {
   try {
-    const response = await fetch('https://ecommerce-backend-mlik.onrender.com/api/v1/orders/active-status');
+    const response = await fetch('/api/v1/orders/active-status');
     const orders = await response.json();
 
     const clients = await self.clients.matchAll();

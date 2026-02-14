@@ -180,7 +180,7 @@ async function resolveSellerId() {
   } catch (_) {}
 
   try {
-    const base = window.QUICKLOCAL_API_BASE || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    const base = window.QUICKLOCAL_API_BASE || '/api/v1';
     const response = await fetch(`${base}/auth/me`, {
       method: 'GET',
       credentials: 'include',

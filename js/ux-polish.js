@@ -214,19 +214,34 @@ class UXPolish {
   }
 
   preloadCriticalResources() {
-    // Preload fonts
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'preload';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap';
-    fontLink.as = 'style';
-    document.head.appendChild(fontLink);
+    // Preconnect only; avoid unused preload warnings.
+    if (!document.querySelector('link[data-ql-font-preconnect]')) {
+      const fontApiPreconnect = document.createElement('link');
+      fontApiPreconnect.rel = 'preconnect';
+      fontApiPreconnect.href = 'https://fonts.googleapis.com';
+      fontApiPreconnect.setAttribute('data-ql-font-preconnect', '1');
+      document.head.appendChild(fontApiPreconnect);
+    }
+
+    if (!document.querySelector('link[data-ql-fonts-static-preconnect]')) {
+      const fontStaticPreconnect = document.createElement('link');
+      fontStaticPreconnect.rel = 'preconnect';
+      fontStaticPreconnect.href = 'https://fonts.gstatic.com';
+      fontStaticPreconnect.crossOrigin = 'anonymous';
+      fontStaticPreconnect.setAttribute('data-ql-fonts-static-preconnect', '1');
+      document.head.appendChild(fontStaticPreconnect);
+    }
 
     // Preconnect to API
-    const apiPreconnect = document.createElement('link');
-    apiPreconnect.rel = 'preconnect';
-    apiPreconnect.href = window.APP_CONFIG?.API_BASE_URL?.replace('/api/v1', '') || 
-                        'https://ecommerce-backend-mlik.onrender.com';
-    document.head.appendChild(apiPreconnect);
+    if (!document.querySelector('link[data-ql-api-preconnect]')) {
+      const apiPreconnect = document.createElement('link');
+      apiPreconnect.rel = 'preconnect';
+      apiPreconnect.href = window.APP_CONFIG?.API_BASE_URL?.replace('/api/v1', '') ||
+                          window.QUICKLOCAL_BACKEND_ORIGIN ||
+                          window.location.origin;
+      apiPreconnect.setAttribute('data-ql-api-preconnect', '1');
+      document.head.appendChild(apiPreconnect);
+    }
   }
 
   // ==================== SCROLL ANIMATIONS ====================

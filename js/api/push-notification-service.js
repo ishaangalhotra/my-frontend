@@ -1,7 +1,7 @@
 // Advanced Push Notification Service for QuickLocal
 class PushNotificationService {
   constructor() {
-    this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.baseURL = window.API_CONFIG?.full || '/api/v1';
     this.serviceWorkerRegistration = null;
     this.pushSubscription = null;
     this.isSupported = this.checkPushSupport();

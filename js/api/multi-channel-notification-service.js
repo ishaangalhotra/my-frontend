@@ -1,7 +1,7 @@
 // Multi-channel Notification Service for QuickLocal
 class MultiChannelNotificationService {
   constructor() {
-    this.baseURL = window.API_CONFIG?.full || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.baseURL = window.API_CONFIG?.full || '/api/v1';
     this.emailTemplates = new Map();
     this.smsTemplates = new Map();
     // FIXED: Removed all internal token management (this.token, loadToken)

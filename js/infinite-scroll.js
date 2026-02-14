@@ -118,7 +118,7 @@ class InfiniteScroll {
 
     try {
         // 1. Construct URL based on GLOBAL FILTERS
-        const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+        const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || '/api/v1';
         let queryParams = new URLSearchParams();
         
         // Add Pagination

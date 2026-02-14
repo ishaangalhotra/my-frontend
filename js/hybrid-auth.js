@@ -1,7 +1,12 @@
 (function () {
   'use strict';
 
-  var DEFAULT_BACKEND = 'https://ecommerce-backend-mlik.onrender.com';
+  var DEFAULT_BACKEND = (function () {
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+      return window.location.origin;
+    }
+    return 'https://ecommerce-backend-mlik.onrender.com';
+  })();
 
   function normalizeBackendUrl(url) {
     return (url || DEFAULT_BACKEND).replace(/\/$/, '');

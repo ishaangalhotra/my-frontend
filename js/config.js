@@ -64,7 +64,7 @@ const environments = {
   },
   staging: {
     API_BASE_URL: '/api/v1',
-    SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
+    SOCKET_URL: '',
     DEBUG: false,
     MOCK_API: false,
     API_TIMEOUT: 20000,
@@ -72,7 +72,7 @@ const environments = {
   },
   production: {
     API_BASE_URL: '/api/v1',
-    SOCKET_URL: 'https://ecommerce-backend-mlik.onrender.com',
+    SOCKET_URL: '',
     DEBUG: false,
     MOCK_API: false,
     API_TIMEOUT: 15000,
@@ -394,6 +394,11 @@ export const useEnvironment = () => ({
 
 // Global browser exports
 if (typeof window !== 'undefined') {
+  const runtimeOrigin = window.QUICKLOCAL_BACKEND_ORIGIN || window.location.origin;
+  if (!config.IS_DEVELOPMENT && runtimeOrigin) {
+    config.SOCKET_URL = runtimeOrigin;
+  }
+
   window.APP_CONFIG = config;
   window.CONFIG_MANAGER = configManager;
   

@@ -324,7 +324,7 @@ class AdvancedSearchSystem {
 
   async getAutocompleteSuggestions(query) {
     try {
-      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || '/api/v1';
       const locale = String(navigator.language || 'en').toLowerCase();
       const endpoints = [
         `${apiBaseUrl}/products/suggestions/autocomplete?q=${encodeURIComponent(query)}&limit=8&locale=${encodeURIComponent(locale)}`,
@@ -532,7 +532,7 @@ class AdvancedSearchSystem {
 
   async searchProducts(query) {
     try {
-      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || window.appState?.apiBaseUrl || '/api/v1';
       
       // Build search parameters
       const searchParams = new URLSearchParams();

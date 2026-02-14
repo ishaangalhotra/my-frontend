@@ -5,7 +5,7 @@
 
 class MarketplaceIntegration {
   constructor() {
-    this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+    this.apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || '/api/v1';
     this.userId = this.getUserId();
     
     // Debounce helper

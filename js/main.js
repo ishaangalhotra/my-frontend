@@ -4,7 +4,7 @@ import { CartManager } from './managers/cart-manager';
 import { showToast } from './utils/ui-helpers';
 
 // Configuration
-const API_BASE_URL = 'https://ecommerce-backend-mlik.onrender.com/api/v1';
+const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || window.QUICKLOCAL_API_BASE || '/api/v1';
 const DEFAULT_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 
 let orderListInstance = null;

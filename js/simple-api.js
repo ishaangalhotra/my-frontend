@@ -10,7 +10,7 @@
  * Configuration precedence:
  *   1) process.env.NEXT_PUBLIC_API_BASE (Vercel / bundlers)
  *   2) window.APP_CONFIG.API.BASE_URL (runtime override)
- *   3) 'https://ecommerce-backend-mlik.onrender.com' (production default)
+ *   3) '/api/v1' (same-origin production default)
  *
  * Usage:
  *   import api from "./simple-api.js";
@@ -29,8 +29,8 @@ const resolveBaseUrl = () => {
   const winBase = (typeof window !== "undefined" &&
     window.APP_CONFIG?.API?.BASE_URL) || null;
   
-  // Updated default to use your production backend
-  return envBase || winBase || "https://ecommerce-backend-mlik.onrender.com";
+  // Same-origin by default so cookie auth stays first-party.
+  return envBase || winBase || "/api/v1";
 };
 
 const getConfig = () => {
