@@ -804,9 +804,13 @@ class AdvancedSearchSystem {
 
   showAutocomplete(showDefaults = false) {
     const dropdown = document.querySelector('.autocomplete-dropdown');
-    if (!dropdown) return;
+    if (!dropdown) {
+      console.warn('⚠️ AdvancedSearch: autocomplete dropdown not found');
+      return;
+    }
     dropdown.classList.remove('hidden');
     dropdown.style.display = 'block';
+    dropdown.style.opacity = '1';
     dropdown.style.visibility = 'visible';
     dropdown.style.pointerEvents = 'auto';
     if (this.searchInput) this.searchInput.setAttribute('aria-expanded', 'true');
@@ -817,7 +821,8 @@ class AdvancedSearchSystem {
     const dropdown = document.querySelector('.autocomplete-dropdown');
     if (dropdown) {
       dropdown.classList.add('hidden');
-      dropdown.style.display = 'none';
+      dropdown.style.display = 'block';
+      dropdown.style.opacity = '0';
       dropdown.style.visibility = 'hidden';
       dropdown.style.pointerEvents = 'none';
     }

@@ -1,8 +1,8 @@
 // Service Worker for QuickLocal Push Notifications
-const CACHE_NAME = 'quicklocal-v8'; // BUMPED VERSION
-const API_CACHE_NAME = 'quicklocal-api-v6'; // BUMPED VERSION
+const CACHE_NAME = 'quicklocal-v9'; // BUMPED VERSION
+const API_CACHE_NAME = 'quicklocal-api-v7'; // BUMPED VERSION
 const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
-const STATIC_CACHE_NAME = 'quicklocal-static-v7'; // BUMPED VERSION
+const STATIC_CACHE_NAME = 'quicklocal-static-v8'; // BUMPED VERSION
 
 // URLs to cache on install
 const STATIC_URLS_TO_CACHE = [
