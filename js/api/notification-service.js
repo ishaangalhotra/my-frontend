@@ -7,6 +7,9 @@ class NotificationService {
     this.badgeInterval = null;
     this.socketSupportChecked = false;
     this.socketSupported = false;
+    this.realtimeEnabled =
+      window.APP_CONFIG?.REALTIME_NOTIFICATIONS_ENABLED === true ||
+      window.API_CONFIG?.REALTIME_NOTIFICATIONS_ENABLED === true;
   }
 
   // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
@@ -154,6 +157,11 @@ class NotificationService {
 
   // Subscribe to real-time notifications
   async subscribeToNotifications(callback) {
+    if (!this.realtimeEnabled) {
+      console.info('[NotificationService] Real-time notifications disabled by config');
+      return null;
+    }
+
     if (typeof io === 'undefined') {
       console.warn('Socket.IO not available for real-time notifications');
       return null;
