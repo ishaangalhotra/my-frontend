@@ -5,6 +5,8 @@ class NotificationService {
     // FIXED: Removed all internal token management (this.token, loadToken)
     this.initialized = false;
     this.badgeInterval = null;
+    this.socketSupportChecked = false;
+    this.socketSupported = false;
   }
 
   // FIXED: Replaced entire makeRequest with HybridAuthClient.apiCall
@@ -107,10 +109,60 @@ class NotificationService {
     }
   }
 
+  resolveSocketBaseURL() {
+    const candidates = [
+      window.APP_CONFIG?.SOCKET_URL,
+      window.API_CONFIG?.SOCKET_URL,
+      this.baseURL?.replace('/api/v1', ''),
+      window.location?.origin
+    ].filter(Boolean);
+
+    return String(candidates[0] || '').replace(/\/+$/, '');
+  }
+
+  async checkSocketSupport(socketBaseURL) {
+    if (this.socketSupportChecked) {
+      return this.socketSupported;
+    }
+
+    this.socketSupportChecked = true;
+    this.socketSupported = false;
+
+    const probeUrl = `${socketBaseURL}/socket.io/?EIO=4&transport=polling`;
+
+    try {
+      const response = await fetch(probeUrl, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      // 404 means Socket.IO endpoint is not mounted on this host.
+      if (response.status === 404) {
+        this.socketSupported = false;
+        return false;
+      }
+
+      // Any non-404 response means route exists (auth/handshake may still fail later).
+      this.socketSupported = true;
+      return true;
+    } catch (_error) {
+      this.socketSupported = false;
+      return false;
+    }
+  }
+
   // Subscribe to real-time notifications
-  subscribeToNotifications(callback) {
+  async subscribeToNotifications(callback) {
     if (typeof io === 'undefined') {
       console.warn('Socket.IO not available for real-time notifications');
+      return null;
+    }
+
+    const socketBaseURL = this.resolveSocketBaseURL();
+    const socketRouteAvailable = await this.checkSocketSupport(socketBaseURL);
+    if (!socketRouteAvailable) {
+      console.info('[NotificationService] Real-time disabled: /socket.io endpoint not available on current host');
       return null;
     }
 
@@ -132,7 +184,7 @@ class NotificationService {
       socketOptions.auth = { token };
     }
 
-    const socket = io(this.baseURL.replace('/api/v1', ''), socketOptions);
+    const socket = io(socketBaseURL, socketOptions);
     
     socket.on('notification', (notification) => {
       callback(notification);
@@ -153,6 +205,10 @@ class NotificationService {
       } else {
         console.warn('[NotificationService] Socket polling unavailable:', error?.message || error);
       }
+
+      try {
+        socket.disconnect();
+      } catch (_disconnectError) {}
     });
 
     return socket;
@@ -300,7 +356,7 @@ class NotificationService {
       // Avoid browser permission prompt spam on initial page load.
       // Permission prompts should be triggered from explicit user action flows.
 
-      const socket = this.subscribeToNotifications((notification) => {
+      const socket = await this.subscribeToNotifications((notification) => {
         this.updateBadge(notification.unreadCount || 0);
         this.showToast(notification);
         this.showBrowserNotification(notification);
