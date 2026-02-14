@@ -25,7 +25,8 @@ class AdvancedSearchSystem {
       deliveryTime: 'all',
       brand: [],
       inStock: false,
-      discount: 0
+      discount: 0,
+      sort: 'relevance'
     };
     
     this.isVoiceSearchActive = false;
@@ -493,6 +494,9 @@ class AdvancedSearchSystem {
       console.log('Performing empty search...');
     }
 
+    // Sync sort choice from marketplace control before backend search.
+    this.filters.sort = document.getElementById('sort-select')?.value || this.filters.sort || 'relevance';
+
     this.addToSearchHistory(query);
     this.hideAutocomplete();
     
@@ -555,6 +559,28 @@ class AdvancedSearchSystem {
       if (this.filters.rating > 0) {
         searchParams.append('minRating', this.filters.rating);
       }
+      if (this.filters.brand && this.filters.brand.length > 0) {
+        searchParams.append('brand', this.filters.brand.join(','));
+      }
+      if (this.filters.deliveryTime && this.filters.deliveryTime !== 'all') {
+        searchParams.append('deliveryTime', this.filters.deliveryTime);
+      }
+      if (this.filters.discount) {
+        searchParams.append('onSale', 'true');
+      }
+
+      const sortMapping = {
+        relevance: { sortBy: 'relevance', sortOrder: 'desc' },
+        name: { sortBy: 'name', sortOrder: 'asc' },
+        'price-low': { sortBy: 'price', sortOrder: 'asc' },
+        'price-high': { sortBy: 'price', sortOrder: 'desc' },
+        rating: { sortBy: 'rating', sortOrder: 'desc' },
+        newest: { sortBy: 'createdAt', sortOrder: 'desc' },
+        discount: { sortBy: 'discount', sortOrder: 'desc' }
+      };
+      const sortConfig = sortMapping[this.filters.sort] || sortMapping.relevance;
+      searchParams.append('sortBy', sortConfig.sortBy);
+      searchParams.append('sortOrder', sortConfig.sortOrder);
       
       // Add pagination
       searchParams.append('page', '1'); // Always fetch page 1 for a new search
@@ -574,22 +600,41 @@ class AdvancedSearchSystem {
       }
       
       const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Search failed');
+      const payload = (data && typeof data === 'object' && data.data !== undefined) ? data.data : data;
+      const products = Array.isArray(payload?.products)
+        ? payload.products
+        : Array.isArray(data?.products)
+          ? data.products
+          : [];
+      const pagination = payload?.pagination || data?.pagination || {};
+
+      if (data?.success === false) {
+        throw new Error(data?.message || 'Search failed');
       }
       
-      console.log('✅ AdvancedSearch: Results received:', data.data);
-      const intelligence = data.data?.searchIntelligence || {};
+      console.log('✅ AdvancedSearch: Results received:', payload);
+      const intelligence = payload?.searchIntelligence || data?.searchIntelligence || {};
       const resultSetId =
         intelligence.resultSetId || `sr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
       
       // Transform the results to the format expected by the 'searchResults' event
       return {
-        products: data.data.products || [],
-        total: data.data.pagination?.totalProducts || 0,
-        totalPages: data.data.pagination?.totalPages || 1,
-        currentPage: data.data.pagination?.currentPage || 1,
+        products,
+        total: Number.isFinite(pagination.totalProducts)
+          ? pagination.totalProducts
+          : Number.isFinite(pagination.total)
+            ? pagination.total
+            : Number.isFinite(payload?.totalProducts)
+              ? payload.totalProducts
+              : Number.isFinite(payload?.total)
+                ? payload.total
+                : Number.isFinite(data?.total)
+                  ? data.total
+                  : products.length,
+        totalPages: Number.isFinite(pagination.totalPages)
+          ? pagination.totalPages
+          : Math.max(1, Math.ceil((Number.isFinite(pagination.totalProducts) ? pagination.totalProducts : products.length) / 50)),
+        currentPage: Number.isFinite(pagination.currentPage) ? pagination.currentPage : 1,
         filters: this.filters, // Pass back the filters that were used
         searchIntelligence: intelligence,
         resultSetId,
@@ -880,17 +925,29 @@ class AdvancedSearchSystem {
 
     // Price range
     this.filters.priceRange = {
-      min: parseInt(document.querySelector('.price-min').value) || 0,
-      max: parseInt(document.querySelector('.price-max').value) || 10000
+      min: parseInt(document.querySelector('.price-min')?.value, 10) || 0,
+      max: parseInt(document.querySelector('.price-max')?.value, 10) || 10000
     };
 
     // Rating filter
     const ratingInput = document.querySelector('input[name="rating"]:checked');
-    this.filters.rating = ratingInput ? parseInt(ratingInput.value) : 0;
+    this.filters.rating = ratingInput ? parseInt(ratingInput.value, 10) : 0;
+
+    // Delivery filter
+    const deliveryInput = document.querySelector('input[name="delivery"]:checked');
+    this.filters.deliveryTime = deliveryInput?.value || 'all';
+
+    // Brand filter
+    this.filters.brand = Array.from(document.querySelectorAll('.brand-filters input:checked'))
+      .map(input => input.value)
+      .filter(Boolean);
 
     // Availability filters
     this.filters.inStock = document.querySelector('.in-stock-filter')?.checked || false;
     this.filters.discount = document.querySelector('.discount-filter')?.checked || false;
+
+    // Sort preference from primary marketplace sort control.
+    this.filters.sort = document.getElementById('sort-select')?.value || this.filters.sort || 'relevance';
     
     console.log('New filters collected:', this.filters);
   }
@@ -904,7 +961,8 @@ class AdvancedSearchSystem {
       deliveryTime: 'all',
       brand: [],
       inStock: false,
-      discount: 0
+      discount: 0,
+      sort: 'relevance'
     };
 
     // Reset form elements
@@ -923,6 +981,8 @@ class AdvancedSearchSystem {
     if(priceMax) priceMax.value = 10000;
     if(rangeMin) rangeMin.value = 0;
     if(rangeMax) rangeMax.value = 10000;
+    const globalSort = document.getElementById('sort-select');
+    if (globalSort) globalSort.value = 'name';
 
     // Refresh search results (perform an empty search with no filters)
     this.performSearch(this.searchInput.value);
