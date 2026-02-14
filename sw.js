@@ -1,7 +1,7 @@
 // Service Worker for QuickLocal Push Notifications
 const CACHE_NAME = 'quicklocal-v9'; // BUMPED VERSION
 const API_CACHE_NAME = 'quicklocal-api-v7'; // BUMPED VERSION
-const IMAGE_CACHE_NAME = 'quicklocal-images-v1';
+const IMAGE_CACHE_NAME = 'quicklocal-images-v2';
 const STATIC_CACHE_NAME = 'quicklocal-static-v8'; // BUMPED VERSION
 
 // URLs to cache on install
@@ -31,7 +31,7 @@ const STATIC_URLS_TO_CACHE = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v8...');
+  console.log('[SW] Installing v9...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
@@ -56,6 +56,11 @@ async function cleanupStaleAPICache() {
   const MAX_AGE = 2 * 60 * 1000; // 2 minutes for API calls
   
   for (const request of requests) {
+    if (!shouldCacheAPIResponse(request.url)) {
+      await cache.delete(request);
+      continue;
+    }
+
     const response = await cache.match(request);
     if (response) {
       const dateHeader = response.headers.get('date');
@@ -63,7 +68,7 @@ async function cleanupStaleAPICache() {
         const age = now - new Date(dateHeader).getTime();
         if (age > MAX_AGE) {
           await cache.delete(request);
-          console.log('[SW] ✅ Removed stale API cache:', request.url);
+          console.log('[SW] Removed stale API cache:', request.url);
         }
       }
     }
@@ -72,7 +77,7 @@ async function cleanupStaleAPICache() {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating v8...');
+  console.log('[SW] Activating v9...');
   const cacheWhitelist = [CACHE_NAME, API_CACHE_NAME, IMAGE_CACHE_NAME, STATIC_CACHE_NAME];
   
   event.waitUntil(
@@ -82,7 +87,7 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (!cacheWhitelist.includes(cacheName)) {
-              console.log('[SW] ✅ Deleting old cache:', cacheName);
+              console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -91,7 +96,7 @@ self.addEventListener('activate', (event) => {
       // Clean stale API cache
       cleanupStaleAPICache()
     ]).then(() => {
-      console.log('[SW] ✅ Cleanup complete');
+      console.log('[SW] Cleanup complete');
       return self.clients.claim();
     })
   );
@@ -106,6 +111,20 @@ function isAPIRequest(url) {
 function isStaticRequest(url) {
   const staticExtensions = ['.css', '.js', '.json', '.xml'];
   return staticExtensions.some(ext => url.includes(ext));
+}
+
+// Never cache auth-sensitive or highly-volatile endpoints.
+function shouldCacheAPIResponse(url) {
+  const noCacheEndpoints = [
+    '/auth/me',
+    '/auth/login',
+    '/auth/logout',
+    '/auth/register',
+    '/auth/refresh',
+    '/cart',
+    '/orders'
+  ];
+  return !noCacheEndpoints.some(endpoint => url.includes(endpoint));
 }
 
 // CRITICAL FIX: Enhanced fetch with proper cache control
@@ -155,35 +174,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. API Cache Strategy - Network First with short-lived cache
+  // 2. API Cache Strategy - Network first with selective caching
   if (isApi) {
     event.respondWith(
       caches.open(API_CACHE_NAME).then((cache) => {
-        // Always try network first for API calls
         return fetch(request)
           .then((networkResponse) => {
-            if (networkResponse.ok) {
-              // Clone and cache the response with timestamp
+            if (networkResponse.ok && shouldCacheAPIResponse(request.url)) {
               const responseToCache = networkResponse.clone();
               cache.put(request, responseToCache);
-              console.log('[SW] 🔄 Cached fresh API response:', requestUrl.pathname);
+              if (Math.random() < 0.1) {
+                console.log('[SW] Cached API response');
+              }
             }
             return networkResponse;
           })
           .catch(async (error) => {
-            console.warn('[SW] ⚠️ Network failed, trying cache:', requestUrl.pathname);
-            
-            // Only use cache as fallback when offline
+            console.warn('[SW] Network failed, trying cache:', requestUrl.pathname);
+
+            // Never serve stale auth/cart/order responses.
+            if (!shouldCacheAPIResponse(request.url)) {
+              throw error;
+            }
+
             const cachedResponse = await cache.match(request);
             if (cachedResponse) {
-              console.log('[SW] 📦 Serving stale API from cache (offline):', requestUrl.pathname);
-              
-              // Return a clone to avoid consuming cached response body stream.
               return cachedResponse.clone();
             }
-            
-            // No cache available
-            console.error('[SW] ❌ No cache available for:', requestUrl.pathname);
+
             throw error;
           });
       })
@@ -258,7 +276,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ✅ Messaging event for version control and cache management (FIXED)
+// Messaging event for version control and cache management (FIXED)
 self.addEventListener('message', (event) => {
   const data = event.data || {};
   const replyPort = event.ports && event.ports[0] ? event.ports[0] : null;
@@ -280,7 +298,7 @@ self.addEventListener('message', (event) => {
     }
   }
 
-  // Force cache clear command – work even without MessageChannel
+  // Force cache clear command - work even without MessageChannel
   if (data.type === 'CLEAR_API_CACHE') {
     const clearPromise = (async () => {
       const cache = await caches.open(API_CACHE_NAME);
@@ -288,7 +306,7 @@ self.addEventListener('message', (event) => {
       for (const request of requests) {
         await cache.delete(request);
       }
-      console.log('[SW] 🧹 API cache cleared via message');
+      console.log('[SW] API cache cleared via message');
     })();
 
     event.waitUntil(
@@ -306,7 +324,7 @@ self.addEventListener('message', (event) => {
     }
   }
 
-  // Offline data storage (disabled here – SW cannot use localStorage)
+  // Offline data storage (disabled here - SW cannot use localStorage)
   if (data.type === 'STORE_OFFLINE_DATA') {
     if (replyPort) {
       replyPort.postMessage({
@@ -351,4 +369,4 @@ async function updateOrderStatusInBackground() {
   }
 }
 
-console.log('[SW] Service Worker v8 loaded with cache refresh fixes');
+console.log('[SW] Service Worker v9 loaded');
